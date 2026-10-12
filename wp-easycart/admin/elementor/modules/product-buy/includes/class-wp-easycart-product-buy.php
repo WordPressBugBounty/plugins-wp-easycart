@@ -328,6 +328,7 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 					'kind'  => in_array( $rule['kind'], array( 'percent', 'amount' ), true ) ? $rule['kind'] : 'fixed',
 					'value' => (float) $rule['value'],
 					'floor' => isset( $rule['floor'] ) ? (float) $rule['floor'] : 0.0,
+					'stack' => empty( $rule['stack'] ) ? 0 : 1, // 6.0.4: offers the cart takes together ( WP EasyCart PRO 6.0.4 )
 				);
 			}
 			return $out;
@@ -335,7 +336,8 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 
 		/**
 		 * The price offer_rules() give $price, or false when none lowers it. The same sums as WP EasyCart PRO's
-		 * ec_offer_display ( and product-buy.js's offerPrice() ).
+		 * ec_offer_display ( and product-buy.js's offerPrice() ): the lowest rule, or, when every rule carries stack ( 6.0.4 ),
+		 * what they take off added up.
 		 *
 		 * @since 6.0.2
 		 *
@@ -346,9 +348,11 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 		public static function apply_offer_rules( $rules, $price ) {
 			$price = (float) $price;
 			$best  = false;
-			if ( $price <= 0 || ! is_array( $rules ) ) {
+			if ( $price <= 0 || ! is_array( $rules ) || 0 === count( $rules ) ) {
 				return false;
 			}
+			$stack = count( $rules ) > 1;
+			$taken = 0.0;
 			foreach ( $rules as $rule ) {
 				$value = isset( $rule['value'] ) ? (float) $rule['value'] : 0.0;
 				$kind  = isset( $rule['kind'] ) ? $rule['kind'] : 'percent';
@@ -366,6 +370,13 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 				if ( false === $best || $preview < $best ) {
 					$best = $preview;
 				}
+				$taken += $price - $preview;
+				if ( empty( $rule['stack'] ) ) {
+					$stack = false;
+				}
+			}
+			if ( $stack ) {
+				$best = max( 0, $price - $taken );
 			}
 			return ( false !== $best && $best < $price ) ? (float) $best : false;
 		}

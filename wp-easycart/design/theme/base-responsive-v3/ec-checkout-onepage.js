@@ -249,6 +249,22 @@ function wpeasycart_onepage_ready_to_pay( skip_page_checks ) {
 	return ready.promise();
 }
 
+/*
+ * 6.0.4 ( #290 ): what a payment form must do in the Place order click itself, before the saves and the store's check: Safari
+ * opens Apple Pay's sheet only while the click counts, so Stripe's Payment Element calls elements.submit() here and confirms
+ * once the checks are done ( its submit listener ). Before, the sheet was asked for after them and never opened. Payment scripts
+ * register by name in window.wpeasycart_checkout_presubmit ( a redrawn section replaces its own ); each runs once per click.
+ */
+function wpeasycart_onepage_presubmit() {
+	jQuery.each( window.wpeasycart_checkout_presubmit || {}, function( name, run ) {
+		if ( 'function' === typeof run ) {
+			try {
+				run();
+			} catch ( e ) {}
+		}
+	} );
+}
+
 function wpeasycart_onepage_place_order() {
 	/* Busy until the buttons come back ( a problem was shown, by this script or a payment script ) or the page moves on:
 	   another click or Enter while the order is on its way does nothing. */
@@ -259,6 +275,8 @@ function wpeasycart_onepage_place_order() {
 		wpeasycart_onepage_restore_buttons(); /* an older ec-store.js may have hidden Place order already */
 		return;
 	}
+	/* 6.0.4 ( #290 ): before anything waits or the checkout is locked. */
+	wpeasycart_onepage_presubmit();
 	wpeasycart_onepage_place.busy = true;
 	jQuery( document.getElementById( 'ec_cart_submit_order' ) ).hide();
 	jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).show();

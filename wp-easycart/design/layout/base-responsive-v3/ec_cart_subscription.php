@@ -825,6 +825,7 @@ function ec_admin_save_cart_options() {
 			</div>
 
 			<?php if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' && get_option( 'ec_option_stripe_public_api_key' ) != "" ) || ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) { ?>
+				<?php if ( class_exists( 'wp_easycart_stripe_mode' ) ) { wp_easycart_stripe_mode::print_notice(); } /* 6.0.4: Stripe test mode for this customer's account, or for the whole store */ ?>
 				<div class="form-row" style="margin-top:12px;float:left;width:100%;">
 					<div id="ec_stripe_card_row">
 					  <!-- a Stripe Element will be inserted here. -->

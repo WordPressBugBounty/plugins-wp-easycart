@@ -68,6 +68,7 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_undo.php' ); /* 6.0
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_orders.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_packages.php' ); /* 6.0.2: Settings › Shipping › Boxes and the order screen's Packages */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_order_screen.php' ); /* 6.0.2: the order screen's helpers and actions */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_withdrawals.php' ); /* 6.0.4: the EU withdrawal button's settings, order notice, orders list tile and product switch */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payments.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_preloader.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_products.php' );

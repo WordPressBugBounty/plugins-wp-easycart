@@ -141,6 +141,10 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 					'plan-table-label'   => __( 'Plan group', 'wp-easycart' ),
 					'plan-table-choose'  => __( 'Choose a plan group', 'wp-easycart' ),
 					'plan-table-none'    => __( 'Make a plan group in Products › Subscription plans ( WP EasyCart PRO ) first.', 'wp-easycart' ),
+					/* 6.0.4: the EU withdrawal page, its button and the guest order lookup. */
+					'withdrawal'         => __( 'Withdrawal page ( EU )', 'wp-easycart' ),
+					'withdrawal-button'  => __( 'Withdrawal button ( EU )', 'wp-easycart' ),
+					'order-lookup'       => __( 'Find your order ( guests )', 'wp-easycart' ),
 					'product-id' => __( 'Product ID', 'wp-easycart' ),
 					'model-number' => __( 'Model Number', 'wp-easycart' ),
 					'title' => __( 'Title', 'wp-easycart' ),
@@ -313,7 +317,7 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 		 */
 		private function get_products_cdata() {
 			global $wpdb;
-			return $wpdb->get_results( 'SELECT product_id AS value, ec_product.`title` AS label FROM ec_product ORDER BY ec_product.`title` ASC LIMIT 2000' );
+			return $wpdb->get_results( 'SELECT product_id AS value, ec_product.`title` AS label FROM ec_product WHERE 1 = 1' . ( function_exists( 'wp_easycart_product_draft_sql' ) ? wp_easycart_product_draft_sql( 'ec_product' ) : '' ) . ' ORDER BY ec_product.`title` ASC LIMIT 2000' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- a fixed SQL fragment.
 		}
 
 		/**
@@ -332,7 +336,7 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 		 */
 		private function get_products_model_cdata() {
 			global $wpdb;
-			return $wpdb->get_results( 'SELECT model_number AS value, ec_product.`title` AS label FROM ec_product ORDER BY ec_product.`title` ASC LIMIT 2000' );
+			return $wpdb->get_results( 'SELECT model_number AS value, ec_product.`title` AS label FROM ec_product WHERE 1 = 1' . ( function_exists( 'wp_easycart_product_draft_sql' ) ? wp_easycart_product_draft_sql( 'ec_product' ) : '' ) . ' ORDER BY ec_product.`title` ASC LIMIT 2000' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- a fixed SQL fragment.
 		}
 	}
 endif;

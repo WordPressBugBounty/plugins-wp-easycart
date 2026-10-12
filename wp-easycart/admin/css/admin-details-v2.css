@@ -57,8 +57,20 @@
 .ecdv2-cl-existing-meta { font-size:11.5px; color:var(--ecv2-g500, #6b7280); }
 .ecdv2-cl-existing-meta code { font-size:10.5px; background:var(--ecv2-g100, #f3f4f6); padding:1px 5px; border-radius:4px; }
 .ecdv2-cl-existing-actions { flex-shrink:0; }
-.ecdv2-cl-quick-toggle { border:1px dashed var(--ecv2-g300, #d1d5db); background:#fff; border-radius:8px; width:100%; padding:9px 12px; font-size:13px; font-weight:600; color:var(--ecv2-primary-dark, #15803d); cursor:pointer; }
-.ecdv2-cl-quick-toggle:hover { border-color:var(--ecv2-primary, #16a34a); background:var(--ecv2-primary-light, #ecfdf5); }
+/* 6.0.4: no links yet = what a cart link does and one clear button; with links, Create another under the list */
+.ecdv2-cl-empty { display:flex; align-items:center; gap:14px; padding:16px; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:10px; background:var(--ecv2-g50, #f9fafb); }
+.ecdv2-cl-empty[hidden], .ecdv2-cl-add-another[hidden] { display:none !important; }
+.ecdv2-cl-empty-icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:40px; height:40px; border-radius:10px; background:var(--ecv2-primary-light, #ecfdf5); color:var(--ecv2-primary-dark, #15803d); }
+.ecdv2-cl-empty-icon .dashicons { font-size:20px; width:20px; height:20px; }
+.ecdv2-cl-empty-text { display:flex; flex:1 1 auto; flex-direction:column; gap:3px; min-width:0; }
+.ecdv2-cl-empty-text strong { font-size:13.5px; font-weight:650; color:var(--ecv2-g900, #111827); }
+.ecdv2-cl-empty-text span { font-size:12.5px; line-height:1.45; color:var(--ecv2-g600, #4b5563); }
+.ecdv2-cl-empty-btn, .ecdv2-cl-add-another { display:inline-flex; align-items:center; gap:6px; flex:none; }
+.ecdv2-cl-empty-btn .dashicons, .ecdv2-cl-add-another .dashicons { font-size:16px; width:16px; height:16px; }
+@media screen and (max-width: 600px) {
+	.ecdv2-cl-empty { flex-wrap:wrap; }
+	.ecdv2-cl-empty-btn { width:100%; justify-content:center; }
+}
 .ecdv2-cl-quick { margin-top:12px; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:8px; padding:14px; background:var(--ecv2-g50, #f9fafb); }
 .ecdv2-cl-quick-grid { display:grid; grid-template-columns:repeat( auto-fill, minmax( 140px, 1fr ) ); gap:10px; }
 .ecdv2-cl-quick-name { grid-column:1 / -1; }
@@ -833,19 +845,6 @@ a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-sale-preview-now { font-weight:700; color:var(--ecv2-g900); }
 .ecdv2-sale-preview.is-warning { background:#fffbeb; border-color:#fde68a; }
 .ecdv2-sale-preview-warn { color:#92400e; }
-/* Pricing & Tax: read-only mirror of the General-tab price with a jump back. */
-.ecdv2-base-price { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; padding:12px 16px; margin-bottom:14px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
-.ecdv2-base-price-text { flex:1 1 260px; min-width:0; display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:2px 12px; }
-.ecdv2-base-price-label { font-size:11.5px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; color:var(--ecv2-g500); }
-.ecdv2-base-price-values { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:0 8px; }
-.ecdv2-base-price-was { font-size:13px; text-decoration:line-through; color:var(--ecv2-g400); }
-.ecdv2-base-price-now { font-size:18px; font-weight:700; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; }
-.ecdv2-base-price-note { grid-column:1 / -1; font-size:12px; line-height:1.45; color:var(--ecv2-g500); }
-.ecdv2-base-price-edit { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; }
-.ecdv2-base-price-edit .dashicons { font-size:14px; width:14px; height:14px; }
-@media screen and (max-width:782px) {
-	.ecdv2-base-price-edit { width:100%; justify-content:center; }
-}
 
 /* ==================================================================
    v2.0.5 — Google Merchant panel reskin ( SEO & Marketing tab )
@@ -1346,3 +1345,602 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 	.ecdv2-managed-cover .ecdv2-managed-card { margin:12px; top:72px; }
 	.ecdv2-managed-open { width:100%; justify-content:center; }
 }
+
+/* ==================================================================
+   6.0.4: the product editor's views. One editor, two ways to read it:
+   Page ( every section on one page, the rail a map of them ) and
+   Focus ( one section at a time ); an Edit / Insights switch; sections
+   that fold in the page view; a summary column. Scoped to the product
+   editor ( .ecdv2-product ): the other editors share this file.
+   The rail rules key off the rail's own data-mode, because on a phone
+   the rail is moved out of the editor into <body>.
+================================================================== */
+
+/* Header controls */
+.ecdv2-product .ecdv2-header { row-gap:8px; }
+.ecdv2-seg { display:inline-flex; flex-shrink:0; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; background:#fff; }
+.ecdv2-seg-btn { display:inline-flex; align-items:center; gap:5px; margin:0; border:0; background:transparent; padding:6px 10px; font-size:12.5px; font-weight:500; line-height:1.2; color:var(--ecv2-g600); cursor:pointer; transition:background var(--ecv2-tr), color var(--ecv2-tr); }
+.ecdv2-seg-btn + .ecdv2-seg-btn { border-left:1px solid var(--ecv2-g200); }
+.ecdv2-seg-btn .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdv2-seg-btn:hover { background:var(--ecv2-g50); color:var(--ecv2-g900); }
+.ecdv2-seg-btn[aria-pressed="true"] { background:var(--ecv2-g900); color:#fff; }
+.ecdv2-seg-btn:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:-2px; }
+.ecdv2-product .ecdv2-seg-label { display:none; }
+.ecdv2-product.ecdv2-roomy .ecdv2-seg-label { display:inline; }
+.ecdv2-nav { display:inline-flex; align-items:center; gap:4px; flex-shrink:0; }
+.ecdv2-nav[hidden] { display:none; }
+.ecdv2-nav .ecdv2-nav-btn { display:inline-flex; align-items:center; justify-content:center; min-width:32px; padding:5px 6px; }
+.ecdv2-nav .ecdv2-nav-btn .dashicons { font-size:15px; width:15px; height:15px; margin:0; }
+.ecdv2-nav .ecdv2-nav-btn.is-disabled { opacity:.4; cursor:default; }
+.ecdv2-nav-pos { font-size:12px; color:var(--ecv2-g500); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ecdv2-view-tip { flex:1 0 100%; order:99; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0; padding:9px 12px; border-radius:var(--ecv2-r); background:var(--ecv2-blue-light); border:1px solid rgba(59,130,246,.25); font-size:12.5px; color:var(--ecv2-g700); }
+.ecdv2-view-tip[hidden] { display:none; }
+.ecdv2-view-tip b { color:var(--ecv2-g900); }
+.ecdv2-view-tip span { flex:1 1 260px; }
+
+/* Columns: the editor's width decides ( classes set by products-details-v2.js ) */
+.ecdv2-product .ecdv2-body { display:grid; grid-template-columns:176px minmax(0,1fr); gap:14px; align-items:start; }
+.ecdv2-product.ecdv2-w3 .ecdv2-body { grid-template-columns:180px minmax(0,1fr) 256px; }
+.ecdv2-product .ecdv2-rail { grid-column:1; grid-row:1 / span 2; width:auto; min-width:0; }
+.ecdv2-product .ecdv2-panel-col { grid-column:2; grid-row:2; display:flex; flex-direction:column; min-width:0; }
+.ecdv2-product .ecdv2-side { grid-column:2; grid-row:1; min-width:0; }
+.ecdv2-product.ecdv2-w3 .ecdv2-panel-col { grid-row:1; }
+.ecdv2-product.ecdv2-w3 .ecdv2-side { grid-column:3; grid-row:1; }
+.ecdv2-product.ecdv2-is-new .ecdv2-panel-col { grid-row:1; }
+
+/* Rail: one map in both modes ( 6.0.4 ): the editing sections, then Insights under its own heading. A section of the other
+   mode switches to it, so the way back from Insights is always in view. */
+.ecdv2-rail-group[data-ecdv2-mode="insights"] { margin-top:6px; padding-top:12px; border-top:1px solid var(--ecv2-g100); }
+.ecdv2-tab-todo-dot { display:none; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--ecv2-amber); margin-left:auto; flex-shrink:0; }
+.ecdv2-tab.has-todo .ecdv2-tab-todo-dot { display:block; }
+.ecdv2-tab.has-dirty .ecdv2-tab-todo-dot { display:none; }
+
+/* Section headings */
+.ecdv2-product .ecdv2-panel-head { display:flex; align-items:flex-start; gap:10px; margin:0 0 12px; }
+.ecdv2-product .ecdv2-panel-icon { flex-shrink:0; margin-top:2px; font-size:18px; width:18px; height:18px; color:var(--ecv2-g400); }
+.ecdv2-product .ecdv2-panel-head-text { flex:1 1 auto; min-width:0; }
+.ecdv2-product .ecdv2-panel-title { margin:0; font-size:16px; font-weight:650; line-height:1.3; color:var(--ecv2-g900); }
+.ecdv2-product .ecdv2-panel-desc { margin:2px 0 0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-panel-sum { display:none; margin:3px 0 0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g700); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecdv2-product .ecdv2-panel-toggle { display:none; align-items:center; justify-content:center; flex-shrink:0; width:30px; height:30px; margin:0; padding:0; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g500); cursor:pointer; }
+.ecdv2-product .ecdv2-panel-toggle:hover { color:var(--ecv2-g900); background:var(--ecv2-g50); }
+.ecdv2-product .ecdv2-panel-toggle:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+.ecdv2-product .ecdv2-panel-toggle svg { transition:transform var(--ecv2-tr); }
+
+/* Page view: every section on one page */
+.ecdv2-product.ecdv2-view-page .ecdv2-panel { margin:0 0 28px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel-toggle { display:inline-flex; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed > :not(.ecdv2-panel-head) { display:none !important; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed { margin-bottom:12px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed > .ecdv2-panel-head { margin:0; padding:12px 14px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); cursor:pointer; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed > .ecdv2-panel-head:hover { border-color:var(--ecv2-g300); }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-title { font-size:14px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-desc { display:none; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-sum { display:block; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-toggle svg { transform:rotate(-90deg); }
+.ecdv2-product .ecdv2-panel.ecdv2-flash { animation:none; }
+.ecdv2-product .ecdv2-panel.ecdv2-flash > .ecdv2-panel-head .ecdv2-panel-title { color:var(--ecv2-primary-hover); }
+
+/* Focus view: one section, then Next */
+.ecdv2-product .ecdv2-panel-next { display:none; }
+.ecdv2-product.ecdv2-view-focus .ecdv2-panel-next { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:2px 0 18px; }
+.ecdv2-panel-next-btn { display:inline-flex; align-items:center; gap:4px; }
+.ecdv2-panel-next-btn .dashicons { font-size:16px; width:16px; height:16px; }
+.ecdv2-panel-next-last { font-size:12.5px; color:var(--ecv2-g500); }
+
+/* Organization's pointer to the moved Categories card */
+.ecdv2-moved-note { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 14px; border:1px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); background:var(--ecv2-g50); font-size:12.5px; color:var(--ecv2-g600); }
+.ecdv2-moved-note > span:nth-child(2) { flex:1 1 220px; }
+.ecdv2-moved-note .dashicons { color:var(--ecv2-g400); }
+
+/* The summary column */
+.ecdv2-product .ecdv2-side { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; align-items:start; margin-bottom:14px; }
+.ecdv2-product.ecdv2-w3 .ecdv2-side { display:flex; flex-direction:column; align-items:stretch; margin-bottom:0; }
+.ecdv2-product.ecdv2-w3 .ecdv2-side.is-sticky { position:sticky; }
+.ecdv2-side .ecdv2-card { margin:0; }
+.ecdv2-side .ecdv2-card-header { padding:10px 12px; flex-wrap:nowrap; }
+.ecdv2-side .ecdv2-card-title { flex:0 1 auto; min-width:0; width:auto; }
+.ecdv2-side .ecdv2-card-header .ecdv2-card-hint { flex:1 1 auto; min-width:0; }
+.ecdv2-side .ecdv2-card-body { padding:10px 12px; }
+.ecdv2-side .ecdv2-card-hint { font-size:11.5px; }
+.ecdv2-side .ecdv2-help-link { display:none; }
+.ecdv2-side-link { margin:0 0 0 auto; padding:2px 4px; border:0; border-radius:4px; background:none; font-size:12px; font-weight:600; color:var(--ecv2-blue); cursor:pointer; }
+.ecdv2-side-link:hover { text-decoration:underline; }
+.ecdv2-side-link:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+.ecdv2-side-facts { display:grid; gap:7px; margin:0; }
+.ecdv2-side-facts div { display:grid; gap:1px; }
+.ecdv2-side-facts dt { font-size:11px; font-weight:600; color:var(--ecv2-g500); }
+.ecdv2-side-facts dd { margin:0; font-size:12.5px; color:var(--ecv2-g800); }
+.ecdv2-side-type { margin:0; font-size:13px; font-weight:600; color:var(--ecv2-g900); }
+.ecdv2-side-note { margin:2px 0 0; font-size:12px; color:var(--ecv2-g500); }
+.ecdv2-side .ecdv2-cat-add { flex-wrap:wrap; }
+.ecdv2-side .ecdv2-cat-combo { flex:1 1 140px; max-width:none; }
+.ecdv2-side .ecdv2-cat-tokens { margin-bottom:8px; min-height:0; }
+.ecdv2-side-count { margin-left:auto; font-size:12px; font-weight:700; color:var(--ecv2-primary-hover); font-variant-numeric:tabular-nums; }
+.ecdv2-side-health .ecdv2-health-bar { height:5px; margin:0 0 8px; }
+.ecdv2-side-health-list { display:grid; gap:1px; margin:0; padding:0; list-style:none; }
+.ecdv2-side-health-item { margin:0; }
+.ecdv2-side-health-go { display:flex; align-items:center; gap:8px; width:100%; margin:0; padding:4px 6px; border:0; border-radius:var(--ecv2-rs); background:none; text-align:left; font-size:12.5px; line-height:1.35; color:var(--ecv2-g800); cursor:pointer; }
+.ecdv2-side-health-go:hover { background:var(--ecv2-g50); }
+.ecdv2-side-health-go:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:-1px; }
+.ecdv2-side-health-mark { position:relative; flex-shrink:0; width:14px; height:14px; border-radius:50%; border:1.5px solid var(--ecv2-amber); }
+.ecdv2-side-health-item.is-done .ecdv2-side-health-go { color:var(--ecv2-g500); }
+.ecdv2-side-health-item.is-done .ecdv2-side-health-mark { border-color:var(--ecv2-primary); background:var(--ecv2-primary); }
+.ecdv2-side-health-item.is-done .ecdv2-side-health-mark::after { content:""; position:absolute; left:3.5px; top:1px; width:3px; height:6px; border:solid #fff; border-width:0 1.5px 1.5px 0; transform:rotate(45deg); }
+.ecdv2-pv { display:flex; flex-direction:column; border:1px solid var(--ecv2-g200); border-radius:8px; overflow:hidden; background:#fff; }
+.ecdv2-pv-img { position:relative; display:flex; align-items:center; justify-content:center; height:150px; background:var(--ecv2-g100); overflow:hidden; }
+.ecdv2-pv-img img { width:100%; height:100%; object-fit:cover; display:block; }
+.ecdv2-pv-img .dashicons { font-size:32px; width:32px; height:32px; color:var(--ecv2-g300); }
+.ecdv2-pv-badge { position:absolute; top:8px; left:8px; max-width:calc(100% - 16px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 8px; border-radius:3px; background:var(--ecv2-g900); color:#fff; font-size:10.5px; font-weight:700; }
+.ecdv2-pv-badge[hidden], .ecdv2-pv-stock[hidden], .ecdv2-pv-price s[hidden] { display:none; }
+.ecdv2-pv-text { display:grid; gap:2px; padding:8px 10px; }
+.ecdv2-pv-title { font-size:13px; font-weight:600; color:var(--ecv2-g900); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.ecdv2-pv-price { font-size:13px; color:var(--ecv2-g800); font-variant-numeric:tabular-nums; }
+.ecdv2-pv-price s { margin-left:4px; color:var(--ecv2-g400); }
+.ecdv2-pv-stock { font-size:11.5px; font-weight:600; color:var(--ecv2-danger); }
+.ecdv2-product:not(.ecdv2-w3) .ecdv2-pv { flex-direction:row; }
+.ecdv2-product:not(.ecdv2-w3) .ecdv2-pv-img { width:84px; height:84px; flex-shrink:0; }
+.ecdv2-side-kpis { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0 0 10px; }
+.ecdv2-side-kpis div { padding:7px 9px; border-radius:var(--ecv2-rs); background:var(--ecv2-g50); }
+.ecdv2-side-kpis b { display:block; font-size:15px; font-weight:700; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecdv2-side-kpis span { font-size:11px; color:var(--ecv2-g500); }
+.ecdv2-side-open-insights { display:inline-flex; align-items:center; gap:5px; }
+.ecdv2-side-open-insights .dashicons { font-size:14px; width:14px; height:14px; }
+.ecdv2-product.ecdv2-mode-insights .ecdv2-side-open-insights { display:none; }
+
+/* Phones: the rail is a drawer ( admin-frame-v2.js ), so one column: the fields first, the summary after them */
+@media screen and (max-width: 782px) {
+	.ecdv2-product .ecdv2-body,
+	.ecdv2-product.ecdv2-w3 .ecdv2-body { display:grid; grid-template-columns:minmax(0,1fr); }
+	.ecdv2-product .ecdv2-side,
+	.ecdv2-product.ecdv2-w3 .ecdv2-side { grid-column:1; grid-row:2; display:grid; position:static; margin:0 0 14px; }
+	.ecdv2-product .ecdv2-panel-col,
+	.ecdv2-product.ecdv2-w3 .ecdv2-panel-col { grid-column:1; grid-row:1; }
+	.ecdv2-product .ecdv2-seg-label { display:none !important; }
+	.ecdv2-product .ecdv2-nav-pos { display:none; }
+	.ecdv2-product .ecdv2-pv { flex-direction:row; }
+	.ecdv2-product .ecdv2-pv-img { width:84px; height:84px; flex-shrink:0; }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+	.ecdv2-product .ecdv2-panel-toggle svg { transition:none; }
+}
+
+/* 6.0.4 ( editor plan Phase 2 ): an open section's heading reads as a section title ( a hairline under it, the fold
+   chevron as a quiet icon button ), and Open all / Fold all sit under the rail's search in the page view. */
+.ecdv2-rail-tools { display:flex; gap:4px; margin:0 0 8px; }
+.ecdv2-rail[data-view="focus"] .ecdv2-rail-tools,
+.ecdv2-rail[data-mode="insights"] .ecdv2-rail-tools,
+.ecdv2-rail:not([data-view]) .ecdv2-rail-tools { display:none; }
+.ecdv2-rail .ecdv2-rail-tool { flex:1 1 0; min-width:0; display:inline-flex; align-items:center; justify-content:center; gap:5px; margin:0; padding:5px 6px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; font-size:12px; line-height:1.3; font-weight:500; white-space:nowrap; color:var(--ecv2-g600); cursor:pointer; transition:background var(--ecv2-tr), color var(--ecv2-tr), border-color var(--ecv2-tr); }
+.ecdv2-rail .ecdv2-rail-tool:hover { background:var(--ecv2-g50); color:var(--ecv2-g900); border-color:var(--ecv2-g300); }
+.ecdv2-rail-tool:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+.ecdv2-rail-tool svg { flex-shrink:0; color:var(--ecv2-g400); }
+
+.ecdv2-product .ecdv2-panel-head-text { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:10px; row-gap:2px; }
+.ecdv2-product .ecdv2-panel-desc { margin:0; }
+.ecdv2-product .ecdv2-panel-sum { flex-basis:100%; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel:not(.is-collapsed) > .ecdv2-panel-head { align-items:center; padding:0 2px 10px; margin-bottom:14px; border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-product .ecdv2-panel-icon { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-top:0; border-radius:7px; background:#fff; border:1px solid var(--ecv2-g200); font-size:15px; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-panel-icon::before { width:15px; height:15px; }
+.ecdv2-product .ecdv2-panel-toggle { width:28px; height:28px; border-color:transparent; background:transparent; color:var(--ecv2-g400); }
+.ecdv2-product .ecdv2-panel-toggle:hover { background:var(--ecv2-g100); border-color:transparent; color:var(--ecv2-g900); }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed > .ecdv2-panel-head { align-items:center; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-icon { background:var(--ecv2-g50); }
+
+/* 6.0.4 ( editor plan Phase 2 ): the Product type choice. Its type switches show in Type settings only while the type is
+   Custom; a type's own card ( Subscription, Digital Download, Deconetwork ) only for that type; a section the type does not
+   use leaves the page and waits in the rail's "Not used for this type" until it is opened. */
+.ecdv2-side-select { display:block; width:100%; max-width:none; min-height:36px; margin:0 0 6px; padding:6px 28px 6px 10px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background-color:#fff; font-size:13px; font-weight:600; color:var(--ecv2-g900); }
+.ecdv2-side-select:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+.ecdv2-side-select:disabled { background-color:var(--ecv2-g50); color:var(--ecv2-g500); }
+.ecdv2-side-card .ecdv2-card-title label { font:inherit; color:inherit; cursor:default; }
+.ecdv2-side-upsell .ecdv2-side-link { margin:0; padding:0; font-weight:500; text-align:start; }
+.ecdv2-product[data-ecdv2-type]:not([data-ecdv2-type="custom"]) .ecdv2-type-switch { display:none !important; }
+.ecdv2-product[data-ecdv2-type]:not([data-ecdv2-type="subscription"]):not([data-ecdv2-type="custom"]) .ecdv2-card[data-ecdv2-section="subscription"],
+.ecdv2-product[data-ecdv2-type]:not([data-ecdv2-type="download"]):not([data-ecdv2-type="custom"]) .ecdv2-card[data-ecdv2-section="downloads"],
+.ecdv2-product[data-ecdv2-type]:not([data-ecdv2-type="deconetwork"]):not([data-ecdv2-type="custom"]) .ecdv2-card[data-ecdv2-section="deconetwork"] { display:none; }
+.ecdv2-product .ecdv2-panel.is-unused { display:none !important; }
+.ecdv2-rail-group.ecdv2-rail-unused { margin-top:6px; padding-top:12px; border-top:1px solid var(--ecv2-g200); }
+.ecdv2-tab.is-unused { color:var(--ecv2-g500); }
+.ecdv2-tab.is-unused .dashicons { opacity:.6; }
+.ecdv2-tab.is-unused .ecdv2-tab-todo-dot { display:none; }
+.ecdv2-rail-group.is-empty { display:none !important; }
+
+/* 6.0.4 ( editor plan Phase 2 ): one way to save. Discard shows while something is unsaved; what kept a Save from
+   finishing is listed above the sections, each with a way to its field. */
+.ecdv2-discard-btn[hidden], .ecdv2-errors[hidden] { display:none !important; }
+.ecdv2-errors { order:-1; margin:0 0 14px; padding:12px 14px; border:1px solid #fecaca; border-inline-start:4px solid #dc2626; border-radius:var(--ecv2-r); background:#fef2f2; color:#7f1d1d; }
+.ecdv2-errors:focus { outline:2px solid #dc2626; outline-offset:2px; }
+.ecdv2-errors-head { display:flex; align-items:center; gap:8px; }
+.ecdv2-errors-head .dashicons { color:#dc2626; }
+.ecdv2-errors-head strong { flex:1 1 auto; font-size:13.5px; }
+.ecdv2-errors-close { margin:0; padding:0 6px; border:0; background:none; font-size:18px; line-height:1; color:#991b1b; cursor:pointer; }
+.ecdv2-errors-list { margin:8px 0 0; padding:0; list-style:none; }
+.ecdv2-errors-item { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 12px; margin:4px 0 0; font-size:13px; }
+.ecdv2-errors-text { flex:1 1 220px; }
+.ecdv2-errors-go { margin:0; padding:0; border:0; background:none; font-size:13px; font-weight:600; color:#991b1b; text-decoration:underline; cursor:pointer; }
+
+#ec_admin_product_details_view_product_link[hidden] { display:none !important; }
+.ecdv2-header-draft { color:var(--ecv2-g500); font-style:italic; }
+
+/* ==================================================================
+   6.0.4 ( editor polish ): finding and changing things faster. Insights
+   says where you are and how to get back; cards that do one job share a
+   card with tabs ( the product page's text, the notes for buyers ); card
+   titles read above the field labels; the Help link on every card is
+   gone ( the header menu has Documentation ).
+================================================================== */
+
+/* Edit / Insights: the switch names itself, and Insights carries a bar with the way back */
+.ecdv2-product .ecdv2-mode-switch .ecdv2-seg-label { display:inline; }
+.ecdv2-insights-bar { display:none; }
+.ecdv2-product.ecdv2-mode-insights .ecdv2-insights-bar { order:-2; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px 10px 14px; border:1px solid rgba(59,130,246,.3); border-radius:var(--ecv2-r); background:var(--ecv2-blue-light); font-size:13px; line-height:1.45; color:var(--ecv2-g700); }
+.ecdv2-insights-bar > .dashicons { flex-shrink:0; color:var(--ecv2-blue); }
+.ecdv2-insights-bar-text { flex:1 1 260px; min-width:0; }
+.ecdv2-insights-bar-text strong { margin-inline-end:4px; color:var(--ecv2-g900); }
+.ecdv2-insights-back { display:inline-flex; align-items:center; gap:4px; flex-shrink:0; }
+.ecdv2-insights-back .dashicons { font-size:16px; width:16px; height:16px; }
+@media screen and (min-width: 783px) {
+	/* Both modes' sections fit beside the page: the list scrolls when the window is short. */
+	.ecdv2-product .ecdv2-tabs { max-height:calc(100vh - 230px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+	.ecdv2-product .ecdv2-tab { padding-top:8px; padding-bottom:8px; }
+}
+
+/* Cards: the title leads, the hint explains, field labels sit a step below */
+.ecdv2-product .ecdv2-panel .ecdv2-card-header { flex-wrap:wrap; gap:3px 10px; padding:13px 18px; }
+.ecdv2-product .ecdv2-panel .ecdv2-card-title { font-size:14px; font-weight:650; line-height:1.35; letter-spacing:-.005em; }
+.ecdv2-product .ecdv2-panel .ecdv2-card-hint { flex:1 1 220px; min-width:0; font-size:12.5px; line-height:1.4; color:var(--ecv2-g500); }
+/* PRO's panels print their own cards ( gallery, option sets, variations, modifiers ): no card around them. */
+.ecdv2-product .ecdv2-card-bare { border:0; background:transparent; }
+.ecdv2-product .ecdv2-panel .ecdv2-card-bare > .ecdv2-card-body { padding:0; }
+.ecdv2-product .ecdv2-panel .ecdv2-card-body { padding:16px 18px; }
+.ecdv2-product .ecdv2-panel .ecdv2-label { font-size:12.5px; color:var(--ecv2-g700); }
+.ecdv2-product .ecdv2-panel .ecdv2-subgroup-title { font-size:12.5px; font-weight:650; letter-spacing:0; text-transform:none; color:var(--ecv2-g800); }
+.ecdv2-product .ecdv2-field-full > select.ecv2-select { width:100%; max-width:520px !important; }
+
+/* Cards with tabs ( tabset_open() ) */
+.ecdv2-tabset { position:relative; margin:0 0 14px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecdv2-tabset-head { display:flex; flex-direction:column; gap:8px; padding:13px 18px 0; border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-tabset-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 10px; }
+.ecdv2-tabset-title { margin:0; font-size:14px; font-weight:650; line-height:1.35; color:var(--ecv2-g900); }
+.ecdv2-tabset-hint { font-size:12.5px; line-height:1.4; color:var(--ecv2-g500); }
+.ecdv2-tabset-tabs { display:flex; gap:2px; margin:0 -8px; overflow-x:auto; scrollbar-width:none; }
+.ecdv2-tabset-tabs::-webkit-scrollbar { display:none; }
+.ecdv2-tabset-tab { position:relative; display:inline-flex; align-items:center; gap:6px; flex:0 0 auto; margin:0 0 -1px; padding:8px 8px 10px; border:0; border-bottom:2px solid transparent; background:none; font-size:13px; font-weight:500; line-height:1.3; white-space:nowrap; color:var(--ecv2-g600); cursor:pointer; transition:color var(--ecv2-tr), border-color var(--ecv2-tr); }
+.ecdv2-tabset-tab:hover { color:var(--ecv2-g900); }
+.ecdv2-tabset-tab.is-active { font-weight:600; color:var(--ecv2-g900); border-bottom-color:var(--ecv2-primary); }
+.ecdv2-tabset-tab:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:-3px; border-radius:6px; }
+.ecdv2-tabset-empty { padding:1px 6px; border-radius:999px; background:var(--ecv2-g100); font-size:10.5px; font-weight:600; line-height:1.5; color:var(--ecv2-g500); }
+.ecdv2-tabset-empty[hidden] { display:none; }
+.ecdv2-tabset-dot { display:none; flex-shrink:0; width:7px; height:7px; border-radius:50%; background:var(--ecv2-amber); }
+.ecdv2-tabset-tab.has-dirty .ecdv2-tabset-dot { display:inline-block; }
+.ecdv2-tabset-pane[hidden] { display:none !important; }
+.ecdv2-tabset-pane > .ecdv2-card { margin:0; border:0; border-radius:0 0 var(--ecv2-r) var(--ecv2-r); background:transparent; }
+.ecdv2-product .ecdv2-panel .ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-header { padding:12px 18px 0; border:0; }
+.ecdv2-product .ecdv2-panel .ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-body { padding-top:10px; }
+/* The tab names the card on screen; its title stays for the search and screen readers. */
+.ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-header > .ecdv2-card-title,
+.ecdv2-card-pane .ecdv2-field > .ecdv2-label { position:absolute !important; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-header .ecdv2-help-link { margin-inline-start:auto; }
+.ecdv2-tabset-pane textarea#short_description { min-height:84px; }
+
+/* Basics: a new manufacturer is one click away */
+.ecdv2-inline-link { align-self:flex-start; display:inline-flex; align-items:center; gap:3px; margin:5px 0 0; padding:2px 0; border:0; background:none; font-size:12.5px; font-weight:600; color:var(--ecv2-blue); cursor:pointer; }
+.ecdv2-inline-link:hover { text-decoration:underline; }
+.ecdv2-inline-link:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:2px; border-radius:3px; }
+.ecdv2-inline-link .dashicons { font-size:14px; width:14px; height:14px; }
+.ecdv2-inline-link[hidden], .ecdv2-manufacturer-new[hidden] { display:none; }
+.ecdv2-manufacturer-new { display:flex; align-items:center; gap:6px; margin-top:6px; }
+.ecdv2-manufacturer-new input[type="text"] { flex:1 1 auto; min-width:0; }
+
+/* Shipping: weight and size on one row where there is room */
+.ecdv2-product.ecdv2-w3 .ecdv2-card[data-ecdv2-section="packaging"] .ecdv2-grid,
+.ecdv2-product.ecdv2-w2 .ecdv2-card[data-ecdv2-section="packaging"] .ecdv2-grid { grid-template-columns:repeat(4, minmax(0,1fr)); }
+
+/* Store menus: locations beyond the first wait behind a button */
+.ecdv2-menu-location[hidden] { display:none; }
+.ecdv2-menu-location-add { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin-top:4px; }
+.ecdv2-menu-location-add .dashicons { font-size:14px; width:14px; height:14px; }
+
+@media screen and (max-width: 782px) {
+	.ecdv2-tabset-head { padding:12px 12px 0; }
+	.ecdv2-product .ecdv2-panel .ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-header { padding:10px 12px 0; }
+	.ecdv2-product .ecdv2-insights-bar-text { flex-basis:100%; }
+	.ecdv2-product .ecdv2-insights-bar > .dashicons { display:none; }
+}
+
+/* ==================================================================
+   6.0.4 ( editor layout ): a section is one card, as the editor plan's
+   mockup drew it. Its heading row folds and opens it; the cards inside
+   it are its sub-sections ( no box of their own ). Basics holds the
+   name, SKU and the product page's text; Shipping is one box led by
+   its switch; the summary column carries Status, a Shipping card and
+   Organization. Scoped to the product editor's sections ( 6.0.4: Insights too ).
+================================================================== */
+
+/* The section card and its heading row */
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] { background:#fff; border:1px solid var(--ecv2-g200); border-radius:10px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode] { margin:0 0 14px; }
+.ecdv2-product.ecdv2-view-focus .ecdv2-panel[data-ecdv2-mode].is-active { margin:0 0 14px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-panel-head,
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode]:not(.is-collapsed) > .ecdv2-panel-head,
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode].is-collapsed > .ecdv2-panel-head { display:flex; align-items:center; gap:12px; margin:0; padding:14px 18px; border:0; border-bottom:1px solid #eef0f2; border-radius:10px 10px 0 0; background:transparent; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode].is-collapsed > .ecdv2-panel-head { border-bottom:0; border-radius:10px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode] > .ecdv2-panel-head { cursor:pointer; transition:background var(--ecv2-tr); }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode] > .ecdv2-panel-head:hover { background:var(--ecv2-g50); }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-head-text { display:block; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-title,
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode].is-collapsed .ecdv2-panel-title { display:block; font-size:15px; font-weight:650; line-height:1.35; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-desc,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-sum { margin:1px 0 0; font-size:12.5px; line-height:1.4; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-icon,
+.ecdv2-product.ecdv2-view-page .ecdv2-panel[data-ecdv2-mode].is-collapsed .ecdv2-panel-icon { width:30px; height:30px; border:0; border-radius:8px; background:var(--ecv2-g100); color:var(--ecv2-g600); }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-panel-toggle { width:30px; height:30px; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-panel-next { margin:0; padding:4px 18px 16px; }
+
+/* The cards inside a section are its sub-sections: a hairline between them, a quieter heading */
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-requires-save > .ecdv2-card,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-card-bare .ecdv2-card:not(.ecdv2-card-bare .ecdv2-card .ecdv2-card),
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_media_pro_wrap .ecdv2-card:not(#ecdv2_media_pro_wrap .ecdv2-card .ecdv2-card),
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-pro-options > .ecdv2-card,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-tabset { margin:-1px 0 0; border:0; border-top:1px solid #eef0f2; border-radius:0; background:transparent; box-shadow:none; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card:last-child,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-tabset:last-child { border-radius:0 0 10px 10px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-card-bare,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-card-bare > .ecdv2-card-body { margin:0; padding:0; border:0; background:transparent; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card > .ecdv2-card-header,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-requires-save > .ecdv2-card > .ecdv2-card-header,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-card-bare .ecdv2-card > .ecdv2-card-header { padding:16px 18px 0; border:0; background:transparent; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card > .ecdv2-card-header .ecdv2-card-title,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-requires-save > .ecdv2-card > .ecdv2-card-header .ecdv2-card-title { font-size:13.5px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card > .ecdv2-card-body,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-requires-save > .ecdv2-card > .ecdv2-card-body { padding:12px 18px 18px; }
+/* A card whose section heading already says it ( Basics' name and SKU ) */
+.ecdv2-product .ecdv2-card-headless > .ecdv2-card-header { position:absolute !important; width:1px; height:1px; margin:-1px; padding:0 !important; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-card-headless > .ecdv2-card-body { padding:16px 18px 18px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-moved-note { margin:14px 18px; }
+
+/* Basics: the text tabs sit under the name and SKU, no box of their own */
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-tabset-headless { margin:0; border-top:0; }
+.ecdv2-tabset-headless > .ecdv2-tabset-head { padding-top:2px; }
+.ecdv2-tabset-headless .ecdv2-tabset-heading { position:absolute !important; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] .ecdv2-tabset-pane > .ecdv2-card > .ecdv2-card-body { padding:10px 18px 18px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .wpec-tabs-card .ecdv2-card-header { flex-wrap:wrap; }
+
+/* The description editor: Add media and Visual / Code on one tidy row above a rounded box */
+.ecdv2-product .wp-editor-wrap { margin:0; }
+.ecdv2-product .wp-editor-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 8px; padding:0; background:transparent; border:0; }
+.ecdv2-product .wp-editor-tools::before, .ecdv2-product .wp-editor-tools::after { display:none; }
+.ecdv2-product .wp-media-buttons { float:none; margin:0; padding:0; }
+.ecdv2-product .wp-media-buttons .button,
+.ecdv2-product .wp-media-buttons .button.insert-media { display:inline-flex !important; align-items:center; gap:6px; height:30px !important; min-height:30px !important; margin:0 !important; padding:0 10px !important; border:1px solid var(--ecv2-g300) !important; border-radius:6px !important; background:#fff !important; box-shadow:none !important; color:var(--ecv2-g700) !important; font-size:12.5px !important; font-weight:500 !important; line-height:1 !important; vertical-align:middle; }
+.ecdv2-product .wp-media-buttons .button:hover { background:var(--ecv2-g50) !important; border-color:var(--ecv2-g400) !important; color:var(--ecv2-g900) !important; }
+.ecdv2-product .wp-media-buttons .button:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+.ecdv2-product .wp-media-buttons .wp-media-buttons-icon { margin:0 !important; width:16px; height:16px; }
+.ecdv2-product .wp-media-buttons .wp-media-buttons-icon::before { font-size:16px; width:16px; height:16px; color:var(--ecv2-g500); }
+.ecdv2-product .wp-editor-tabs { float:none; display:inline-flex; gap:0; margin:0 0 0 auto; padding:2px; border-radius:7px; background:var(--ecv2-g100); }
+.ecdv2-product .wp-editor-tabs .wp-switch-editor { float:none; position:static; top:auto; height:26px; margin:0; padding:0 12px; border:0; border-radius:5px; background:transparent; box-shadow:none; color:var(--ecv2-g600); font-size:12.5px; line-height:26px; }
+.ecdv2-product .wp-editor-tabs .wp-switch-editor:hover { color:var(--ecv2-g900); }
+.ecdv2-product .tmce-active .wp-editor-tabs .switch-tmce,
+.ecdv2-product .html-active .wp-editor-tabs .switch-html { background:#fff; color:var(--ecv2-g900); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.ecdv2-product .wp-editor-container,
+.ecdv2-card .wp-editor-container { border:1px solid var(--ecv2-g300); border-radius:8px; overflow:hidden; }
+.ecdv2-product .wp-editor-container div.mce-toolbar-grp { background:var(--ecv2-g50); border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-product .wp-editor-container .mce-top-part::before { box-shadow:none; }
+.ecdv2-product .wp-editor-container .quicktags-toolbar { padding:6px; background:var(--ecv2-g50); border:0; border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-product .wp-editor-container .quicktags-toolbar input.button { min-height:26px; margin:2px; padding:0 8px; border:1px solid var(--ecv2-g300); border-radius:5px; background:#fff; box-shadow:none; color:var(--ecv2-g700); font-size:12px; line-height:24px; }
+.ecdv2-product .wp-editor-container textarea.wp-editor-area { border:0; }
+.ecdv2-product .wp-editor-container .mce-statusbar { border-top:1px solid var(--ecv2-g200) !important; }
+
+/* Shipping: one box led by its switch */
+.ecdv2-product .ecdv2-ship-master .ecdv2-toggle-row { padding:12px 14px; border:1px solid #bbf7d0; border-radius:8px; background:#f0fdf4; }
+.ecdv2-product .ecdv2-ship-master .ecdv2-toggle-label { font-size:14px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-product .ecdv2-panel.is-noship .ecdv2-ship-master .ecdv2-toggle-row { border-color:var(--ecv2-g200); background:var(--ecv2-g50); }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-ship-master > .ecdv2-card-body { padding:16px 18px 6px; }
+.ecdv2-ship-off { display:none; }
+.ecdv2-product .ecdv2-panel.is-noship .ecdv2-ship-off { display:flex; gap:10px; margin:10px 18px 18px; padding:12px 14px; border-radius:8px; background:var(--ecv2-g50); color:var(--ecv2-g700); font-size:13px; line-height:1.5; }
+.ecdv2-ship-off .dashicons { flex:none; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-panel.is-noship .ecdv2-ship-body { display:none; }
+.ecdv2-ship-body { padding:0 18px 4px; }
+.ecdv2-group { padding:16px 0; }
+.ecdv2-group + .ecdv2-group { border-top:1px solid #eef0f2; }
+.ecdv2-group-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 10px; margin:0; }
+.ecdv2-group-title { margin:0; font-size:13.5px; font-weight:650; line-height:1.35; color:var(--ecv2-g900); }
+.ecdv2-group-hint { font-size:12.5px; line-height:1.4; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-group .ecdv2-card { margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.ecdv2-product .ecdv2-group .ecdv2-card > .ecdv2-card-body { padding:10px 0 0; }
+.ecdv2-product .ecdv2-group .ecdv2-card + .ecdv2-card > .ecdv2-card-body { padding-top:12px; }
+.ecdv2-product .ecdv2-group .ecdv2-field select:not([multiple]) { max-width:420px; }
+.ecdv2-disclosure > summary { display:flex; align-items:baseline; cursor:pointer; list-style:none; }
+.ecdv2-disclosure > summary::-webkit-details-marker { display:none; }
+.ecdv2-disclosure > summary::before { content:""; flex:none; align-self:center; width:7px; height:7px; margin:0 8px 0 2px; border-right:1.8px solid var(--ecv2-g500); border-bottom:1.8px solid var(--ecv2-g500); transform:rotate(-45deg); transition:transform var(--ecv2-tr); }
+.ecdv2-disclosure[open] > summary::before { transform:rotate(45deg); }
+.ecdv2-disclosure > summary:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:3px; border-radius:4px; }
+
+/* Header: the status, a button to the Status card */
+.ecdv2-product button.ecdv2-status-pill { margin:0; border:0; font-family:inherit; line-height:1.4; cursor:pointer; }
+.ecdv2-product button.ecdv2-status-pill:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+
+/* The summary column: Status, Shipping, Organization */
+.ecdv2-side .ecdv2-side-status > .ecdv2-card-body,
+.ecdv2-side .ecdv2-side-org > .ecdv2-card-body { display:flex; flex-direction:column; gap:12px; }
+.ecdv2-side-switch { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.ecdv2-side-switch-text { display:flex; flex-direction:column; min-width:0; }
+.ecdv2-side-switch-text b { font-size:13.5px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-side-switch-text span { font-size:12px; line-height:1.4; color:var(--ecv2-g500); }
+.ecdv2-side .ecdv2-side-part { position:relative; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.ecdv2-side .ecdv2-side-part > .ecdv2-card-body { padding:0; }
+.ecdv2-side .ecdv2-side-part .ecdv2-grid { display:block; }
+.ecdv2-side .ecdv2-side-part .ecdv2-field { gap:5px; }
+.ecdv2-side .ecdv2-side-part .ecdv2-toggle-row { padding:0; }
+.ecdv2-side .ecdv2-side-part .ecdv2-label,
+.ecdv2-side .ecdv2-side-label { font-size:12px; font-weight:600; color:var(--ecv2-g700); }
+.ecdv2-side .ecdv2-side-label { display:block; margin:0 0 -6px; }
+.ecdv2-side .ecdv2-side-part .ecdv2-gate { margin:0; }
+.ecdv2-side .ecdv2-side-part .ecdv2-slug-wrap input { min-width:0; }
+.ecdv2-side .ecdv2-side-part .ecdv2-label-hint { font-weight:400; }
+.ecdv2-side-ship { padding:12px; display:flex; flex-direction:column; gap:8px; }
+.ecdv2-side-ship.is-warn { border-color:#fcd34d; background:#fffbeb; }
+.ecdv2-side-ship-go { display:flex; align-items:center; gap:8px; width:100%; margin:0; padding:0; border:0; background:none; text-align:left; font:inherit; color:inherit; cursor:pointer; }
+.ecdv2-side-ship-go:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:3px; border-radius:6px; }
+.ecdv2-side-ship-icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; background:#dcfce7; color:#166534; }
+.ecdv2-side-ship.is-noship .ecdv2-side-ship-icon { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecdv2-side-ship-title { flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-side-ship-go .ecdv2-side-link { margin:0; padding:0; }
+.ecdv2-side-ship-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:3px 10px; margin:0; font-size:12.5px; }
+.ecdv2-side-ship-facts[hidden], .ecdv2-side-ship-off[hidden], .ecdv2-side-ship-warn[hidden] { display:none; }
+.ecdv2-side-ship-facts dt { color:var(--ecv2-g500); }
+.ecdv2-side-ship-facts dd { margin:0; font-weight:600; color:var(--ecv2-g800); }
+.ecdv2-side-ship-off { margin:0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g600); }
+.ecdv2-side-ship-warn { margin:0; padding:7px 9px; border-radius:6px; background:#fef3c7; font-size:12px; font-weight:600; color:#92400e; }
+.ecdv2-side .ecdv2-side-org > .ecdv2-card-body .ecdv2-cat-tokens { margin-bottom:6px; }
+
+/* ==================================================================
+   6.0.4 ( editor layout, second pass ): quick links under the title,
+   a section heading that carries its count and settings link ( Reviews )
+   so its first card needs no heading of its own ( Offers, Reviews, the
+   notes, the search tabs ), Insights' cards as sub-sections, a tighter
+   Pricing, and the summary column's Tax card.
+================================================================== */
+
+/* Basics: the price and the manufacturer, a click away */
+.ecdv2-quick-links { display:flex; flex-wrap:wrap; gap:8px; padding:0 18px 16px; }
+.ecdv2-quick-link { display:inline-flex; align-items:center; gap:7px; min-height:32px; margin:0; padding:4px 10px 4px 8px; border:1px solid var(--ecv2-g200); border-radius:999px; background:var(--ecv2-g50); font:inherit; font-size:12.5px; line-height:1.3; color:var(--ecv2-g700); cursor:pointer; transition:border-color var(--ecv2-tr), background var(--ecv2-tr); }
+.ecdv2-quick-link:hover { border-color:var(--ecv2-g300); background:#fff; }
+.ecdv2-quick-link:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:2px; }
+.ecdv2-quick-link .dashicons { font-size:15px; width:15px; height:15px; color:var(--ecv2-g500); }
+.ecdv2-quick-link-label { color:var(--ecv2-g500); }
+.ecdv2-quick-link-value { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:var(--ecv2-g900); }
+.ecdv2-quick-link-go { font-size:12px; font-weight:600; color:var(--ecv2-blue); }
+
+/* A section heading's count chip and actions ( Reviews: 1 review, Review settings ) */
+.ecdv2-panel-title-row { display:flex; flex-wrap:wrap; align-items:center; gap:3px 8px; }
+.ecdv2-panel-chip { display:inline-flex; align-items:center; padding:1px 8px; border-radius:999px; background:var(--ecv2-g100); font-size:11.5px; font-weight:600; line-height:1.6; white-space:nowrap; color:var(--ecv2-g600); }
+.ecdv2-panel-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; margin-left:auto; }
+.ecdv2-panel-action { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:500; color:var(--ecv2-g500); text-decoration:none; }
+.ecdv2-panel-action:hover { color:var(--ecv2-g800); }
+.ecdv2-panel-action .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdv2-panel-action:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:2px; border-radius:4px; }
+.ecdv2-product.ecdv2-view-page .ecdv2-panel.is-collapsed .ecdv2-panel-actions { display:none; }
+
+/* A card whose section heading says what it is: PRO's Offers card too ( the free preview carries .ecdv2-card-headless ) */
+.ecdv2-product .ecdv2-panel[data-ecdv2-panel="offers"] > #ecdv2_offers > .ecdv2-card-header { position:absolute !important; width:1px; height:1px; margin:-1px; padding:0 !important; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-panel="offers"] > #ecdv2_offers > .ecdv2-card-body { padding:16px 18px 18px; }
+/* Tabs straight under a section's heading ( the notes for buyers, Search & marketing ) */
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > .ecdv2-panel-head + .ecdv2-tabset-headless > .ecdv2-tabset-head { padding-top:4px; }
+
+/* Insights: the cards inside a section are its sub-sections, as in the editing sections */
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-card { margin:-1px 0 0; border:0; border-top:1px solid #eef0f2; border-radius:0; background:transparent; box-shadow:none; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-card:first-child { border-top:0; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-card > .ecdv2-card-header { padding:16px 18px 0; border:0; background:transparent; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-card > .ecdv2-card-header .ecdv2-card-title { font-size:13.5px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-card > .ecdv2-card-body { padding:12px 18px 18px; }
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-activity-loading,
+.ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-activity-empty { margin:16px 18px; }
+
+/* Pricing: switches closer together, the tax switches side by side, no box around a choice that is locked */
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-grid > .ecdv2-toggle-row,
+.ecdv2-product .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row { padding-top:3px; padding-bottom:3px; }
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup { padding:0; border:0; border-radius:0; background:transparent; }
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup-title { margin:0 0 8px; font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ecv2-g700); }
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup-body { gap:10px; }
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup:has(> .ecdv2-subgroup-body > .ecdv2-field > .ecdv2-gate) > .ecdv2-subgroup-title { display:none; }
+.ecdv2-product .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid { row-gap:8px; }
+.ecdv2-product.ecdv2-w3 .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row,
+.ecdv2-product.ecdv2-w2 .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row { grid-column:auto; }
+
+/* The summary column's Tax card: one row, a button to the Tax card in Pricing */
+.ecdv2-side-row { padding:10px 12px; }
+.ecdv2-side-row-go { display:flex; align-items:center; gap:8px; width:100%; margin:0; padding:0; border:0; background:none; text-align:left; font:inherit; color:inherit; cursor:pointer; }
+.ecdv2-side-row-go:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:3px; border-radius:6px; }
+.ecdv2-side-row-icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; background:#dbeafe; color:#1e40af; }
+.ecdv2-side-row.is-off .ecdv2-side-row-icon { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecdv2-side-row-text { display:flex; flex:1 1 auto; flex-direction:column; min-width:0; }
+.ecdv2-side-row-text b { font-size:13.5px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-side-row-text span { font-size:12px; line-height:1.4; color:var(--ecv2-g500); }
+.ecdv2-side-row-go .ecdv2-side-link { margin:0; padding:0; }
+
+@media screen and (max-width: 782px) {
+	.ecdv2-quick-links { padding:0 12px 14px; }
+	.ecdv2-quick-link-value { max-width:140px; }
+}
+
+/* Google Shopping, locked: the preview of a Google Shopping result and the attributes the tab sets ( print_google_shopping_upsell_v2() ) */
+.ecdv2-product .ecdv2-gm-locked > .ecdv2-card-body { padding:14px 18px 18px; }
+.ecdv2-gm-mock { display:grid; grid-template-columns:minmax(150px, 190px) minmax(0, 1fr); gap:16px; align-items:start; }
+.ecdv2-gm-mock-tile { display:flex; flex-direction:column; gap:3px; padding:10px; border:1px solid var(--ecv2-g200); border-radius:10px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.ecdv2-gm-mock-img { display:flex; align-items:center; justify-content:center; aspect-ratio:1 / 1; margin:0 0 6px; overflow:hidden; border-radius:8px; background:var(--ecv2-g100); color:var(--ecv2-g400); }
+.ecdv2-gm-mock-img img { width:100%; height:100%; object-fit:cover; }
+.ecdv2-gm-mock-title { font-size:13px; font-weight:500; line-height:1.35; color:#1a0dab; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ecdv2-gm-mock-price { font-size:14px; font-weight:700; color:var(--ecv2-g900); }
+.ecdv2-gm-mock-store { font-size:12px; color:var(--ecv2-g600); }
+.ecdv2-gm-mock-stock { font-size:11.5px; font-weight:600; color:#15803d; }
+.ecdv2-gm-mock-stock.is-out { color:#b91c1c; }
+.ecdv2-gm-mock-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px 14px; margin:0; }
+.ecdv2-gm-mock-fields > div { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ecdv2-gm-mock-fields > div:first-child { grid-column:1 / -1; }
+.ecdv2-gm-mock-fields dt { font-size:11.5px; font-weight:600; color:var(--ecv2-g600); }
+.ecdv2-gm-mock-fields dd { margin:0; padding:6px 9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--ecv2-g200); border-radius:6px; background:var(--ecv2-g50); font-size:12.5px; color:var(--ecv2-g800); }
+@media screen and (max-width: 782px) {
+	.ecdv2-gm-mock { grid-template-columns:1fr; }
+	.ecdv2-gm-mock-tile { max-width:220px; }
+}
+/* 6.0.4: the locked previews' header ( Offers, Stock history, Google Shopping ) wraps on a narrow column instead of squeezing its words to one per line */
+.ecdv2-media-upsell-head { flex-wrap:wrap; }
+.ecdv2-media-upsell-copy { flex-basis:240px; }
+@media screen and (max-width: 600px) {
+	.ecdv2-media-upsell-head > .ecv2-btn { width:100%; justify-content:center; text-align:center; }
+}
+
+/* ==================================================================
+   6.0.4: below 960px of the editor's width the summary column is a
+   drawer from the right ( it went above or below the fields ), opened
+   by the header's Summary button, under the sticky header so Save
+   stays in reach. products-details-v2.js side_drawer().
+================================================================== */
+.ecdv2-side-toggle, .ecdv2-side-head, .ecdv2-side-backdrop { display:none; }
+.ecdv2-product.ecdv2-side-drawer .ecdv2-side-toggle { display:inline-flex; align-items:center; gap:6px; border-color:var(--ecv2-g300); font-weight:600; }
+.ecdv2-product.ecdv2-side-drawer .ecdv2-side-toggle svg { flex:none; }
+.ecdv2-product.ecdv2-side-drawer .ecdv2-side-toggle[aria-expanded="true"] { background:var(--ecv2-g900); border-color:var(--ecv2-g900); color:#fff; }
+.ecdv2-side-toggle-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--ecv2-amber); color:#fff; font-size:11px; font-weight:700; line-height:1; }
+.ecdv2-side-toggle-count[hidden] { display:none; }
+
+/* The fields take the column the summary had */
+.ecdv2-product.ecdv2-side-drawer .ecdv2-panel-col { grid-row:1; }
+
+/* The drawer */
+.ecdv2-product.ecdv2-side-drawer .ecdv2-side,
+.ecdv2-product.ecdv2-side-drawer.ecdv2-w3 .ecdv2-side {
+	position:fixed !important; top:var(--ecdv2-drawer-top, 46px) !important; right:0; bottom:0; left:auto; z-index:99990;
+	display:flex; flex-direction:column; align-items:stretch; gap:12px;
+	width:min(380px, calc(100vw - 40px)); margin:0; padding:0 14px 20px; overflow-y:auto; overscroll-behavior:contain;
+	background:var(--ecv2-g50, #f9fafb); border-left:1px solid var(--ecv2-g200); border-radius:12px 0 0 0;
+	box-shadow:-16px 0 40px rgba(15,23,42,.18);
+	transform:translateX(105%); visibility:hidden; transition:transform .22s ease, visibility 0s linear .22s;
+}
+.ecdv2-product.ecdv2-side-drawer.ecdv2-side-open .ecdv2-side { transform:none; visibility:visible; transition:transform .22s ease; }
+.ecdv2-product.ecdv2-side-drawer .ecdv2-side-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:10px; margin:0 -14px; padding:12px 14px; background:var(--ecv2-g50, #f9fafb); border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-side-head-text { display:flex; flex:1 1 auto; flex-direction:column; min-width:0; }
+.ecdv2-side-head-title { margin:0; font-size:15px; font-weight:650; line-height:1.3; color:var(--ecv2-g900); }
+.ecdv2-side-head-hint { font-size:12px; line-height:1.35; color:var(--ecv2-g500); }
+.ecdv2-side-close { display:inline-flex; flex:none; align-items:center; justify-content:center; width:34px; height:34px; margin:0; padding:0; border:1px solid var(--ecv2-g200); border-radius:8px; background:#fff; color:var(--ecv2-g600); cursor:pointer; }
+.ecdv2-side-close:hover { border-color:var(--ecv2-g300); color:var(--ecv2-g900); }
+.ecdv2-side-close:focus-visible, .ecdv2-side-toggle:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:2px; }
+.ecdv2-product.ecdv2-side-drawer.ecdv2-side-open .ecdv2-side-backdrop { display:block; position:fixed; left:0; right:0; bottom:0; top:var(--ecdv2-drawer-top, 46px); z-index:99989; background:rgba(15,23,42,.35); }
+/* No overflow lock on html / body: wp-admin's 100% heights then drop the page back to the top. The backdrop takes the wheel instead. */
+/* Lists that open from the drawer ( the manufacturer ) sit over it */
+html.ecdv2-side-locked .select2-container--open { z-index:100001; }
+/* Phones: the header is one row, so the button floats at the bottom right, above the EasyCart tab bar, until the drawer is open */
+@media screen and (max-width: 600px) {
+	.ecdv2-product.ecdv2-side-drawer .ecdv2-side-toggle { position:fixed; right:14px; bottom:calc(76px + env(safe-area-inset-bottom)); z-index:9998; height:44px; padding:0 16px; border:0; border-radius:999px; background:var(--ecv2-g900); color:#fff; box-shadow:0 8px 24px rgba(15,23,42,.28); }
+	.ecdv2-product.ecdv2-side-drawer.ecdv2-side-open .ecdv2-side-toggle { display:none; }
+	.ecdv2-product.ecdv2-side-drawer .ecdv2-side { width:calc(100vw - 24px); }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+	.ecdv2-product.ecdv2-side-drawer .ecdv2-side, .ecdv2-product.ecdv2-side-drawer.ecdv2-side-open .ecdv2-side { transition:none; }
+}
+
+/* The ⋯ menu: toward the side with room ( place_menu() ) */
+.ecdv2-menu { min-width:240px; }
+.ecdv2-menu.is-left { right:auto; left:0; }

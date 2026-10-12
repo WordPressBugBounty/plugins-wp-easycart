@@ -222,7 +222,7 @@ class wp_easycart_cart_link {
 			$GLOBALS['ec_cart_data']->save_session_to_db();
 		}
 		if ( $codes_applied || ( $link->clear_cart && $added ) ) {
-			wp_cache_flush();
+			wp_easycart_cache::cart_changed();
 			do_action( 'wpeasycart_cart_updated' );
 		}
 

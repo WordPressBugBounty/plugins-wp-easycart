@@ -287,6 +287,23 @@
 		}
 	}
 
+	/* 6.0.4: a payment script that stops hides its older cover with jQuery's fadeOut(), which skips an element the lock's CSS
+	   already hides ( html.wpec-checkout-busy ): the cover kept the display its show() gave it and came back when the lock ended,
+	   "Your payment is processing" over a declined card for good. The payment stopped, so the covers go too. */
+	function hide_covers() {
+		var covers = COVERS.slice();
+		var paypal = document.querySelectorAll ? document.querySelectorAll( '[id^="paypal-success-cover"]' ) : [];
+		for ( var p = 0; p < paypal.length; p++ ) {
+			covers.push( paypal[ p ].id );
+		}
+		for ( var i = 0; i < covers.length; i++ ) {
+			var cover = document.getElementById( covers[ i ] );
+			if ( cover ) {
+				cover.style.display = 'none';
+			}
+		}
+	}
+
 	function unlock() {
 		if ( ! state.locked ) {
 			return;
@@ -304,6 +321,7 @@
 			}
 		}
 		state.regions = [];
+		hide_covers();
 		document.documentElement.classList.remove( BUSY_CLASS );
 		if ( overlay ) {
 			overlay.hidden = true;
@@ -515,3 +533,137 @@
 		return false;
 	};
 } )( window, document );
+
+/**
+ * Stripe payments that went through while the page thought they had not ( 6.0.4 ).
+ *
+ * A payment can succeed at Stripe while Stripe.js answers the page with an error ( a dropped connection, a phone that put the
+ * tab to sleep during 3-D Secure ). Place order then came back, and each press confirmed the same PaymentIntent again, which
+ * Stripe refuses ( "You cannot confirm this PaymentIntent because it has already succeeded" ): the shopper saw a failure,
+ * reloaded, and paid a second time.
+ *
+ * wpeasycart_stripe_paid_intent( stripe, client_secret, error ): a Promise for the PaymentIntent when Stripe says it is paid
+ * ( succeeded, processing, requires_capture ), else null. It reads the intent Stripe sent with the error, else asks Stripe.
+ *
+ * wpeasycart_stripe_finish( payment_intent, data, return_url ): makes the order for a paid intent ( data = the completion
+ * call's fields ). When that call fails or answers anything but a page address, the browser goes to the Stripe return page
+ * ( return_url + payment_intent, payment_intent_client_secret, redirect_status ), which finds or makes the order, instead of
+ * bringing Place order back.
+ */
+( function( window ) {
+	'use strict';
+
+	var paid_statuses = [ 'succeeded', 'processing', 'requires_capture' ];
+	var is_paid = function( payment_intent ) {
+		return !! payment_intent && 'object' === typeof payment_intent && -1 !== paid_statuses.indexOf( payment_intent.status );
+	};
+
+	if ( 'function' !== typeof window.wpeasycart_stripe_paid_intent ) {
+		window.wpeasycart_stripe_paid_intent = function( stripe, client_secret, error ) {
+			if ( error && is_paid( error.payment_intent ) ) {
+				return Promise.resolve( error.payment_intent );
+			}
+			if ( ! stripe || 'function' !== typeof stripe.retrievePaymentIntent || ! client_secret ) {
+				return Promise.resolve( null );
+			}
+			return Promise.resolve().then( function() {
+				return stripe.retrievePaymentIntent( client_secret );
+			} ).then( function( answer ) {
+				return ( answer && is_paid( answer.paymentIntent ) ) ? answer.paymentIntent : null;
+			}, function() {
+				return null;
+			} );
+		};
+	}
+
+	if ( 'function' !== typeof window.wpeasycart_stripe_return_url ) {
+		window.wpeasycart_stripe_return_url = function( return_url, payment_intent ) {
+			return return_url + ( -1 === return_url.indexOf( '?' ) ? '?' : '&' ) + 'payment_intent=' + encodeURIComponent( payment_intent.id ) + '&payment_intent_client_secret=' + encodeURIComponent( payment_intent.client_secret ) + '&redirect_status=' + encodeURIComponent( payment_intent.status );
+		};
+	}
+
+	/*
+	 * 6.0.4 ( #290 ): Safari opens Apple Pay's sheet only from the Place order click itself ( elements.submit() there ), so nothing
+	 * can run between the click and the sheet: the Payment Element must already know the amount. Before, Place order read the
+	 * intent again ( elements.fetchUpdates() ) and the sheet never opened.
+	 *
+	 * wpeasycart_stripe_amount( elements, nonce, type ) keeps the Payment Element's amount the cart's ( nonce = the payment type
+	 * save's, type = the type the session holds ):
+	 *  - .type( value ), from the Payment Element's change events: the store hears a new type ( ec_ajax_update_payment_type: its
+	 *    flex fee and the intent's amount ) only when it changes ( every keystroke in the card fields posted it before ), and the
+	 *    Payment Element reads the intent again;
+	 *  - when the cart's total moves ( wpeasycart_cart_updated: the summary's quantity, a code, an address ), the same call with the
+	 *    type in use once the page is still, so the intent and the Payment Element follow it.
+	 * A payment section drawn again replaces the listener ( one per page ).
+	 */
+	if ( 'function' !== typeof window.wpeasycart_stripe_amount ) {
+		window.wpeasycart_stripe_amount = function( elements, nonce, type ) {
+			var $ = window.jQuery;
+			var state = { type: ( 'string' === typeof type ) ? type : '', total: null, timer: null };
+			var shown_total = function() {
+				return $.trim( $( document.getElementById( 'ec_cart_total' ) ).text() );
+			};
+			var save = function( value ) {
+				return $.ajax( {
+					url: window.wpeasycart_ajax_object.ajax_url,
+					type: 'post',
+					data: { action: 'ec_ajax_update_payment_type', payment_type: value, nonce: nonce }
+				} ).done( function( response ) {
+					var response_obj = null;
+					try {
+						response_obj = ( 'string' === typeof response ) ? JSON.parse( response ) : response;
+					} catch ( e ) {
+						response_obj = null;
+					}
+					if ( response_obj && 'object' === typeof response_obj && 'function' === typeof window.ec_update_cart ) {
+						window.ec_update_cart( response_obj );
+					}
+					state.total = shown_total(); /* the answer's own update is not a change to follow */
+					if ( elements && 'function' === typeof elements.fetchUpdates ) {
+						Promise.resolve( elements.fetchUpdates() ).catch( function() {} );
+					}
+				} );
+			};
+			state.total = shown_total();
+			$( document ).off( 'wpeasycart_cart_updated.wpecStripeAmount' ).on( 'wpeasycart_cart_updated.wpecStripeAmount', function() {
+				window.clearTimeout( state.timer );
+				state.timer = window.setTimeout( function() {
+					var now = shown_total();
+					if ( '' === now || now === state.total ) {
+						return;
+					}
+					state.total = now;
+					save( state.type );
+				}, 700 );
+			} );
+			return {
+				type: function( value ) {
+					if ( 'string' !== typeof value || '' === value || value === state.type ) {
+						return;
+					}
+					state.type = value;
+					save( value );
+				}
+			};
+		};
+	}
+
+	if ( 'function' !== typeof window.wpeasycart_stripe_finish ) {
+		window.wpeasycart_stripe_finish = function( payment_intent, data, return_url ) {
+			var $ = window.jQuery;
+			var to_return_page = function() {
+				window.location.href = window.wpeasycart_stripe_return_url( return_url, payment_intent );
+			};
+			data = data || {};
+			data.payment_intent = payment_intent.id;
+			$.ajax( { url: window.wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ) {
+				result = ( 'string' === typeof result ) ? result.trim() : '';
+				if ( /^(https?:\/\/|\/)[^\s<>"']*$/.test( result ) ) {
+					window.location.href = result;
+				} else {
+					to_return_page();
+				}
+			}, error: to_return_page } );
+		};
+	}
+} )( window );

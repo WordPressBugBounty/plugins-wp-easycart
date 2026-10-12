@@ -102,6 +102,15 @@ if ( function_exists( 'wp_easycart_meta_purchase' ) ) {
 </noscript>
 <?php } ?>
 
+<?php
+/* 6.0.4: the confirmation page's look ( Matt: "much more modern" ). The thank-you card leads, with Print receipt in its corner, then
+   the order itself: the items and totals beside the order's details, addresses and how to pay ( wp_easycart_order_confirmation ),
+   with what other parts add to the page ( a gift order, checkout answers, the withdrawal button ) under the details. Every id, class
+   and action of the page before stays ( the Elementor Order Confirmation widget styles the card through them, and turns the order
+   summary off: it draws its own ). */
+$wpec_confirmation = class_exists( 'wp_easycart_order_confirmation' ) && wp_easycart_order_confirmation::enabled( $order );
+?>
+<div class="ec_order_success_page<?php echo ( $wpec_confirmation ) ? ' ec_order_success_page_v3' : ''; ?>">
 <?php do_action( 'wpeasycart_success_page_content_top', $order_id, $order ); ?>
 
 <?php if( isset( $error_code ) && $error_code == 'ideal-pending' ){ ?>
@@ -211,17 +220,10 @@ if ( function_exists( 'wp_easycart_meta_purchase' ) ) {
 </div>
 <?php }?>
 
-<?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'success_print_receipt', (int) $order_id ) : get_option( 'ec_option_success_print_receipt', 1 ) ) { /* 6.0.2: Settings › Documents › Customer downloads, or a document rule */ ?>
-<div class="ec_cart_success_print_button_v2">
-	<?php $this->display_print_receipt_link( '<span class="dashicons dashicons-printer"></span>' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ), $order_id ); ?>
-</div>
-<?php }?>
-
 <div class="ec_order_success_row">
 	<div class="ec_order_success_loader ec_order_success_loader_v2">
 		<div class="ec_order_success_loader_loaded">
-			<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 161.2 161.2" enable-background="new 0 0 161.2 161.2" xml:space="preserve">
-				<path class="ec_order_success_loader_loaded_path" fill="none" stroke="<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>" stroke-miterlimit="10" d="M425.9,52.1L425.9,52.1c-2.2-2.6-6-2.6-8.3-0.1l-42.7,46.2l-14.3-16.4c-2.3-2.7-6.2-2.7-8.6-0.1c-1.9,2.1-2,5.6-0.1,7.7l17.6,20.3c0.2,0.3,0.4,0.6,0.6,0.9c1.8,2,4.4,2.5,6.6,1.4c0.7-0.3,1.4-0.8,2-1.5c0.3-0.3,0.5-0.6,0.7-0.9l46.3-50.1C427.7,57.5,427.7,54.2,425.9,52.1z"/>
+			<svg version="1.1" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 161.2 161.2" enable-background="new 0 0 161.2 161.2" xml:space="preserve">
 				<circle class="ec_order_success_loader_loaded_path" fill="none" stroke="<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>" stroke-width="4" stroke-miterlimit="10" cx="80.6" cy="80.6" r="62.1"/>
 				<polyline class="ec_order_success_loader_loaded_path" fill="none" stroke="<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>" stroke-width="6" stroke-linecap="round" stroke-miterlimit="10" points="113,52.8 74.1,108.4 48.2,86.4 "/>
 			</svg>
@@ -263,13 +265,31 @@ if ( function_exists( 'wp_easycart_meta_purchase' ) ) {
 			<a href="<?php echo esc_attr( $this->return_to_store_page( $this->store_page ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_continue_shopping' ); ?></a>
 		</p>
 	</div>
+	<?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'success_print_receipt', (int) $order_id ) : get_option( 'ec_option_success_print_receipt', 1 ) ) { /* 6.0.2: Settings › Documents › Customer downloads, or a document rule */ ?>
+	<div class="ec_cart_success_print_button_v2">
+		<?php $this->display_print_receipt_link( '<span class="dashicons dashicons-printer"></span>' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ), $order_id ); ?>
+	</div>
+	<?php }?>
 </div>
 
+<?php if ( $wpec_confirmation ) { ?>
+<div class="ec_order_success_details">
+	<?php wp_easycart_order_confirmation::print_summary( $order ); ?>
+	<div class="ec_order_success_main">
+		<?php wp_easycart_order_confirmation::print_payment( $order ); ?>
+		<?php wp_easycart_order_confirmation::print_info( $order ); ?>
+		<?php do_action( 'wpeasycart_success_page_content_middle', $order_id, $order ); ?>
+		<?php $order->display_order_customer_notes( ); ?>
+	</div>
+</div>
+<?php } else { ?>
 <?php do_action( 'wpeasycart_success_page_content_middle', $order_id, $order ); ?>
 
 <?php $order->display_order_customer_notes( ); ?>
+<?php } ?>
 
 <?php do_action( 'wpeasycart_success_page_content_bottom', $order_id, $order ); ?>
 
+</div>
 <div style="clear:both;"></div>
 <div id="ec_current_media_size"></div>

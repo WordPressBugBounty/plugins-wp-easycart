@@ -68,6 +68,26 @@ function wpeasycart_init_find( container, selector ) {
 	var scope = jQuery( container || document );
 	return scope.find( selector ).add( scope.filter( selector ) );
 }
+/* 6.0.4: on a phone the account menu is a row of links that scrolls sideways ( ec-store.css .ec_account_nav_v2 ): the page shown is
+   brought into view in it. */
+function wpeasycart_account_nav_scroll( container ) {
+	wpeasycart_init_find( container, '.ec_account_nav_v2 .ec_account_nav_items' ).each( function() {
+		if ( this.scrollWidth <= this.clientWidth + 1 ) {
+			return;
+		}
+		var current = jQuery( this ).children( '.is-current' ).get( 0 );
+		if ( ! current || ! current.getBoundingClientRect ) {
+			return;
+		}
+		/* Only when the current chip is not already in view, and then just far enough ( 16px to spare ). */
+		var box = this.getBoundingClientRect(), chip = current.getBoundingClientRect();
+		if ( chip.left < box.left ) {
+			this.scrollLeft = Math.max( 0, this.scrollLeft - ( box.left - chip.left ) - 16 );
+		} else if ( chip.right > box.right ) {
+			this.scrollLeft = this.scrollLeft + ( chip.right - box.right ) + 16;
+		}
+	} );
+}
 /* 6.0.2: the same, minus the elements already set up for key; each one returned is marked, so nothing is bound twice. */
 function wpeasycart_init_elements( container, selector, key ) {
 	return wpeasycart_init_find( container, selector ).filter( function() {
@@ -124,6 +144,7 @@ function wpeasycart_init( container ) {
 	if ( 'function' === typeof window.wpeasycart_option_defaults ) {
 		window.wpeasycart_option_defaults( ctx ); /* 6.0.2: default option picks ( ec-option-defaults.js ), read before the swatches below are set up */
 	}
+	wpeasycart_account_nav_scroll( ctx );
 	if ( wpeasycart_init_find( ctx, '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).length ) {
 		wpeasycart_init_elements( ctx, '.ec_add_to_cart_form, input[type="number"].ec_quantity', 'keypress' ).on( 'keypress', function( e ) {
 			if ( ! jQuery( e.target ).is( 'textarea' ) && e.which == 13 ) {
@@ -2099,6 +2120,11 @@ function wpeasycart_details_linked_stock( product_id, rand_id ) {
 }
 
 function ec_minus_quantity( product_id, min_quantity ){	
+	/* 6.0.4: a cart line at its minimum says so ( the box's data-min-note, printed by the cart templates ). */
+	var wpec_box = jQuery( document.getElementById( 'ec_quantity_' + product_id ) );
+	if ( wpec_box.attr( 'data-min-note' ) && Number( wpec_box.val() ) <= Number( min_quantity ) ) {
+		wpeasycart_cart_quantity_limit_say( wpec_box, -1 );
+	}
 	var currval = jQuery( document.getElementById( 'ec_quantity_' + product_id ) ).val( );
 	currval = Number( currval ) - 1;
 	if( currval <= 0 ){
@@ -2111,6 +2137,19 @@ function ec_minus_quantity( product_id, min_quantity ){
 }
 
 function ec_plus_quantity( product_id, track_quantity, max_quantity ){
+	/* 6.0.4: a cart line's box knows its most as the cart is now ( the same product on other lines counted, kept up to date by
+	   ec_update_cart() ), and says why it stops there. */
+	var wpec_box = jQuery( document.getElementById( 'ec_quantity_' + product_id ) );
+	if ( wpec_box.is( '[data-max-note]' ) ) {
+		var wpec_line_max = parseInt( wpec_box.attr( 'max' ), 10 );
+		if ( ! isNaN( wpec_line_max ) && wpec_line_max > 0 ) {
+			max_quantity = wpec_line_max;
+			if ( Number( wpec_box.val() ) >= wpec_line_max ) {
+				wpeasycart_cart_quantity_limit_say( wpec_box, 1 );
+				return;
+			}
+		}
+	}
 	if( jQuery( document.getElementById( 'ec_details_stock_quantity_' + product_id ) ).length && jQuery( document.getElementById( 'ec_details_stock_quantity_' + product_id ) ).val( ) != 10000000 ){
 		max_quantity = ( 'inf' == jQuery( document.getElementById( 'ec_details_stock_quantity_' + product_id ) ).html( ) ) ? 10000000 : Number( jQuery( document.getElementById( 'ec_details_stock_quantity_' + product_id ) ).html( ) );
 	}
@@ -2147,14 +2186,68 @@ function ec_cartitem_delete( cartitem_id, model_number, nonce ){
 		success: function(data){ 
 			jQuery( document.getElementById( 'ec_cartitem_row_' + cartitem_id ) ).remove( );
 			jQuery( '.ec_cartitem_' + cartitem_id ).remove();
-			jQuery( document.getElementById( 'ec_cartitem_min_error_' + cartitem_id ) ).remove( );
-			jQuery( document.getElementById( 'ec_cartitem_max_error_' + cartitem_id ) ).remove( );
+			jQuery( '[id="ec_cartitem_min_error_' + cartitem_id + '"], [id="ec_cartitem_max_error_' + cartitem_id + '"]' ).remove( ); /* 6.0.4: every copy */
 			jQuery( document.getElementById( 'ec_cart_widget_row_' + cartitem_id ) ).remove( );
 			var response_obj = JSON.parse( data );
 			ec_update_cart( response_obj );
 		}
 	} );
 }
+
+/* 6.0.4: the one-page cart's quantity stepper ( − box + ) and the order summary's ( ec_cart_summary_line_v2.php ): the buttons change
+   the box within its min and max, and the box's own change event saves it ( ec_cartitem_update_v2(), or the summary's handler below ),
+   as typing a number does. A summary button at the end of the range says so with aria-disabled and stays in the tab order. A button
+   that cannot go further says why ( the stock, the item's purchase limit or its minimum: wpeasycart_cart_quantity_limit_say() ). */
+jQuery( document ).on( 'click', '.ec_cart_table_qty_step, .ec_cart_summary_qty_step', function( e ) {
+	e.preventDefault();
+	var input = jQuery( this ).closest( '.ec_cart_table_qty, .ec_cart_summary_qty' ).find( 'input.ec_quantity, input.ec_quantity_small_v2' ).first();
+	var step = parseInt( jQuery( this ).attr( 'data-step' ), 10 ) || 0;
+	if ( ! input.length || input.prop( 'disabled' ) ) {
+		return;
+	}
+	if ( 'true' === jQuery( this ).attr( 'aria-disabled' ) ) {
+		wpeasycart_cart_quantity_limit_say( input, step );
+		return;
+	}
+	var value = parseInt( input.val(), 10 ) || 0;
+	var min = parseInt( input.attr( 'min' ), 10 ), max = parseInt( input.attr( 'max' ), 10 );
+	if ( isNaN( min ) || min < 1 ) {
+		min = 1;
+	}
+	var next = value + step;
+	if ( next < min ) {
+		next = min;
+	}
+	if ( ! isNaN( max ) && max > 0 && next > max ) {
+		next = max;
+	}
+	if ( next === value ) {
+		wpeasycart_cart_quantity_limit_say( input, step );
+		return;
+	}
+	input.val( next );
+	input[0].dispatchEvent( new Event( 'change', { bubbles: true } ) );
+} );
+
+/* 6.0.4: a click on the words, or the empty part of the row, of a checkout tick box ( terms, newsletter ) or a payment choice works as
+   a click on the box ( Matt ). WP EasyCart's own templates put each one in a label since 6.0.4; this does the same for copies of the
+   templates made before, and for rows other code prints without a label. Only the row's own box, never a link, field or button in it. */
+jQuery( document ).on( 'click', '.ec_cart_input_row, .ec_cart_option_row, .ec_cart_payment_table_row', function( e ) {
+	if ( e.isDefaultPrevented() || jQuery( e.target ).closest( '.ec_cart_input_row, .ec_cart_option_row, .ec_cart_payment_table_row' )[0] !== this ) {
+		return;
+	}
+	if ( jQuery( e.target ).closest( 'a, label, input, select, textarea, button, iframe' ).length ) {
+		return;
+	}
+	var box = jQuery( this ).find( '#ec_terms_agree[type="checkbox"], #ec_cart_is_subscriber[type="checkbox"], input[type="radio"][name="ec_cart_payment_selection"]' );
+	if ( 1 !== box.length || box.prop( 'disabled' ) || box.closest( 'label' ).length || ( box.attr( 'id' ) && jQuery( 'label[for="' + box.attr( 'id' ) + '"]' ).length ) ) {
+		return;
+	}
+	if ( box.is( ':radio' ) && box.prop( 'checked' ) ) {
+		return;
+	}
+	box[0].click();
+} );
 
 var ec_cartitem_update_clickTimeout;
 function ec_cartitem_update_v2( cartitem_id, model_number, nonce ){
@@ -2164,69 +2257,426 @@ function ec_cartitem_update_v2( cartitem_id, model_number, nonce ){
 	}, 500 );
 }
 
-/* 6.0.2: quantities on the one-page checkout's order summary ( mobile and desktop copies kept in step ). */
-var wpeasycart_summary_quantity_timer;
+/* 6.0.2: quantities on the one-page checkout's order summary ( mobile and desktop copies kept in step ).
+   6.0.4: each line saves on its own ( a change to a second line within the wait dropped the first line's ), only the newest answer for
+   a line counts, the line shows that it is saving, and the answer brings the summary's lines when the cart's lines changed with it
+   ( an Offers gift added or taken off, wpeasycart_summary_sync() ). The stepper's buttons ( ec_cart_summary_line_v2.php ) change the box. */
+var wpeasycart_summary_quantity_timers = {}, wpeasycart_summary_quantity_seq = {};
 jQuery( document ).on( 'change', 'input.ec_quantity_small_v2[data-cartitem]', function() {
 	var input = jQuery( this ), cartitem = input.attr( 'data-cartitem' ), nonce = input.attr( 'data-nonce' );
 	var quantity = parseInt( input.val(), 10 ), min = parseInt( input.attr( 'min' ), 10 ), max = parseInt( input.attr( 'max' ), 10 );
 	if ( isNaN( quantity ) || quantity < 1 ) {
 		quantity = 1;
 	}
-	if ( ! isNaN( min ) && min > 0 && quantity < min ) {
+	/* 6.0.4: a box that knows what its limits say ( data-max-note / data-min-note ) sends what was typed: the store keeps what it can
+	   and says why ( quantity_notice, wpeasycart_cart_quantity_note() ). Template copies made before keep the limits here, as before. */
+	var says_limits = input.is( '[data-max-note]' );
+	if ( ! says_limits && ! isNaN( min ) && min > 0 && quantity < min ) {
 		quantity = min;
 	}
-	if ( ! isNaN( max ) && max > 0 && quantity > max ) {
+	if ( ! says_limits && ! isNaN( max ) && max > 0 && quantity > max ) {
 		quantity = max;
 	}
 	jQuery( 'input.ec_quantity_small_v2[data-cartitem="' + cartitem + '"]' ).val( quantity );
+	wpeasycart_summary_qty_state( cartitem );
+	wpeasycart_cart_quantity_notes_clear( cartitem ); /* 6.0.4: the answer says again if a limit still applies */
 	/* 6.0.2: a refused update ( an expired page answers with an empty body ) puts the last saved quantity back and says so. */
 	var failed = function() {
 		var copies = jQuery( 'input.ec_quantity_small_v2[data-cartitem="' + cartitem + '"]' );
+		wpeasycart_summary_rows( cartitem ).removeClass( 'is-busy' ).removeAttr( 'aria-busy' );
 		copies.each( function() {
 			this.value = this.defaultValue;
 		} );
-		var message = input.attr( 'data-error' );
-		if ( message ) {
-			copies.each( function() {
-				var note = jQuery( this ).next( '.wpec-quantity-error' );
-				if ( ! note.length ) {
-					note = jQuery( '<div class="ec_cart_error_message wpec-quantity-error" role="alert"></div>' ).insertAfter( this );
-				}
-				note.text( message ).show();
-			} );
-			setTimeout( function() { jQuery( '.wpec-quantity-error' ).fadeOut(); }, 5000 );
-		}
+		wpeasycart_summary_qty_state( cartitem );
+		wpeasycart_summary_error( copies, input.attr( 'data-error' ) );
 	};
-	clearTimeout( wpeasycart_summary_quantity_timer );
-	wpeasycart_summary_quantity_timer = setTimeout( function() {
+	clearTimeout( wpeasycart_summary_quantity_timers[ cartitem ] );
+	wpeasycart_summary_quantity_timers[ cartitem ] = setTimeout( function() {
+		wpeasycart_summary_quantity_timers[ cartitem ] = 0;
+		var seq = ( wpeasycart_summary_quantity_seq[ cartitem ] || 0 ) + 1;
+		wpeasycart_summary_quantity_seq[ cartitem ] = seq;
+		wpeasycart_summary_rows( cartitem ).addClass( 'is-busy' ).attr( 'aria-busy', 'true' );
 		jQuery.ajax( {
 			url: wpeasycart_ajax_object.ajax_url,
 			type: 'post',
 			cache: false,
-			data: { action: 'ec_ajax_cartitem_update', ec_v3_24: 'true', cartitem_id: cartitem, quantity: quantity, nonce: nonce },
+			data: { action: 'ec_ajax_cartitem_update', ec_v3_24: 'true', cartitem_id: cartitem, quantity: quantity, nonce: nonce, wpec_summary: 1 },
 			success: function( data ) {
-				var response_obj = null;
-				try {
-					response_obj = JSON.parse( data );
-				} catch ( e ) {
-					response_obj = null;
+				if ( seq !== wpeasycart_summary_quantity_seq[ cartitem ] ) {
+					return; /* a newer change of this line is on its way */
 				}
-				if ( ! response_obj || 'object' !== typeof response_obj ) {
+				var response_obj = wpeasycart_summary_parse( data );
+				if ( ! response_obj ) {
 					failed();
 					return;
 				}
+				wpeasycart_summary_rows( cartitem ).removeClass( 'is-busy' ).removeAttr( 'aria-busy' );
 				jQuery( '.wpec-quantity-error' ).hide();
 				jQuery( 'input.ec_quantity_small_v2[data-cartitem="' + cartitem + '"]' ).each( function() {
 					this.defaultValue = String( quantity );
 				} );
 				ec_update_cart( response_obj );
+				if ( wpeasycart_summary_sync( response_obj ) ) {
+					return; /* the checkout is drawn again */
+				}
+				wpeasycart_summary_say( jQuery( '.ec_cart_summary_lines' ).first().attr( 'data-updated' ) );
+				/* 6.0.4: the shipping method list's prices follow the new quantity ( a heavier parcel can cost more ). */
+				wpeasycart_onepage_refresh_shipping();
 			},
-			error: failed
+			error: function() {
+				if ( seq === wpeasycart_summary_quantity_seq[ cartitem ] ) {
+					failed();
+				}
+			}
 		} );
 	}, 400 );
 } );
 
+/* 6.0.4: the order summary's remove button ( ec_cart_summary_line_v2.php ). The line leaves both copies of the summary once the store
+   answers; the totals, the shipping choices and any line the store added or took off with it follow, and the focus moves to the next
+   line. An empty cart reloads the page ( ec_update_cart() ), which then shows the empty cart. */
+jQuery( document ).on( 'click', '.ec_cart_summary_remove', function( e ) {
+	e.preventDefault();
+	var button = jQuery( this ), cartitem = button.attr( 'data-cartitem' ), nonce = button.attr( 'data-nonce' );
+	var line = button.closest( '.ec_cart_summary_line' ), rows = wpeasycart_summary_rows( cartitem );
+	if ( ! cartitem || rows.hasClass( 'is-removing' ) ) {
+		return;
+	}
+	/* A quantity change of this line still waiting to be saved is dropped, and an answer on its way no longer counts. */
+	clearTimeout( wpeasycart_summary_quantity_timers[ cartitem ] );
+	wpeasycart_summary_quantity_timers[ cartitem ] = 0;
+	wpeasycart_summary_quantity_seq[ cartitem ] = ( wpeasycart_summary_quantity_seq[ cartitem ] || 0 ) + 1;
+	var quantity = line.find( 'input.ec_quantity_small_v2' ).val() || button.attr( 'data-quantity' ) || 1;
+	rows.removeClass( 'is-busy' ).addClass( 'is-removing' ).attr( 'aria-busy', 'true' );
+	var restore = function() {
+		var now = wpeasycart_summary_rows( cartitem );
+		now.removeClass( 'is-removing' ).removeAttr( 'aria-busy' );
+		wpeasycart_summary_error( now.find( '.ec_cart_summary_remove' ), button.attr( 'data-error' ) );
+	};
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		cache: false,
+		data: { action: 'ec_ajax_cartitem_delete', ec_v3_24: 'true', cartitem_id: cartitem, nonce: nonce, wpec_summary: 1 },
+		success: function( data ) {
+			var response_obj = wpeasycart_summary_parse( data );
+			if ( ! response_obj ) {
+				restore();
+				return;
+			}
+			wpeasycart_summary_ga4_remove( button, quantity );
+			var focus_id = '', focus_list = line.closest( '.ec_cart_summary_lines' ).attr( 'data-wpec-summary' );
+			if ( line.length && line[0].contains( document.activeElement ) ) {
+				var to = line.nextAll( '.ec_cart_summary_line:not(.is-removing)' ).first();
+				if ( ! to.length ) {
+					to = line.prevAll( '.ec_cart_summary_line:not(.is-removing)' ).first();
+				}
+				focus_id = to.attr( 'data-cartitem' ) || '';
+			}
+			jQuery( document.getElementById( 'ec_cartitem_row_' + cartitem ) ).remove(); /* the cart screen's copy, drawn hidden */
+			jQuery( document.getElementById( 'ec_cartitem_min_error_' + cartitem ) ).remove();
+			jQuery( document.getElementById( 'ec_cartitem_max_error_' + cartitem ) ).remove();
+			ec_update_cart( response_obj );
+			if ( ! response_obj.cart.length ) {
+				return; /* the page reloads */
+			}
+			if ( wpeasycart_summary_sync( response_obj ) ) {
+				return; /* the checkout is drawn again ( no account or shipping needed any more ) */
+			}
+			if ( focus_id ) {
+				var target = jQuery( '.ec_cart_summary_lines[data-wpec-summary="' + focus_list + '"] .ec_cart_summary_line[data-cartitem="' + focus_id + '"]' );
+				var control = target.find( '.ec_cart_summary_remove' ).first();
+				( control.length ? control : target.find( 'button, input' ).first() ).trigger( 'focus' );
+			}
+			var reduce = ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+			wpeasycart_summary_rows( cartitem ).slideUp( reduce ? 0 : 160, function() {
+				jQuery( this ).remove();
+			} );
+			wpeasycart_summary_say( jQuery( '.ec_cart_summary_lines' ).first().attr( 'data-updated' ) );
+			if ( 'function' === typeof wpeasycart_onepage_refresh_shipping ) {
+				wpeasycart_onepage_refresh_shipping();
+			}
+		},
+		error: restore
+	} );
+} );
+
+/* 6.0.4: both copies of one summary line ( the summary column and the phone summary ). */
+function wpeasycart_summary_rows( cartitem ) {
+	return jQuery( '.ec_cart_summary_line[data-cartitem="' + cartitem + '"]' );
+}
+
+/* 6.0.4: a line whose quantity change waits to be saved or is being saved. */
+function wpeasycart_summary_pending( cartitem ) {
+	return ( !! wpeasycart_summary_quantity_timers[ cartitem ] || wpeasycart_summary_rows( cartitem ).hasClass( 'is-busy' ) );
+}
+
+/* 6.0.4: the cart AJAX answer, or null when it is not one ( an expired page answers with nothing ). */
+function wpeasycart_summary_parse( data ) {
+	var response_obj = null;
+	if ( data && 'object' === typeof data ) {
+		response_obj = data;
+	} else {
+		try {
+			response_obj = JSON.parse( data );
+		} catch ( e ) {
+			response_obj = null;
+		}
+	}
+	return ( response_obj && 'object' === typeof response_obj && response_obj.cart && 'number' === typeof response_obj.cart.length ) ? response_obj : null;
+}
+
+/* 6.0.4: the stepper's − and + say when the box is at its minimum or maximum ( aria-disabled: the button keeps the focus ). */
+function wpeasycart_summary_qty_state( cartitem ) {
+	jQuery( 'input.ec_quantity_small_v2[data-cartitem="' + cartitem + '"]' ).each( function() {
+		var input = jQuery( this ), box = input.closest( '.ec_cart_summary_qty' );
+		if ( ! box.length ) {
+			return;
+		}
+		var value = parseInt( input.val(), 10 ) || 0, min = parseInt( input.attr( 'min' ), 10 ), max = parseInt( input.attr( 'max' ), 10 );
+		if ( isNaN( min ) || min < 1 ) {
+			min = 1;
+		}
+		var at_min = ( value <= min ), at_max = ( ! isNaN( max ) && max > 0 && value >= max );
+		box.find( '.ec_cart_summary_qty_minus' ).attr( 'aria-disabled', at_min ? 'true' : null );
+		box.find( '.ec_cart_summary_qty_plus' ).attr( 'aria-disabled', at_max ? 'true' : null );
+	} );
+}
+
+/* 6.0.4: a message under each copy of a line ( under its buttons, or after the box in template copies made before 6.0.4 ). */
+var wpeasycart_summary_error_timer;
+function wpeasycart_summary_error( elements, message ) {
+	if ( ! message ) {
+		return;
+	}
+	jQuery( elements ).each( function() {
+		var anchor = jQuery( this ).closest( '.ec_cart_summary_controls' );
+		if ( ! anchor.length ) {
+			anchor = jQuery( this );
+		}
+		var note = anchor.next( '.wpec-quantity-error' );
+		if ( ! note.length ) {
+			note = jQuery( '<div class="ec_cart_error_message wpec-quantity-error" role="alert"></div>' ).insertAfter( anchor );
+		}
+		note.text( message ).show();
+	} );
+	clearTimeout( wpeasycart_summary_error_timer );
+	wpeasycart_summary_error_timer = setTimeout( function() { jQuery( '.wpec-quantity-error' ).fadeOut(); }, 5000 );
+}
+
+/* 6.0.4: a quantity limit said by its cart line ( Matt: a box the store put back, with nothing saying it was the stock, looked like an
+   error ). Every copy of the line shows it: the order summary's lines ( under the line's buttons ), the one-page cart screen's and the
+   classic cart's rows ( the max / min error rows their templates always printed and nothing showed; which = 'min' uses the min row ).
+   One note at a time ( the last thing the shopper did ): it stays until the line's quantity changes again, another line says
+   something, or a cart answer shows the line is no longer at that limit ( wpeasycart_cart_quantity_limits() ); ec_update_cart() shows
+   the answer's quantity_notice. */
+function wpeasycart_cart_quantity_note( cartitem, message, which ) {
+	cartitem = String( cartitem || '' );
+	if ( ! cartitem || ! message ) {
+		return;
+	}
+	var own = ( 'min' === which ) ? 'min' : 'max', other = ( 'min' === which ) ? 'max' : 'min';
+	wpeasycart_summary_rows( cartitem ).each( function() {
+		var line = jQuery( this ), anchor = line.children( '.ec_cart_summary_controls' ).first();
+		if ( ! anchor.length ) {
+			anchor = line.find( 'input.ec_quantity_small_v2' ).first();
+		}
+		if ( ! anchor.length ) {
+			return;
+		}
+		var note = anchor.next( '.wpec-quantity-limit' );
+		if ( ! note.length ) {
+			note = jQuery( '<div class="ec_cart_error_message wpec-quantity-limit" role="alert"></div>' ).insertAfter( anchor );
+		}
+		note.attr( 'data-wpec-limit', own ).text( message ).show();
+	} );
+	var rows = jQuery( '[id="ec_cartitem_' + own + '_error_' + cartitem + '"]' );
+	if ( ! rows.length ) {
+		rows = jQuery( '[id="ec_cartitem_' + other + '_error_' + cartitem + '"]' );
+	}
+	rows.each( function() {
+		var row = jQuery( this ), cell = row.children( 'td, div' ).first();
+		( cell.length ? cell : row ).text( message );
+		row.addClass( 'wpec-quantity-limit-row' ).attr( { role: 'alert', 'data-wpec-limit': own } );
+		/* a table row shows as one, unless the phone layout made the cart's rows blocks */
+		var display = 'block';
+		if ( 'TR' === this.nodeName ) {
+			display = ( this.parentNode && window.getComputedStyle && 'block' === window.getComputedStyle( this.parentNode ).display ) ? 'block' : 'table-row';
+		}
+		this.style.display = display;
+	} );
+}
+
+/* 6.0.4: takes the quantity limit notes away ( one line's, or every line's ). */
+function wpeasycart_cart_quantity_notes_clear( cartitem ) {
+	if ( cartitem ) {
+		wpeasycart_summary_rows( cartitem ).find( '.wpec-quantity-limit' ).remove();
+		jQuery( '[id="ec_cartitem_max_error_' + cartitem + '"], [id="ec_cartitem_min_error_' + cartitem + '"]' ).filter( '.wpec-quantity-limit-row' ).removeClass( 'wpec-quantity-limit-row' ).removeAttr( 'role data-wpec-limit' ).css( 'display', '' );
+		return;
+	}
+	jQuery( '.wpec-quantity-limit' ).remove();
+	jQuery( '.wpec-quantity-limit-row' ).removeClass( 'wpec-quantity-limit-row' ).removeAttr( 'role data-wpec-limit' ).css( 'display', '' );
+}
+
+/* 6.0.4: the limit a line's note is about ( max | min ), or '' when it shows none. */
+function wpeasycart_cart_quantity_note_kind( cartitem ) {
+	var note = wpeasycart_summary_rows( cartitem ).find( '.wpec-quantity-limit' ).first();
+	if ( ! note.length ) {
+		note = jQuery( '[id="ec_cartitem_max_error_' + cartitem + '"], [id="ec_cartitem_min_error_' + cartitem + '"]' ).filter( '.wpec-quantity-limit-row' ).first();
+	}
+	return note.length ? String( note.attr( 'data-wpec-limit' ) || 'max' ) : '';
+}
+
+/* 6.0.4: a − or + that cannot go further says why: the box's data-max-note ( the stock, counting the same product on the cart's other
+   lines, or the item's purchase limit ) or data-min-note ( its minimum ), printed by the cart templates and kept up to date by
+   ec_update_cart(). A box without them says nothing, as before. */
+function wpeasycart_cart_quantity_limit_say( input, step ) {
+	input = jQuery( input );
+	if ( ! input.length || ! step ) {
+		return;
+	}
+	var note = input.attr( step > 0 ? 'data-max-note' : 'data-min-note' );
+	var cartitem = wpeasycart_cart_line_of( input );
+	if ( note && cartitem ) {
+		wpeasycart_cart_quantity_notes_clear();
+		wpeasycart_cart_quantity_note( cartitem, note, step > 0 ? 'max' : 'min' );
+	}
+}
+
+/* 6.0.4: the cart line a quantity box belongs to ( data-cartitem, else its id: ec_quantity_<line> / ec_quantity_mobile_<line> ). */
+function wpeasycart_cart_line_of( input ) {
+	input = jQuery( input );
+	var cartitem = input.attr( 'data-cartitem' );
+	if ( ! cartitem ) {
+		var found = /^ec_quantity_(?:mobile_)?(\d+)$/.exec( input.attr( 'id' ) || '' );
+		cartitem = found ? found[1] : '';
+	}
+	return String( cartitem || '' );
+}
+
+/* 6.0.4: every quantity box of one cart line ( the cart's, the summary's two copies; ids can repeat on the one-page checkout ). */
+function wpeasycart_cart_line_inputs( cartitem ) {
+	return jQuery( '[id="ec_quantity_' + cartitem + '"], [id="ec_quantity_mobile_' + cartitem + '"], input.ec_quantity_small_v2[data-cartitem="' + cartitem + '"]' );
+}
+
+/* 6.0.4: a line's least and most and what each says, from the cart answer ( ec_get_cart_data(): another line's change moves them ).
+   A note the line no longer needs goes ( below its most again, or above its least ). */
+function wpeasycart_cart_quantity_limits( item ) {
+	if ( ! item || 'undefined' === typeof item.max_quantity ) {
+		return;
+	}
+	var kind = wpeasycart_cart_quantity_note_kind( item.id ), quantity = Number( item.quantity );
+	if ( ( 'max' === kind && Number( item.max_quantity ) > 0 && quantity < Number( item.max_quantity ) ) || ( 'min' === kind && quantity > Math.max( 1, Number( item.min_quantity ) || 1 ) ) ) {
+		wpeasycart_cart_quantity_notes_clear( item.id );
+	}
+	wpeasycart_cart_line_inputs( item.id ).each( function() {
+		var box = jQuery( this );
+		if ( Number( item.max_quantity ) > 0 ) {
+			box.attr( 'max', item.max_quantity );
+		}
+		if ( Number( item.min_quantity ) > 0 ) {
+			box.attr( 'min', item.min_quantity );
+		}
+		box.attr( 'data-max-note', item.max_note || '' ).attr( 'data-min-note', item.min_note || '' );
+	} );
+	wpeasycart_summary_qty_state( item.id );
+}
+
+/* 6.0.4: the summary's lines follow the cart after a change. When the checkout's own parts no longer fit the cart ( the only download
+   removed, so no account is needed; the last item to ship removed: wp_easycart_summary_shape() ) the page is drawn again and this
+   answers true. When the cart's lines are not the ones shown ( an Offers gift added or taken off with the change ), each copy is drawn
+   again from the answer's summary_lines, keeping the focus on the same button; the quantity the store kept ( a stock or purchase limit )
+   goes into the boxes of lines nobody is changing. */
+function wpeasycart_summary_sync( response_obj ) {
+	if ( ! response_obj || ! response_obj.cart ) {
+		return false;
+	}
+	var ids = [], i;
+	for ( i = 0; i < response_obj.cart.length; i++ ) {
+		ids.push( String( response_obj.cart[ i ].id ) );
+	}
+	var lines = ( response_obj.summary_lines && 'object' === typeof response_obj.summary_lines ) ? response_obj.summary_lines : null;
+	var shape = jQuery( '.ec_cart_summary_lines[data-shape]' ).first().attr( 'data-shape' );
+	if ( lines && 'string' === typeof lines.shape && '' !== lines.shape && shape && shape !== lines.shape && response_obj.cart.length ) {
+		ec_reload_cart();
+		return true;
+	}
+	var controls = [ 'ec_cart_summary_qty_minus', 'ec_cart_summary_qty_plus', 'ec_quantity_small_v2', 'ec_cart_summary_remove' ];
+	jQuery( '.ec_cart_summary_lines' ).each( function() {
+		var list = jQuery( this ), shown = [], copy = list.attr( 'data-wpec-summary' );
+		list.children( '.ec_cart_summary_line' ).not( '.is-removing' ).each( function() {
+			shown.push( String( jQuery( this ).attr( 'data-cartitem' ) ) );
+		} );
+		if ( shown.join( ',' ) === ids.join( ',' ) || ! lines || 'string' !== typeof lines[ copy ] ) {
+			return;
+		}
+		var active = document.activeElement, keep_id = '', keep_class = '';
+		if ( active && list[0].contains( active ) ) {
+			keep_id = jQuery( active ).closest( '.ec_cart_summary_line' ).attr( 'data-cartitem' ) || '';
+			for ( var c = 0; c < controls.length; c++ ) {
+				if ( jQuery( active ).hasClass( controls[ c ] ) ) {
+					keep_class = controls[ c ];
+				}
+			}
+		}
+		list.html( lines[ copy ] );
+		if ( keep_id && keep_class ) {
+			list.find( '.ec_cart_summary_line[data-cartitem="' + keep_id + '"] .' + keep_class ).first().trigger( 'focus' );
+		}
+	} );
+	for ( i = 0; i < response_obj.cart.length; i++ ) {
+		var id = String( response_obj.cart[ i ].id ), kept = String( response_obj.cart[ i ].quantity );
+		if ( wpeasycart_summary_pending( id ) || '' === kept || 'undefined' === kept ) {
+			continue;
+		}
+		jQuery( 'input.ec_quantity_small_v2[data-cartitem="' + id + '"]' ).each( function() {
+			this.value = kept;
+			this.defaultValue = kept;
+		} );
+		wpeasycart_summary_qty_state( id );
+	}
+	return false;
+}
+
+/* 6.0.4: tells screen readers that the cart changed ( one polite status region on the page ). */
+var wpeasycart_summary_say_timer;
+function wpeasycart_summary_say( text ) {
+	if ( ! text || ! document.body ) {
+		return;
+	}
+	var region = document.getElementById( 'wpec-summary-status' );
+	if ( ! region ) {
+		region = document.createElement( 'div' );
+		region.id = 'wpec-summary-status';
+		region.className = 'wpec-summary-status';
+		region.setAttribute( 'role', 'status' );
+		region.setAttribute( 'aria-live', 'polite' );
+		document.body.appendChild( region );
+	}
+	region.textContent = '';
+	clearTimeout( wpeasycart_summary_say_timer );
+	wpeasycart_summary_say_timer = setTimeout( function() {
+		region.textContent = text;
+	}, 100 );
+}
+
+/* 6.0.4: Google Analytics' remove_from_cart for a line removed from the summary ( the button carries the line's details when GA4 is on ). */
+function wpeasycart_summary_ga4_remove( button, quantity ) {
+	button = jQuery( button );
+	if ( '1' !== button.attr( 'data-ga4' ) || 'function' !== typeof ec_ga4_remove_from_cart ) {
+		return;
+	}
+	var tag_manager = ( '1' === button.attr( 'data-ga4-tm' ) );
+	if ( tag_manager ? ( 'undefined' === typeof dataLayer ) : ( 'undefined' === typeof gtag ) ) {
+		return;
+	}
+	try {
+		ec_ga4_remove_from_cart( button.attr( 'data-model' ), button.attr( 'data-title' ), Number( quantity ) || 1, button.attr( 'data-price' ), button.attr( 'data-currency' ), button.attr( 'data-brand' ), tag_manager );
+	} catch ( e ) {}
+}
+
 function ec_cartitem_update( cartitem_id, model_number, nonce ){
+	wpeasycart_cart_quantity_notes_clear( cartitem_id ); /* 6.0.4: the answer says again if a limit still applies */
 	var data = {
 		action: 'ec_ajax_cartitem_update',
 		ec_v3_24: 'true',
@@ -2242,10 +2692,21 @@ function ec_cartitem_update( cartitem_id, model_number, nonce ){
 		type: 'post',
 		data: data,
 		cache: false,
-		success: function( data ){ 
+		success: function( data ){
 			jQuery( document.getElementById( 'ec_cartitem_updating_' + cartitem_id ) ).hide( );
-			var response_obj = JSON.parse( data );
-			ec_update_cart( response_obj );
+			/* 6.0.4: an answer that is not the cart ( an expired page answers with nothing ) leaves the page as it was. */
+			var response_obj = null;
+			try {
+				response_obj = JSON.parse( data );
+			} catch ( e ) {
+				response_obj = null;
+			}
+			if ( response_obj && 'object' === typeof response_obj ) {
+				ec_update_cart( response_obj );
+			}
+		},
+		error: function() {
+			jQuery( document.getElementById( 'ec_cartitem_updating_' + cartitem_id ) ).hide( );
 		}
 	} );
 }
@@ -2292,6 +2753,8 @@ function ec_apply_coupon( nonce, is_mobile = false ){
 			}
 			var response_obj = JSON.parse( data );
 			ec_update_cart( response_obj );
+			/* 6.0.4: a code can change what each shipping method costs ( the one-page checkout's list ). */
+			wpeasycart_onepage_refresh_shipping();
 			if ( response_obj.is_coupon_valid ) {
 				jQuery( document.getElementById( 'ec_coupon_error' ) ).hide( );
 				jQuery( document.getElementById( 'ec_coupon_success' ) ).html( response_obj.coupon_message ).show( );
@@ -2769,8 +3232,10 @@ function ec_update_cart( response_obj ){
 		ec_reload_cart( );
 		
 	}else{
+		/* 6.0.4: each line's quantity limits follow the cart, and a quantity the store did not keep says why ( quantity_notice ). */
 		// Update Cart Data
 		for( var i=0; i<response_obj.cart.length; i++ ){
+			wpeasycart_cart_quantity_limits( response_obj.cart[i] );
 			jQuery( document.getElementById( 'ec_cartitem_details_' + response_obj.cart[i].id ) ).find( '.ec_details_price_promo_discount' ).remove();
 			jQuery( document.getElementById( 'ec_cartitem_details_' + response_obj.cart[i].id ) ).find( '.ec_details_price_coupon_discount' ).remove();
 			if ( '' != response_obj.cart[i].promo_message ) {
@@ -2778,6 +3243,7 @@ function ec_update_cart( response_obj ){
 			}
 			jQuery( document.getElementById( 'ec_quantity_' + response_obj.cart[i].id ) ).val( response_obj.cart[i].quantity );
 			jQuery( document.getElementById( 'ec_cartitem_price_' + response_obj.cart[i].id ) ).html( response_obj.cart[i].unit_price );
+			jQuery( document.getElementById( 'ec_cartitem_price_mobile_' + response_obj.cart[i].id ) ).html( response_obj.cart[i].unit_price ); /* 6.0.4: the one-page cart's phone price */
 			jQuery( document.getElementById( 'ec_cartitem_total_' + response_obj.cart[i].id ) ).html( response_obj.cart[i].total_price );
 
 			jQuery( '.ec_cartitem_' + response_obj.cart[i].id + ' > .ec_cart_price_row_total_v2' ).html( response_obj.cart[i].total_price );
@@ -2802,6 +3268,11 @@ function ec_update_cart( response_obj ){
 			}
 		}
 		
+		if ( response_obj.quantity_notice && response_obj.quantity_notice.message ) {
+			wpeasycart_cart_quantity_notes_clear();
+			wpeasycart_cart_quantity_note( response_obj.quantity_notice.id, response_obj.quantity_notice.message, ( 'min' === response_obj.quantity_notice.reason ) ? 'min' : 'max' );
+		}
+
 		// Update Cart Totals
 		jQuery( document.getElementById( 'ec_cart_subtotal' ) ).html( response_obj.order_totals.sub_total );
 		if ( jQuery( '.paylater_message_v2' ).length ) {
@@ -2813,7 +3284,8 @@ function ec_update_cart( response_obj ){
 		}
 		if ( jQuery( '#wpec-payment-method-messaging-element' ).length ) {
 			ec_cart_stripe_paylater_messaging_v2( Math.round( response_obj.order_totals.sub_total_amt * 100 ) );
-			if ( Number( jQuery( '.paylater_message_v2' ).attr( 'data-min-price' ) ) <= Number( response_obj.order_totals.sub_total_amt ) ) {
+			/* 6.0.4: without a minimum ( no .paylater_message_v2 ) the message stays; it was hidden on every change. */
+			if ( ! jQuery( '.paylater_message_v2' ).length || Number( jQuery( '.paylater_message_v2' ).attr( 'data-min-price' ) ) <= Number( response_obj.order_totals.sub_total_amt ) ) {
 				jQuery( '#wpec-payment-method-messaging-element' ).show();
 			} else {
 				jQuery( '#wpec-payment-method-messaging-element' ).hide();
@@ -2821,6 +3293,13 @@ function ec_update_cart( response_obj ){
 		}
 		if ( jQuery( '.ec_cart_table_subtotal_amount' ).length ) {
 			jQuery( '.ec_cart_table_subtotal_amount' ).html( response_obj.order_totals.sub_total );
+		}
+		/* 6.0.4: the one-page cart screen's discounts and estimated total ( ec_cartpage::cart_screen_totals() ). */
+		if ( jQuery( '.ec_cart_table_estimate_amount' ).length && 'undefined' !== typeof response_obj.order_totals.estimated_total ) {
+			jQuery( '.ec_cart_table_discount_amount' ).html( response_obj.order_totals.cart_discount );
+			jQuery( '.ec_cart_table_discount_row' ).toggle( '1' == response_obj.order_totals.cart_discount_show );
+			jQuery( '.ec_cart_table_estimate_amount' ).html( response_obj.order_totals.estimated_total );
+			jQuery( '.ec_cart_table_estimate_row' ).toggle( '1' == response_obj.order_totals.estimated_total_show );
 		}
 		jQuery( document.getElementById( 'ec_cart_tax' ) ).html( response_obj.order_totals.tax_total );
 		if( response_obj.order_totals.has_tax == '1' ){
@@ -3019,6 +3498,144 @@ function ec_cart_toggle_login_v2() {
 	return false;
 }
 
+/* 6.0.4: one look for every wait on the one-page checkout ( Matt: signing in or out showed a grey 2015 spinner over the text, and on
+   a slow server nothing said what was happening ). The checkout's column goes under a light veil with a card in the middle: a spinner
+   in the store's colour and what the page is doing ( Signing you in…, Signing you out…, Loading… ), and after a while that it is
+   taking longer than usual ( ec-store.css .wpec-goto-loader ). A second veil with the same id replaces the first. Wording from
+   wpeasycart_ajax_object.checkout_text ( language section cart_onepage ), else English. */
+function wpeasycart_checkout_text( key ) {
+	var fallback = {
+		loading: 'Loading\u2026',
+		signing_in: 'Signing you in\u2026',
+		signing_out: 'Signing you out\u2026',
+		creating_account: 'Creating your account\u2026',
+		saving: 'Saving\u2026',
+		sending: 'Sending\u2026',
+		slow: 'This is taking a little longer than usual.'
+	};
+	var text = '';
+	if ( 'undefined' !== typeof wpeasycart_ajax_object && wpeasycart_ajax_object && wpeasycart_ajax_object.checkout_text && 'string' === typeof wpeasycart_ajax_object.checkout_text[ key ] ) {
+		text = wpeasycart_ajax_object.checkout_text[ key ];
+	}
+	return '' !== text ? text : ( fallback[ key ] || '' );
+}
+
+function wpeasycart_checkout_veil( near, id, key ) {
+	jQuery( document.getElementById( id ) ).remove();
+	var holder = jQuery( near ).first();
+	if ( holder.length && holder.closest( '.ec_cart_left' ).length ) {
+		holder = holder.closest( '.ec_cart_left' );
+	}
+	if ( ! holder.length ) {
+		return null;
+	}
+	var position = holder.css( 'position' );
+	if ( ! position || 'static' === position ) {
+		holder.addClass( 'wpec-goto-host' );
+	}
+	var veil = jQuery( '<div class="wpec-goto-loader" role="status" aria-live="polite" aria-busy="true"><span class="wpec-goto-card"><span class="wpec-goto-spinner" aria-hidden="true"></span><span class="wpec-goto-words"><span class="wpec-goto-text"></span><span class="wpec-goto-slow"></span></span></span></div>' );
+	veil.attr( 'id', id );
+	veil.attr( 'data-wait', key || 'loading' );
+	veil.find( '.wpec-goto-text' ).text( wpeasycart_checkout_text( key || 'loading' ) );
+	veil.find( '.wpec-goto-slow' ).text( wpeasycart_checkout_text( 'slow' ) );
+	holder.append( veil );
+	return veil;
+}
+
+/* A page the browser shows again from its back / forward cache keeps the veil it had when the shopper left ( signing out goes on to
+   another page ): take it off. */
+window.addEventListener( 'pageshow', function( event ) {
+	if ( event && event.persisted ) {
+		jQuery( '.wpec-goto-loader' ).remove();
+	}
+} );
+
+/* 6.0.4: the account pages wait the way the one-page checkout does ( Matt: one look for the cart and the account, from signing in to
+   an order's details ). Signing in, creating an account, every save, sending a password link, signing out and moving between the
+   account's own screens put the account page under the veil with a card saying what is happening, until the next page draws. A form
+   a script keeps in the page ( it stopped the post ) and a link that opens elsewhere, prints or downloads are left alone. */
+function wpeasycart_account_wait_key( form ) {
+	var keys = {
+		login: 'signing_in',
+		register: 'creating_account',
+		retrieve_password: 'sending',
+		resend_activation: 'sending',
+		reset_password: 'saving',
+		update_personal_information: 'saving',
+		update_password: 'saving',
+		update_billing_information: 'saving',
+		update_shipping_information: 'saving'
+	};
+	var action = String( jQuery( form ).find( 'input[name="ec_account_form_action"]' ).first().val() || '' );
+	return Object.prototype.hasOwnProperty.call( keys, action ) ? keys[ action ] : '';
+}
+
+function wpeasycart_account_link_key( link, event ) {
+	if ( ! link || ! link.href || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ) {
+		return '';
+	}
+	if ( ( link.target && '_self' !== link.target ) || link.hasAttribute( 'download' ) ) {
+		return '';
+	}
+	var url = null;
+	var here = null;
+	try {
+		url = new URL( link.href, window.location.href );
+		here = new URL( window.location.href );
+	} catch ( e ) {
+		return '';
+	}
+	/* The account page's own screens only: the same page ( and the same page_id / p without pretty permalinks ), not an anchor. */
+	if ( url.origin !== here.origin || url.pathname !== here.pathname || url.searchParams.get( 'page_id' ) !== here.searchParams.get( 'page_id' ) || url.searchParams.get( 'p' ) !== here.searchParams.get( 'p' ) ) {
+		return '';
+	}
+	if ( url.hash && url.href.split( '#' )[0] === here.href.split( '#' )[0] ) {
+		return '';
+	}
+	var page = String( url.searchParams.get( 'ec_page' ) || '' );
+	if ( 'logout' === page ) {
+		return 'signing_out';
+	}
+	var views = [ '', 'dashboard', 'login', 'orders', 'order_details', 'subscriptions', 'subscription_details', 'billing_information', 'shipping_information', 'personal_information', 'password', 'register', 'forgot_password' ];
+	return ( -1 !== views.indexOf( page ) ) ? 'loading' : '';
+}
+
+/* The veil goes on at once, in the same task as the post or the click ( the browser starts the next page right after it and a later
+   task may not draw before that page arrives ); a listener after this one that keeps the page ( it stopped the post or the click )
+   takes it off again on the next tick. */
+function wpeasycart_account_wait( event, host, key ) {
+	var prevented = function() {
+		return event.isDefaultPrevented() || ( event.originalEvent && event.originalEvent.defaultPrevented );
+	};
+	if ( prevented() ) {
+		return;
+	}
+	var veil = wpeasycart_checkout_veil( host, 'ec_account_wait_loader', key );
+	setTimeout( function() {
+		if ( veil && prevented() ) {
+			veil.remove();
+		}
+	}, 0 );
+}
+
+jQuery( document ).on( 'submit', '.ec_account_page form', function( event ) {
+	var form = this;
+	var key = wpeasycart_account_wait_key( form );
+	if ( '' === key || ( form.target && '_self' !== form.target ) ) {
+		return;
+	}
+	wpeasycart_account_wait( event, jQuery( form ).closest( '.ec_account_page' ).length ? jQuery( form ).closest( '.ec_account_page' ) : jQuery( form ), key );
+} );
+
+jQuery( document ).on( 'click', '.ec_account_page a[href]', function( event ) {
+	var link = this;
+	var key = wpeasycart_account_link_key( link, event );
+	if ( '' === key ) {
+		return;
+	}
+	wpeasycart_account_wait( event, jQuery( link ).closest( '.ec_account_page' ), key );
+} );
+
 function ec_cart_validate_login_v2( nonce ) {
 	var recaptcha_complete = true;
 	var recaptcha_response = '';
@@ -3032,7 +3649,7 @@ function ec_cart_validate_login_v2( nonce ) {
 		}
 	}
 	if ( ec_validate_cart_login() && recaptcha_complete ) {
-		jQuery( document.getElementById( 'ec_user_login_form' ) ).append( '<div id="ec_cart_login_form_loader"><style>@keyframes rotation{0% { transform:rotate(0deg); }100%{ transform:rotate(359deg); }}</style><div style=\'font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center;\'><div><div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div></div></div></div>' );
+		wpeasycart_checkout_veil( jQuery( document.getElementById( 'ec_user_login_form' ) ), 'ec_cart_login_form_loader', 'signing_in' );
 		var data = {
 			action: 'ec_ajax_cart_login_v2',
 			ec_cart_login_email: jQuery( document.getElementById( 'ec_cart_login_email' ) ).val(),
@@ -3045,8 +3662,18 @@ function ec_cart_validate_login_v2( nonce ) {
 			type: 'post',
 			data: data,
 			cache: false,
+			/* 6.0.4: a request that fails leaves the form usable ( the spinner stayed for ever ). */
+			error: function() {
+				jQuery( document.getElementById( 'ec_cart_login_form_loader' ) ).remove();
+				jQuery( document.getElementById( 'ec_cart_login_invalid_error' ) ).show();
+			},
 			success: function( data ) {
-				var response_obj = JSON.parse( data );
+				var response_obj = null;
+				try {
+					response_obj = JSON.parse( data );
+				} catch ( e ) {
+					response_obj = { error: 'invalid' };
+				}
 				jQuery( document.getElementById( 'ec_cart_login_invalid_error' ) ).hide();
 				jQuery( document.getElementById( 'ec_cart_not_activated_error' ) ).hide();
 				if ( response_obj.error ) {
@@ -3072,25 +3699,47 @@ function ec_cart_validate_login_v2( nonce ) {
 }
 
 function ec_cart_stripe_paylater_messaging_v2( sub_total ) {
-	if ( jQuery( '#wpec-payment-method-messaging-element' ).length ) {
-		const appearance = {
-			theme: jQuery( '#wpec-payment-method-messaging-element' ).attr( 'data-theme' ),
-		};
-		const elements = stripe.elements( appearance );
-		const options = {
+	var holder = jQuery( '#wpec-payment-method-messaging-element' );
+	if ( ! holder.length || 'undefined' === typeof stripe || ! stripe || 'function' !== typeof stripe.elements ) {
+		return;
+	}
+	/* 6.0.4: only Affirm, Klarna and Afterpay show a message. With none switched on the list was [ '' ] and Stripe threw an
+	   IntegrationError, which stopped the cart's own scripts ( ec_update_cart() left the subtotal at its old amount, Edit Cart's
+	   loader never closed ). A message already on the page is updated rather than mounted again, and nothing Stripe throws stops
+	   the page. */
+	var types = String( holder.attr( 'data-types' ) || '' ).split( ',' ).filter( function( type ) {
+		return '' !== type;
+	} );
+	if ( ! types.length ) {
+		return;
+	}
+	try {
+		if ( window.wpeasycart_paylater_element && window.wpeasycart_paylater_holder === holder[0] ) {
+			window.wpeasycart_paylater_element.update( { amount: sub_total } );
+			return;
+		}
+		var elements = stripe.elements( {
+			theme: holder.attr( 'data-theme' ),
+		} );
+		var message = elements.create( 'paymentMethodMessaging', {
 			amount: sub_total,
-			currency: jQuery( '#wpec-payment-method-messaging-element' ).attr( 'data-currency' ),
-			paymentMethodTypes: jQuery( '#wpec-payment-method-messaging-element' ).attr( 'data-types' ).split( ',' ),
-			countryCode: jQuery( '#wpec-payment-method-messaging-element' ).attr( 'data-country' ),
-		};
-		const PaymentMessageElement =
-		elements.create( 'paymentMethodMessaging', options );
-		PaymentMessageElement.mount( '#wpec-payment-method-messaging-element' );
+			currency: holder.attr( 'data-currency' ),
+			paymentMethodTypes: types,
+			countryCode: holder.attr( 'data-country' ),
+		} );
+		message.mount( holder[0] );
+		window.wpeasycart_paylater_element = message;
+		window.wpeasycart_paylater_holder = holder[0];
+	} catch ( e ) {
+		if ( window.console && console.warn ) {
+			console.warn( 'WP EasyCart: Stripe pay later message', e );
+		}
 	}
 }
 
 function ec_cart_logout_v2() {
-	jQuery( document.getElementById( 'ec_cart_logged_in_section' ) ).append( '<style>@keyframes rotation{0% { transform:rotate(0deg); }100%{ transform:rotate(359deg); }}</style><div style=\'font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center;\'><div><div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div></div></div>' );
+	/* 6.0.4: the link goes on to the cart page, which signs the customer out and draws the checkout again: the veil stays until then. */
+	wpeasycart_checkout_veil( jQuery( document.getElementById( 'ec_cart_logged_in_section' ) ), 'ec_cart_logout_loader', 'signing_out' );
 }
 
 function ec_cart_toggle_address_edit( ) {
@@ -3161,7 +3810,9 @@ function wp_easycart_goto_page_v2( page, nonce, add_state = true ) {
 	if ( ! valid_pages.includes( page ) ) {
 		page = 'information';
 	}
-	jQuery( '.ec_cart_left' ).append( '<div id="ec_cart_goto_page_loader"><style>@keyframes rotation{0% { transform:rotate(0deg); }100%{ transform:rotate(359deg); }}</style><div style=\'font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center;\'><div><div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div></div></div></div>' );
+	/* 6.0.4: the checkout's veil ( wpeasycart_checkout_veil() ), in place of the 2015 spinner. */
+	jQuery( '#ec_cart_goto_page_loader' ).remove();
+	wpeasycart_checkout_veil( jQuery( '.ec_cart_left' ), 'ec_cart_goto_page_loader', 'loading' );
 
 	if ( add_state ) {
 		wp_easycart_goto_push_state( page );
@@ -3177,9 +3828,35 @@ function wp_easycart_goto_page_v2( page, nonce, add_state = true ) {
 		type: 'post',
 		data: data,
 		cache: false,
+		/* 6.0.4: a failed request leaves the page usable ( the loader stayed for ever ). */
+		error: function() {
+			jQuery( '#ec_cart_goto_page_loader' ).remove();
+		},
 		success: function( data ) {
-			var response_obj = JSON.parse( data );
-			ec_update_cart( response_obj.cart_data );
+			var response_obj = null;
+			try {
+				response_obj = JSON.parse( data );
+			} catch ( e ) {
+				response_obj = null;
+			}
+			if ( ! response_obj || 'object' !== typeof response_obj ) {
+				jQuery( '#ec_cart_goto_page_loader' ).remove();
+				return;
+			}
+			/* 6.0.4: the cart totals' update can never keep the new screen from drawing ( a Stripe error inside it left the loader up ). */
+			try {
+				ec_update_cart( response_obj.cart_data );
+			} catch ( e ) {
+				if ( window.console && console.warn ) {
+					console.warn( 'WP EasyCart: cart update', e );
+				}
+			}
+			/* 6.0.4: the phone's order summary belongs to the checkout, not the cart screen ( which is the summary ). */
+			if ( 'cart' == page ) {
+				jQuery( '.ec_cart_mobile_summary' ).hide();
+			} else {
+				jQuery( '.ec_cart_mobile_summary' ).css( 'display', '' );
+			}
 			if ( jQuery( document.getElementById( 'ec_cart_onepage_cart' ) ).length ) {
 				jQuery( document.getElementById( 'ec_cart_goto_page_loader' ) ).remove();
 				if ( 'cart' == page ) {
@@ -3452,19 +4129,44 @@ function wp_easycart_goto_shipping_v2( should_scroll = false ) {
 			jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).html( '<div id="ec_cart_shipping_loader"><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div></div>' ).prepend( header_html );
 		}
 	} else {
-		jQuery( '.ec_cart_left' ).append( '<div id="ec_cart_shipping_loader"><style>@keyframes rotation{0% { transform:rotate(0deg); }100%{ transform:rotate(359deg); }}</style><div style=\'font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center;\'><div><div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div></div></div></div>' );
+		wpeasycart_checkout_veil( jQuery( '.ec_cart_left' ), 'ec_cart_shipping_loader', 'loading' );
 	}
 
 	var request = wp_easycart_checkout_info_request();
 	var data = request.data;
 	wp_easycart_goto_push_state( request.page );
 
+	/* 6.0.4 ( a customer's report: rates "sometimes do not show" after typing an address ): every pause while typing sends one of
+	   these saves, and answers can come back in any order. Only the newest save draws; an older answer that lands later is
+	   dropped ( it used to draw an earlier address's rates, or none, over the newer ones ). A shipping list refresh that is
+	   still open draws nothing over this save's answer. */
+	var wpec_save_seq = ++wpeasycart_address_save_seq;
+	wpeasycart_address_saves_open++;
+	wpeasycart_shipping_refresh_seq++;
+
 	jQuery.ajax( {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
 		cache: false,
+		/* 6.0.4: a request that fails leaves the page usable. */
+		error: function() {
+			if ( wpec_save_seq !== wpeasycart_address_save_seq ) {
+				return;
+			}
+			jQuery( '#ec_cart_shipping_loader.wpec-goto-loader' ).remove();
+		},
+		complete: function() {
+			wpeasycart_address_saves_open = Math.max( 0, wpeasycart_address_saves_open - 1 );
+			if ( 0 === wpeasycart_address_saves_open && wpeasycart_shipping_refresh_wanted ) {
+				wpeasycart_shipping_refresh_wanted = false;
+				wpeasycart_onepage_refresh_shipping();
+			}
+		},
 		success: function( data ) {
+			if ( wpec_save_seq !== wpeasycart_address_save_seq ) {
+				return; /* a newer save is on its way and draws the page */
+			}
 			var response_obj = JSON.parse( data );
 			jQuery( document.getElementById( 'ec_cart_shipping_loader' ) ).remove();
 			if ( response_obj.error && 'user_create_error' == response_obj.error ) {
@@ -3500,8 +4202,75 @@ function wp_easycart_goto_shipping_v2( should_scroll = false ) {
 	} );
 }
 
+/* 6.0.4: the one-page checkout's address saves ( wp_easycart_goto_shipping_v2() ) and shipping list refreshes in flight. */
+var wpeasycart_address_save_seq = 0;
+var wpeasycart_address_saves_open = 0;
+var wpeasycart_shipping_refresh_seq = 0;
+var wpeasycart_shipping_refresh_wanted = false;
+
+/**
+ * 6.0.4 ( a customer's report ): draws the one-page checkout's shipping method list again for the cart as it is now. A quantity raised
+ * in the order summary moved the summary's Shipping total to the new rate ( a heavier parcel ) while the list kept the old prices until
+ * the next screen or a reload. Called after the summary's quantity and coupon changes, and by WP EasyCart PRO's Offers code box
+ * ( window.wpeasycart_onepage_refresh_shipping ); does nothing where the list is not shown ( no address yet, the classic checkout ).
+ * The answer ( AJAX ec_ajax_onepage_shipping_table ) replaces .ec_cart_shipping_table, so the list's heading, the delivery questions
+ * and the tabbed step's buttons stay. While an address save is open it waits for that save; only the newest refresh draws.
+ */
+function wpeasycart_onepage_refresh_shipping() {
+	var table = jQuery( '.ec_cart_onepage_page .ec_cart_shipping_table' );
+	var nonce = jQuery( document.getElementById( 'wpeasycart_checkout_nonce' ) ).val();
+	if ( ! table.length || ! nonce ) {
+		return;
+	}
+	if ( wpeasycart_address_saves_open > 0 ) {
+		wpeasycart_shipping_refresh_wanted = true;
+		return;
+	}
+	var seq = ++wpeasycart_shipping_refresh_seq;
+	var done = function() {
+		jQuery( '.ec_cart_onepage_page .ec_cart_shipping_table' ).removeAttr( 'aria-busy' ).removeClass( 'wpec-shipping-refreshing' );
+	};
+	table.attr( 'aria-busy', 'true' ).addClass( 'wpec-shipping-refreshing' );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		cache: false,
+		data: { action: 'ec_ajax_onepage_shipping_table', wpeasycart_checkout_nonce: nonce },
+		success: function( data ) {
+			if ( seq !== wpeasycart_shipping_refresh_seq ) {
+				return;
+			}
+			done();
+			var response_obj = null;
+			try {
+				response_obj = JSON.parse( data );
+			} catch ( e ) {
+				response_obj = null;
+			}
+			if ( ! response_obj || ! response_obj.ok || 'string' !== typeof response_obj.table ) {
+				return;
+			}
+			jQuery( '.ec_cart_onepage_page .ec_cart_shipping_table' ).html( response_obj.table );
+			if ( jQuery( 'input[name=ec_cart_shipping_method]:checked' ).length && jQuery( document.getElementById( 'ec_shipping_method_order_error' ) ).length ) {
+				jQuery( document.getElementById( 'ec_shipping_method_order_error' ) ).hide();
+			}
+			/* The totals follow only when the list changed them ( a chosen rate that is no longer offered ). */
+			var totals = ( response_obj.cart_data && response_obj.cart_data.order_totals ) ? response_obj.cart_data.order_totals : null;
+			if ( totals && ( totals.grand_total !== jQuery( '#ec_cart_total' ).first().text().trim() || totals.shipping_total !== jQuery( '#ec_cart_shipping' ).first().text().trim() ) ) {
+				ec_update_cart( response_obj.cart_data );
+			}
+		},
+		error: function() {
+			if ( seq === wpeasycart_shipping_refresh_seq ) {
+				done();
+			}
+		}
+	} );
+}
+window.wpeasycart_onepage_refresh_shipping = wpeasycart_onepage_refresh_shipping;
+
 function wp_easycart_goto_payment_v2() {
-	jQuery( '.ec_cart_left' ).append( '<style>@keyframes rotation{0% { transform:rotate(0deg); }100%{ transform:rotate(359deg); }}</style><div style=\'font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center;\'><div><div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div></div></div>' );
+	wpeasycart_checkout_veil( jQuery( '.ec_cart_left' ), 'ec_cart_payment_loader', 'loading' );
 	
 	var ship_express = 0;
 	var shipping_method = jQuery( '.ec_cart_shipping_method_row > input:checked' ).val();
@@ -3536,6 +4305,10 @@ function wp_easycart_goto_payment_v2() {
 		type: 'post',
 		data: data,
 		cache: false,
+		/* 6.0.4: a request that fails leaves the page usable. */
+		error: function() {
+			jQuery( document.getElementById( 'ec_cart_payment_loader' ) ).remove();
+		},
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			jQuery( '.ec_cart_left' ).html( response_obj.html_content );
@@ -7672,7 +8445,8 @@ function ec_details_get_sub_dimension_decimal( sub_dimension ) {
  * 6.0.2: the Offers price preview for "Your price". WP EasyCart PRO 6.0.2 prints a running offer's rules on the price's
  * wrapper ( data-wpec-offer-rules, from ec_offer_display::get_product_price_rules() ); this is the lowest price they give
  * ( the price itself when none lowers it ), worked out as ec_offer_display::apply_price_rules() does. The Elementor
- * product widgets' script ( product-buy.js ) uses the same sums.
+ * product widgets' script ( product-buy.js ) uses the same sums. 6.0.4: when every rule carries stack ( offers the cart
+ * takes together, WP EasyCart PRO 6.0.4 ), what they take off is added up instead.
  */
 function wpeasycart_offer_price( rules, price ) {
 	price = Number( price );
@@ -7680,6 +8454,8 @@ function wpeasycart_offer_price( rules, price ) {
 	if ( ! jQuery.isArray( rules ) || ! ( price > 0 ) ) {
 		return price;
 	}
+	var stack = rules.length > 1;
+	var taken = 0;
 	jQuery.each( rules, function( i, rule ) {
 		var value = Number( rule && rule.value ) || 0;
 		var floor = Number( rule && rule.floor ) || 0;
@@ -7698,8 +8474,12 @@ function wpeasycart_offer_price( rules, price ) {
 		if ( preview < best ) {
 			best = preview;
 		}
+		taken += price - preview;
+		if ( ! ( rule && rule.stack ) ) {
+			stack = false;
+		}
 	} );
-	return best;
+	return stack ? Math.max( 0, price - taken ) : best;
 }
 
 /*

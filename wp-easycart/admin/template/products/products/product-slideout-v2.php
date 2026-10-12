@@ -232,16 +232,16 @@ endif;
 			<div class="ecpsv2-publish" id="ecpsv2_publish" role="radiogroup" aria-label="<?php esc_attr_e( 'Product status', 'wp-easycart' ); ?>">
 				<button type="button" class="ecpsv2-publish-opt is-on" data-live="1" role="radio" aria-checked="true">
 					<span class="ecpsv2-publish-dot" aria-hidden="true"></span>
-					<span class="ecpsv2-publish-text"><strong><?php echo esc_html( _x( 'Live', 'product status', 'wp-easycart' ) ); ?></strong><span><?php esc_html_e( 'Shoppers can see and buy it', 'wp-easycart' ); ?></span></span>
+					<span class="ecpsv2-publish-text"><strong><?php echo esc_html( _x( 'Active', 'product status', 'wp-easycart' ) ); ?></strong><span><?php esc_html_e( 'Shoppers can see and buy it', 'wp-easycart' ); ?></span></span>
 				</button>
 				<button type="button" class="ecpsv2-publish-opt" data-live="0" role="radio" aria-checked="false">
 					<span class="ecpsv2-publish-dot" aria-hidden="true"></span>
-					<span class="ecpsv2-publish-text"><strong><?php esc_html_e( 'Draft', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Hidden from the store until you make it live', 'wp-easycart' ); ?></span></span>
+					<span class="ecpsv2-publish-text"><strong><?php esc_html_e( 'Draft', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Hidden from the store until you make it active', 'wp-easycart' ); ?></span></span>
 				</button>
 			</div>
 
 			<div class="ecpsv2-toggle-grid">
-				<?php ecpsv2_toggle_row( 'ecpsv2_featured', __( 'Feature on store page', 'wp-easycart' ), __( 'Shows in the featured products area.', 'wp-easycart' ), true ); ?>
+				<?php ecpsv2_toggle_row( 'ecpsv2_featured', __( 'Show on store page', 'wp-easycart' ), __( 'Shows in the featured products area.', 'wp-easycart' ), true ); ?>
 			</div>
 
 			<div class="ecpsv2-f">
@@ -298,6 +298,16 @@ endif;
 					<input type="number" step="1" class="ecv2-input" id="ecpsv2_sort" value="0" />
 				</div>
 			</div>
+
+			<?php /* 6.0.4 ( editor plan Phase 2 ): categories for a new product, saved with it. */ ?>
+			<div class="ecpsv2-f" data-mode-only="create">
+				<label for="ecpsv2_cat_input"><?php esc_html_e( 'Categories', 'wp-easycart' ); ?> <span class="ecpsv2-hint"><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
+				<div class="ecpsv2-cats" id="ecpsv2_cats" role="list"></div>
+				<div class="ecpsv2-combo" id="ecpsv2_cat_combo" data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-ecv2-category-search' ) ); ?>">
+					<input type="text" class="ecv2-input" id="ecpsv2_cat_input" autocomplete="off" placeholder="<?php esc_attr_e( 'Type to find a category', 'wp-easycart' ); ?>" role="combobox" aria-expanded="false" aria-controls="ecpsv2_cat_list" />
+					<ul class="ecpsv2-combo-list" id="ecpsv2_cat_list" role="listbox" hidden></ul>
+				</div>
+			</div>
 		<?php ecpsv2_card_close(); ?>
 
 		<!-- ========================= PRICING & TAX ======================== -->
@@ -315,7 +325,7 @@ endif;
 					<div class="ecpsv2-hint ecpsv2-err" id="ecpsv2_price_err" hidden><?php esc_html_e( 'Enter a price of 0 or more.', 'wp-easycart' ); ?></div>
 				</div>
 				<div class="ecpsv2-f">
-					<label for="ecpsv2_list_price"><?php esc_html_e( 'List price', 'wp-easycart' ); ?> <span class="ecpsv2-hint"><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
+					<label for="ecpsv2_list_price"><?php esc_html_e( 'Compare-at price', 'wp-easycart' ); ?> <span class="ecpsv2-hint"><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
 					<?php ecpsv2_money_input( 'ecpsv2_list_price', $currency_sym, $step, '—' ); ?>
 					<div class="ecpsv2-hint" id="ecpsv2_disc_hint"><?php esc_html_e( 'Shows a strike-through price and "% off" badge.', 'wp-easycart' ); ?></div>
 				</div>
@@ -407,9 +417,9 @@ endif;
 					<div class="ecpsv2-f">
 						<label for="ecpsv2_stock"><?php esc_html_e( 'Stock tracking', 'wp-easycart' ); ?></label>
 						<select class="ecv2-select" id="ecpsv2_stock">
-							<option value="0"><?php esc_html_e( "Don't track", 'wp-easycart' ); ?></option>
-							<option value="1"><?php esc_html_e( 'Track this product', 'wp-easycart' ); ?></option>
-							<option value="2"<?php echo $variants_pro ? '' : ' data-pro="1"'; ?>><?php esc_html_e( 'Track per variation', 'wp-easycart' ); ?><?php echo $variants_pro ? '' : ' (' . esc_html( wp_easycart_admin_edition::badge( 'pro' ) ) . ')'; ?></option>
+							<option value="0"><?php esc_html_e( 'Not tracked', 'wp-easycart' ); ?></option>
+							<option value="1"><?php esc_html_e( 'Total', 'wp-easycart' ); ?></option>
+							<option value="2"<?php echo $variants_pro ? '' : ' data-pro="1"'; ?>><?php esc_html_e( 'Per variant', 'wp-easycart' ); ?><?php echo $variants_pro ? '' : ' (' . esc_html( wp_easycart_admin_edition::badge( 'pro' ) ) . ')'; ?></option>
 						</select>
 					</div>
 					<div class="ecpsv2-f" id="ecpsv2_qty_f">
@@ -424,7 +434,7 @@ endif;
 			</div>
 
 			<div class="ecpsv2-group" id="ecpsv2_ship_group"<?php echo $show_shipping ? '' : ' data-mode-only="edit"'; ?>>
-				<?php ecpsv2_toggle_row( 'ecpsv2_ship', __( 'Requires shipping', 'wp-easycart' ), __( 'Adds this product to shipping calculations at checkout.', 'wp-easycart' ), false ); ?>
+				<?php ecpsv2_toggle_row( 'ecpsv2_ship', __( 'Ships to the customer', 'wp-easycart' ), __( 'Adds this product to shipping calculations at checkout.', 'wp-easycart' ), false ); ?>
 				<div class="ecpsv2-dims" id="ecpsv2_dims" hidden>
 					<div class="ecpsv2-grid4">
 						<div class="ecpsv2-f"><label for="ecpsv2_weight"><?php esc_html_e( 'Weight', 'wp-easycart' ); ?></label><input type="number" min="0" step=".01" class="ecv2-input" id="ecpsv2_weight" placeholder="0.0" /></div>

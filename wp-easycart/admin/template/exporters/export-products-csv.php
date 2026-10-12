@@ -111,7 +111,7 @@ while ( true ) {
 		}
 	} else {
 		/* Export all: keyset pagination on the primary key. */
-		$results = $wpdb->get_results( $wpdb->prepare( $product_sql . 'ec_product.product_id > %d GROUP BY ec_product.product_id ORDER BY ec_product.product_id ASC LIMIT %d', $last_product_id, $chunk_size ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $product_sql is a static string; the values go through prepare().
+		$results = $wpdb->get_results( $wpdb->prepare( $product_sql . 'ec_product.product_id > %d' . ( function_exists( 'wp_easycart_product_draft_sql' ) ? wp_easycart_product_draft_sql( 'ec_product' ) : '' ) . ' GROUP BY ec_product.product_id ORDER BY ec_product.product_id ASC LIMIT %d', $last_product_id, $chunk_size ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $product_sql is a static string; the values go through prepare().
 		if ( empty( $results ) ) {
 			break;
 		}

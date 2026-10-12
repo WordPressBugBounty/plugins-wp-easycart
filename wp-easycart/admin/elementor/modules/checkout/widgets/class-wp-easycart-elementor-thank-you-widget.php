@@ -482,14 +482,16 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Thank_You_Widget' ) && class_exists(
 			$color = (string) get_option( 'ec_option_details_main_color' );
 			WP_EasyCart_Elementor_Checkout_Module::push_texts( $settings );
 			echo '<div class="ec_cart_page">';
-			echo '<div class="ec_cart_success_print_button_v2"><a href="#" onclick="return false;"><span class="dashicons dashicons-printer"></span>' . esc_html( $t( 'cart_success_print_receipt_text', 'Print Receipt', 'cart_success' ) ) . '</a></div>';
 			echo '<div class="ec_order_success_row"><div class="ec_order_success_loader ec_order_success_loader_v2"><div class="ec_order_success_loader_loaded"><svg viewBox="0 0 161.2 161.2" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle class="ec_order_success_loader_loaded_path" fill="none" stroke="' . esc_attr( '' !== $color ? $color : '#222222' ) . '" stroke-width="4" cx="80.6" cy="80.6" r="62.1"/><polyline class="ec_order_success_loader_loaded_path" fill="none" stroke="' . esc_attr( '' !== $color ? $color : '#222222' ) . '" stroke-width="6" stroke-linecap="round" points="113,52.8 74.1,108.4 48.2,86.4 "/></svg></div></div>';
 			echo '<div class="ec_order_success_column2"><p class="ec_cart_success_order_number ec_cart_success_order_number_v2">' . esc_html( $t( 'account_orders_details_order_number', 'Order Number', 'account_order_details' ) ) . ' #1024</p>';
 			echo '<h2 class="ec_cart_success_title ec_cart_success_title_v2">' . esc_html( $t( 'cart_success_thank_you_title', 'Thank you for your order', 'cart_success' ) ) . '</h2>';
 			echo '<p class="ec_cart_success_subtitle ec_cart_success_subtitle_v2">' . esc_html( $t( 'cart_success_will_receive_email', 'You will receive an email confirmation shortly at', 'cart_success' ) ) . ' shopper@example.com</p>';
 			/* The order details link's address names order_details, as the real one does ( per-link switches find it by that ). */
 			echo '<p class="ec_cart_success_continue_shopping_button ec_cart_success_continue_shopping_button_v2"><a href="#order_details" onclick="return false;">' . esc_html( $t( 'cart_payment_receipt_order_details_link', 'View Order Details', 'cart_success' ) ) . '</a> <a href="#" onclick="return false;">' . esc_html( $t( 'cart_continue_shopping', 'Continue Shopping', 'cart' ) ) . '</a></p>';
-			echo '</div></div>';
+			echo '</div>';
+			/* 6.0.4: Print receipt sits in the thank-you card's corner, as on the page. */
+			echo '<div class="ec_cart_success_print_button_v2"><a href="#" onclick="return false;"><span class="dashicons dashicons-printer"></span>' . esc_html( $t( 'cart_success_print_receipt_text', 'Print Receipt', 'cart_success' ) ) . '</a></div>';
+			echo '</div>';
 			WP_EasyCart_Elementor_Checkout_Module::pop_texts();
 
 			echo '<div class="wpec-thank-you__extras">';

@@ -8,9 +8,8 @@
 /* 6.0.3: .ecv2-btn sets display, which beat the hidden attribute: "Save and turn on" showed on every legacy panel, and an empty
    Docs link in the drawer header. Anything marked hidden on this page or in its drawer stays hidden. */
 #ecst[data-page="payment"] [hidden], .ecpay-drawer [hidden], .ecpay-terms-layer [hidden] { display:none !important; }
-.ecpay-flash { margin:0 0 12px; padding:10px 14px; border-radius:var(--ecv2-r); font-size:13px; border:1px solid var(--ecv2-g200); background:var(--ecv2-g50); color:var(--ecv2-g800); }
-.ecpay-flash.is-brand { background:var(--ecst-accent-soft); border-color:transparent; }
-.ecpay-flash.is-amber { background:#fff7e6; border-color:#ffd591; color:#874d00; }
+/* 6.0.4: the onboarding return message is the admin's .ecv2-flash, inset like the test-mode line ( the section runs edge to edge ). */
+.ecv2-flash.ecpay-flash { margin:12px 16px 0; }
 /* 6.0.2: "Subscriptions need Stripe" ( ecst_payment_render_subscriptions() ) shows only while it has something to say. */
 #ecst-ecst_payment_subscriptions:has(> .ecst-row-html:empty) { display:none; }
 #ecst-ecst_payment_subscriptions .ecv2-flash { margin:0; }
@@ -400,6 +399,12 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ecsq-actions a { margin:0 !important; }
 .ecpay-drawer .ecpay-legacy .ecsq-actions a.ecsq-danger { color:var(--ecv2-danger, #b91c1c); border-color:#fca5a5; }
 .ecpay-drawer .ecpay-legacy .ecsq-actions a.ecsq-danger:hover { background:#fef2f2; border-color:#f87171; color:#991b1b; }
+/* 6.0.4: a mode with no Square account connected shows its Connect button where the switch would be. */
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle > a.ecsq-connect { flex-shrink:0; padding:6px 12px; border:1px solid var(--ecst-accent); border-radius:var(--ecv2-r); background:var(--ecst-accent); color:var(--ecst-on-accent); font-size:12.5px; font-weight:600; white-space:nowrap; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle > a.ecsq-connect:hover,
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle > a.ecsq-connect:focus-visible { border-color:var(--ecst-accent); background:var(--ecst-accent); color:var(--ecst-on-accent); filter:brightness(.92); }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_switch input.ec_admin_slider_checkbox:disabled + .ec_admin_slider { opacity:.6; cursor:progress; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle:has( + .ec_admin_toggle[style*="display:none"]:last-child ) { border-bottom:0; }
 .ecpay-drawer .ecpay-legacy .ecsq-group { margin:18px 0 0; }
 .ecpay-drawer .ecpay-legacy .ecsq-group-t { margin:0 0 4px; padding:0 0 6px; border-bottom:1px solid var(--ecv2-g200); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500); }
 .ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggles_wrap { margin:0; }

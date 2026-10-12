@@ -1397,6 +1397,26 @@
                     "title": "Min Quantity Required Error",
                     "value": "Minimaal Vereiste Hoeveelheid"
                 },
+                "cartitem_stock_limit": {
+                    "title": "Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+                    "value": "Nog maar [stock] op voorraad."
+                },
+                "cartitem_stock_limit_cart": {
+                    "title": "Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+                    "value": "Nog maar [stock] op voorraad, waarvan [other] al elders in uw winkelwagen."
+                },
+                "cartitem_stock_limit_hidden": {
+                    "title": "Cart, Quantity Limited by Stock ( stock counts not shown )",
+                    "value": "Meer hebben we niet op voorraad."
+                },
+                "cartitem_max_limit": {
+                    "title": "Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+                    "value": "U kunt maximaal [max] van dit artikel kopen."
+                },
+                "cartitem_min_limit": {
+                    "title": "Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+                    "value": "Het minimum voor dit artikel is [min]."
+                },
                 "cart_please_wait": {
                     "title": "Cart Please Wait",
                     "value": "Moment geduld"
@@ -1659,6 +1679,30 @@
                 "cart_invalid_giftcard": {
                     "title": "Winkelmand, Ongeldige cadeaubon",
                     "value": "De opgegeven code is niet (meer) geldig."
+                },
+                "cart_giftcard_used": {
+                    "title": "Cart, Gift Card Used Up",
+                    "value": "Deze cadeaubon is al volledig gebruikt."
+                },
+                "cart_giftcard_failed": {
+                    "title": "Cart, Gift Card Could Not Be Used ( nothing was charged )",
+                    "value": "Uw cadeaubon kon niet voor deze bestelling worden gebruikt, dus er is niets afgeschreven. Controleer de cadeaubon en probeer het opnieuw, of verwijder hem."
+                },
+                "cart_square_giftcard_balance": {
+                    "title": "Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+                    "value": "Square-cadeaubon eindigend op [last4]: [balance] beschikbaar"
+                },
+                "cart_square_giftcard_label": {
+                    "title": "Order, Square Gift Card Name ( [last4] = last four digits )",
+                    "value": "Square •••• [last4]"
+                },
+                "cart_square_giftcard_square_only": {
+                    "title": "Checkout, Square Gift Card Needs a Card Payment",
+                    "value": "Een Square-cadeaubon kan alleen worden gecombineerd met een kaartbetaling. Kies voor betalen met een kaart, of verwijder de cadeaubon."
+                },
+                "cart_square_giftcard_balance_changed": {
+                    "title": "Checkout, Square Gift Card Balance Changed",
+                    "value": "Het saldo van uw cadeaubon is gewijzigd. Controleer uw nieuwe totaal en plaats uw bestelling opnieuw."
                 },
                 "cart_enter_coupon": {
                     "title": "Cart, Enter Coupon Hint",
@@ -2067,7 +2111,7 @@
                 },
                 "cart_guest_message": {
                     "title": "Winkelmand, Login, Gast Afrekenen Bericht",
-                    "value": "Nu verdergaan als gast met de mogelijkheid om later alsnog een account aan te maken."
+                    "value": "Geen account? Ga verder als gast.<br/>U kunt later alsnog een account aanmaken."
                 },
                 "cart_guest_button": {
                     "title": "Winkelmand, Login, Gast Afrekenen Button",
@@ -3462,6 +3506,26 @@
                 "account_navigation_shipping_information": {
                     "title": "Account, Navigation, Shipping Link",
                     "value": "verzendgegevens"
+                },
+                "account_navigation_home": {
+                    "title": "Breadcrumbs: My Account",
+                    "value": "Mijn account"
+                },
+                "account_navigation_breadcrumb": {
+                    "title": "Breadcrumbs: Label for Screen Readers",
+                    "value": "Kruimelpad"
+                },
+                "account_navigation_orders_short": {
+                    "title": "Breadcrumbs: Orders",
+                    "value": "Bestellingen"
+                },
+                "account_navigation_subscriptions_short": {
+                    "title": "Breadcrumbs: Subscriptions",
+                    "value": "Abonnementen"
+                },
+                "account_navigation_order_number": {
+                    "title": "Breadcrumbs: Order Number",
+                    "value": "Bestelling #[order_id]"
                 }
             }
         },
@@ -3504,6 +3568,10 @@
                     "title": "Account, Dashboard, Buy Item Again",
                     "value": "Bestel artikel opnieuw"
                 },
+                "account_dashboard_downloads_title": {
+                    "title": "Account, Dashboard, Downloads Title",
+                    "value": "Mijn downloads"
+                },
                 "account_dashboard_preference_title": {
                     "title": "Account, Dashboard, Voorkeuren Titel",
                     "value": "Mijn Instellingen"
@@ -3535,6 +3603,14 @@
                 "account_dashboard_shipping_link": {
                     "title": "Account, Dashboard, Verzendadres Wijzigen Link",
                     "value": "Wijzig het verzendadres"
+                },
+                "account_dashboard_welcome": {
+                    "title": "Dashboard: Welcome with Name",
+                    "value": "Welkom terug, [name]"
+                },
+                "account_dashboard_welcome_no_name": {
+                    "title": "Dashboard: Welcome without Name",
+                    "value": "Welkom terug"
                 }
             }
         },
@@ -3760,6 +3836,18 @@
                 "account_orders_view_order_button": {
                     "title": "Account, Orders, Bekijk Order Button",
                     "value": "BEKIJK ORDER"
+                },
+                "account_orders_item_one": {
+                    "title": "Order Card: One Item",
+                    "value": "1 artikel"
+                },
+                "account_orders_item_many": {
+                    "title": "Order Card: Several Items",
+                    "value": "[count] artikelen"
+                },
+                "account_orders_and_more": {
+                    "title": "Order Card: And More Items",
+                    "value": "en nog [count]"
                 }
             }
         },
@@ -4540,6 +4628,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Uw betaling wordt nog verwerkt en is nog niet goedgekeurd."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"De postcode in het kaartformulier moet overeenkomen met uw factuuradres ([zip]). Pas een van beide aan zodat ze overeenkomen."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5616,6 +5708,18 @@
                     "title": "Cart: Calculated at Checkout Note",
                     "value": "Verzendkosten, btw en kortingscodes worden bij het afrekenen berekend."
                 },
+                "estimated_total": {
+                    "title": "Cart: Estimated Total ( after discounts, before shipping and tax )",
+                    "value": "Geschat totaal"
+                },
+                "quantity_decrease": {
+                    "title": "Cart: Decrease Quantity Button ( read by screen readers )",
+                    "value": "Aantal verlagen"
+                },
+                "quantity_increase": {
+                    "title": "Cart: Increase Quantity Button ( read by screen readers )",
+                    "value": "Aantal verhogen"
+                },
                 "card_minimum": {
                     "title": "Card Payment Minimum ( %s is the amount )",
                     "value": "Voor betalen met een kaart is een ordertotaal van minimaal %s vereist."
@@ -5651,6 +5755,46 @@
                 "placing_hint": {
                     "title": "Place Order: Working, Keep the Page Open",
                     "value": "Houd deze pagina open."
+                },
+                "loading": {
+                    "title": "Checkout: Loading ( Changing Screens )",
+                    "value": "Laden…"
+                },
+                "loading_cart": {
+                    "title": "Cart: Loading the Cart",
+                    "value": "Je winkelwagen wordt geladen…"
+                },
+                "loading_checkout": {
+                    "title": "Checkout: Loading the Checkout",
+                    "value": "Afrekenen wordt geladen…"
+                },
+                "loading_order": {
+                    "title": "Order Confirmation: Loading the Order",
+                    "value": "Je bestelling wordt geladen…"
+                },
+                "signing_in": {
+                    "title": "Checkout: Signing In",
+                    "value": "Je wordt ingelogd…"
+                },
+                "signing_out": {
+                    "title": "Checkout: Signing Out",
+                    "value": "Je wordt uitgelogd…"
+                },
+                "loading_account": {
+                    "title": "Account: Loading the Account",
+                    "value": "Je account wordt geladen…"
+                },
+                "creating_account": {
+                    "title": "Account: Creating the Account",
+                    "value": "Je account wordt aangemaakt…"
+                },
+                "saving": {
+                    "title": "Account: Saving",
+                    "value": "Opslaan…"
+                },
+                "sending": {
+                    "title": "Account: Sending",
+                    "value": "Verzenden…"
                 }
             }
         },
@@ -5700,6 +5844,255 @@
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",
                     "value": "[label] - [service]"
+                }
+            }
+        },
+        "withdrawal": {
+            "label": "Withdrawal Button and Order Lookup",
+            "options": {
+                "withdraw_button": {
+                    "title": "Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+                    "value": "Hier de overeenkomst herroepen"
+                },
+                "confirm_button": {
+                    "title": "Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+                    "value": "Herroeping bevestigen"
+                },
+                "page_title": {
+                    "title": "Withdrawal page heading ( 6.0.4 )",
+                    "value": "Een overeenkomst herroepen"
+                },
+                "page_intro": {
+                    "title": "Withdrawal page introduction ( 6.0.4 )",
+                    "value": "U kunt een bestelling herroepen zonder opgave van redenen zolang de herroepingstermijn loopt. Geef aan om welke bestelling het gaat, controleer wat u verstuurt en bevestig daarna. Wij sturen u direct een ontvangstbevestiging per e-mail."
+                },
+                "your_orders": {
+                    "title": "Signed-in customer: heading above their orders ( 6.0.4 )",
+                    "value": "Uw bestellingen"
+                },
+                "your_orders_none": {
+                    "title": "Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+                    "value": "Geen van uw bestellingen kan op dit moment online worden herroepen."
+                },
+                "order_title": {
+                    "title": "Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+                    "value": "Bestelling [order_id] herroepen"
+                },
+                "order_until": {
+                    "title": "Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+                    "value": "U kunt deze bestelling herroepen tot [date]."
+                },
+                "order_pending": {
+                    "title": "Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+                    "value": "Uw herroepingstermijn van [days] dagen gaat in wanneer u uw bestelling ontvangt. U kunt ook eerder herroepen."
+                },
+                "other_title": {
+                    "title": "Form without a link: heading ( 6.0.4 )",
+                    "value": "Een bestelling herroepen"
+                },
+                "other_intro": {
+                    "title": "Form without a link: introduction ( 6.0.4 )",
+                    "value": "Voer het bestelnummer en het e-mailadres in dat u voor de bestelling hebt gebruikt."
+                },
+                "order_number_label": {
+                    "title": "Order number label ( 6.0.4 )",
+                    "value": "Bestelnummer"
+                },
+                "order_email_label": {
+                    "title": "Email used for the order label ( 6.0.4 )",
+                    "value": "E-mailadres dat voor de bestelling is gebruikt"
+                },
+                "name_label": {
+                    "title": "Name label ( 6.0.4 )",
+                    "value": "Uw naam"
+                },
+                "email_label": {
+                    "title": "Email for the receipt label ( 6.0.4 )",
+                    "value": "E-mailadres voor uw ontvangstbevestiging"
+                },
+                "items_label": {
+                    "title": "Items label ( 6.0.4 )",
+                    "value": "Artikelen die u herroept"
+                },
+                "item_exempt": {
+                    "title": "Item without a right of withdrawal ( 6.0.4 )",
+                    "value": "Geen herroepingsrecht"
+                },
+                "item_withdrawn": {
+                    "title": "Item already withdrawn from ( 6.0.4 )",
+                    "value": "Al herroepen"
+                },
+                "item_closed": {
+                    "title": "Item whose period ended ( [date] ) ( 6.0.4 )",
+                    "value": "Herroepingstermijn verstreken op [date]"
+                },
+                "item_refunded": {
+                    "title": "Item already refunded ( 6.0.4 )",
+                    "value": "Al terugbetaald"
+                },
+                "note_label": {
+                    "title": "Form without a link: only some items ( optional ) ( 6.0.4 )",
+                    "value": "Slechts enkele artikelen? Laat weten welke (optioneel)"
+                },
+                "reason_label": {
+                    "title": "Reason label ( optional ) ( 6.0.4 )",
+                    "value": "Reden (optioneel)"
+                },
+                "continue_button": {
+                    "title": "Continue button ( 6.0.4 )",
+                    "value": "Doorgaan"
+                },
+                "review_title": {
+                    "title": "Review step heading ( 6.0.4 )",
+                    "value": "Controleer uw herroeping"
+                },
+                "review_intro": {
+                    "title": "Review step introduction ( 6.0.4 )",
+                    "value": "Dit is wat wij ontvangen. Er wordt niets verzonden totdat u bevestigt."
+                },
+                "review_order": {
+                    "title": "Summary: order ( 6.0.4 )",
+                    "value": "Bestelling"
+                },
+                "review_items": {
+                    "title": "Summary: items ( 6.0.4 )",
+                    "value": "Artikelen"
+                },
+                "review_whole": {
+                    "title": "Summary: the whole order ( 6.0.4 )",
+                    "value": "De hele bestelling"
+                },
+                "review_name": {
+                    "title": "Summary: name ( 6.0.4 )",
+                    "value": "Naam"
+                },
+                "review_email": {
+                    "title": "Summary: email ( 6.0.4 )",
+                    "value": "E-mail"
+                },
+                "review_reason": {
+                    "title": "Summary: reason ( 6.0.4 )",
+                    "value": "Reden"
+                },
+                "review_note": {
+                    "title": "Summary: note ( 6.0.4 )",
+                    "value": "Opmerking"
+                },
+                "review_received": {
+                    "title": "Summary: date and time received ( 6.0.4 )",
+                    "value": "Ontvangen"
+                },
+                "change_button": {
+                    "title": "Review step: go back button ( 6.0.4 )",
+                    "value": "Iets wijzigen"
+                },
+                "received_title": {
+                    "title": "Received page heading ( 6.0.4 )",
+                    "value": "Herroeping ontvangen"
+                },
+                "received_text": {
+                    "title": "Received page text ( [datetime], [email] ) ( 6.0.4 )",
+                    "value": "Wij hebben uw herroeping op [datetime] ontvangen. Een kopie is onderweg naar [email]."
+                },
+                "received_next": {
+                    "title": "Received page: what happens next heading ( 6.0.4 )",
+                    "value": "Wat gebeurt er daarna"
+                },
+                "already_text": {
+                    "title": "The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+                    "value": "Wij hebben uw herroeping van deze bestelling op [datetime] ontvangen."
+                },
+                "closed_text": {
+                    "title": "The order cannot be withdrawn from online ( 6.0.4 )",
+                    "value": "Deze bestelling kan niet meer online worden herroepen. Als u denkt dat dit niet klopt, neem dan contact met ons op."
+                },
+                "link_invalid": {
+                    "title": "A withdrawal link that no longer works ( 6.0.4 )",
+                    "value": "Die link werkt niet meer. Voer hieronder in plaats daarvan uw bestelnummer en e-mailadres in."
+                },
+                "error_fields": {
+                    "title": "Error: a required field is empty ( 6.0.4 )",
+                    "value": "Vul elk veld in dat met * is gemarkeerd."
+                },
+                "error_email": {
+                    "title": "Error: not an email address ( 6.0.4 )",
+                    "value": "Voer een geldig e-mailadres in."
+                },
+                "error_items": {
+                    "title": "Error: no item chosen ( 6.0.4 )",
+                    "value": "Kies ten minste één artikel."
+                },
+                "error_limit": {
+                    "title": "Error: too many tries ( 6.0.4 )",
+                    "value": "Te veel pogingen. Wacht een paar minuten en probeer het opnieuw."
+                },
+                "error_check": {
+                    "title": "Error: the robot check is needed ( 6.0.4 )",
+                    "value": "Bevestig dat u geen robot bent en probeer het opnieuw."
+                },
+                "error_save": {
+                    "title": "Error: the statement could not be saved ( 6.0.4 )",
+                    "value": "Uw herroeping kon niet worden opgeslagen. Probeer het opnieuw of neem contact met ons op."
+                },
+                "lookup_title": {
+                    "title": "Order lookup: heading ( 6.0.4 )",
+                    "value": "Uw bestelling vinden"
+                },
+                "lookup_intro": {
+                    "title": "Order lookup: introduction ( 6.0.4 )",
+                    "value": "Zonder account besteld? Voer uw bestelnummer en het e-mailadres in dat u hebt gebruikt, dan e-mailen wij u een link naar uw bestelling."
+                },
+                "lookup_button": {
+                    "title": "Order lookup: button ( 6.0.4 )",
+                    "value": "Stuur mij een link per e-mail"
+                },
+                "lookup_sent": {
+                    "title": "Order lookup: answer ( 6.0.4 )",
+                    "value": "Als dit overeenkomt met een bestelling, hebben wij er een link naar gemaild. Het kan een paar minuten duren voordat de e-mail aankomt."
+                },
+                "lookup_prompt": {
+                    "title": "Withdrawal page: want to choose items ( 6.0.4 )",
+                    "value": "Wilt u eerst artikelen kiezen?"
+                },
+                "login_lookup": {
+                    "title": "Sign-in page: link to the order lookup ( 6.0.4 )",
+                    "value": "Zonder account besteld? Zoek uw bestelling"
+                },
+                "email_row_until": {
+                    "title": "Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+                    "value": "Bedacht u zich? U kunt deze bestelling tot [date] online herroepen, zonder opgave van redenen."
+                },
+                "email_row_open": {
+                    "title": "Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+                    "value": "Bedacht u zich? U kunt deze bestelling online herroepen, zonder opgave van redenen. De termijn van [days] dagen gaat in wanneer u uw bestelling ontvangt."
+                },
+                "ack_subject": {
+                    "title": "Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "Wij hebben uw herroeping ontvangen (bestelling [order_id])"
+                },
+                "ack_intro": {
+                    "title": "Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+                    "value": "Hallo [name], wij hebben uw herroeping van bestelling [order_id] ontvangen. Wij controleren deze en nemen contact met u op over het terugsturen van artikelen en uw terugbetaling."
+                },
+                "ack_footer": {
+                    "title": "Receipt email: receipt only ( 6.0.4 )",
+                    "value": "Deze e-mail bevestigt dat wij uw herroeping hebben ontvangen. De geldigheid van de herroeping is daarmee nog niet bevestigd: wij controleren dit en antwoorden u."
+                },
+                "lookup_email_subject": {
+                    "title": "Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "De link naar uw bestelling [order_id]"
+                },
+                "lookup_email_intro": {
+                    "title": "Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+                    "value": "Hier is de link naar bestelling [order_id]. U kunt de bestelling bekijken, uw bon afdrukken en, zolang de herroepingstermijn loopt, de bestelling herroepen."
+                },
+                "lookup_email_button": {
+                    "title": "Order lookup email: button ( 6.0.4 )",
+                    "value": "Uw bestelling bekijken"
+                },
+                "lookup_email_ignore": {
+                    "title": "Order lookup email: not asked for ( 6.0.4 )",
+                    "value": "Als u niet om deze link hebt gevraagd, kunt u deze e-mail negeren."
                 }
             }
         },

@@ -50,6 +50,15 @@ class ec_cartpage {
 	 * @var object|null
 	 */
 	private $invoice_order = null;
+	/**
+	 * The session's Stripe PaymentIntent when Stripe says it is paid and no order has it yet ( found by
+	 * get_stripe_intent_client_secret() ). No payment form is drawn for it: the page goes to the Stripe return page, which
+	 * makes the order for that payment ( stripe_paid_intent_script() ).
+	 *
+	 * @since 6.0.4
+	 * @var object|null
+	 */
+	public $stripe_paid_intent = null;
 
 	function __construct( $is_affirm = false ) {
 		$this->is_affirm = $is_affirm;
@@ -382,6 +391,8 @@ class ec_cartpage {
 			"manualbill_failed"         => wp_easycart_language()->get_text( "ec_errors", "manualbill_failed" ),
 			"thirdparty_failed"         => wp_easycart_language()->get_text( "ec_errors", "thirdparty_failed" ),
 			"payment_failed"            => wp_easycart_language()->get_text( "ec_errors", "payment_failed" ),
+			'payment_processing'        => wp_easycart_language()->get_text( 'ec_errors', 'payment_processing' ), /* 6.0.4: an earlier request is still completing the same PayPal payment */
+			'giftcard_failed'           => wp_easycart_language()->get_text( 'cart_coupons', 'cart_giftcard_failed' ), /* 6.0.4: the order's gift card could not be redeemed ( nothing was charged ) */
 			"card_error"                => wp_easycart_language()->get_text( "ec_errors", "payment_failed" ),
 			"already_subscribed"        => wp_easycart_language()->get_text( "ec_errors", "already_subscribed" ),
 			"not_activated"             => wp_easycart_language()->get_text( "ec_errors", "not_activated" ),
@@ -419,7 +430,7 @@ class ec_cartpage {
 		} else if ( isset( $_GET['cart_error'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$wpec_code = sanitize_key( $_GET['cart_error'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
-		if ( '' !== $wpec_code && 0 !== strpos( $wpec_code, 'protection_' ) && 'session_expired' !== $wpec_code && 'invalid_nonce' !== $wpec_code && $card_error != '' ) { /* a session notice is not about the card */
+		if ( '' !== $wpec_code && 0 !== strpos( $wpec_code, 'protection_' ) && 'session_expired' !== $wpec_code && 'invalid_nonce' !== $wpec_code && 'payment_processing' !== $wpec_code && '' !== $card_error ) { /* a session notice is not about the card */
 			echo "<div class=\"ec_cart_error\"><div>" . esc_attr( $card_error ) . "</div></div>";
 		} else if ( '' !== $wpec_code && isset( $error_notes[ $wpec_code ] ) ) {
 			echo "<div class=\"ec_cart_error\"><div>" . esc_attr( $error_notes[ $wpec_code ] ) . "</div></div>";
@@ -474,7 +485,7 @@ class ec_cartpage {
 		//google analytics
 		$this->analytics = new ec_googleanalytics($order_details, $order->shipping_total, $order->tax_total , $order->grand_total, $order_id);
 		$google_urchin_code = get_option('ec_option_googleanalyticsid');
-		$google_wp_url = sanitize_text_field( $_SERVER['SERVER_NAME'] );
+		$google_wp_url = ( isset( $_SERVER['SERVER_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_NAME'] ) ) : '' );
 		//end google analytics
 		$this->display_cart_error();
 
@@ -510,10 +521,12 @@ class ec_cartpage {
 			if ( $stripe_pi_response && in_array( $stripe_pi_response->status, array( 'succeeded', 'processing', 'requires_capture', 'canceled' ) ) ) {
 				global $wpdb;
 				$ec_db_admin = new ec_db_admin();
-				$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_order WHERE gateway_transaction_id = %s", $stripe_pi_response->id . ':' . $stripe_pi_response->client_secret ) );
-				if ( $order ) {
-					$order_id = $order->order_id;
-				} else {
+				/* 6.0.4: one order per payment: made under the payment's lock, after looking under both of the ids orders are saved
+				   with ( the card completion saves the intent id alone, which this lookup missed ). */
+				wp_easycart_stripe_intent_lock( $stripe_pi_response->id );
+				$wpec_locked_intent = $stripe_pi_response->id;
+				$order_id = wp_easycart_stripe_intent_order_id( $stripe_pi_response->id, $stripe_pi_response->client_secret );
+				if ( ! $order_id ) {
 					/* 6.0.2: paid, but not this cart's total ( the cart changed after the payment ): on hold for the merchant, as the checkout's own completion does. */
 					$wpec_hold = 'canceled' != $stripe_pi_response->status && ! wp_easycart_stripe_intent_matches_cart( $stripe_pi_response, $this );
 					$source = array(
@@ -549,6 +562,7 @@ class ec_cartpage {
 						do_action( 'wpeasycart_order_status_update', (int) $order_id, (int) $order_status, $wpec_previous_status );
 					}
 				}
+				wp_easycart_stripe_intent_unlock( $wpec_locked_intent );
 				$ec_db_admin->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 				$GLOBALS['ec_cart_data']->checkout_session_complete();
 				$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -802,7 +816,7 @@ class ec_cartpage {
 			//google analytics
 			$this->analytics = new ec_googleanalytics($order_details, $order->shipping_total, $order->tax_total , $order->grand_total, $order_id);
 			$google_urchin_code = get_option('ec_option_googleanalyticsid');
-			$google_wp_url = sanitize_text_field( $_SERVER['SERVER_NAME'] );
+			$google_wp_url = ( isset( $_SERVER['SERVER_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_NAME'] ) ) : '' );
 			//end google analytics
 			$this->display_cart_error();
 
@@ -820,16 +834,16 @@ class ec_cartpage {
 
 			if ( $GLOBALS['ec_cart_data']->cart_data->is_guest != "" && $GLOBALS['ec_cart_data']->cart_data->is_guest ) {
 				$order = $this->mysqli->get_guest_order_row( $order_id, $GLOBALS['ec_cart_data']->cart_data->guest_key );
-				$order_details = $this->mysqli->get_guest_order_details( $this->order_id, $GLOBALS['ec_cart_data']->cart_data->guest_key );
+				$order_details = $this->mysqli->get_guest_order_details( $order_id, $GLOBALS['ec_cart_data']->cart_data->guest_key );
 			} else {
 				$order = $this->mysqli->get_order_row( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
-				$order_details = $this->mysqli->get_order_details( $this->order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
+				$order_details = $this->mysqli->get_order_details( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
 			}
 
 			//google analytics
 			$this->analytics = new ec_googleanalytics($order_details, $order->shipping_total, $order->tax_total , $order->grand_total, $order_id);
 			$google_urchin_code = get_option('ec_option_googleanalyticsid');
-			$google_wp_url = sanitize_text_field( $_SERVER['SERVER_NAME'] );
+			$google_wp_url = ( isset( $_SERVER['SERVER_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_NAME'] ) ) : '' );
 			//end google analytics
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_third_party.php' ) )	
 				include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_third_party.php' );
@@ -1394,10 +1408,12 @@ class ec_cartpage {
 				if ( $stripe_pi_response && in_array( $stripe_pi_response->status, array( 'succeeded', 'processing', 'requires_capture', 'canceled' ) ) ) {
 					global $wpdb;
 					$ec_db_admin = new ec_db_admin();
-					$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_order WHERE gateway_transaction_id = %s", $stripe_pi_response->id . ':' . $stripe_pi_response->client_secret ) );
-					if ( $order ) {
-						$order_id = $order->order_id;
-					} else {
+					/* 6.0.4: one order per payment: made under the payment's lock, after looking under both of the ids orders are saved
+					   with ( the card completion saves the intent id alone, which this lookup missed ). */
+					wp_easycart_stripe_intent_lock( $stripe_pi_response->id );
+					$wpec_locked_intent = $stripe_pi_response->id;
+					$order_id = wp_easycart_stripe_intent_order_id( $stripe_pi_response->id, $stripe_pi_response->client_secret );
+					if ( ! $order_id ) {
 						/* 6.0.2: paid, but not this cart's total ( the cart changed after the payment ): on hold for the merchant, with no stock taken and no receipt. */
 						$wpec_hold = 'canceled' != $stripe_pi_response->status && ! wp_easycart_stripe_intent_matches_cart( $stripe_pi_response, $this );
 						$source = array(
@@ -1458,6 +1474,7 @@ class ec_cartpage {
 							$order_display->send_gift_cards();
 						}
 					}
+					wp_easycart_stripe_intent_unlock( $wpec_locked_intent );
 					$ec_db_admin->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 					$GLOBALS['ec_cart_data']->checkout_session_complete();
 					$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -1605,6 +1622,14 @@ class ec_cartpage {
 			}
 		}
 
+		/* 6.0.4: the one-page checkout inside the cart page's own wrapper, as the cart page prints it ( display_cart_page() ) and
+		   the classic steps get it ( ec_cart_dynamic_top.php ): without it no .ec_cart_page style reached the one-page checkout
+		   ( the checkout fields' sizes, the Checkout button's white label, the cart screen's look ). */
+		$wpec_onepage_wrap = wp_easycart_onepage_active();
+		if ( $wpec_onepage_wrap ) {
+			echo '<div class="ec_cart_page ec_cart_onepage_page">';
+		}
+
 		if ( $cart_count == 0 && (int) substr( $cart_page, 0, 1 ) < 5 ) {
 			$this->display_cart_top( 1, $success_code, $error_code );
 			$this->display_cart_page();
@@ -1651,6 +1676,10 @@ class ec_cartpage {
 		} else if ( substr( $cart_page, 0, 1 ) == 6 ) {
 			$this->display_cart_success_page( substr( $cart_page, 2, strlen( $cart_page ) - 1  ), $success_code, $error_code );
 
+		}
+
+		if ( $wpec_onepage_wrap ) {
+			echo '</div>';
 		}
 	}
 
@@ -2083,15 +2112,26 @@ class ec_cartpage {
 	 * @since 6.0.2
 	 */
 	private function set_offer_line_savings() {
-		if ( ! is_object( $this->offer_result ) || ! isset( $this->offer_result->lines ) || ! is_array( $this->offer_result->lines ) || ! isset( $this->cart->cart ) || ! is_array( $this->cart->cart ) ) {
+		self::apply_offer_line_savings( $this->cart, $this->offer_result );
+	}
+
+	/**
+	 * Each line's Offers savings from an Offers result ( set_offer_line_savings() ); ec_get_order_totals() sets them the same way.
+	 *
+	 * @since 6.0.4
+	 * @param ec_cart     $cart         The cart ( its lines are changed ).
+	 * @param object|null $offer_result The Offers result for this cart.
+	 */
+	public static function apply_offer_line_savings( $cart, $offer_result ) {
+		if ( ! is_object( $offer_result ) || ! isset( $offer_result->lines ) || ! is_array( $offer_result->lines ) || ! is_object( $cart ) || ! isset( $cart->cart ) || ! is_array( $cart->cart ) ) {
 			return;
 		}
-		foreach ( $this->cart->cart as $cart_item ) {
+		foreach ( $cart->cart as $cart_item ) {
 			if ( ! is_object( $cart_item ) || ! method_exists( $cart_item, 'set_offer_savings' ) ) {
 				continue;
 			}
 			$offer_discounts = array();
-			foreach ( $this->offer_result->lines as $offer_line ) {
+			foreach ( $offer_result->lines as $offer_line ) {
 				if ( is_object( $offer_line ) && isset( $offer_line->cartitem_id ) && (string) $offer_line->cartitem_id === (string) $cart_item->cartitem_id ) {
 					if ( isset( $offer_line->offer_discounts ) && is_array( $offer_line->offer_discounts ) && ( ! isset( $offer_line->quantity ) || (int) $offer_line->quantity === (int) $cart_item->quantity ) ) {
 						$offer_discounts = $offer_line->offer_discounts;
@@ -2117,6 +2157,49 @@ class ec_cartpage {
 			}
 		}
 		return $GLOBALS['currency']->get_currency_display( $subtotal, false );
+	}
+
+	/**
+	 * The one-page checkout's cart screen totals ( ec_cart_v2.php ): what the discounts take off before checkout and the subtotal after
+	 * them. Every discount counts ( Offers, coupons, promotions ) except a gift card, which is a payment taken at checkout; shipping
+	 * discounts are not in discount_total. Offers lists its own rows, so the Discounts row shows only when something else discounts the
+	 * cart too ( or without Offers ). Coupon savings the shown subtotal already left out ( "Show coupon savings on each line" ) are not
+	 * taken off it twice.
+	 *
+	 * @since 6.0.4
+	 * @return array discount, discount_display, discount_show, estimate, estimate_display, estimate_show.
+	 */
+	public function cart_screen_totals() {
+		$giftcard = ( is_object( $this->discount ) && isset( $this->discount->giftcard_discount ) ) ? (float) $this->discount->giftcard_discount : 0;
+		$discount = max( 0, round( (float) $this->order_totals->discount_total - $giftcard, 2 ) );
+		$in_subtotal = 0;
+		if ( get_option( 'ec_option_show_coupon_discount_total' ) ) {
+			foreach ( $this->cart->cart as $cart_item ) {
+				if ( $cart_item->coupon_discount_line_total > 0 ) {
+					$in_subtotal += (float) $cart_item->coupon_discount_line_total;
+				}
+			}
+		}
+		$shown  = max( 0, round( $discount - $in_subtotal, 2 ) );
+		$offers = ( wp_easycart_offers_active() && is_object( $this->offer_result ) && isset( $this->offer_result->discount_total ) ) ? max( 0, (float) $this->offer_result->discount_total ) : 0;
+		$listed = ( wp_easycart_offers_active() && is_object( $this->offer_result ) ) ? $offers : 0;
+		$estimate = max( 0, $this->order_totals->get_converted_sub_total() - $GLOBALS['currency']->convert_price( $discount ) );
+		$totals = array(
+			'discount'         => $shown,
+			'discount_display' => $GLOBALS['currency']->get_currency_display( (-1) * $shown ),
+			'discount_show'    => ( $shown - $listed ) > 0.005,
+			'estimate'         => $estimate,
+			'estimate_display' => $GLOBALS['currency']->get_currency_display( $estimate, false ),
+			'estimate_show'    => $discount > 0.005,
+		);
+		/**
+		 * The one-page checkout's cart screen totals.
+		 *
+		 * @since 6.0.4
+		 * @param array        $totals   discount, discount_display, discount_show, estimate, estimate_display, estimate_show.
+		 * @param ec_cartpage  $cartpage The cart page.
+		 */
+		return apply_filters( 'wp_easycart_cart_screen_totals', $totals, $this );
 	}
 
 	public function display_tax_total() {
@@ -3136,7 +3219,7 @@ class ec_cartpage {
 					$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = $response->id;
 					$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = $response->client_secret;
 					$GLOBALS['ec_cart_data']->save_session_to_db();
-					wp_cache_flush();
+					wp_easycart_cache::cart_changed();
 					if ( class_exists( 'wp_easycart_checkout_guard' ) ) {
 						wp_easycart_checkout_guard::map_intent( $response->id );
 					}
@@ -3144,13 +3227,20 @@ class ec_cartpage {
 				do_action( 'wpeasycart_cart_updated' );
 			} else {
 				$response = $stripe->get_payment_intent( $cart_data->stripe_paymentintent_id );
+				/* 6.0.4: an intent Stripe says is paid, with no order yet, is kept: it needs its order, not a second payment. A new
+				   intent here took its place on the session, so the cart page recovery and the webhook could no longer find it, and
+				   the shopper was asked to pay again ( two charges, one order ). The page goes to the return page instead. */
+				if ( $response && isset( $response->id, $response->status ) && in_array( $response->status, wp_easycart_stripe_paid_statuses(), true ) && ! wp_easycart_stripe_intent_order_id( $response->id, isset( $response->client_secret ) ? $response->client_secret : '' ) ) {
+					$this->stripe_paid_intent = $response;
+					return '';
+				}
 				if ( ! $response || $response->status == 'succeeded' || $response->status == 'canceled' ) {
 					$response = $stripe->create_payment_intent( $order_totals );
 					if ( $response ) {
 						$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = $response->id;
 						$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = $response->client_secret;
 						$GLOBALS['ec_cart_data']->save_session_to_db();
-						wp_cache_flush();
+						wp_easycart_cache::cart_changed();
 						if ( class_exists( 'wp_easycart_checkout_guard' ) ) {
 							wp_easycart_checkout_guard::map_intent( $response->id );
 						}
@@ -3167,6 +3257,44 @@ class ec_cartpage {
 		}
 
 		return '';
+	}
+
+	/**
+	 * The Stripe return page for the paid intent get_stripe_intent_client_secret() kept ( $this->stripe_paid_intent ): it finds
+	 * or makes that payment's order ( process_stripe_redirect_action() ) and opens the order confirmation.
+	 *
+	 * @since 6.0.4
+	 * @return string '' without a paid intent.
+	 */
+	public function stripe_paid_intent_return_url() {
+		if ( ! is_object( $this->stripe_paid_intent ) || empty( $this->stripe_paid_intent->id ) ) {
+			return '';
+		}
+		return wpeasycart_links()->get_cart_page(
+			'checkout_payment',
+			array(
+				'stripe'                       => 'returning',
+				'wpecnonce'                    => wp_create_nonce( 'wp-easycart-stripe-pi-order-complete-' . $GLOBALS['ec_cart_data']->ec_cart_id ),
+				'payment_intent'               => $this->stripe_paid_intent->id,
+				'payment_intent_client_secret' => isset( $this->stripe_paid_intent->client_secret ) ? $this->stripe_paid_intent->client_secret : '',
+				'redirect_status'              => $this->stripe_paid_intent->status,
+			)
+		);
+	}
+
+	/**
+	 * A script that sends the page to stripe_paid_intent_return_url(), printed in place of the Stripe payment form's script
+	 * ( also when a one-page checkout section is drawn again by AJAX ).
+	 *
+	 * @since 6.0.4
+	 * @return string '' without a paid intent.
+	 */
+	public function stripe_paid_intent_script() {
+		$url = $this->stripe_paid_intent_return_url();
+		if ( '' === $url ) {
+			return '';
+		}
+		return '<script>window.location.href = ' . wp_json_encode( esc_url_raw( $url ) ) . ';</script>';
 	}
 
 	public function get_stripe_intent_client_secret_subscription( $grand_total ) {
@@ -3205,16 +3333,23 @@ class ec_cartpage {
 		} else { 
 			$app_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? 'sandbox-sq0idb-khAAob2bNi889KPQSVsF6Q' : 'sq0idp-H8Mnz1zzbv1mOyeWyKpF6Q';
 		}
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if ( $location_id == '' ) {
+		/* 6.0.4: never '0' ( the Square panel's "Your default Square location" ): '0' is not empty, so it reached Square's card
+		   form and verifyBuyer, and every card payment stopped in the browser. */
+		$location_id = ec_square::saved_location_id();
+		if ( '' === $location_id ) {
 			$square = new ec_square();
-			$location_id = $square->get_location_id();
+			$location_id = $square->payment_location_id();
 		}
 		/* 6.0.2: what the shopper reads when a payment stops, and what the browser reports to the store's gateway log. */
 		$square_text = array(
 			'failed' => html_entity_decode( wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'ec_errors', 'payment_failed' ) ), ENT_QUOTES, 'UTF-8' ),
 			'error'  => html_entity_decode( wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'cart_onepage', 'place_order_error' ) ), ENT_QUOTES, 'UTF-8' ),
+			/* 6.0.4: the card form's ZIP is not the billing address's ( [zip] = the billing ZIP ) */
+			'zip'    => html_entity_decode( wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'ec_errors', 'card_postal_mismatch' ) ), ENT_QUOTES, 'UTF-8' ),
 		);
+		if ( '' === trim( $square_text['zip'] ) ) { /* the store's language data has no such phrase yet */
+			$square_text['zip'] = 'The ZIP / postal code in the card form must match your billing address ([zip]). Please change one of them so they match.';
+		}
 		if ( wp_easycart_onepage_active() ) {
 			$square_checkout = ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) ? 'one-page checkout ( steps )' : 'one-page checkout';
 		} else {
@@ -3324,10 +3459,87 @@ class ec_cartpage {
 			}';
 		if( $is_payment ) {
 		echo '
+			/* 6.0.4 ( Matt ): the card\'s ZIP / postal code is the billing address\'s. Square\'s card form starts with it, follows it while
+			   the shopper has not typed one of their own, and a different one stops the payment before it is sent
+			   ( wpEasyCartSquareZipCheck(), the quiet "address" stage: the shopper reads why, nothing goes to the store\'s log ). */
+			var wpEasyCartSquareSavedZip = ' . wp_json_encode( (string) $GLOBALS['ec_cart_data']->cart_data->billing_zip ) . ';
+			var wpEasyCartSquareCardNow = null;
+			var wpEasyCartSquareZipGiven = "";
+			var wpEasyCartSquareZipTyped = null;
+			var wpEasyCartSquareZipTimer = null;
+			function wpEasyCartSquareBillingZip() { /* the billing ZIP as the page shows it now */
+				var val = function( id ) { var el = document.getElementById( id ); return ( el && "string" === typeof el.value ) ? el.value.trim() : ""; };
+				var different = document.getElementById( "billing_address_type_different" );
+				if ( different && different.checked ) {
+					return val( "ec_cart_billing_zip" );
+				}
+				if ( document.getElementById( "ec_cart_shipping_zip" ) ) {
+					return val( "ec_cart_shipping_zip" ); /* billing same as shipping */
+				}
+				if ( document.getElementById( "ec_cart_billing_zip" ) ) {
+					return val( "ec_cart_billing_zip" );
+				}
+				return wpEasyCartSquareSavedZip;
+			}
+			function wpEasyCartSquareZipKey( zip ) { /* any case, spaces and dashes; a ZIP+4 is its ZIP */
+				var key = String( zip || "" ).toUpperCase().replace( /[\s-]/g, "" );
+				return /^[0-9]{5}/.test( key ) ? key.substring( 0, 5 ) : key;
+			}
+			function wpEasyCartSquareFollowZip() {
+				if ( ! wpEasyCartSquareCardNow || "function" !== typeof wpEasyCartSquareCardNow.configure ) {
+					return;
+				}
+				var zip = wpEasyCartSquareBillingZip();
+				if ( ! zip || zip === wpEasyCartSquareZipGiven ) {
+					return;
+				}
+				if ( wpEasyCartSquareZipTyped && wpEasyCartSquareZipKey( wpEasyCartSquareZipTyped ) !== wpEasyCartSquareZipKey( wpEasyCartSquareZipGiven ) ) {
+					return; /* the shopper typed their own: Place order says it must match */
+				}
+				wpEasyCartSquareZipGiven = zip;
+				wpEasyCartSquareZipTyped = null;
+				Promise.resolve( wpEasyCartSquareCardNow.configure( { postalCode: zip } ) ).catch( function( e ) {
+					if ( window.console && window.console.warn ) {
+						window.console.warn( "WP EasyCart Square: the card form kept its postal code.", e );
+					}
+				} );
+			}
+			jQuery( document ).off( "change.wpecSquareZip input.wpecSquareZip" ).on( "change.wpecSquareZip input.wpecSquareZip", "#ec_cart_shipping_zip, #ec_cart_billing_zip, #billing_address_type_different, #billing_address_type_same", function() {
+				clearTimeout( wpEasyCartSquareZipTimer );
+				wpEasyCartSquareZipTimer = setTimeout( wpEasyCartSquareFollowZip, 600 );
+			} );
+			function wpEasyCartSquareZipCheck( paymentMethod, tokenResult ) {
+				if ( ! paymentMethod || paymentMethod !== wpEasyCartSquareCardNow ) {
+					return; /* a wallet or a gift card brings its own */
+				}
+				var details = ( tokenResult && tokenResult.details ) ? tokenResult.details : {};
+				var card = ( details.billing && details.billing.postalCode ) ? String( details.billing.postalCode ) : "";
+				var billing = ( "function" === typeof wpeasycart_onepage_session_value && "undefined" !== typeof wpeasycart_onepage_place && wpeasycart_onepage_place.session ) ? String( wpeasycart_onepage_session_value( "billing_zip", "" ) ) : wpEasyCartSquareBillingZip();
+				if ( "" === card || "" === billing.trim() || wpEasyCartSquareZipKey( card ) === wpEasyCartSquareZipKey( billing ) ) {
+					return;
+				}
+				var text = String( wpEasyCartSquareText.zip || "" ).split( "[zip]" ).join( billing.trim() );
+				throw wpEasyCartSquareProblem( "address", "The card form\'s postal code is not the billing address\'s", text );
+			}
 			async function wpEasyCartInitializeCard( payments ) {
 				try {
 					if ( jQuery( document.getElementById( "wp-easycart-square-card-container" ) ).length ) {
-						const wpEasyCartCard = await payments.card();
+						var wpEasyCartCardOptions = {};
+						wpEasyCartSquareZipGiven = wpEasyCartSquareBillingZip();
+						wpEasyCartSquareZipTyped = null;
+						if ( wpEasyCartSquareZipGiven ) {
+							wpEasyCartCardOptions.postalCode = wpEasyCartSquareZipGiven;
+						}
+						const wpEasyCartCard = await payments.card( wpEasyCartCardOptions );
+						wpEasyCartSquareCardNow = wpEasyCartCard;
+						try {
+							wpEasyCartCard.addEventListener( "postalCodeChanged", function( event ) {
+								var detail = ( event && event.detail ) ? event.detail : event;
+								if ( detail && "string" === typeof detail.postalCodeValue ) {
+									wpEasyCartSquareZipTyped = detail.postalCodeValue;
+								}
+							} );
+						} catch ( e ) {}
 						try {
 							await wpEasyCartCard.attach( \'#wp-easycart-square-card-container\' );
 							return wpEasyCartCard;
@@ -3381,15 +3593,8 @@ class ec_cartpage {
 					console.error( \'Initializing Google Pay failed\', e );
 				}';
 		}
-		if ( get_option( 'ec_option_square_gift_cards' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) ) {
-		echo '
-				let wpEasyCartGiftCard;
-				try {
-					wpEasyCartGiftCard = await wpEasyCartInitializeGiftCard( wpEasyCartSquarePayments );
-				} catch ( e ) {
-					console.error( \'Initializing Gift Card failed\', e ); /* 6.0.2: the wallets still load ( no gift card box on this page ) */
-				}';
-		}
+		/* 6.0.4: Square's own gift card field ( "Pay with Gift Card", ec_option_square_gift_cards, which no setting ever wrote ) is gone:
+		   a Square gift card goes in the gift card box and pays its share of any order ( WP EasyCart PRO's wp_easycart_square_giftcards_pro ). */
 		echo '
 				async function wpEasyCartCreatePayment( tokenResult, verificationToken, isWallet ) {
 					var body = new FormData()
@@ -3735,7 +3940,12 @@ class ec_cartpage {
 							tokenResult = await wpEasyCartTokenize( paymentMethod );
 						} finally {
 							wpEasyCartSquareSheetOpen = false;
-						}
+						}';
+		if ( $is_payment ) {
+			echo '
+						wpEasyCartSquareZipCheck( paymentMethod, tokenResult ); /* 6.0.4: the card\'s ZIP is the billing address\'s */';
+		}
+		echo '
 						let verificationToken;
 						if ( shouldVerify ) {
 							verificationToken = await wpEasyCartVerifyBuyer(
@@ -3912,16 +4122,9 @@ class ec_cartpage {
 		}
 		echo '
 					const wpEasyCartGooglePay = await payments.googlePay( paymentRequest );
-					await wpEasyCartGooglePay.attach( \'#wp-easycart-square-google-pay-button\' );
+					/* 6.0.4: fill = the width of its place, as the Apple Pay button ( drawn without options it showed at Google\'s static size ). */
+					await wpEasyCartGooglePay.attach( \'#wp-easycart-square-google-pay-button\', { buttonSizeMode: \'fill\', buttonType: \'long\' } );
 					return wpEasyCartGooglePay;
-				}';
-		}
-		if ( get_option( 'ec_option_square_gift_cards' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) ) {
-		echo '
-				async function wpEasyCartInitializeGiftCard( payments ) {
-					const wpEasyCartGiftCard = await payments.giftCard();
-					await wpEasyCartGiftCard.attach( \'#wp-easycart-square-gift-card-container\' );
-					return wpEasyCartGiftCard;
 				}';
 		}
 		if ( $is_payment ) {
@@ -3971,35 +4174,6 @@ class ec_cartpage {
 					} );
 				}';
 		}
-		if ( get_option( 'ec_option_square_gift_cards' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) ) {
-		echo '
-				const wpEasyCartGiftCardButton = document.getElementById( \'wp-easycart-square-gift-card-button\' );
-				let wpEasyCartGiftCardBusy = false;
-				if ( wpEasyCartGiftCard !== undefined && wpEasyCartGiftCardButton ) {
-					wpEasyCartGiftCardButton.addEventListener( \'click\', async function ( event ) {';
-			if ( wp_easycart_onepage_active() ) {
-			echo '
-						event.preventDefault();
-						if ( wpEasyCartGiftCardBusy ) {
-							return;
-						}
-						wpEasyCartGiftCardBusy = true;
-						try { /* 6.0.2: the same checks and saves as Place order before the gift card pays */
-							const wpEasyCartReady = ( \'function\' === typeof wpeasycart_onepage_ready_to_pay ) ? await wpeasycart_onepage_ready_to_pay() : true;
-							if ( wpEasyCartReady ) {
-								await wpEasyCartHandlePaymentMethodSubmission( event, wpEasyCartGiftCard );
-							}
-						} finally {
-							wpEasyCartGiftCardBusy = false;
-						}';
-			} else {
-			echo '
-						await wpEasyCartHandlePaymentMethodSubmission( event, wpEasyCartGiftCard );';
-			}
-			echo '
-					} );
-				}';
-		}
 		echo '
 			}
 			jQuery( document ).ready( function() {
@@ -4026,11 +4200,6 @@ class ec_cartpage {
 	}
 
 	public function print_square_payment_card() {
-		if ( get_option( 'ec_option_square_gift_cards' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) ) {
-			echo '<div id="wp-easycart-square-gift-card-container"></div>';
-			echo '<button id="wp-easycart-square-gift-card-button" type="button">Pay with Gift Card</button>';
-		}
-
 		echo '<div id="wp-easycart-square-card-container"></div>';
 		echo '<div id="wp-easycart-square-payment-status-container"></div>';
 
@@ -4043,11 +4212,6 @@ class ec_cartpage {
 		}
 		if ( ( ! $is_payment && ! get_option( 'ec_option_square_digital_wallet' ) ) || ( ! $is_payment && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) || ( ! $is_payment && $this->cart->has_preorder_items() ) || ( ! $is_payment && $this->cart->has_restaurant_items() ) ) {
 			return;
-		}
-
-		if ( get_option( 'ec_option_square_gift_cards' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) ) {
-			echo '<div id="wp-easycart-square-gift-card-container"></div>';
-			echo '<button id="wp-easycart-square-gift-card-button" type="button">Pay with Gift Card</button>';
 		}
 
 		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
@@ -4195,6 +4359,10 @@ class ec_cartpage {
 		$stripe_address_enabled = get_option( 'ec_option_stripe_address_autocomplete' );
 		$enable_express = false;
 		$wpec_client_secret = $this->get_stripe_intent_client_secret();
+		if ( '' === $wpec_client_secret && null !== $this->stripe_paid_intent ) {
+			echo $this->stripe_paid_intent_script(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of esc_url_raw().
+			return; /* 6.0.4: this checkout's payment went through: no second payment form, the return page makes its order */
+		}
 		if ( '' === $wpec_client_secret && $this->stripe_held_by_protection() ) {
 			return; /* 6.0.2 checkout protection: the storefront script shows the pause or the human check instead */
 		}
@@ -4228,7 +4396,11 @@ class ec_cartpage {
 			$mount_items[] = 'expressCheckoutElement.mount( "#wpec-express-checkout-element" );';
 		}
 		if ( ! get_option( 'ec_option_onepage_checkout_tabbed' ) || $is_payment ) {
-			$this->print_stripe_script_payment_v2();
+			/* 6.0.4 ( Matt ): the card's ZIP is the billing address's. A Stripe billing address box drawn into the Payment Element's own
+			   group ( the single page without shipping, or the tabbed payment step with it ) gives Stripe the billing address itself. */
+			$tabbed = get_option( 'ec_option_onepage_checkout_tabbed' );
+			$billing_box_in_group = $stripe_address_enabled && ( ( ! $tabbed && ! $shipping_enabled ) || ( $tabbed && $shipping_enabled && $is_payment ) );
+			$this->print_stripe_script_payment_v2( $billing_box_in_group );
 			if ( $this->order_totals->grand_total > 0 ) {
 				$mount_items[] = 'paymentElement.mount( "#ec_stripe_card_row" );';
 			}
@@ -4409,9 +4581,31 @@ class ec_cartpage {
 		}";
 	}
 
-	public function print_stripe_script_payment_v2() {
+	/**
+	 * The one-page checkout's Payment Element and its Place order listener.
+	 *
+	 * @param bool $billing_box_in_group 6.0.4: a Stripe billing address box ( Address Element ) shares the Payment Element's group, so
+	 *                                   Stripe takes the billing address from it.
+	 */
+	public function print_stripe_script_payment_v2( $billing_box_in_group = false ) {
+		/* The checkout's own addresses ( the session's, as Place order saved them ) go with the payment: the tabbed checkout, or Stripe's
+		   address boxes off. With them on, on the single page, Stripe reads its own boxes and shows no ZIP of its own ( as before 6.0.4 ). */
+		$send_billing = ( get_option( 'ec_option_onepage_checkout_tabbed' ) || ! get_option( 'ec_option_stripe_address_autocomplete' ) );
+		/* 6.0.4 ( Matt ): then the Payment Element asks for no name, Country or ZIP of its own ( as the classic payment step ): the card's
+		   ZIP is the billing address's, never a second box that can differ. */
+		$checkout_billing = ( $send_billing && ! $billing_box_in_group );
 		echo "
 			const paymentElement = elements.create( 'payment', {";
+		if ( $checkout_billing ) {
+		/* Stripe needs every field set to never at confirm: the listener sends the billing name and address ( billing_details below ). */
+		echo "
+				fields: {
+					billingDetails: {
+						name: 'never',
+						address: 'never'
+					}
+				},";
+		}
 		if ( 'accordion' == get_option( 'ec_option_stripe_payment_layout' ) ) {
 		echo "
 				layout: {
@@ -4437,6 +4631,11 @@ class ec_cartpage {
 		}
 		echo "
 			} );
+			/* 6.0.4 ( #290 ): the Payment Element's amount follows the cart ( ec-checkout-busy.js wpeasycart_stripe_amount() ), so Place order
+			   reads nothing before Apple Pay's sheet opens; wpecStripeReady: the Payment Element is on the page ( a free order mounts none ). */
+			var wpecStripeReady = false;
+			paymentElement.addEventListener( 'ready', function() { wpecStripeReady = true; } );
+			var wpecStripeAmount = ( 'function' === typeof window.wpeasycart_stripe_amount ) ? window.wpeasycart_stripe_amount( elements, '" . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "', " . wp_json_encode( isset( $GLOBALS['ec_cart_data']->cart_data->payment_type ) ? (string) $GLOBALS['ec_cart_data']->cart_data->payment_type : '' ) . " ) : null;
 			paymentElement.addEventListener( 'change', function( event ){
 				var displayError = document.getElementById( 'ec_card_errors' );
 				if( event.error ){
@@ -4444,7 +4643,9 @@ class ec_cartpage {
 				}else{
 					displayError.textContent = '';
 				}
-				if ( event.value && event.value.type ) {
+				if ( event.value && event.value.type && wpecStripeAmount ) {
+					wpecStripeAmount.type( event.value.type );
+				} else if ( event.value && event.value.type ) {
 					var data = {
 						action: 'ec_ajax_update_payment_type',
 						payment_type: event.value.type,
@@ -4474,6 +4675,19 @@ class ec_cartpage {
 		echo "
 			} );
 			var form = ( jQuery( document.getElementById( 'ec_submit_order_form' ) ).length ) ? document.getElementById( 'ec_submit_order_form' ) : document.getElementById( 'wpeasycart_checkout_details_form' );
+			/* 6.0.4 ( #290 ): Safari opens Apple Pay's sheet only while the Place order click counts. ec-checkout-onepage.js runs this in the
+			   click itself, before the saves and the store's check ( window.wpeasycart_checkout_presubmit ): the Payment Element checks its
+			   fields and opens a wallet's sheet ( elements.submit() ), and the submit below confirms once the checks are done. */
+			window.wpeasycart_checkout_presubmit = window.wpeasycart_checkout_presubmit || {};
+			window.wpeasycart_checkout_presubmit.stripe = function() {
+				form.wpecStripeSubmitted = null;
+				var wpec_method = jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).length ? jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).val() : 'credit_card';
+				if ( 'credit_card' != wpec_method || ! wpecStripeReady || 'function' !== typeof elements.submit ) {
+					return null;
+				}
+				form.wpecStripeSubmitted = elements.submit();
+				return form.wpecStripeSubmitted;
+			};
 			if ( form.wpecStripeSubmit ) { /* 6.0.2: the section was drawn again: replace the listener, never add a second one */
 				form.removeEventListener( 'submit', form.wpecStripeSubmit );
 			}
@@ -4561,7 +4775,61 @@ class ec_cartpage {
 		echo "
 					var wpecStripeReturn = " . $wpec_stripe_return . ";"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of esc_url_raw().
 		echo "
-					( elements.fetchUpdates ? elements.fetchUpdates() : Promise.resolve() ).then( function() { return stripe.confirmPayment( {
+					var wpecStripeComplete = function( paidIntent ) {
+						var data = {
+							action: 'ec_ajax_get_stripe_complete_payment_main',
+							language: wpeasycart_ajax_object.current_language,
+							ec_terms_agree: ec_terms_agree,
+							ec_cart_is_subscriber: ec_cart_is_subscriber,
+							payment_status: paidIntent.status,
+							nonce: '" . esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-main-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "'
+						};
+						if ( 'function' === typeof window.wpeasycart_stripe_finish ) { /* 6.0.4: never Place order again once paid */
+							window.wpeasycart_stripe_finish( paidIntent, data, wpecStripeReturn );
+							return;
+						}
+						jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
+							wpeasycart_checkout_goto( result );
+						}, error: function() {
+							/* 6.0.2: the payment went through but the order call failed: the return page finds or makes the order
+							   for this payment ( as after a redirect ), so the shopper is never left under the cover or asked to pay again. */
+							window.location.href = wpecStripeReturn + ( -1 === wpecStripeReturn.indexOf( '?' ) ? '?' : '&' ) + 'payment_intent=' + encodeURIComponent( paidIntent.id ) + '&payment_intent_client_secret=' + encodeURIComponent( paidIntent.client_secret ) + '&redirect_status=' + encodeURIComponent( paidIntent.status );
+						} } );
+					};
+					var wpecStripeNotPaid = function( error ) {
+						jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
+						jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
+						jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
+						if ( error && error.message ) {
+							jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( ).find( 'div' ).html( error.message );
+							jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( error.message );
+						} else {
+							jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( );
+						}
+					};
+					/* 6.0.4: Stripe.js can answer with an error for a payment that went through ( a dropped connection, a phone that
+					   slept through 3-D Secure, or a second press: already succeeded ). Ask Stripe before bringing Place order back:
+					   a paid intent gets its order, never a second payment. */
+					var wpecStripeAfterError = function( error ) {
+						if ( 'function' !== typeof window.wpeasycart_stripe_paid_intent ) {
+							wpecStripeNotPaid( error );
+							return;
+						}
+						window.wpeasycart_stripe_paid_intent( stripe, clientSecret, error ).then( function( paidIntent ) {
+							if ( paidIntent ) {
+								wpecStripeComplete( paidIntent );
+							} else {
+								wpecStripeNotPaid( error );
+							}
+						} );
+					};
+					var wpecSubmitted = form.wpecStripeSubmitted || Promise.resolve( {} ); /* 6.0.4 ( #290 ): the click's elements.submit() */
+					form.wpecStripeSubmitted = null;
+					wpecSubmitted.then( function( submitted ) {
+						if ( submitted && submitted.error ) {
+							return { error: submitted.error, wpecNotPaid: true };
+						}
+						return stripe.confirmPayment( {
 						elements,
 						confirmParams: {
 							return_url: wpecStripeReturn,";
@@ -4607,30 +4875,13 @@ class ec_cartpage {
 						},
 						redirect: 'if_required'
 					} ); } ).then( function( result ){
-						if( result.error ){
-							jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
-							jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
-							jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
-							jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( ).find( 'div' ).html( result.error.message );
-							jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( result.error.message );
+						if ( result.wpecNotPaid ) { /* the Payment Element refused its fields, or the shopper closed the wallet sheet: nothing was charged */
+							wpecStripeNotPaid( result.error );
+						} else if( result.error ){
+							wpecStripeAfterError( result.error );
 						}else{
 							if ( 'processing' == result.paymentIntent.status || 'succeeded' == result.paymentIntent.status || 'requires_capture' == result.paymentIntent.status ) {
-								var data = {
-									action: 'ec_ajax_get_stripe_complete_payment_main',
-									language: wpeasycart_ajax_object.current_language,
-									ec_terms_agree: ec_terms_agree,
-									ec_cart_is_subscriber: ec_cart_is_subscriber,
-									payment_status: result.paymentIntent.status,
-									nonce: '" . esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-main-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "'
-								};
-								var paidIntent = result.paymentIntent;
-								jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
-									wpeasycart_checkout_goto( result );
-								}, error: function() {
-									/* 6.0.2: the payment went through but the order call failed: the return page finds or makes the order
-									   for this payment ( as after a redirect ), so the shopper is never left under the cover or asked to pay again. */
-									window.location.href = wpecStripeReturn + ( -1 === wpecStripeReturn.indexOf( '?' ) ? '?' : '&' ) + 'payment_intent=' + encodeURIComponent( paidIntent.id ) + '&payment_intent_client_secret=' + encodeURIComponent( paidIntent.client_secret ) + '&redirect_status=' + encodeURIComponent( paidIntent.status );
-								} } );
+								wpecStripeComplete( result.paymentIntent );
 							} else {
 								jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( ); /* 6.0.2: not paid: no order */
 								jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
@@ -4639,11 +4890,8 @@ class ec_cartpage {
 							}
 						}
 					} ).catch( function() {
-						/* 6.0.2: Stripe.js refused before any payment ( network, a closed window ): Place order comes back. */
-						jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
-						jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
-						jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
-						jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( );
+						/* 6.0.2: Stripe.js refused ( network, a closed window ): Place order comes back. 6.0.4: unless Stripe says it was paid. */
+						wpecStripeAfterError( null );
 					} );";
 		} else {
 			echo "
@@ -4837,16 +5085,19 @@ class ec_cartpage {
 				echo '<div id="ec-stripe-wallet-button"></div>';
 			} else {
 				$client_secret = $this->get_stripe_intent_client_secret();
+				if ( '' === $client_secret && null !== $this->stripe_paid_intent ) {
+					return false; /* 6.0.4: this checkout's payment went through: no wallet button to pay it again */
+				}
 				if ( '' === $client_secret && $this->stripe_held_by_protection() ) {
 					return false; /* 6.0.2 checkout protection: no wallet button while this shopper is paused or owes a human check */
 				}
 				if ( $is_payment ) {
 					echo '<div class="ec_cart_option_row" id="ec_apple_pay_row">
-						<input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_apple" value="apple_pay"';
+						<label class="ec_cart_option_label" for="ec_payment_apple"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_apple" value="apple_pay"';
 						if ( $this->get_selected_payment_method() == "apple_pay" ) {
 							echo ' checked="checked"';
 						}
-						echo 'onChange="ec_update_payment_display( \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . '\' );" /> ' . wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_apple_pay' ) . '
+						echo ' onChange="ec_update_payment_display( \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . '\' );" /> <span class="ec_cart_option_text">' . wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_apple_pay' ) . '</span></label>
 					</div>
 					<div id="ec_apple_pay_form"';
 					if ( $this->get_selected_payment_method() == "apple_pay" ) {
@@ -5134,34 +5385,51 @@ class ec_cartpage {
 						}
 					} );';
 				}
+
+				/*
+				 * 6.0.4: the browser answers later, when the checkout may have drawn this button again ( ec_update_cart() on every cart
+				 * change ) or moved on to a step without it ( the tabbed checkout's shipping step ): only the button this script drew is
+				 * shown or hidden ( the page's paymentRequest and prButton are the newest copy's by then ).
+				 */
 				echo '
-					paymentRequest.canMakePayment().then( function( result ) {
-						if ( result ) {';
+					( function( wpec_request, wpec_button, wpec_holder ) {
+						wpec_request.canMakePayment().then( function( result ) {
+							if ( ! wpec_holder || ! document.body.contains( wpec_holder ) ) {
+								return;
+							}
+							if ( result ) {';
 				if ( $is_payment ) {
 					echo '
-					ec_update_payment_display( \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . '\' );';
+							ec_update_payment_display( \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . '\' );';
 				}
 				echo '
-							prButton.mount( \'#payment-request-button\' );';
+								wpec_button.mount( wpec_holder );';
 				if ( wp_easycart_onepage_active() ) {
 					echo '
-							jQuery( \'.ec_cart_express_checkout\' ).show();';
+								jQuery( \'.ec_cart_express_checkout\' ).show();';
 				}
 				echo '
-						} else {';
+							} else {';
 				if ( $is_payment ) {
 					echo '
-							document.getElementById( \'ec_apple_pay_row\' ).style.display = \'none\';
-							document.getElementById( \'ec_apple_pay_form\' ).style.display = \'none\';';
+								var wpec_apple_row = document.getElementById( \'ec_apple_pay_row\' );
+								if ( wpec_apple_row ) {
+									wpec_apple_row.style.display = \'none\';
+								}
+								var wpec_apple_form = document.getElementById( \'ec_apple_pay_form\' );
+								if ( wpec_apple_form ) {
+									wpec_apple_form.style.display = \'none\';
+								}';
 				}
 				if ( wp_easycart_onepage_active() && 'paypal' != get_option( 'ec_option_payment_third_party' ) ) {
 					echo '
-							jQuery( \'.ec_cart_express_checkout\' ).hide();';
+								jQuery( \'.ec_cart_express_checkout\' ).hide();';
 				}
 				echo '
-							document.getElementById( \'payment-request-button\' ).style.display = \'none\';
-						}
-					});
+								wpec_holder.style.display = \'none\';
+							}
+						} );
+					} )( paymentRequest, prButton, document.getElementById( \'payment-request-button\' ) );
 				</script>';
 				if ( !$is_payment ) {
 					echo '</div>';
@@ -5457,7 +5725,28 @@ class ec_cartpage {
 		 * @param string $role    The shopper's role ( 'guest' when not signed in or pending ).
 		 * @param array  $roles   The roles chosen ( empty = everyone ).
 		 */
-		return (bool) apply_filters( 'wp_easycart_manual_payment_allowed', $allowed, $role, array_values( $roles ) );
+		return (bool) apply_filters( 'wp_easycart_manual_payment_allowed', $allowed, $role, array_values( $roles ) ) && $this->payment_method_allowed( 'manual_bill' );
+	}
+
+	/**
+	 * Whether the shopper may pay this checkout with $method ( 6.0.4 ): yes for every method the store offers, unless something in
+	 * the cart rules it out ( WP EasyCart PRO's Square gift cards combine only with a card payment through Square ). The payment
+	 * choices, the method a checkout starts on ( get_selected_payment_method() ) and Bill later / the third party ask it.
+	 *
+	 * @since 6.0.4
+	 * @param string $method credit_card, manual_bill, third_party or affirm.
+	 * @return bool
+	 */
+	public function payment_method_allowed( $method ) {
+		/**
+		 * Whether a payment method can pay this checkout.
+		 *
+		 * @since 6.0.4
+		 * @param bool        $allowed  True.
+		 * @param string      $method   credit_card, manual_bill, third_party or affirm.
+		 * @param ec_cartpage $cartpage The checkout.
+		 */
+		return (bool) apply_filters( 'wp_easycart_checkout_payment_method_allowed', true, (string) $method, $this );
 	}
 
 	public function display_manual_payment_text() {
@@ -5466,7 +5755,7 @@ class ec_cartpage {
 
 	public function use_third_party() {
 		if ( get_option( 'ec_option_payment_third_party' ) )
-			return true;
+			return $this->payment_method_allowed( 'third_party' ); /* 6.0.4 */
 		else
 			return false;
 	}
@@ -6991,7 +7280,8 @@ class ec_cartpage {
 		if ( '1' == $response ) {
 			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) );
 		} else {
-			return esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_cart_error' => 'invalid_cart_shipping' ) ) );
+			/* 6.0.4: say when it was the gift card ( the order was not placed ). */
+			return esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_cart_error' => ( 'gift-card-error' === $response ) ? 'giftcard_failed' : 'invalid_cart_shipping' ) ) );
 		}
 	}
 
@@ -7024,7 +7314,7 @@ class ec_cartpage {
 		if ( $response ) {
 			$response = $this->order->submit_order( "credit_card" );
 		}
-		if ( $response ) {
+		if ( $response && 'gift-card-error' !== $response ) { /* 6.0.4: a refused gift card removed the order */
 			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET card_holder_name = %s, payment_method = %s, creditcard_digits = %s, cc_exp_month = %s, cc_exp_year = %s WHERE order_id = %d", $GLOBALS['ec_cart_data']->cart_data->billing_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->billing_last_name, $card_type, $last_4, $exp_month, $exp_year, $this->order->order_id ) );
 			do_action( 'wpeasycart_submit_order_complete' );
 			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) );
@@ -7049,6 +7339,7 @@ class ec_cartpage {
 			if ( $GLOBALS['ec_user']->user_id ) {
 				global $wpdb;
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET is_subscriber = 1 WHERE ec_user.user_id = %d", $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 			}
 
 			// MyMail Hook
@@ -7062,7 +7353,11 @@ class ec_cartpage {
 			}
 		}
 
-		$this->order->submit_order( "third_party" );
+		/* 6.0.4: a free order is often one a gift card pays in full: when the card could not be redeemed the order was removed, so
+		   the shopper goes back with the reason instead of to the success page of an order that no longer exists. */
+		if ( 'gift-card-error' === $this->order->submit_order( "third_party" ) ) {
+			return esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_cart_error' => 'giftcard_failed' ) ) );
+		}
 		$order_status = 3;
 
 		// Correct system log, third party pending is only temporary with this payment method
@@ -7087,10 +7382,10 @@ class ec_cartpage {
 					}
 					$ec_db_admin->update_product_stock( $orderdetail->product_id, $orderdetail->quantity );
 					$this->mysqli->update_details_stock_adjusted( $orderdetail->orderdetail_id );
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $this->order_id ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $this->order->order_id ) );
 					$order_log_id = $wpdb->insert_id;
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $this->order_id, $orderdetail->product_id ) );
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $this->order_id, '-' . $orderdetail->quantity ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $this->order->order_id, $orderdetail->product_id ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $this->order->order_id, '-' . $orderdetail->quantity ) );
 				}
 			}
 
@@ -7122,7 +7417,19 @@ class ec_cartpage {
 	 * @param string $exp_year   Expiry year.
 	 * @param bool   $hold       6.0.2: the payment does not match the cart's total: keep the order pending for the merchant.
 	 */
-	public function submit_stripe_quick_payment( $payment_id, $card_type, $last_4, $exp_month, $exp_year, $hold = false ) {
+	/**
+	 * Make the order for a Stripe payment the checkout took ( card completion, wallets ).
+	 *
+	 * @param string $payment_id PaymentIntent id.
+	 * @param string $card_type  Card brand or payment method name.
+	 * @param string $last_4     Card last four.
+	 * @param string $exp_month  Card expiry month.
+	 * @param string $exp_year   Card expiry year.
+	 * @param bool   $hold       6.0.2: the order goes on hold ( the payment is not this cart's total ).
+	 * @param string $hold_note  6.0.4: the staff note for a hold with another reason ( default: the total did not match ).
+	 * @return string URL to send the shopper to.
+	 */
+	public function submit_stripe_quick_payment( $payment_id, $card_type, $last_4, $exp_month, $exp_year, $hold = false, $hold_note = '' ) {
 		global $wpdb;
 		$ec_db_admin = new ec_db_admin();
 
@@ -7136,6 +7443,7 @@ class ec_cartpage {
 			if ( $GLOBALS['ec_user']->user_id ) {
 				global $wpdb;
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET is_subscriber = 1 WHERE ec_user.user_id = %d", $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 			}
 
 			// MyMail Hook
@@ -7149,7 +7457,14 @@ class ec_cartpage {
 			}
 		}
 
+		/* 6.0.4: Stripe took the money before the order is saved: a gift card that cannot be redeemed now keeps the order, on hold
+		   with a note of what is still owed ( it removed the paid order before ). */
+		$this->order->payment_taken = true;
 		$this->order->submit_order( "third_party" );
+		if ( '' !== $this->order->giftcard_hold_note ) {
+			$hold      = true;
+			$hold_note = $this->order->giftcard_hold_note;
+		}
 
 		// Verify Payment Status in Case Already Successful
 		$order_status = 12;
@@ -7189,7 +7504,7 @@ class ec_cartpage {
 			/* 6.0.2: paid, but not this cart's total: pending, no stock taken, no receipt, and a note on the order. */
 			$order_status = 12;
 			/* translators: %s: Stripe payment id. */
-			wp_easycart_stripe_hold_order( $this->order->order_id, sprintf( __( 'The Stripe payment %s does not match this order’s total ( the cart changed after it was paid ), so the order is on hold. Check the payment in Stripe before you ship it.', 'wp-easycart' ), $payment_id ) ); /* the webhook leaves it alone */
+			wp_easycart_stripe_hold_order( $this->order->order_id, ( '' !== (string) $hold_note ) ? $hold_note : sprintf( __( 'The Stripe payment %s does not match this order’s total ( the cart changed after it was paid ), so the order is on hold. Check the payment in Stripe before you ship it.', 'wp-easycart' ), $payment_id ) ); /* the webhook leaves it alone */
 		}
 		if ( 19 !== (int) $order_status && class_exists( 'wp_easycart_shipping_groups' ) && wp_easycart_shipping_groups::hold_order( $this->order->order_id, $this ) ) {
 			$order_status = 12; /* 6.0.2: paid, but a fulfillment partner's shipping could not be confirmed for this address ( the wallet sheet and the one-page completion ) */
@@ -7234,10 +7549,10 @@ class ec_cartpage {
 					}
 					$ec_db_admin->update_product_stock( $orderdetail->product_id, $orderdetail->quantity );
 					$this->mysqli->update_details_stock_adjusted( $orderdetail->orderdetail_id );
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $this->order_id ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $this->order->order_id ) );
 					$order_log_id = $wpdb->insert_id;
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $this->order_id, $orderdetail->product_id ) );
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $this->order_id, '-' . $orderdetail->quantity ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $this->order->order_id, $orderdetail->product_id ) );
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $this->order->order_id, '-' . $orderdetail->quantity ) );
 				}
 			}
 
@@ -7306,6 +7621,7 @@ class ec_cartpage {
 			if ( $GLOBALS['ec_user']->user_id ) {
 				global $wpdb;
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET is_subscriber = 1 WHERE ec_user.user_id = %d", $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 			}
 
 			// MyMail Hook
@@ -7352,6 +7668,7 @@ class ec_cartpage {
 			$stripe_charge_id = $payment_status->latest_charge;
 		}
 
+		// 6.0.4: what the shopper typed is unslashed ( WordPress adds slashes to $_POST: "O'Neil" was saved as "O\'Neil" ).
 		// Update Order
 		$wpdb->query( $wpdb->prepare( "UPDATE 
 				ec_order 
@@ -7363,26 +7680,26 @@ class ec_cartpage {
 				order_gateway = %s, creditcard_digits = %s, cc_exp_month = %s, cc_exp_year = %s, stripe_charge_id = %s, 
 				gateway_transaction_id = %s, payment_method = 'credit_card', orderstatus_id = %d 
 			WHERE order_id = %d", 
-				sanitize_text_field( $_POST['billing_address']['first_name'] ), 
-				sanitize_text_field( $_POST['billing_address']['last_name'] ),
-				sanitize_text_field( $_POST['billing_address']['company_name'] ),
-				sanitize_text_field( $_POST['billing_address']['address1'] ),
-				sanitize_text_field( $_POST['billing_address']['address2'] ),
-				sanitize_text_field( $_POST['billing_address']['city'] ),
-				sanitize_text_field( $_POST['billing_address']['state'] ),
-				sanitize_text_field( $_POST['billing_address']['zip'] ),
-				sanitize_text_field( $_POST['billing_address']['country'] ),
-				sanitize_text_field( $_POST['billing_address']['phone'] ),
-				sanitize_text_field( $_POST['shipping_address']['first_name'] ),
-				sanitize_text_field( $_POST['shipping_address']['last_name'] ), 
-				sanitize_text_field( $_POST['shipping_address']['company_name'] ),
-				sanitize_text_field( $_POST['shipping_address']['address1'] ),
-				sanitize_text_field( $_POST['shipping_address']['address2'] ),
-				sanitize_text_field( $_POST['shipping_address']['city'] ),
-				sanitize_text_field( $_POST['shipping_address']['state'] ),
-				sanitize_text_field( $_POST['shipping_address']['zip'] ),
-				sanitize_text_field( $_POST['shipping_address']['country'] ),
-				sanitize_text_field( $_POST['shipping_address']['phone'] ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['first_name'] ) ), 
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['last_name'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['company_name'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['address1'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['address2'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['city'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['state'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['zip'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['country'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['billing_address']['phone'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['first_name'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['last_name'] ) ), 
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['company_name'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['address1'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['address2'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['city'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['state'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['zip'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['country'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['shipping_address']['phone'] ) ),
 				sanitize_text_field( get_option( 'ec_option_payment_process_method' ) ),
 				$last_4, $exp_month, $exp_year, $stripe_charge_id, 
 				$payment_id, $order_status, $invoice_id
@@ -7440,6 +7757,7 @@ class ec_cartpage {
 
 			if ( $GLOBALS['ec_user']->user_id ) {
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET is_subscriber = 1 WHERE ec_user.user_id = %d", $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 			}
 
 			// MyMail Hook
@@ -7700,9 +8018,9 @@ class ec_cartpage {
 			if ( get_option( 'ec_option_tax_cloud_api_id' ) != "" && get_option( 'ec_option_tax_cloud_api_key' ) != "" ) {
 				wpeasycart_taxcloud()->setup_subscription_for_tax( $product, $quantity, $discount_total );
 			}
-			$this->tax = new ec_tax( $product->price * $quantity, $taxable_subtotal, $vatable_subtotal, sanitize_text_field( $_POST['billing_details']['address']['state'] ), sanitize_text_field( $_POST['billing_details']['address']['country'] ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
+			$this->tax = new ec_tax( $product->price * $quantity, $taxable_subtotal, $vatable_subtotal, sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
 		} else {
-			$this->tax = new ec_tax( 0, 0, 0, sanitize_text_field( $_POST['billing_details']['address']['state'] ), sanitize_text_field( $_POST['billing_details']['address']['country'] ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
+			$this->tax = new ec_tax( 0, 0, 0, sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
 		}
 
 		$this->order_totals = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount );
@@ -7720,7 +8038,7 @@ class ec_cartpage {
 			}
 		}
 
-		$card = new ec_credit_card( sanitize_text_field( $_POST['card']['brand'] ), sanitize_text_field( $_POST['card']['name'] ), sanitize_text_field( $_POST['card']['last4'] ), sanitize_text_field( $_POST['card']['exp_month'] ), sanitize_text_field( $_POST['card']['exp_year'] ), sanitize_text_field( $_POST['card']['cvv'] ) );
+		$card = new ec_credit_card( sanitize_text_field( wp_unslash( $_POST['card']['brand'] ) ), sanitize_text_field( wp_unslash( $_POST['card']['name'] ) ), sanitize_text_field( wp_unslash( $_POST['card']['last4'] ) ), sanitize_text_field( wp_unslash( $_POST['card']['exp_month'] ) ), sanitize_text_field( wp_unslash( $_POST['card']['exp_year'] ) ), sanitize_text_field( wp_unslash( $_POST['card']['cvv'] ) ) );
 
 		$stripe_charge_id = '';
 		/* 6.0.2: the subscription's own invoice PaymentIntent, and only once Stripe says it was paid ( a declined charge is a latest_charge too ). */
@@ -7734,7 +8052,7 @@ class ec_cartpage {
 				$last_4 = $charge->payment_method_details->card->last4;
 				$exp_month = $charge->payment_method_details->card->exp_month;
 				$exp_year = $charge->payment_method_details->card->exp_year;
-				$card = new ec_credit_card( $payment_method, sanitize_text_field( $_POST['card']['name'] ), $last_4, $exp_month, $exp_year, '' );
+				$card = new ec_credit_card( $payment_method, sanitize_text_field( wp_unslash( $_POST['card']['name'] ) ), $last_4, $exp_month, $exp_year, '' );
 			}
 
 			$order_id = $this->mysqli->insert_subscription_order( 
@@ -7743,7 +8061,7 @@ class ec_cartpage {
 				$card,
 				(int) $_POST['subscription_id'],
 				$coupon,
-				( isset( $_POST['order_notes'] ) ) ? strip_tags( sanitize_textarea_field( $_POST['order_notes'] ) ) : '',
+				( isset( $_POST['order_notes'] ) ) ? strip_tags( sanitize_textarea_field( wp_unslash( $_POST['order_notes'] ) ) ) : '',
 				$this->subscription_option1_name,
 				$this->subscription_option2_name,
 				$this->subscription_option3_name,
@@ -8106,10 +8424,11 @@ class ec_cartpage {
 		}
 		$is_subscriber_saved = false; // 6.0.2: set once a new account below has subscribed a ticked box itself.
 
+		// 6.0.4: what the shopper typed is unslashed ( WordPress adds slashes to $_POST: "O'Neil" was saved as "O\'Neil" ).
 		// CREATE ACCOUNT IF NEEDED
 		if ( isset( $_POST['create_account'] ) ) {
 
-			if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['billing_details']['email'] ) ) ) {
+			if ( wp_easycart_wordpress_users::email_taken( sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ) ) ) {
 				return array( 'error' => array( 
 					'id'		=> 'user_create_error',
 					'message'	=> wp_easycart_language()->get_text( "ec_errors", "email_exists_error" )
@@ -8120,36 +8439,36 @@ class ec_cartpage {
 				$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['create_account']['password'] ); // XSS OK. Password should not be hashed.
 
 				$billing_id = $this->mysqli->insert_address( 
-					sanitize_text_field( $_POST['billing_details']['first_name'] ), 
-					sanitize_text_field( $_POST['billing_details']['last_name'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['line1'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['line2'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['city'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['state'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['postal_code'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['country'] ), 
-					sanitize_text_field( $_POST['billing_details']['phone'] ), 
-					sanitize_text_field( $_POST['billing_details']['company_name'] ) 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line1'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line2'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['city'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['postal_code'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['phone'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['company_name'] ) ) 
 				);
 
 				$shipping_id = $this->mysqli->insert_address( 
-					sanitize_text_field( $_POST['shipping_details']['first_name'] ), 
-					sanitize_text_field( $_POST['shipping_details']['last_name'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['line1'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['line2'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['city'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['state'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['postal_code'] ), 
-					sanitize_text_field( $_POST['shipping_details']['address']['country'] ), 
-					sanitize_text_field( $_POST['shipping_details']['phone'] ), 
-					sanitize_text_field( $_POST['shipping_details']['company_name'] ) 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['first_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['last_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line1'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line2'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['city'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['state'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['postal_code'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['country'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['phone'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['shipping_details']['company_name'] ) ) 
 				);
 
 				$user_id = $this->mysqli->insert_user( 
-					sanitize_email( $_POST['billing_details']['email'] ),
+					sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ),
 					$password,
-					sanitize_text_field( $_POST['billing_details']['first_name'] ),
-					sanitize_text_field( $_POST['billing_details']['last_name'] ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ),
 					$billing_id,
 					$shipping_id,
 					"shopper",
@@ -8163,10 +8482,10 @@ class ec_cartpage {
 				$this->mysqli->update_address_user_id( $billing_id, $user_id );
 				$this->mysqli->update_address_user_id( $shipping_id, $user_id );
 
-				do_action( 'wpeasycart_account_added', $user_id, sanitize_email( $_POST['billing_details']['email'] ), $_POST['create_account']['password'], 'subscription' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
+				do_action( 'wpeasycart_account_added', $user_id, sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ), $_POST['create_account']['password'], 'subscription' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
 				// WordPress User Sync 1.x: the WordPress user ( 2.0 makes it on wpeasycart_account_added ).
-				wp_easycart_wordpress_users::legacy_account_created( $user_id, sanitize_email( $_POST['billing_details']['email'] ), $_POST['create_account']['password'], sanitize_text_field( $_POST['billing_details']['first_name'] ), sanitize_text_field( $_POST['billing_details']['last_name'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
+				wp_easycart_wordpress_users::legacy_account_created( $user_id, sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ), $_POST['create_account']['password'], sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
 				// Send registration email if needed
 				if ( get_option( 'ec_option_send_signup_email' ) ) {
@@ -8193,10 +8512,10 @@ class ec_cartpage {
 
 				$GLOBALS['ec_cart_data']->cart_data->is_guest = false;
 				$GLOBALS['ec_cart_data']->cart_data->user_id = $user_id;
-				$GLOBALS['ec_cart_data']->cart_data->email = sanitize_email( $_POST['billing_details']['email'] );
-				$GLOBALS['ec_cart_data']->cart_data->username = sanitize_text_field( $_POST['billing_details']['first_name'] . ' ' . $_POST['billing_details']['last_name'] );
-				$GLOBALS['ec_cart_data']->cart_data->first_name = sanitize_text_field( $_POST['billing_details']['first_name'] );
-				$GLOBALS['ec_cart_data']->cart_data->last_name = sanitize_text_field( $_POST['billing_details']['last_name'] );
+				$GLOBALS['ec_cart_data']->cart_data->email = sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) );
+				$GLOBALS['ec_cart_data']->cart_data->username = sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] . ' ' . $_POST['billing_details']['last_name'] ) );
+				$GLOBALS['ec_cart_data']->cart_data->first_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) );
+				$GLOBALS['ec_cart_data']->cart_data->last_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) );
 
 				$GLOBALS['ec_user'] = new ec_user( "" );
 			}
@@ -8206,65 +8525,67 @@ class ec_cartpage {
 			$this->mysqli->update_user( $GLOBALS['ec_user']->user_id, preg_replace( '/[^a-zA-Z0-9\s]/', '', sanitize_text_field( $_POST['vat_registration_number'] ) ) );
 			if ( $GLOBALS['ec_user']->billing_id == 0 ) {
 				$billing_id = $this->mysqli->insert_address( 
-					sanitize_text_field( $_POST['billing_details']['first_name'] ),
-					sanitize_text_field( $_POST['billing_details']['last_name'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['line1'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['line2'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['city'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['state'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['postal_code'] ),
-					sanitize_text_field( $_POST['billing_details']['address']['country'] ),
-					sanitize_text_field( $_POST['billing_details']['phone'] ),
-					sanitize_text_field( $_POST['billing_details']['company_name'] )
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line1'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line2'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['city'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['postal_code'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['phone'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['company_name'] ) )
 				);
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET default_billing_address_id = %d WHERE user_id = %d", $billing_id, $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 				$this->mysqli->update_address_user_id( $billing_id, $GLOBALS['ec_user']->user_id );
 
 			} else {
 				$this->mysqli->update_address( 
 					$GLOBALS['ec_user']->billing_id, 
-					sanitize_text_field( $_POST['billing_details']['first_name'] ), 
-					sanitize_text_field( $_POST['billing_details']['last_name'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['line1'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['line2'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['city'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['state'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['postal_code'] ), 
-					sanitize_text_field( $_POST['billing_details']['address']['country'] ), 
-					sanitize_text_field( $_POST['billing_details']['phone'] ), 
-					sanitize_text_field( $_POST['billing_details']['company_name'] ) 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line1'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line2'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['city'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['postal_code'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['phone'] ) ), 
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['company_name'] ) ) 
 				);
 			}
 			if ( $_POST['shipping_details']['first_name'] != '' ) {
 				if ( $GLOBALS['ec_user']->shipping_id == 0 ) {
 					$shipping_id = $this->mysqli->insert_address( 
-						sanitize_text_field( $_POST['shipping_details']['first_name'] ), 
-						sanitize_text_field( $_POST['shipping_details']['last_name'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['line1'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['line2'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['city'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['state'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['postal_code'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['country'] ), 
-						sanitize_text_field( $_POST['shipping_details']['phone'] ), 
-						sanitize_text_field( $_POST['shipping_details']['company_name'] )
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['first_name'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['last_name'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line1'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line2'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['city'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['state'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['postal_code'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['country'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['phone'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['company_name'] ) )
 					);
 					$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET default_shipping_address_id = %d WHERE user_id = %d", $shipping_id, $GLOBALS['ec_user']->user_id ) );
+					wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 					$this->mysqli->update_address_user_id( $shipping_id, $GLOBALS['ec_user']->user_id );
 
 				} else {
 					$this->mysqli->update_address( 
 						$GLOBALS['ec_user']->shipping_id, 
-						sanitize_text_field( $_POST['shipping_details']['first_name'] ), 
-						sanitize_text_field( $_POST['shipping_details']['last_name'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['line1'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['line2'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['city'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['state'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['postal_code'] ), 
-						sanitize_text_field( $_POST['shipping_details']['address']['country'] ), 
-						sanitize_text_field( $_POST['shipping_details']['phone'] ), 
-						sanitize_text_field( $_POST['shipping_details']['company_name'] )
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['first_name'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['last_name'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line1'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line2'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['city'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['state'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['postal_code'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['country'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['phone'] ) ), 
+						sanitize_text_field( wp_unslash( $_POST['shipping_details']['company_name'] ) )
 					);
 				}
 
@@ -8272,35 +8593,35 @@ class ec_cartpage {
 		}
 
 		// Set Sessions
-		$GLOBALS['ec_cart_data']->cart_data->billing_first_name = sanitize_text_field( $_POST['billing_details']['first_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_last_name = sanitize_text_field( $_POST['billing_details']['last_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_company_name = sanitize_text_field( $_POST['billing_details']['company_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 = sanitize_text_field( $_POST['billing_details']['address']['line1'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 = sanitize_text_field( $_POST['billing_details']['address']['line2'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_city = sanitize_text_field( $_POST['billing_details']['address']['city'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_state = sanitize_text_field( $_POST['billing_details']['address']['state'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_zip = sanitize_text_field( $_POST['billing_details']['address']['postal_code'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_country = sanitize_text_field( $_POST['billing_details']['address']['country'] );
-		$GLOBALS['ec_cart_data']->cart_data->billing_phone = sanitize_text_field( $_POST['billing_details']['phone'] );
+		$GLOBALS['ec_cart_data']->cart_data->billing_first_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_last_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_company_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['company_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line1'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['line2'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_city = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['city'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_state = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_zip = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['postal_code'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_country = sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->billing_phone = sanitize_text_field( wp_unslash( $_POST['billing_details']['phone'] ) );
 
-		$GLOBALS['ec_cart_data']->cart_data->shipping_selector = ( isset( $_POST['shipping_details']['address']['first_name'] ) && strlen( sanitize_text_field( $_POST['shipping_details']['address']['first_name'] ) ) > 0) ? 1 : 0;
+		$GLOBALS['ec_cart_data']->cart_data->shipping_selector = ( isset( $_POST['shipping_details']['address']['first_name'] ) && strlen( sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['first_name'] ) ) ) > 0) ? 1 : 0;
 
-		$GLOBALS['ec_cart_data']->cart_data->shipping_first_name = sanitize_text_field( $_POST['shipping_details']['first_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_last_name = sanitize_text_field( $_POST['shipping_details']['last_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_company_name = sanitize_text_field( $_POST['shipping_details']['company_name'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1 = sanitize_text_field( $_POST['shipping_details']['address']['line1'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 = sanitize_text_field( $_POST['shipping_details']['address']['line2'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_city = sanitize_text_field( $_POST['shipping_details']['address']['city'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_state = sanitize_text_field( $_POST['shipping_details']['address']['state'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_zip = sanitize_text_field( $_POST['shipping_details']['address']['postal_code'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_country = sanitize_text_field( $_POST['shipping_details']['address']['country'] );
-		$GLOBALS['ec_cart_data']->cart_data->shipping_phone = sanitize_text_field( $_POST['shipping_details']['phone'] );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_first_name = sanitize_text_field( wp_unslash( $_POST['shipping_details']['first_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_last_name = sanitize_text_field( wp_unslash( $_POST['shipping_details']['last_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_company_name = sanitize_text_field( wp_unslash( $_POST['shipping_details']['company_name'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1 = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line1'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['line2'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_city = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['city'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_state = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['state'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_zip = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['postal_code'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_country = sanitize_text_field( wp_unslash( $_POST['shipping_details']['address']['country'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->shipping_phone = sanitize_text_field( wp_unslash( $_POST['shipping_details']['phone'] ) );
 
-		$GLOBALS['ec_cart_data']->cart_data->first_name = ( isset( $_POST['create_account']['first_name'] ) ) ? sanitize_text_field( $_POST['create_account']['first_name'] ) : $GLOBALS['ec_cart_data']->cart_data->billing_first_name;
-		$GLOBALS['ec_cart_data']->cart_data->last_name = ( isset( $_POST['create_account']['last_name'] ) ) ? sanitize_text_field( $_POST['create_account']['last_name'] ) : $GLOBALS['ec_cart_data']->cart_data->billing_last_name;
+		$GLOBALS['ec_cart_data']->cart_data->first_name = ( isset( $_POST['create_account']['first_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['create_account']['first_name'] ) ) : $GLOBALS['ec_cart_data']->cart_data->billing_first_name;
+		$GLOBALS['ec_cart_data']->cart_data->last_name = ( isset( $_POST['create_account']['last_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['create_account']['last_name'] ) ) : $GLOBALS['ec_cart_data']->cart_data->billing_last_name;
 
-		$GLOBALS['ec_cart_data']->cart_data->order_notes = sanitize_textarea_field( $_POST['order_notes'] );
-		$GLOBALS['ec_cart_data']->cart_data->email_other = sanitize_text_field( ( isset( $_POST['ec_email_other'] ) ) ? $_POST['ec_email_other'] : '' );
+		$GLOBALS['ec_cart_data']->cart_data->order_notes = sanitize_textarea_field( wp_unslash( $_POST['order_notes'] ) );
+		$GLOBALS['ec_cart_data']->cart_data->email_other = sanitize_text_field( ( isset( $_POST['ec_email_other'] ) ) ? wp_unslash( $_POST['ec_email_other'] ) : '' );
 
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 
@@ -8345,15 +8666,15 @@ class ec_cartpage {
 				// Fires wpeasycart_insert_subscriber ( 6.0.2: once, not again here or by a new account's insert_user() ).
 				$this->mysqli->insert_subscriber(
 					sanitize_email( $GLOBALS['ec_user']->email ),
-					sanitize_text_field( $_POST['billing_details']['first_name'] ),
-					sanitize_text_field( $_POST['billing_details']['last_name'] )
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ),
+					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) )
 				);
 			}
 
 			if ( function_exists( 'mailster' ) ) {
 				$subscriber_id = mailster('subscribers')->add(array(
-					'firstname' => sanitize_text_field( $_POST['billing_details']['first_name'] ),
-					'lastname' => sanitize_text_field( $_POST['billing_details']['last_name'] ),
+					'firstname' => sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ),
+					'lastname' => sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ),
 					'email' => sanitize_email( $GLOBALS['ec_user']->email ),
 					'status' => $is_subscriber,
 				), false );
@@ -8395,9 +8716,9 @@ class ec_cartpage {
 			if ( function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() ) {
 				wpeasycart_taxjar()->setup_subscription_for_tax( $product, $quantity, $discount_total, 0, $option_price_onetime_adjustment );
 			}
-			$this->tax = new ec_tax( $product->price * $quantity + $option_price_onetime_adjustment, $taxable_subtotal, $vatable_subtotal, sanitize_text_field( $_POST['billing_details']['address']['state'] ), sanitize_text_field( $_POST['billing_details']['address']['country'] ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
+			$this->tax = new ec_tax( $product->price * $quantity + $option_price_onetime_adjustment, $taxable_subtotal, $vatable_subtotal, sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
 		} else {
-			$this->tax = new ec_tax( 0, 0, 0, sanitize_text_field( $_POST['billing_details']['address']['state'] ), sanitize_text_field( $_POST['billing_details']['address']['country'] ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
+			$this->tax = new ec_tax( 0, 0, 0, sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['state'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['address']['country'] ) ), $GLOBALS['ec_user']->taxfree, $this->shipping->get_shipping_price( ( $product->handling_price_each * $quantity ) + $product->handling_price ), $subscription_cart, true );
 		}
 
 		$this->order_totals = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount );
@@ -8517,7 +8838,13 @@ class ec_cartpage {
 		global $wpdb;
 		$ec_db_admin = new ec_db_admin();
 
+		/* 6.0.4: PayPal took the money before the order is saved: a gift card that cannot be redeemed keeps the order, on hold. */
+		$this->order->payment_taken = true;
 		$this->order->submit_order( "third_party" );
+		if ( '' !== $this->order->giftcard_hold_note ) {
+			$order_status = 12;
+			wp_easycart_stripe_hold_order( $this->order->order_id, $this->order->giftcard_hold_note ); /* a staff note and the order-payment-hold mark */
+		}
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET orderstatus_id = %d WHERE order_id = %d", $order_status, $this->order->order_id ) );
 
 		// Log order status update
@@ -8622,7 +8949,11 @@ class ec_cartpage {
 		}
 
 		// Create Order
-		$this->order->submit_order( "third_party" );
+		if ( 'gift-card-error' === $this->order->submit_order( "third_party" ) ) {
+			/* 6.0.4: the gift card could not be redeemed and the order was removed: PayPal is not asked to pay for it. */
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_cart_error' => 'giftcard_failed' ) ) ) );
+			die();
+		}
 
 		// Execute payment
 		$paypal = new ec_paypal();
@@ -8709,6 +9040,7 @@ class ec_cartpage {
 			if ( $GLOBALS['ec_user']->user_id ) {
 				global $wpdb;
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET is_subscriber = 1 WHERE ec_user.user_id = %d", $GLOBALS['ec_user']->user_id ) );
+				wp_easycart_cache::forget_user( $GLOBALS['ec_user']->user_id ); /* 6.0.4: the account row is cached */
 			}
 
 			// MyMail Hook
@@ -8761,6 +9093,23 @@ class ec_cartpage {
 		} else if ( isset( $_POST['paypal_payment_id'] ) || isset( $_POST['paypal_order_id'] ) ) {
 			global $wpdb;
 
+			/*
+			 * 6.0.4: one order per payment. Place order sent twice for the same PayPal payment waits for the first and goes to
+			 * its order: the second made another order, which PayPal then refused, and showed the shopper a failed payment.
+			 */
+			$wpec_paypal_key  = ec_paypal::payment_key( sanitize_text_field( wp_unslash( isset( $_POST['paypal_order_id'] ) ? $_POST['paypal_order_id'] : $_POST['paypal_payment_id'] ) ) );
+			$wpec_paypal_lock = wp_easycart_payment_key_lock( 'paypal', $wpec_paypal_key );
+			$wpec_paypal_done = wp_easycart_payment_key_order_id( 'paypal', $wpec_paypal_key );
+			if ( $wpec_paypal_done ) {
+				wp_easycart_payment_key_unlock( 'paypal', $wpec_paypal_key );
+				header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => $wpec_paypal_done ) ) ) );
+				die();
+			}
+			if ( false === $wpec_paypal_lock ) {
+				header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'payment_processing' ) ) ) );
+				die();
+			}
+
 			// Create Order
 			$this->order->submit_order( "third_party" );
 
@@ -8774,6 +9123,7 @@ class ec_cartpage {
 
 			// Update Order or Remove Order
 			if ( $result ) {
+				wp_easycart_payment_key_record( 'paypal', $wpec_paypal_key, (int) $this->order->order_id ); /* 6.0.4 */
 
 				$ec_db_admin = new ec_db_admin();
 				$order_row = $ec_db_admin->get_order_row_admin( $this->order->order_id );
@@ -8807,7 +9157,12 @@ class ec_cartpage {
 					$order_display->send_email_receipt();
 					$order_display->send_gift_cards();
 				} else {
-					do_action( 'wpeasycart_order_complete', $this->order->order_id, $order_status );
+					/*
+					 * 6.0.4: the order's own status ( the variable passed here was never set ): third party pending until
+					 * PayPal's notification, unless something already moved it.
+					 */
+					$wpec_order_status = ( $order_row && isset( $order_row->orderstatus_id ) ) ? (int) $order_row->orderstatus_id : (int) $this->order->order_status;
+					do_action( 'wpeasycart_order_complete', $this->order->order_id, $wpec_order_status );
 				}
 
 				// Clear tempcart
@@ -8815,11 +9170,13 @@ class ec_cartpage {
 				$this->order->clear_session();
 
 				$GLOBALS['ec_cart_data']->save_session_to_db();
+				wp_easycart_payment_key_unlock( 'paypal', $wpec_paypal_key );
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) ) );
 			} else {
 				/** This action is documented in inc/classes/core/ec_order.php ( 6.0.2 ). */
 				do_action( 'wpeasycart_payment_failed', $this->order->order_id, 'paypal_capture_failed', 'paypal', $this->order );
 				$this->mysqli->remove_order( $this->order->order_id );
+				wp_easycart_payment_key_unlock( 'paypal', $wpec_paypal_key );
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'payment_failed' ) ) ) );
 			}
 			die();
@@ -8863,7 +9220,7 @@ class ec_cartpage {
 
 				$response = $this->order->submit_order( $payment_type );
 
-				if ( $response ) {
+				if ( $response && 'gift-card-error' !== $response ) { /* 6.0.4: a refused gift card removed the order */
 
 					$gateway = new ec_cardinal();
 					$gateway->initialize( $this->cart, $this->user, $this->shipping, $this->tax,
@@ -8882,14 +9239,13 @@ class ec_cartpage {
 						$this->process_nmi_no_3ds();
 
 					} else { // NO 3DS for User, Process Normally
-						$submit_return_val = $this->order->submit_order( $payment_type );
-						if ( $submit_return_val == "1" ) {
-							$GLOBALS['ec_cart_data']->save_session_to_db();
-							header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) ) );
-						} else {
-							$this->mysqli->remove_order( $order_id );
-							header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'payment_failed' ) ) ) );
-						}
+
+						/*
+						 * 6.0.4: an enrolled card never gets here ( the bank's page is shown and the request ends ), so Cardinal gave
+						 * an answer it knows no 3-D Secure for: charge this checkout's order without it, as NO3DS does. This branch
+						 * called submit_order() again, which made a second order, unpaid, and sent the shopper to it as a success.
+						 */
+						$this->process_nmi_no_3ds();
 					}
 				} else { // order failed to insert
 					header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'payment_failed' ) ) ) );
@@ -8902,7 +9258,12 @@ class ec_cartpage {
 				$submit_return_val = $this->order->submit_order( $payment_type );
 				do_action( 'wpeasycart_submit_order_complete' );
 
-				if ( $this->order_totals->grand_total <= 0 ) {
+				if ( 'gift-card-error' === $submit_return_val ) {
+					/* 6.0.4: the gift card could not be redeemed: the order was removed and nothing was charged ( a free order went to the
+					   success page of the removed order, the others to a payment error ). */
+					$GLOBALS['ec_cart_data']->save_session_to_db();
+					header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'giftcard_failed' ) ) ) );
+				} else if ( $this->order_totals->grand_total <= 0 ) {
 					$GLOBALS['ec_cart_data']->save_session_to_db();
 					header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) ) );
 				} else if ( $payment_type == "manual_bill" ) { // Show fail message or the success landing page (including the manual bill notice).
@@ -9007,6 +9368,8 @@ class ec_cartpage {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => $order_id ) ) ) );
 
 		} else {
+			/** This action is documented in inc/classes/core/ec_order.php ( 6.0.4: checkout protection counts NMI 3-D Secure declines too ). */
+			do_action( 'wpeasycart_payment_failed', $order_id, (string) $gateway->get_response_message(), 'nmi', $this->order );
 			$this->mysqli->remove_order( $order_id );
 			$GLOBALS['ec_cart_data']->save_session_to_db();
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => '3dsecure_failed' ) ) ) );
@@ -9059,6 +9422,8 @@ class ec_cartpage {
 			$GLOBALS['ec_cart_data']->checkout_session_complete();
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => $order_id ) ) ) );
 		} else {
+			/** This action is documented in inc/classes/core/ec_order.php ( 6.0.4: checkout protection counts NMI 3-D Secure declines too ). */
+			do_action( 'wpeasycart_payment_failed', $order_id, (string) $gateway->get_response_message(), 'nmi', $this->order );
 			$this->mysqli->remove_order( $order_id );
 			$GLOBALS['ec_cart_data']->save_session_to_db();
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => '3dsecure_failed' ) ) ) );
@@ -9092,8 +9457,13 @@ class ec_cartpage {
 				do_action( 'wpeasycart_order_paid', $order_id );
 
 				$this->order->clear_session();
-				if ( $this->discount->giftcard_code )
+				if ( $this->discount->giftcard_code ) {
 					$this->mysqli->update_giftcard_total( $this->discount->giftcard_code, $this->discount->giftcard_discount );
+					if ( $this->discount->giftcard_discount > 0 ) {
+						/** This action is documented in inc/classes/core/ec_order.php ( confirm_giftcard() ). */
+						do_action( 'wpeasycart_confirm_gift_card_redemption', $this->discount->giftcard_code, $order_id, $this->discount->giftcard_discount );
+					}
+				}
 
 				$GLOBALS['ec_cart_data']->save_session_to_db();
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => $order_id ) ) ) );
@@ -9543,7 +9913,7 @@ class ec_cartpage {
 			ec_offer_integration::migrate_session_codes( $wpeasycart_offer_prev_session_id );
 		}
 
-		wp_cache_flush();
+		wp_easycart_cache::shopper_changed();
 
 		wp_easycart_wordpress_users::store_logout(); /* 6.0.2: ends a Login as Customer, else signs out of WordPress for User Sync 1.x */
 
@@ -9748,7 +10118,7 @@ class ec_cartpage {
 			$GLOBALS['ec_cart_data']->cart_data->last_name = $last_name;
 
 			$GLOBALS['ec_cart_data']->cart_data->order_notes = $order_notes;
-			$GLOBALS['ec_cart_data']->cart_data->email_other = sanitize_text_field( ( isset( $_POST['ec_email_other'] ) ) ? $_POST['ec_email_other'] : '' );
+			$GLOBALS['ec_cart_data']->cart_data->email_other = sanitize_text_field( ( isset( $_POST['ec_email_other'] ) ) ? wp_unslash( $_POST['ec_email_other'] ) : '' );
 
 			$next_page = "checkout_shipping";
 			if ( !get_option( 'ec_option_use_shipping' ) || $this->cart->shippable_total_items == 0 )
@@ -10005,6 +10375,36 @@ class ec_cartpage {
 			header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => $model_number ) ) ) );
 			die();
 		}
+
+		/*
+		 * 6.0.4 checkout protection: the gate the Stripe subscription call has ( ec_ajax_get_stripe_create_subscription() ), before
+		 * an account is made or the card is sent. A card this form posts to the store is checked against its own daily limit too,
+		 * as on the checkout. The subscription page shows the reason ( display_cart_error() ).
+		 */
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- process_insert_subscription() checked its nonce.
+		if ( class_exists( 'wp_easycart_checkout_guard' ) ) {
+			$wpec_gate_args = array( 'gateway' => (string) get_option( 'ec_option_payment_process_method' ) );
+			$wpec_card_post = ( ! isset( $_POST['stripeToken'] ) && isset( $_POST['ec_card_number'] ) ) ? $this->sanatize_card_number( sanitize_text_field( wp_unslash( $_POST['ec_card_number'] ) ) ) : '';
+			if ( '' !== $wpec_card_post ) {
+				$wpec_card_month = isset( $_POST['ec_expiration_month'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_expiration_month'] ) ) : ( isset( $_POST['ec_cc_expiration'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['ec_cc_expiration'] ) ), 0, 2 ) : '' );
+				$wpec_card_year  = isset( $_POST['ec_expiration_year'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_expiration_year'] ) ) : ( isset( $_POST['ec_cc_expiration'] ) ? substr( sanitize_text_field( wp_unslash( $_POST['ec_cc_expiration'] ) ), 5 ) : '' );
+				$wpec_material   = wp_easycart_checkout_guard::card_material( $wpec_card_post, $wpec_card_month, $wpec_card_year );
+				if ( '' !== $wpec_material ) {
+					$wpec_gate_args['card_material'] = $wpec_material;
+					$wpec_gate_args['card_display']  = wp_easycart_checkout_guard::card_display( $this->get_payment_type( $wpec_card_post ), substr( preg_replace( '/\D/', '', $wpec_card_post ), -4 ) );
+				}
+			}
+			$wpec_gate = wp_easycart_checkout_guard::check( 'subscription', $wpec_gate_args );
+			if ( is_wp_error( $wpec_gate ) ) {
+				$wpec_gate_back = array(
+					'subscription'  => $model_number,
+					'ec_cart_error' => $wpec_gate->get_error_code(),
+				);
+				header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', $wpec_gate_back ) ) );
+				die();
+			}
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
 		if ( count( $products ) > 0 ) {
@@ -10494,6 +10894,21 @@ class ec_cartpage {
 									header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $model_number ), 'ec_cart_error' => 'subscription_failed' ) ) ) );
 								}// Close check for subscription insertion
 							} else {
+								if ( class_exists( 'wp_easycart_checkout_guard' ) ) { /* 6.0.4: the refused card counts, as in the Stripe subscription call */
+									wp_easycart_checkout_guard::record_decline(
+										'subscription',
+										array(
+											'gateway' => (string) get_option( 'ec_option_payment_process_method' ),
+											'reason'  => 'declined',
+										),
+										( isset( $wpec_gate_args['card_material'] ) ) ? wp_easycart_checkout_guard::context(
+											array(
+												'card_material' => $wpec_gate_args['card_material'],
+												'card_display'  => $wpec_gate_args['card_display'],
+											)
+										) : null
+									);
+								}
 								header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $model_number ), 'ec_cart_error' => 'card_error' ) ) ) );
 							}// Close check for card insertion
 						} else {
@@ -11018,71 +11433,88 @@ class ec_cartpage {
 
 		global $wpdb;
 		$ec_db_admin = new ec_db_admin();
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_order WHERE gateway_transaction_id = %s", $payment_intent->id . ':' . $payment_intent->client_secret ) );
-		if ( $order ) {
-			$order_id = $order->order_id;
-		} else {
-			sleep( 5 ); // Process waits to prevent timing issues and double checks the order.
-			$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_order WHERE gateway_transaction_id = %s", $payment_intent->id . ':' . $payment_intent->client_secret ) );
-			if ( $order ) {
-				$order_id = $order->order_id;
-			} else {
-				$source = array(
-					'id' => $payment_intent_id,
-					'client_secret' => $payment_intent_client_secret,
-				);
-				$order_id = $this->insert_ideal_order( $source, $payment_intent );
-				$payment_method_name = $order->payment_method;
-				$stripe->update_payment_intent_description( $payment_intent_id, $order_id );
-				if ( $payment_intent && is_object( $payment_intent ) && isset( $payment_intent->payment_method ) ) {
-					$payment_method = $stripe->get_payment_method( $payment_intent->payment_method );
-					if ( $payment_method && is_object( $payment_method ) && isset( $payment_method->type ) ) {
-						$payment_method_name = $payment_method->type;
-					}
-				}
-
-				$order_status = 6;
-				if ( $payment_intent->status == 'succeeded' ) {
-					$order_status = 3;
-				} else if ( $payment_intent->status == 'requires_capture' ) {
-					$order_status = 12;
-				} else if ( $payment_intent->status == 'processing' ) {
-					$order_status = 12;
-				} else if ( $payment_intent->status == 'canceled' ) {
-					$order_status = 19;
-				}
-				$wpdb->get_row( $wpdb->prepare( "UPDATE ec_order SET orderstatus_id = %d, payment_method = %s WHERE order_id = %d", $order_status, $payment_method_name, (int) $order_id ) );
-
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
-				$order_log_id = $wpdb->insert_id;
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $order_status ) );
-
-				if ( $order_status == 3 ) {
-					$order_row = $ec_db_admin->get_order_row_admin( $order_id );
-					$orderdetails = $ec_db_admin->get_order_details_admin( $order_id );
-					foreach( $orderdetails as $orderdetail ) {
-						$product = $wpdb->get_row( $wpdb->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.product_id = %d", $orderdetail->product_id ) );
-						if ( $product ) {
-							if ( $product->use_optionitem_quantity_tracking ) {
-								$ec_db_admin->update_quantity_value( $orderdetail->quantity, $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 );
-							}
-							$ec_db_admin->update_product_stock( $orderdetail->product_id, $orderdetail->quantity );
-							$this->mysqli->update_details_stock_adjusted( $orderdetail->orderdetail_id );
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $order_id ) );
-							$order_log_id = $wpdb->insert_id;
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $orderdetail->product_id ) );
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $orderdetail->quantity ) );
-						}
-					}
-					do_action( 'wpeasycart_order_paid', $order_id );
-					$order_display = new ec_orderdisplay( $order_row, true, true );
-					$order_display->send_email_receipt();
-					$order_display->send_gift_cards();
-				} else {
-					do_action( 'wpeasycart_order_complete', $order_id, $order_status );
+		/* 6.0.4: only with the payment's own client secret ( Stripe adds it to the return address ). */
+		if ( empty( $payment_intent->client_secret ) || ! hash_equals( (string) $payment_intent->client_secret, (string) $payment_intent_client_secret ) ) {
+			return false;
+		}
+		/* 6.0.4: one order per payment. Wait while another path ( the checkout's own completion, the webhook ) makes this payment's
+		   order, then look for it under both of the ids orders are saved with ( the card completion saves the intent id alone, so
+		   the fixed 5 second wait and the id:secret lookup made a second order for it ). */
+		wp_easycart_stripe_intent_lock( $payment_intent->id );
+		$order_id = wp_easycart_stripe_intent_order_id( $payment_intent->id, $payment_intent->client_secret );
+		if ( ! $order_id ) {
+			$wpec_hold = 'canceled' != $payment_intent->status && ! wp_easycart_stripe_intent_matches_cart( $payment_intent, $this );
+			$source = array(
+				'id' => $payment_intent->id,
+				'client_secret' => $payment_intent->client_secret,
+			);
+			$order_id = $this->insert_ideal_order( $source, $payment_intent );
+			$payment_method_name = '';
+			$stripe->update_payment_intent_description( $payment_intent_id, $order_id );
+			if ( $payment_intent && is_object( $payment_intent ) && isset( $payment_intent->payment_method ) ) {
+				$payment_method = $stripe->get_payment_method( $payment_intent->payment_method );
+				if ( $payment_method && is_object( $payment_method ) && isset( $payment_method->type ) ) {
+					$payment_method_name = $payment_method->type;
 				}
 			}
+
+			$order_status = 6;
+			if ( $payment_intent->status == 'succeeded' ) {
+				$order_status = 3;
+			} else if ( $payment_intent->status == 'requires_capture' ) {
+				$order_status = 12;
+			} else if ( $payment_intent->status == 'processing' ) {
+				$order_status = 12;
+			} else if ( $payment_intent->status == 'canceled' ) {
+				$order_status = 19;
+			}
+			/* 6.0.4: as the cart page recovery: paid, but not this cart's total ( or a fulfillment partner's shipping could not be
+			   confirmed ): on hold for the merchant, with no stock taken and no receipt. */
+			if ( $wpec_hold && $order_id && 19 !== (int) $order_status ) {
+				$order_status = 12;
+				/* translators: %s: Stripe payment id. */
+				wp_easycart_stripe_hold_order( $order_id, sprintf( __( 'The Stripe payment %s does not match this order’s total ( the cart changed after it was paid ), so the order is on hold. Check the payment in Stripe before you ship it.', 'wp-easycart' ), $payment_intent->id ) );
+			}
+			if ( $order_id && 19 !== (int) $order_status && class_exists( 'wp_easycart_shipping_groups' ) && wp_easycart_shipping_groups::hold_order( $order_id, $this ) ) {
+				$order_status = 12;
+			}
+			$wpec_previous_status = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT orderstatus_id FROM ec_order WHERE order_id = %d', (int) $order_id ) );
+			$wpdb->get_row( $wpdb->prepare( "UPDATE ec_order SET orderstatus_id = %d, payment_method = %s WHERE order_id = %d", $order_status, $payment_method_name, (int) $order_id ) );
+			/* 6.0.4: the status is written directly, so its listeners hear the change, as after the cart page recovery. */
+			if ( $order_id && $wpec_previous_status !== (int) $order_status ) {
+				do_action( 'wpeasycart_order_status_update', (int) $order_id, (int) $order_status, $wpec_previous_status );
+			}
+
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
+			$order_log_id = $wpdb->insert_id;
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $order_status ) );
+
+			if ( $order_status == 3 ) {
+				$order_row = $ec_db_admin->get_order_row_admin( $order_id );
+				$orderdetails = $ec_db_admin->get_order_details_admin( $order_id );
+				foreach( $orderdetails as $orderdetail ) {
+					$product = $wpdb->get_row( $wpdb->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.product_id = %d", $orderdetail->product_id ) );
+					if ( $product ) {
+						if ( $product->use_optionitem_quantity_tracking ) {
+							$ec_db_admin->update_quantity_value( $orderdetail->quantity, $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 );
+						}
+						$ec_db_admin->update_product_stock( $orderdetail->product_id, $orderdetail->quantity );
+						$this->mysqli->update_details_stock_adjusted( $orderdetail->orderdetail_id );
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $order_id ) );
+						$order_log_id = $wpdb->insert_id;
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $orderdetail->product_id ) );
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $orderdetail->quantity ) );
+					}
+				}
+				do_action( 'wpeasycart_order_paid', $order_id );
+				$order_display = new ec_orderdisplay( $order_row, true, true );
+				$order_display->send_email_receipt();
+				$order_display->send_gift_cards();
+			} else {
+				do_action( 'wpeasycart_order_complete', $order_id, $order_status );
+			}
 		}
+		wp_easycart_stripe_intent_unlock( $payment_intent->id );
 		$ec_db_admin->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 		$GLOBALS['ec_cart_data']->checkout_session_complete();
 		$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -11184,11 +11616,12 @@ class ec_cartpage {
 
 	public function get_selected_payment_method() {
 		$default_method =  get_option( 'ec_option_default_payment_type' );
-		if ( $GLOBALS['ec_cart_data']->cart_data->payment_method != '' )
+		/* 6.0.4: the method the shopper chose, while it can still pay this checkout ( a Square gift card added since rules some out ). */
+		if ( $GLOBALS['ec_cart_data']->cart_data->payment_method != '' && $this->payment_method_allowed( (string) $GLOBALS['ec_cart_data']->cart_data->payment_method ) )
 			return $GLOBALS['ec_cart_data']->cart_data->payment_method;
 		else if ( $default_method == "manual_bill" && $this->use_manual_payment() )
 			return "manual_bill";
-		else if ( $default_method == "affirm" && get_option( 'ec_option_use_affirm' ) )
+		else if ( $default_method == "affirm" && get_option( 'ec_option_use_affirm' ) && $this->payment_method_allowed( 'affirm' ) )
 			return "affirm";
 		else if ( $default_method == "third_party" && $this->use_third_party() )
 			return "third_party";
@@ -11198,7 +11631,7 @@ class ec_cartpage {
 			return "credit_card";
 		else if ( $this->use_third_party() )
 			return "third_party";
-		else if ( get_option( 'ec_option_use_affirm' ) )
+		else if ( get_option( 'ec_option_use_affirm' ) && $this->payment_method_allowed( 'affirm' ) )
 			return "affirm";
 		else if ( $this->use_manual_payment() )
 			return "manual_bill";

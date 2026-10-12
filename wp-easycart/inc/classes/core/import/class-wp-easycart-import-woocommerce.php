@@ -820,6 +820,9 @@ if ( ! class_exists( 'wp_easycart_import_woocommerce' ) ) :
 				}
 				if ( $columns ) {
 					$wpdb->update( 'ec_category', $columns, array( 'category_id' => (int) $id ) );
+					if ( class_exists( 'wp_easycart_cache' ) ) {
+						wp_easycart_cache::categories_changed(); /* 6.0.4: its picture and description, after the category was made */
+					}
 				}
 				$this->record(
 					$job,

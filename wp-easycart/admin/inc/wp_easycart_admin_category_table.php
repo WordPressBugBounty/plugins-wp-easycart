@@ -45,6 +45,14 @@ if ( ! class_exists( 'wp_easycart_admin_category_table' ) ) :
 			return admin_url( 'admin.php?page=wp-easycart-products&subpage=category&ec_admin_form_action=edit&category_id=' . $id );
 		}
 
+		/**
+		 * Duplicate link with a {id} placeholder. Built here, not from the request ( the base 'action' link ): subcategory rows are
+		 * drawn by ecv2_category_children inside admin-ajax.php, so a link from the request opened admin-ajax.php and showed "0" ( 6.0.4 ).
+		 */
+		public static function duplicate_url() {
+			return admin_url( 'admin.php?page=wp-easycart-products&subpage=category&ec_admin_form_action=duplicate-category&category_id={id}&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-duplicate-category' ) );
+		}
+
 		public function __construct() {
 			parent::__construct();
 			$this->tree_mode = $this->detect_tree_mode();
@@ -99,7 +107,7 @@ if ( ! class_exists( 'wp_easycart_admin_category_table' ) ) :
 				array( 'label' => __( 'Add products…', 'wp-easycart' ), 'name' => 'add-products', 'icon' => 'plus-alt2', 'href' => '#', 'onclick' => 'ecv2_catalog.pick_products( {id} ); return false;' ),
 				array( 'label' => __( 'Add subcategory', 'wp-easycart' ), 'name' => 'add-sub', 'icon' => 'category', 'href' => '#', 'onclick' => 'ecv2_catalog.new_category( {id} ); return false;' ),
 				array( 'label' => __( 'View on site', 'wp-easycart' ), 'name' => 'view', 'icon' => 'visibility', 'href' => '#', 'target' => '_blank', 'onclick' => 'return ecv2_catalog.view_category( this, {id} );' ),
-				array( 'label' => __( 'Duplicate', 'wp-easycart' ), 'name' => 'duplicate', 'icon' => 'admin-page', 'action' => 'duplicate-category' ),
+				array( 'label' => __( 'Duplicate', 'wp-easycart' ), 'name' => 'duplicate', 'icon' => 'admin-page', 'href' => self::duplicate_url() ),
 				array( 'label' => __( 'Move under…', 'wp-easycart' ), 'name' => 'move', 'icon' => 'migrate', 'href' => '#', 'onclick' => 'ecv2_catalog.move_category( [ {id} ] ); return false;' ),
 				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'href' => '#', 'onclick' => 'ecv2_catalog.safe_delete( \'category\', {id} ); return false;', 'danger' => true ),
 			) );
@@ -618,16 +626,24 @@ function ecv2_category_bulk() {
 	$target = isset( $_POST['target_id'] ) ? (int) $_POST['target_id'] : 0;
 	if ( empty( $ids ) ) { wp_send_json_error( array( 'message' => __( 'Nothing selected.', 'wp-easycart' ) ) ); }
 	$done = 0; $trash = array(); $errors = array();
+	/* 6.0.4: each changed category announces itself, as the single toggle and Move do ( the store's cached category lists are
+	 * forgotten on it: bulk changes kept showing the old categories on a store with a persistent object cache ). */
 	foreach ( $ids as $id ) {
 		switch ( $op ) {
 			case 'activate': case 'deactivate':
 				$wpdb->update( 'ec_category', array( 'is_active' => 'activate' === $op ? 1 : 0 ), array( 'category_id' => $id ) );
-				ecv2_category_sync_post_status( $id ); $done++; break;
+				ecv2_category_sync_post_status( $id ); $done++;
+				do_action( 'wpeasycart_category_updated', $id );
+				break;
 			case 'feature': case 'unfeature':
-				$wpdb->update( 'ec_category', array( 'featured_category' => 'feature' === $op ? 1 : 0 ), array( 'category_id' => $id ) ); $done++; break;
+				$wpdb->update( 'ec_category', array( 'featured_category' => 'feature' === $op ? 1 : 0 ), array( 'category_id' => $id ) ); $done++;
+				do_action( 'wpeasycart_category_updated', $id );
+				break;
 			case 'move':
 				if ( $target === $id || in_array( $target, wp_easycart_admin_safe_delete()->descendant_ids( $id ), true ) ) { $errors[] = sprintf( __( 'Category #%d cannot be moved inside itself.', 'wp-easycart' ), $id ); break; }
-				$wpdb->update( 'ec_category', array( 'parent_id' => $target ), array( 'category_id' => $id ) ); $done++; break;
+				$wpdb->update( 'ec_category', array( 'parent_id' => $target ), array( 'category_id' => $id ) ); $done++;
+				do_action( 'wpeasycart_category_updated', $id );
+				break;
 			case 'delete':
 				$r = wp_easycart_admin_safe_delete()->execute( 'category', $id, array( 'strategy' => 'lift', 'redirect' => true ) );
 				if ( is_wp_error( $r ) ) { $errors[] = $r->get_error_message(); } else { $done++; $trash[] = $r['trash_id']; }
@@ -645,7 +661,7 @@ function ecv2_category_product_search() {
 	$q     = isset( $_POST['q'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
 	$cat   = isset( $_POST['category_id'] ) ? (int) $_POST['category_id'] : 0;
 	$scope = isset( $_POST['scope'] ) ? sanitize_key( $_POST['scope'] ) : 'notin';
-	$where = 'WHERE 1=1';
+	$where = 'WHERE 1=1' . wp_easycart_product_draft_sql( 'p' ); /* 6.0.4: never an unsaved new-product draft */
 	if ( '' !== $q ) { $where .= $wpdb->prepare( ' AND ( p.title LIKE %s OR p.model_number LIKE %s )', '%' . $wpdb->esc_like( $q ) . '%', '%' . $wpdb->esc_like( $q ) . '%' ); }
 	if ( 'notin' === $scope && $cat ) { $where .= $wpdb->prepare( ' AND NOT EXISTS ( SELECT 1 FROM ec_categoryitem ci WHERE ci.product_id = p.product_id AND ci.category_id = %d )', $cat ); }
 	if ( 'uncategorized' === $scope ) { $where .= ' AND NOT EXISTS ( SELECT 1 FROM ec_categoryitem ci WHERE ci.product_id = p.product_id )'; }

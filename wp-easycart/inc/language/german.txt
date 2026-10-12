@@ -1405,6 +1405,26 @@
                     "title": "Min Quantity Required Error",
                     "value": "Mindestmenge erforderlich"
                 },
+                "cartitem_stock_limit": {
+                    "title": "Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+                    "value": "Nur noch [stock] auf Lager."
+                },
+                "cartitem_stock_limit_cart": {
+                    "title": "Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+                    "value": "Nur noch [stock] auf Lager, davon [other] bereits an anderer Stelle in Ihrem Warenkorb."
+                },
+                "cartitem_stock_limit_hidden": {
+                    "title": "Cart, Quantity Limited by Stock ( stock counts not shown )",
+                    "value": "Mehr haben wir nicht auf Lager."
+                },
+                "cartitem_max_limit": {
+                    "title": "Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+                    "value": "Sie können höchstens [max] Stück dieses Artikels kaufen."
+                },
+                "cartitem_min_limit": {
+                    "title": "Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+                    "value": "Die Mindestmenge für diesen Artikel beträgt [min]."
+                },
                 "cart_please_wait": {
                     "title": "Cart Please Wait",
                     "value": "Bitte warten..."
@@ -1667,6 +1687,30 @@
                 "cart_invalid_giftcard": {
                     "title": "Warenkorb, Gutscheinkarte ung\u00fcltig",
                     "value": "Keine g\u00fcltige Geschenkkartennummer"
+                },
+                "cart_giftcard_used": {
+                    "title": "Cart, Gift Card Used Up",
+                    "value": "Diese Geschenkkarte wurde bereits vollständig eingelöst."
+                },
+                "cart_giftcard_failed": {
+                    "title": "Cart, Gift Card Could Not Be Used ( nothing was charged )",
+                    "value": "Ihre Geschenkkarte konnte für diese Bestellung nicht verwendet werden, daher wurde nichts belastet. Prüfen Sie die Karte und versuchen Sie es erneut, oder entfernen Sie sie."
+                },
+                "cart_square_giftcard_balance": {
+                    "title": "Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+                    "value": "Square-Geschenkkarte mit Endziffern [last4]: [balance] verfügbar"
+                },
+                "cart_square_giftcard_label": {
+                    "title": "Order, Square Gift Card Name ( [last4] = last four digits )",
+                    "value": "Square •••• [last4]"
+                },
+                "cart_square_giftcard_square_only": {
+                    "title": "Checkout, Square Gift Card Needs a Card Payment",
+                    "value": "Eine Square-Geschenkkarte kann nur mit einer Kartenzahlung kombiniert werden. Wählen Sie die Zahlung per Karte oder entfernen Sie die Geschenkkarte."
+                },
+                "cart_square_giftcard_balance_changed": {
+                    "title": "Checkout, Square Gift Card Balance Changed",
+                    "value": "Das Guthaben Ihrer Geschenkkarte hat sich geändert. Prüfen Sie Ihren neuen Gesamtbetrag und geben Sie Ihre Bestellung erneut auf."
                 },
                 "cart_enter_coupon": {
                     "title": "Cart, Enter Coupon Hint",
@@ -2728,7 +2772,7 @@
                 },
                 "cart_payment_complete_bottom_line_2": {
                     "title": "Warenkorb, Zahlung abgeschlossen, Taste Linie 2",
-                    "value": "<hr \/>  <strong>Bitte \u00fcberweisen Sie den Gesamtbetrag auf folgendes Konto:<\/strong><br>  <em><strong>Bankverbindung:<\/strong><\/em><br><br> xxxxxxxx <strong><br>IBAN<\/strong>: xxxx xxxx xxxx xxxx <br> <strong>BIC<\/strong>: xxxxx<br><br>  Nach Eingang der Zahlung wird die Ware umgehend versendet. <br><br> <hr \/><br>  <strong>Kein Ausweis von Umsatzsteuer, da Kleinunternehmerregelung gem\u00e4\u00df \u00a7 19 UStG.<\/strong> <br><br> <hr \/> <br> <strong>HINWEIS<\/strong> Falls Sie ein individuelles Produkt gekauft haben (zum Beispiel die Auswahl von speziellen Farben) kann sich die  Lieferzeit verl\u00e4ngern, da Material extra f\u00fcr Sie bestellt werden muss.  Wir m\u00f6chten Sie noch einmal wie in der Widerrufsbelehrung dargelegt darauf hinweisen, dass das Widerrufsrecht nicht besteht bei Vertr\u00e4gen zur Lieferung von Waren, die nicht vorgefertigt sind und f\u00fcr deren Herstellung eine individuelle Auswahl oder Bestimmung durch den Verbraucher ma\u00dfgeblich ist oder die eindeutig auf die pers\u00f6nlichen Bed\u00fcrfnisse des Verbrauchers zugeschnitten sind. <br> <hr \/><br>Herzlichen Dank!"
+                    "value": "Herzlichen Dank!"
                 },
                 "cart_success_thank_you_title": {
                     "title": "Cart, Payment Complete, Thank You Title",
@@ -3470,6 +3514,26 @@
                 "account_navigation_shipping_information": {
                     "title": "Account, Navigation, Shipping Link",
                     "value": "Versandinformationen"
+                },
+                "account_navigation_home": {
+                    "title": "Breadcrumbs: My Account",
+                    "value": "Mein Konto"
+                },
+                "account_navigation_breadcrumb": {
+                    "title": "Breadcrumbs: Label for Screen Readers",
+                    "value": "Brotkrümelnavigation"
+                },
+                "account_navigation_orders_short": {
+                    "title": "Breadcrumbs: Orders",
+                    "value": "Bestellungen"
+                },
+                "account_navigation_subscriptions_short": {
+                    "title": "Breadcrumbs: Subscriptions",
+                    "value": "Abonnements"
+                },
+                "account_navigation_order_number": {
+                    "title": "Breadcrumbs: Order Number",
+                    "value": "Bestellung Nr. [order_id]"
                 }
             }
         },
@@ -3512,6 +3576,10 @@
                     "title": "Account, Dashboard, Buy Item Again",
                     "value": "Artikel erneut kaufen"
                 },
+                "account_dashboard_downloads_title": {
+                    "title": "Account, Dashboard, Downloads Title",
+                    "value": "Ihre Downloads"
+                },
                 "account_dashboard_preference_title": {
                     "title": "Benutzerkonto, Armaturenbrett, Bevorzugung Titel",
                     "value": "Kontoeinstellungen"
@@ -3543,6 +3611,14 @@
                 "account_dashboard_shipping_link": {
                     "title": "Benutzerkonto, Armaturenbrett, Versand Edit Link",
                     "value": "Versandadresse bearbeiten"
+                },
+                "account_dashboard_welcome": {
+                    "title": "Dashboard: Welcome with Name",
+                    "value": "Willkommen zurück, [name]"
+                },
+                "account_dashboard_welcome_no_name": {
+                    "title": "Dashboard: Welcome without Name",
+                    "value": "Willkommen zurück"
                 }
             }
         },
@@ -3768,6 +3844,18 @@
                 "account_orders_view_order_button": {
                     "title": "Benutzerkonto, Bestellungen, Bestellung sehen Taste",
                     "value": "ansehen"
+                },
+                "account_orders_item_one": {
+                    "title": "Order Card: One Item",
+                    "value": "1 Artikel"
+                },
+                "account_orders_item_many": {
+                    "title": "Order Card: Several Items",
+                    "value": "[count] Artikel"
+                },
+                "account_orders_and_more": {
+                    "title": "Order Card: And More Items",
+                    "value": "und [count] weitere"
                 }
             }
         },
@@ -4548,6 +4636,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Ihre Zahlung wird noch verarbeitet und wurde noch nicht genehmigt."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"Die Postleitzahl im Kartenformular muss mit Ihrer Rechnungsadresse ([zip]) übereinstimmen. Bitte ändern Sie eine der beiden, damit sie übereinstimmen."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5624,6 +5716,18 @@
                     "title": "Cart: Calculated at Checkout Note",
                     "value": "Versand, Steuern und Rabattcodes werden an der Kasse berechnet."
                 },
+                "estimated_total": {
+                    "title": "Cart: Estimated Total ( after discounts, before shipping and tax )",
+                    "value": "Voraussichtliche Gesamtsumme"
+                },
+                "quantity_decrease": {
+                    "title": "Cart: Decrease Quantity Button ( read by screen readers )",
+                    "value": "Menge verringern"
+                },
+                "quantity_increase": {
+                    "title": "Cart: Increase Quantity Button ( read by screen readers )",
+                    "value": "Menge erhöhen"
+                },
                 "card_minimum": {
                     "title": "Card Payment Minimum ( %s is the amount )",
                     "value": "Für die Zahlung per Karte ist ein Bestellwert von mindestens %s erforderlich."
@@ -5659,6 +5763,46 @@
                 "placing_hint": {
                     "title": "Place Order: Working, Keep the Page Open",
                     "value": "Bitte lassen Sie diese Seite geöffnet."
+                },
+                "loading": {
+                    "title": "Checkout: Loading ( Changing Screens )",
+                    "value": "Wird geladen…"
+                },
+                "loading_cart": {
+                    "title": "Cart: Loading the Cart",
+                    "value": "Ihr Warenkorb wird geladen…"
+                },
+                "loading_checkout": {
+                    "title": "Checkout: Loading the Checkout",
+                    "value": "Die Kasse wird geladen…"
+                },
+                "loading_order": {
+                    "title": "Order Confirmation: Loading the Order",
+                    "value": "Ihre Bestellung wird geladen…"
+                },
+                "signing_in": {
+                    "title": "Checkout: Signing In",
+                    "value": "Sie werden angemeldet…"
+                },
+                "signing_out": {
+                    "title": "Checkout: Signing Out",
+                    "value": "Sie werden abgemeldet…"
+                },
+                "loading_account": {
+                    "title": "Account: Loading the Account",
+                    "value": "Ihr Konto wird geladen…"
+                },
+                "creating_account": {
+                    "title": "Account: Creating the Account",
+                    "value": "Ihr Konto wird erstellt…"
+                },
+                "saving": {
+                    "title": "Account: Saving",
+                    "value": "Wird gespeichert…"
+                },
+                "sending": {
+                    "title": "Account: Sending",
+                    "value": "Wird gesendet…"
                 }
             }
         },
@@ -5708,6 +5852,255 @@
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",
                     "value": "[label] - [service]"
+                }
+            }
+        },
+        "withdrawal": {
+            "label": "Withdrawal Button and Order Lookup",
+            "options": {
+                "withdraw_button": {
+                    "title": "Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+                    "value": "Vertrag widerrufen"
+                },
+                "confirm_button": {
+                    "title": "Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+                    "value": "Widerruf bestätigen"
+                },
+                "page_title": {
+                    "title": "Withdrawal page heading ( 6.0.4 )",
+                    "value": "Einen Vertrag widerrufen"
+                },
+                "page_intro": {
+                    "title": "Withdrawal page introduction ( 6.0.4 )",
+                    "value": "Sie können eine Bestellung ohne Angabe von Gründen widerrufen, solange die Widerrufsfrist läuft. Teilen Sie uns mit, um welche Bestellung es geht, prüfen Sie, was Sie senden, und bestätigen Sie dann. Wir senden Ihnen sofort eine Eingangsbestätigung per E-Mail."
+                },
+                "your_orders": {
+                    "title": "Signed-in customer: heading above their orders ( 6.0.4 )",
+                    "value": "Ihre Bestellungen"
+                },
+                "your_orders_none": {
+                    "title": "Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+                    "value": "Keine Ihrer Bestellungen kann derzeit online widerrufen werden."
+                },
+                "order_title": {
+                    "title": "Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+                    "value": "Bestellung [order_id] widerrufen"
+                },
+                "order_until": {
+                    "title": "Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+                    "value": "Sie können diese Bestellung bis zum [date] widerrufen."
+                },
+                "order_pending": {
+                    "title": "Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+                    "value": "Ihre [days]-tägige Widerrufsfrist beginnt, wenn Sie Ihre Bestellung erhalten. Sie können aber auch schon vorher widerrufen."
+                },
+                "other_title": {
+                    "title": "Form without a link: heading ( 6.0.4 )",
+                    "value": "Eine Bestellung widerrufen"
+                },
+                "other_intro": {
+                    "title": "Form without a link: introduction ( 6.0.4 )",
+                    "value": "Geben Sie die Bestellnummer und die E-Mail-Adresse ein, die Sie für die Bestellung verwendet haben."
+                },
+                "order_number_label": {
+                    "title": "Order number label ( 6.0.4 )",
+                    "value": "Bestellnummer"
+                },
+                "order_email_label": {
+                    "title": "Email used for the order label ( 6.0.4 )",
+                    "value": "Für die Bestellung verwendete E-Mail-Adresse"
+                },
+                "name_label": {
+                    "title": "Name label ( 6.0.4 )",
+                    "value": "Ihr Name"
+                },
+                "email_label": {
+                    "title": "Email for the receipt label ( 6.0.4 )",
+                    "value": "E-Mail für Ihre Eingangsbestätigung"
+                },
+                "items_label": {
+                    "title": "Items label ( 6.0.4 )",
+                    "value": "Artikel, die Sie widerrufen"
+                },
+                "item_exempt": {
+                    "title": "Item without a right of withdrawal ( 6.0.4 )",
+                    "value": "Kein Widerrufsrecht"
+                },
+                "item_withdrawn": {
+                    "title": "Item already withdrawn from ( 6.0.4 )",
+                    "value": "Bereits widerrufen"
+                },
+                "item_closed": {
+                    "title": "Item whose period ended ( [date] ) ( 6.0.4 )",
+                    "value": "Widerrufsfrist abgelaufen am [date]"
+                },
+                "item_refunded": {
+                    "title": "Item already refunded ( 6.0.4 )",
+                    "value": "Bereits erstattet"
+                },
+                "note_label": {
+                    "title": "Form without a link: only some items ( optional ) ( 6.0.4 )",
+                    "value": "Nur einige Artikel? Teilen Sie uns mit, welche (optional)"
+                },
+                "reason_label": {
+                    "title": "Reason label ( optional ) ( 6.0.4 )",
+                    "value": "Grund (optional)"
+                },
+                "continue_button": {
+                    "title": "Continue button ( 6.0.4 )",
+                    "value": "Weiter"
+                },
+                "review_title": {
+                    "title": "Review step heading ( 6.0.4 )",
+                    "value": "Widerruf prüfen"
+                },
+                "review_intro": {
+                    "title": "Review step introduction ( 6.0.4 )",
+                    "value": "Das ist es, was wir erhalten. Es wird nichts gesendet, bevor Sie bestätigen."
+                },
+                "review_order": {
+                    "title": "Summary: order ( 6.0.4 )",
+                    "value": "Bestellung"
+                },
+                "review_items": {
+                    "title": "Summary: items ( 6.0.4 )",
+                    "value": "Artikel"
+                },
+                "review_whole": {
+                    "title": "Summary: the whole order ( 6.0.4 )",
+                    "value": "Die gesamte Bestellung"
+                },
+                "review_name": {
+                    "title": "Summary: name ( 6.0.4 )",
+                    "value": "Name"
+                },
+                "review_email": {
+                    "title": "Summary: email ( 6.0.4 )",
+                    "value": "E-Mail"
+                },
+                "review_reason": {
+                    "title": "Summary: reason ( 6.0.4 )",
+                    "value": "Grund"
+                },
+                "review_note": {
+                    "title": "Summary: note ( 6.0.4 )",
+                    "value": "Hinweis"
+                },
+                "review_received": {
+                    "title": "Summary: date and time received ( 6.0.4 )",
+                    "value": "Eingegangen"
+                },
+                "change_button": {
+                    "title": "Review step: go back button ( 6.0.4 )",
+                    "value": "Etwas ändern"
+                },
+                "received_title": {
+                    "title": "Received page heading ( 6.0.4 )",
+                    "value": "Widerruf eingegangen"
+                },
+                "received_text": {
+                    "title": "Received page text ( [datetime], [email] ) ( 6.0.4 )",
+                    "value": "Ihr Widerruf ist am [datetime] bei uns eingegangen. Eine Kopie ist unterwegs an [email]."
+                },
+                "received_next": {
+                    "title": "Received page: what happens next heading ( 6.0.4 )",
+                    "value": "Wie es weitergeht"
+                },
+                "already_text": {
+                    "title": "The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+                    "value": "Ihr Widerruf dieser Bestellung ist am [datetime] bei uns eingegangen."
+                },
+                "closed_text": {
+                    "title": "The order cannot be withdrawn from online ( 6.0.4 )",
+                    "value": "Diese Bestellung kann online nicht mehr widerrufen werden. Wenn Sie glauben, dass das nicht stimmt, kontaktieren Sie uns bitte."
+                },
+                "link_invalid": {
+                    "title": "A withdrawal link that no longer works ( 6.0.4 )",
+                    "value": "Dieser Link funktioniert nicht mehr. Geben Sie stattdessen unten Ihre Bestellnummer und E-Mail-Adresse ein."
+                },
+                "error_fields": {
+                    "title": "Error: a required field is empty ( 6.0.4 )",
+                    "value": "Bitte füllen Sie alle mit * markierten Felder aus."
+                },
+                "error_email": {
+                    "title": "Error: not an email address ( 6.0.4 )",
+                    "value": "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+                },
+                "error_items": {
+                    "title": "Error: no item chosen ( 6.0.4 )",
+                    "value": "Bitte wählen Sie mindestens einen Artikel aus."
+                },
+                "error_limit": {
+                    "title": "Error: too many tries ( 6.0.4 )",
+                    "value": "Zu viele Versuche. Bitte warten Sie einige Minuten und versuchen Sie es erneut."
+                },
+                "error_check": {
+                    "title": "Error: the robot check is needed ( 6.0.4 )",
+                    "value": "Bitte bestätigen Sie, dass Sie kein Roboter sind, und versuchen Sie es dann erneut."
+                },
+                "error_save": {
+                    "title": "Error: the statement could not be saved ( 6.0.4 )",
+                    "value": "Ihr Widerruf konnte nicht gespeichert werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns."
+                },
+                "lookup_title": {
+                    "title": "Order lookup: heading ( 6.0.4 )",
+                    "value": "Bestellung finden"
+                },
+                "lookup_intro": {
+                    "title": "Order lookup: introduction ( 6.0.4 )",
+                    "value": "Ohne Konto bestellt? Geben Sie Ihre Bestellnummer und die verwendete E-Mail-Adresse ein, dann senden wir Ihnen per E-Mail einen Link zu Ihrer Bestellung."
+                },
+                "lookup_button": {
+                    "title": "Order lookup: button ( 6.0.4 )",
+                    "value": "Link per E-Mail senden"
+                },
+                "lookup_sent": {
+                    "title": "Order lookup: answer ( 6.0.4 )",
+                    "value": "Wenn dies zu einer Bestellung passt, haben wir einen Link dazu per E-Mail gesendet. Es kann einige Minuten dauern, bis er ankommt."
+                },
+                "lookup_prompt": {
+                    "title": "Withdrawal page: want to choose items ( 6.0.4 )",
+                    "value": "Möchten Sie zuerst Artikel auswählen?"
+                },
+                "login_lookup": {
+                    "title": "Sign-in page: link to the order lookup ( 6.0.4 )",
+                    "value": "Ohne Konto bestellt? Bestellung finden"
+                },
+                "email_row_until": {
+                    "title": "Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+                    "value": "Anders überlegt? Sie können diese Bestellung bis zum [date] online widerrufen, ohne Angabe von Gründen."
+                },
+                "email_row_open": {
+                    "title": "Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+                    "value": "Anders überlegt? Sie können diese Bestellung online widerrufen, ohne Angabe von Gründen. Die [days]-tägige Widerrufsfrist beginnt, wenn Sie Ihre Bestellung erhalten."
+                },
+                "ack_subject": {
+                    "title": "Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "Ihr Widerruf ist bei uns eingegangen (Bestellung [order_id])"
+                },
+                "ack_intro": {
+                    "title": "Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+                    "value": "Hallo [name], Ihr Widerruf der Bestellung [order_id] ist bei uns eingegangen. Wir prüfen ihn und melden uns bei Ihnen wegen der Rücksendung eventueller Artikel und Ihrer Erstattung."
+                },
+                "ack_footer": {
+                    "title": "Receipt email: receipt only ( 6.0.4 )",
+                    "value": "Diese E-Mail bestätigt den Eingang Ihres Widerrufs. Sie bestätigt noch nicht, dass der Widerruf wirksam ist: Wir prüfen ihn und antworten Ihnen."
+                },
+                "lookup_email_subject": {
+                    "title": "Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "Der Link zu Ihrer Bestellung [order_id]"
+                },
+                "lookup_email_intro": {
+                    "title": "Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+                    "value": "Hier ist der Link zur Bestellung [order_id]. Sie können die Bestellung ansehen, Ihren Beleg drucken und, solange die Widerrufsfrist läuft, die Bestellung widerrufen."
+                },
+                "lookup_email_button": {
+                    "title": "Order lookup email: button ( 6.0.4 )",
+                    "value": "Bestellung ansehen"
+                },
+                "lookup_email_ignore": {
+                    "title": "Order lookup email: not asked for ( 6.0.4 )",
+                    "value": "Wenn Sie diesen Link nicht angefordert haben, können Sie diese E-Mail ignorieren."
                 }
             }
         },

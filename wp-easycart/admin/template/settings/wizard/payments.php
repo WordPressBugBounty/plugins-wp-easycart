@@ -18,8 +18,8 @@ $admin    = esc_url_raw( admin_url() );
 
 /* 6.0.2: WP EasyCart Connect's /paypal-v3/ onboarding. The return carries the nonce wpeasycart_paypal_express_partner_authorized() checks ( without it the account was never kept ). */
 $paypal_url = wp_easycart_paypal_connect::onboard_url( 'production', $admin . '?wpeasycart_paypal_onboard=production&is_wizard=true&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) );
-$stripe_url = esc_url_raw( wp_easycart_admin()->get_available_url() ) . '/connect/?step=start&redirect=' . urlencode( $admin . '?ec_admin_form_action=stripe_onboard&env=production&goto=wizard' ) . '&env=production';
-$square_url = 'https://connect.wpeasycart.com/square-v2/?url=' . urlencode( $admin . '?ec_admin_form_action=handle-square&goto=wizard' ) . '&state=' . wp_create_nonce( 'wp-easycart-square' ); /* 6.0.3: the return handler checks this nonce; a random number made it drop the connection */
+$stripe_url = wp_easycart_stripe_connect_relay::connect_url( false, 'wizard' ); /* 6.0.4: through admin-post to WP EasyCart Connect's /stripe-v2/; the return now carries the wp-easycart-stripe nonce onboard_stripe() checks ( the wizard's link had none, so connecting there was refused ) */
+$square_url = wp_easycart_square_relay::connect_url( false, 'wizard' ); /* 6.0.4: through admin-post to WP EasyCart Connect's /square-v3/ ( no tokens in the return address ); the return handler still checks the wp-easycart-square nonce */
 $payment_settings = admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' );
 
 $flash = '';

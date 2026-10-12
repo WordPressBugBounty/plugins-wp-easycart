@@ -1409,6 +1409,26 @@
 					"title":"Min Quantity Required Error",
 					"value":"Minimum Quantity Required"
 				},
+				"cartitem_stock_limit":{
+					"title":"Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+					"value":"Only [stock] in stock."
+				},
+				"cartitem_stock_limit_cart":{
+					"title":"Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+					"value":"Only [stock] in stock, including [other] elsewhere in your cart."
+				},
+				"cartitem_stock_limit_hidden":{
+					"title":"Cart, Quantity Limited by Stock ( stock counts not shown )",
+					"value":"That's all we have in stock."
+				},
+				"cartitem_max_limit":{
+					"title":"Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+					"value":"You can buy up to [max] of this item."
+				},
+				"cartitem_min_limit":{
+					"title":"Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+					"value":"The minimum for this item is [min]."
+				},
 				"cart_please_wait":{
 					"title":"Cart Please Wait",
 					"value":"Please Wait"
@@ -1671,6 +1691,30 @@
 				"cart_invalid_giftcard":{
 					"title":"Cart, Invalid Gift Card",
 					"value":"Not a valid gift card number"
+				},
+				"cart_giftcard_used":{
+					"title":"Cart, Gift Card Used Up",
+					"value":"This gift card has already been used up."
+				},
+				"cart_giftcard_failed":{
+					"title":"Cart, Gift Card Could Not Be Used ( nothing was charged )",
+					"value":"Your gift card could not be used for this order, so nothing was charged. Check the card and try again, or remove it."
+				},
+				"cart_square_giftcard_balance":{
+					"title":"Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+					"value":"Square gift card ending in [last4]: [balance] available"
+				},
+				"cart_square_giftcard_label":{
+					"title":"Order, Square Gift Card Name ( [last4] = last four digits )",
+					"value":"Square •••• [last4]"
+				},
+				"cart_square_giftcard_square_only":{
+					"title":"Checkout, Square Gift Card Needs a Card Payment",
+					"value":"A Square gift card can only be combined with a card payment. Choose to pay by card, or remove the gift card."
+				},
+				"cart_square_giftcard_balance_changed":{
+					"title":"Checkout, Square Gift Card Balance Changed",
+					"value":"Your gift card balance has changed. Check your new total, then place your order again."
 				},
 				"cart_enter_coupon":{
 					"title":"Cart, Enter Coupon Hint",
@@ -3507,6 +3551,26 @@
 				"account_navigation_shipping_information":{
 					"title":"Account, Navigation, Shipping Link",
 					"value":"shipping information"
+				},
+				"account_navigation_home":{
+					"title":"Breadcrumbs: My Account",
+					"value":"My account"
+				},
+				"account_navigation_breadcrumb":{
+					"title":"Breadcrumbs: Label for Screen Readers",
+					"value":"Breadcrumb"
+				},
+				"account_navigation_orders_short":{
+					"title":"Breadcrumbs: Orders",
+					"value":"Orders"
+				},
+				"account_navigation_subscriptions_short":{
+					"title":"Breadcrumbs: Subscriptions",
+					"value":"Subscriptions"
+				},
+				"account_navigation_order_number":{
+					"title":"Breadcrumbs: Order Number",
+					"value":"Order #[order_id]"
 				}
 			}
 		},
@@ -3549,6 +3613,10 @@
 					"title":"Account, Dashboard, Buy Item Again",
 					"value":"Buy Item Again"
 				},
+				"account_dashboard_downloads_title":{
+					"title":"Account, Dashboard, Downloads Title",
+					"value":"Your Downloads"
+				},
 				"account_dashboard_preference_title":{
 					"title":"Account, Dashboard, Preference Title",
 					"value":"Account Preferences"
@@ -3580,6 +3648,14 @@
 				"account_dashboard_shipping_link":{
 					"title":"Account, Dashboard, Shipping Edit Link",
 					"value":"edit shipping address"
+				},
+				"account_dashboard_welcome":{
+					"title":"Dashboard: Welcome with Name",
+					"value":"Welcome back, [name]"
+				},
+				"account_dashboard_welcome_no_name":{
+					"title":"Dashboard: Welcome without Name",
+					"value":"Welcome back"
 				}
 			}
 		},
@@ -3805,6 +3881,18 @@
 				"account_orders_view_order_button":{
 					"title":"Account, Orders, View Order Button",
 					"value":"VIEW ORDER"
+				},
+				"account_orders_item_one":{
+					"title":"Order Card: One Item",
+					"value":"1 item"
+				},
+				"account_orders_item_many":{
+					"title":"Order Card: Several Items",
+					"value":"[count] items"
+				},
+				"account_orders_and_more":{
+					"title":"Order Card: And More Items",
+					"value":"and [count] more"
 				}
 			}
 		},
@@ -4589,6 +4677,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Your payment is still processing and has not yet been approved."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"The ZIP / postal code in the card form must match your billing address ([zip]). Please change one of them so they match."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5665,6 +5757,18 @@
 					"title":"Cart: Calculated at Checkout Note",
 					"value":"Shipping, taxes, and discount codes calculated at checkout."
 				},
+				"estimated_total":{
+					"title":"Cart: Estimated Total ( after discounts, before shipping and tax )",
+					"value":"Estimated total"
+				},
+				"quantity_decrease":{
+					"title":"Cart: Decrease Quantity Button ( read by screen readers )",
+					"value":"Decrease quantity"
+				},
+				"quantity_increase":{
+					"title":"Cart: Increase Quantity Button ( read by screen readers )",
+					"value":"Increase quantity"
+				},
 				"card_minimum":{
 					"title":"Card Payment Minimum ( %s is the amount )",
 					"value":"A minimum order total of %s is required to pay by card."
@@ -5700,6 +5804,46 @@
 				"placing_hint":{
 					"title":"Place Order: Working, Keep the Page Open",
 					"value":"Please keep this page open."
+				},
+				"loading":{
+					"title":"Checkout: Loading ( Changing Screens )",
+					"value":"Loading…"
+				},
+				"loading_cart":{
+					"title":"Cart: Loading the Cart",
+					"value":"Loading your cart…"
+				},
+				"loading_checkout":{
+					"title":"Checkout: Loading the Checkout",
+					"value":"Loading your checkout…"
+				},
+				"loading_order":{
+					"title":"Order Confirmation: Loading the Order",
+					"value":"Loading your order…"
+				},
+				"signing_in":{
+					"title":"Checkout: Signing In",
+					"value":"Signing you in…"
+				},
+				"signing_out":{
+					"title":"Checkout: Signing Out",
+					"value":"Signing you out…"
+				},
+				"loading_account":{
+					"title":"Account: Loading the Account",
+					"value":"Loading your account…"
+				},
+				"creating_account":{
+					"title":"Account: Creating the Account",
+					"value":"Creating your account…"
+				},
+				"saving":{
+					"title":"Account: Saving",
+					"value":"Saving…"
+				},
+				"sending":{
+					"title":"Account: Sending",
+					"value":"Sending…"
 				}
 			}
 		},
@@ -5749,6 +5893,255 @@
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
 					"value":"[label] - [service]"
+				}
+			}
+		},
+		"withdrawal":{
+			"label":"Withdrawal Button and Order Lookup",
+			"options":{
+				"withdraw_button":{
+					"title":"Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+					"value":"Withdraw from contract here"
+				},
+				"confirm_button":{
+					"title":"Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+					"value":"Confirm withdrawal"
+				},
+				"page_title":{
+					"title":"Withdrawal page heading ( 6.0.4 )",
+					"value":"Withdraw from a contract"
+				},
+				"page_intro":{
+					"title":"Withdrawal page introduction ( 6.0.4 )",
+					"value":"You can withdraw from an order without giving a reason while its withdrawal period is open. Tell us which order, check what you are sending, then confirm. We email you a receipt straight away."
+				},
+				"your_orders":{
+					"title":"Signed-in customer: heading above their orders ( 6.0.4 )",
+					"value":"Your orders"
+				},
+				"your_orders_none":{
+					"title":"Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+					"value":"None of your orders can be withdrawn from online right now."
+				},
+				"order_title":{
+					"title":"Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+					"value":"Withdraw from order [order_id]"
+				},
+				"order_until":{
+					"title":"Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+					"value":"You can withdraw from this order until [date]."
+				},
+				"order_pending":{
+					"title":"Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+					"value":"Your [days]-day withdrawal period starts when you receive your order. You can also withdraw before then."
+				},
+				"other_title":{
+					"title":"Form without a link: heading ( 6.0.4 )",
+					"value":"Withdraw from an order"
+				},
+				"other_intro":{
+					"title":"Form without a link: introduction ( 6.0.4 )",
+					"value":"Enter the order number and the email address you used for the order."
+				},
+				"order_number_label":{
+					"title":"Order number label ( 6.0.4 )",
+					"value":"Order number"
+				},
+				"order_email_label":{
+					"title":"Email used for the order label ( 6.0.4 )",
+					"value":"Email address used for the order"
+				},
+				"name_label":{
+					"title":"Name label ( 6.0.4 )",
+					"value":"Your name"
+				},
+				"email_label":{
+					"title":"Email for the receipt label ( 6.0.4 )",
+					"value":"Email for your receipt"
+				},
+				"items_label":{
+					"title":"Items label ( 6.0.4 )",
+					"value":"Items you are withdrawing from"
+				},
+				"item_exempt":{
+					"title":"Item without a right of withdrawal ( 6.0.4 )",
+					"value":"No right of withdrawal"
+				},
+				"item_withdrawn":{
+					"title":"Item already withdrawn from ( 6.0.4 )",
+					"value":"Already withdrawn"
+				},
+				"item_closed":{
+					"title":"Item whose period ended ( [date] ) ( 6.0.4 )",
+					"value":"Withdrawal period ended on [date]"
+				},
+				"item_refunded":{
+					"title":"Item already refunded ( 6.0.4 )",
+					"value":"Already refunded"
+				},
+				"note_label":{
+					"title":"Form without a link: only some items ( optional ) ( 6.0.4 )",
+					"value":"Only some items? Tell us which (optional)"
+				},
+				"reason_label":{
+					"title":"Reason label ( optional ) ( 6.0.4 )",
+					"value":"Reason (optional)"
+				},
+				"continue_button":{
+					"title":"Continue button ( 6.0.4 )",
+					"value":"Continue"
+				},
+				"review_title":{
+					"title":"Review step heading ( 6.0.4 )",
+					"value":"Check your withdrawal"
+				},
+				"review_intro":{
+					"title":"Review step introduction ( 6.0.4 )",
+					"value":"This is what we will receive. Nothing is sent until you confirm."
+				},
+				"review_order":{
+					"title":"Summary: order ( 6.0.4 )",
+					"value":"Order"
+				},
+				"review_items":{
+					"title":"Summary: items ( 6.0.4 )",
+					"value":"Items"
+				},
+				"review_whole":{
+					"title":"Summary: the whole order ( 6.0.4 )",
+					"value":"The whole order"
+				},
+				"review_name":{
+					"title":"Summary: name ( 6.0.4 )",
+					"value":"Name"
+				},
+				"review_email":{
+					"title":"Summary: email ( 6.0.4 )",
+					"value":"Email"
+				},
+				"review_reason":{
+					"title":"Summary: reason ( 6.0.4 )",
+					"value":"Reason"
+				},
+				"review_note":{
+					"title":"Summary: note ( 6.0.4 )",
+					"value":"Note"
+				},
+				"review_received":{
+					"title":"Summary: date and time received ( 6.0.4 )",
+					"value":"Received"
+				},
+				"change_button":{
+					"title":"Review step: go back button ( 6.0.4 )",
+					"value":"Change something"
+				},
+				"received_title":{
+					"title":"Received page heading ( 6.0.4 )",
+					"value":"Withdrawal received"
+				},
+				"received_text":{
+					"title":"Received page text ( [datetime], [email] ) ( 6.0.4 )",
+					"value":"We received your withdrawal on [datetime]. A copy is on its way to [email]."
+				},
+				"received_next":{
+					"title":"Received page: what happens next heading ( 6.0.4 )",
+					"value":"What happens next"
+				},
+				"already_text":{
+					"title":"The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+					"value":"We received your withdrawal from this order on [datetime]."
+				},
+				"closed_text":{
+					"title":"The order cannot be withdrawn from online ( 6.0.4 )",
+					"value":"This order can no longer be withdrawn from online. If you think that is wrong, please contact us."
+				},
+				"link_invalid":{
+					"title":"A withdrawal link that no longer works ( 6.0.4 )",
+					"value":"That link no longer works. Enter your order number and email below instead."
+				},
+				"error_fields":{
+					"title":"Error: a required field is empty ( 6.0.4 )",
+					"value":"Please fill in every field marked *."
+				},
+				"error_email":{
+					"title":"Error: not an email address ( 6.0.4 )",
+					"value":"Please enter a valid email address."
+				},
+				"error_items":{
+					"title":"Error: no item chosen ( 6.0.4 )",
+					"value":"Please choose at least one item."
+				},
+				"error_limit":{
+					"title":"Error: too many tries ( 6.0.4 )",
+					"value":"Too many tries. Please wait a few minutes and try again."
+				},
+				"error_check":{
+					"title":"Error: the robot check is needed ( 6.0.4 )",
+					"value":"Please confirm you are not a robot, then try again."
+				},
+				"error_save":{
+					"title":"Error: the statement could not be saved ( 6.0.4 )",
+					"value":"Your withdrawal could not be saved. Please try again, or contact us."
+				},
+				"lookup_title":{
+					"title":"Order lookup: heading ( 6.0.4 )",
+					"value":"Find your order"
+				},
+				"lookup_intro":{
+					"title":"Order lookup: introduction ( 6.0.4 )",
+					"value":"Ordered without an account? Enter your order number and the email address you used, and we will email you a link to your order."
+				},
+				"lookup_button":{
+					"title":"Order lookup: button ( 6.0.4 )",
+					"value":"Email me a link"
+				},
+				"lookup_sent":{
+					"title":"Order lookup: answer ( 6.0.4 )",
+					"value":"If that matches an order, we have emailed a link to it. It can take a few minutes to arrive."
+				},
+				"lookup_prompt":{
+					"title":"Withdrawal page: want to choose items ( 6.0.4 )",
+					"value":"Want to choose items first?"
+				},
+				"login_lookup":{
+					"title":"Sign-in page: link to the order lookup ( 6.0.4 )",
+					"value":"Ordered without an account? Find your order"
+				},
+				"email_row_until":{
+					"title":"Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+					"value":"Changed your mind? You can withdraw from this order online until [date], without giving a reason."
+				},
+				"email_row_open":{
+					"title":"Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+					"value":"Changed your mind? You can withdraw from this order online without giving a reason. The [days]-day period starts when you receive your order."
+				},
+				"ack_subject":{
+					"title":"Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"We received your withdrawal (order [order_id])"
+				},
+				"ack_intro":{
+					"title":"Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+					"value":"Hello [name], we received your withdrawal from order [order_id]. We will check it and contact you about returning any items and your refund."
+				},
+				"ack_footer":{
+					"title":"Receipt email: receipt only ( 6.0.4 )",
+					"value":"This email confirms that we received your withdrawal. It does not yet confirm that the withdrawal is valid: we will check it and reply."
+				},
+				"lookup_email_subject":{
+					"title":"Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"The link to your order [order_id]"
+				},
+				"lookup_email_intro":{
+					"title":"Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+					"value":"Here is the link to order [order_id]. You can see the order, print your receipt and, while its withdrawal period is open, withdraw from it."
+				},
+				"lookup_email_button":{
+					"title":"Order lookup email: button ( 6.0.4 )",
+					"value":"View your order"
+				},
+				"lookup_email_ignore":{
+					"title":"Order lookup email: not asked for ( 6.0.4 )",
+					"value":"If you did not ask for this link, you can ignore this email."
 				}
 			}
 		},

@@ -243,7 +243,7 @@ class ec_social_media{
 	private function ec_get_permalink( $postid ){
 		
 		if( !get_option( 'ec_option_use_old_linking_style' ) && $postid != "0" ){
-			return get_permalink( $postid );
+			return wp_easycart_store_post_link( $postid, $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number ); /* 6.0.4: store pages only */
 		}else{
 			return $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number;
 		}

@@ -51,7 +51,7 @@ if ( class_exists( 'ec_square' ) && ! class_exists( 'wp_easycart_order_pay_squar
 			if ( '' === (string) get_option( 'ec_option_square_application_id' ) ) {
 				$this->renew_token();
 			}
-			$location = (string) ( get_option( 'ec_option_square_is_sandbox' ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' ) );
+			$location = $this->payment_location_id(); /* 6.0.4: never '0' ( the Square panel's default location ) */
 			$generic  = wp_strip_all_tags( wp_easycart_order_pay::text( 'pay_error', __( 'The payment could not be completed. Please try again, or use another payment method.', 'wp-easycart' ) ) );
 			if ( '' === $location ) {
 				return new WP_Error( 'square', $generic );

@@ -226,7 +226,7 @@ function ecv2_manufacturer_assign_search() {
 	$id = isset( $_POST['manufacturer_id'] ) ? (int) $_POST['manufacturer_id'] : 0;
 	$q = isset( $_POST['q'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
 	$scope = isset( $_POST['scope'] ) ? sanitize_key( $_POST['scope'] ) : 'unassigned';
-	$where = $wpdb->prepare( 'WHERE p.manufacturer_id != %d', $id );
+	$where = $wpdb->prepare( 'WHERE p.manufacturer_id != %d', $id ) . wp_easycart_product_draft_sql( 'p' ); /* 6.0.4: never an unsaved new-product draft */
 	if ( 'unassigned' === $scope ) { $where .= ' AND ( p.manufacturer_id = 0 OR p.manufacturer_id NOT IN ( SELECT manufacturer_id FROM ec_manufacturer ) )'; }
 	if ( '' !== $q ) { $where .= $wpdb->prepare( ' AND ( p.title LIKE %s OR p.model_number LIKE %s )', '%' . $wpdb->esc_like( $q ) . '%', '%' . $wpdb->esc_like( $q ) . '%' ); }
 	$rows = $wpdb->get_results( "SELECT p.product_id, p.title, p.model_number, p.price, p.activate_in_store, " . wp_easycart_admin_catalog_v2_thumb_select( "p" ) . ", ( SELECT name FROM ec_manufacturer m WHERE m.manufacturer_id = p.manufacturer_id ) AS current FROM ec_product p $where ORDER BY p.title LIMIT 40" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is literal SQL plus $wpdb->prepare() fragments; thumb_select() returns static column SQL.

@@ -444,12 +444,14 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"validation_type" 	=> 'model_number',
 				"visible"			=> true,
 				"value"				=> $this->product->model_number,
-				"message"			=> '<span id="sku_invalid_error">' . __( 'SKU values must only include letters, numbers, forward slashes, underscores, and dashes.', 'wp-easycart' ) . '</span> <span id="sku_duplicate_error" style="display:none;">' . __( 'SKU is a duplicate and must be unique', 'wp-easycart' ) . '</span>'
+				/* 6.0.4: one message per problem ( data-ecdv2-error = the code the SKU check and the save answer, see
+				 * wp_easycart_admin_products::model_number_problem() ); the editor shows one while the field has an error. */
+				"message"			=> '<span id="sku_invalid_error" data-ecdv2-error="invalid">' . __( 'SKU values must only include letters, numbers, forward slashes, underscores, and dashes.', 'wp-easycart' ) . '</span> <span id="sku_duplicate_error" data-ecdv2-error="duplicate" style="display:none;">' . __( 'That SKU is already in use — choose another.', 'wp-easycart' ) . '</span> <span id="sku_required_error" data-ecdv2-error="required" style="display:none;">' . __( 'A SKU is required.', 'wp-easycart' ) . '</span>'
 			),
 			array(
 				"name"				=> "post_slug",
 				"type"				=> "text",
-				"label"				=> __( "Link Slug", 'wp-easycart' ),
+				"label"				=> __( "Link slug", 'wp-easycart' ),
 				"required" 			=> true,
 				"validation_type" 	=> 'post_slug',
 				"visible"			=> ($this->id == '0') ? false : true,
@@ -635,15 +637,15 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"data"				=> array(
 					(object) array(
 						"id"		=> 1,
-						"value"		=> __( "Track Overall Quantity", 'wp-easycart' )
+						"value"		=> __( "Total", 'wp-easycart' )
 					),
 					(object) array(
 						"id"		=> 2,
-						"value"		=> __( "Track Variation Quantity", 'wp-easycart' )
+						"value"		=> __( "Per variant", 'wp-easycart' )
 					)
 				),
-				"data_label"		=> __( "Do NOT Track Quantity", 'wp-easycart' ),
-				"label"				=> __( "Track Quantity", 'wp-easycart' ),
+				"data_label"		=> __( "Not tracked", 'wp-easycart' ),
+				"label"				=> __( "Track stock", 'wp-easycart' ),
 				"required" 			=> false,
 				"onchange"			=> "return ec_admin_product_details_quantity_type_change",
 				"validation_type" 	=> 'select',
@@ -659,7 +661,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 					"default_show"	=> false
 				),
 				"type"				=> "number",
-				"label"				=> __( "Total In Stock", 'wp-easycart' ),
+				"label"				=> __( "Units in stock", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'number',
 				"visible"			=> true,
@@ -669,7 +671,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "min_purchase_quantity",
 				"type"				=> "number",
-				"label"				=> __( "Minimum Quantity", 'wp-easycart' ),
+				"label"				=> __( "Minimum per order", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'number',
 				"visible"			=> true,
@@ -679,7 +681,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "max_purchase_quantity",
 				"type"				=> "number",
-				"label"				=> __( "Maximum Quantity", 'wp-easycart' ),
+				"label"				=> __( "Maximum per order", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'number',
 				"visible"			=> true,
@@ -850,7 +852,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "list_price",
 				"type"				=> "currency",
-				"label"				=> __( "Previous Price", 'wp-easycart' ),
+				"label"				=> __( "Compare-at price", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'price',
 				"visible"			=> true,
@@ -860,7 +862,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "enable_price_label",
 				"type"				=> "select",
-				"label"				=> __( "Custom Price Label", 'wp-easycart' ),
+				"label"				=> __( "Show a custom price label", 'wp-easycart' ),
 				"data"				=> $custom_price_label_types,
 				"select2"			=> "none",
 				"required" 			=> false,
@@ -872,7 +874,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "replace_price_label",
 				"type"				=> "checkbox",
-				"label"				=> __( "Replace Price with Label", 'wp-easycart' ),
+				"label"				=> __( "Show the label instead of the price", 'wp-easycart' ),
 				"required" 			=> false,
 				"read-only"			=> true,
 				"validation_type" 	=> 'checkbox',
@@ -887,7 +889,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "custom_price_label",
 				"type"				=> "text",
-				"label"				=> __( "Your Custom Price Label", 'wp-easycart' ),
+				"label"				=> __( "Label text", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "enable_price_label",
@@ -902,7 +904,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "login_for_pricing",
 				"type"				=> "checkbox",
-				"label"				=> __( "Login for Pricing", 'wp-easycart' ),
+				"label"				=> __( "Sign in to see the price", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_required_user_level',
 				"read-only"			=> true,
@@ -913,7 +915,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "login_for_pricing_user_level",
 				"type"				=> "select",
-				"label"				=> __( "Restrict to User Role", 'wp-easycart' ),
+				"label"				=> __( "Only for these roles", 'wp-easycart' ),
 				"message"		=> __( "Only shoppers signed in with the selected role can see pricing and purchase — useful for wholesale or members-only catalogs.", 'wp-easycart' ),
 				"data"				=> $user_roles,
 				"data_label"		=> __( "Show to All User Levels", 'wp-easycart' ),
@@ -934,7 +936,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "login_for_pricing_label",
 				"type"				=> "text",
-				"label"				=> __( "Login Label", 'wp-easycart' ),
+				"label"				=> __( "Sign-in button text", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "login_for_pricing",
@@ -949,7 +951,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "show_custom_price_range",
 				"type"				=> "checkbox",
-				"label"				=> __( "Custom Price Range Display (e.g. $90-$99)", 'wp-easycart' ),
+				"label"				=> __( "Show a price range ( e.g. $90-$99 )", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_custom_price_range',
 				"read-only"			=> true,
@@ -960,7 +962,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "price_range_low",
 				"type"				=> "currency",
-				"label"				=> __( "Price Range Display Low", 'wp-easycart' ),
+				"label"				=> __( "Price range from", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "show_custom_price_range",
@@ -974,7 +976,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "price_range_high",
 				"type"				=> "currency",
-				"label"				=> __( "Price Range Display High", 'wp-easycart' ),
+				"label"				=> __( "Price range to", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "show_custom_price_range",
@@ -1010,7 +1012,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "is_shippable",
 				"type"				=> "checkbox",
-				"label"				=> __( "Enable Shipping", 'wp-easycart' ),
+				"label"				=> __( "Ships to the customer", 'wp-easycart' ),
+				"description"		=> __( "Checkout asks where to send it and adds shipping for it. Turn off for downloads, services and anything you don't send.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1020,7 +1023,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "exclude_shippable_calculation",
 				"type"				=> "checkbox",
-				"label"				=> __( "Exclude from Shipping Calculation", 'wp-easycart' ),
+				"label"				=> __( "Ships free", 'wp-easycart' ),
+				"description"		=> __( "Left out of shipping rates. Checkout still asks where to send it.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1030,7 +1034,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "ship_to_billing",
 				"type"				=> "checkbox",
-				"label"				=> __( "Disable shipping address and ship to billing address when this item is in the cart", 'wp-easycart' ),
+				"label"				=> __( "Ship to the billing address", 'wp-easycart' ),
+				"description"		=> __( "Checkout asks for no shipping address while this item is in the cart.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1040,13 +1045,13 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "allow_backorders",
 				"type"				=> "checkbox",
-				"label"				=> __( "Allow Backorders", 'wp-easycart' ),
+				"label"				=> __( "Sell when out of stock", 'wp-easycart' ),
+				"description"		=> __( "Shoppers can still buy it when stock runs out ( a backorder ).", 'wp-easycart' ),
 				"required" 			=> false,
 				"show"				=> array(
 					"name"			=> "backorder_fill_date",
 					"value"			=> "1"
 				),
-				"onchange"			=> 'ec_admin_product_details_backorder_change',
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> false,
 				"value"				=> $this->product->allow_backorders
@@ -1054,7 +1059,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "backorder_fill_date",
 				"type"				=> "text",
-				"label"				=> __( "Expected Delivery Date", 'wp-easycart' ),
+				"label"				=> __( "Expected back in stock", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "allow_backorders",
@@ -1068,7 +1073,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "handling_price",
 				"type"				=> "currency",
-				"label"				=> __( "One-Time Handling Cost", 'wp-easycart' ),
+				"label"				=> __( "Handling fee per order", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'price',
 				"visible"			=> true,
@@ -1078,7 +1083,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "handling_price_each",
 				"type"				=> "currency",
-				"label"				=> __( "Handling Cost Each Item", 'wp-easycart' ),
+				"label"				=> __( "Handling fee per item", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'price',
 				"visible"			=> true,
@@ -1088,7 +1093,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "shipping_restriction",
 				"type"				=> "checkbox",
-				"label"				=> __( "Restrict Shipping for this Product", 'wp-easycart' ),
+				"label"				=> __( "Restrict where it ships", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1105,7 +1110,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "short_description",
 				"type"				=> "textarea",
-				"label"				=> __( "Short Description", 'wp-easycart' ),
+				"label"				=> __( "Short description", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'textarea',
 				"visible"			=> true,
@@ -1135,7 +1140,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "order_completed_note",
 				"type"				=> "wp_textarea",
-				"label"				=> __( "Order Completed Note", 'wp-easycart' ),
+				"label"				=> __( "Order confirmation page note", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'textarea',
 				"visible"			=> true,
@@ -1240,7 +1245,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "show_on_startup",
 				"type"				=> "checkbox",
-				"label"				=> __( "Show on Main Store Page", 'wp-easycart' ),
+				"label"				=> __( "Show on store page", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1250,7 +1255,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "is_special",
 				"type"				=> "checkbox",
-				"label"				=> __( "Include in Specials Widget", 'wp-easycart' ),
+				"label"				=> __( "Show in the specials widget", 'wp-easycart' ),
+				"description"		=> __( "Lists it in the WP EasyCart specials widget.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1376,7 +1382,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				   Behaviors section so it is not duplicated. */
 				"name"				=> "role_id",
 				"type"				=> "select",
-				"label"				=> __( "Limit Visibility to User Role", 'wp-easycart' ),
+				"label"				=> __( "Only visible to", 'wp-easycart' ),
 				"message"		=> __( "When a role is selected, this product is completely hidden from everyone else — guests and all other roles will not see it anywhere in your store.", 'wp-easycart' ),
 				"data"				=> apply_filters( 'wp_easycart_admin_product_details_user_roles', $user_roles ),
 				"data_label"		=> __( "Visible to Everyone", 'wp-easycart' ),
@@ -1390,7 +1396,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "sort_position",
 				"type"				=> "number",
-				"label"				=> __( "Sort Position", 'wp-easycart' ),
+				"label"				=> __( "Sort position", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'number',
 				"visible"			=> true,
@@ -1407,7 +1413,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "is_taxable",
 				"type"				=> "checkbox",
-				"label"				=> __( "Product is Taxable", 'wp-easycart' ),
+				"label"				=> __( "Charge tax", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1417,7 +1423,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "vat_rate",
 				"type"				=> "checkbox",
-				"label"				=> __( "VAT Enabled", 'wp-easycart' ),
+				"label"				=> __( "Charge VAT", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"visible"			=> true,
@@ -1757,7 +1763,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "seo_description",
 				"type"				=> "textarea",
-				"label"				=> __( "SEO Description", 'wp-easycart' ),
+				"label"				=> __( "Meta description", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'textarea',
 				"visible"			=> true,
@@ -1766,7 +1772,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "seo_keywords",
 				"type"				=> "textarea",
-				"label"				=> __( "SEO Keywords", 'wp-easycart' ),
+				"label"				=> __( "Meta keywords", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'textarea',
 				"visible"			=> true,
@@ -1775,7 +1781,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "post_excerpt",
 				"type"				=> "textarea",
-				"label"				=> __( "Post Excerpt - Commonly Used in Search Results", 'wp-easycart' ),
+				"label"				=> __( "Excerpt", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'textarea',
 				"visible"			=> true,
@@ -1784,7 +1790,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "featured_image",
 				"type"				=> "wp_image_upload",
-				"label"				=> __( "Post Featured Image - Commonly Used in Search Results", 'wp-easycart' ),
+				"label"				=> __( "Featured image", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'wp_image',
 				"visible"			=> true,
@@ -1938,7 +1944,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				'name'				=> 'image_hover_type',
 				"type"				=> "select",
-				"label"				=> __( "Image Hover Type", 'wp-easycart' ),
+				"label"				=> __( "Hover effect", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'select',
 				"visible"			=> true,
@@ -1990,7 +1996,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				'name'				=> 'image_effect_type',
 				"type"				=> "select",
-				"label"				=> __( "Image Effect Type", 'wp-easycart' ),
+				"label"				=> __( "Picture effect", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'select',
 				"visible"			=> true,
@@ -2014,7 +2020,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "tag_type",
 				"type"				=> "select",
-				"label"				=> __( "Tag Type", 'wp-easycart' ),
+				"label"				=> __( "Badge", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'select',
 				"visible"			=> true,
@@ -2042,7 +2048,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "tag_text",
 				"type"				=> "text",
-				"label"				=> __( "Tag Promo Text", 'wp-easycart' ),
+				"label"				=> __( "Badge text", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'text',
 				"visible"			=> true,
@@ -2051,7 +2057,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "tag_bg_color",
 				"type"				=> "color",
-				"label"				=> __( "Tag BG Color", 'wp-easycart' ),
+				"label"				=> __( "Badge color", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'color',
 				"visible"			=> true,
@@ -2060,7 +2066,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "tag_text_color",
 				"type"				=> "color",
-				"label"				=> __( "Tag Text Color", 'wp-easycart' ),
+				"label"				=> __( "Badge text color", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'color',
 				"visible"			=> true,

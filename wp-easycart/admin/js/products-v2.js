@@ -16,6 +16,35 @@
 	var ecv2_undo_stack = [];
 	var ECV2_UNDO_MAX = 20;
 
+	/* 6.0.4: the products in view, in order, so an opened product's previous / next and Back follow this list ( read by the
+	   product editor, products-details-v2.js nav_init() ). Saved on load and again as a product is opened ( the rows can change ). */
+	function ecv2_remember_product_list() {
+		var ids = [];
+		var titles = {};
+		$( '.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] tr.ecv2-row[data-id]' ).each( function() {
+			var id = parseInt( $( this ).attr( 'data-id' ), 10 );
+			if ( id > 0 && -1 === ids.indexOf( id ) ) {
+				ids.push( id );
+				var title = $.trim( $( this ).find( '.ecv2-product-title-text' ).first().text() );
+				if ( title ) {
+					titles[ id ] = title.substr( 0, 80 );
+				}
+			}
+		} );
+		try {
+			if ( ids.length ) {
+				window.sessionStorage.setItem( 'wpec_product_nav', JSON.stringify( { ids: ids, titles: titles, back: window.location.href, t: Date.now() } ) );
+			}
+		} catch ( e ) {}
+	}
+	$( function() {
+		if ( ! $( '.ecv2-wrap[data-table-id="ec_admin_product_list_v2"]' ).length ) {
+			return;
+		}
+		ecv2_remember_product_list();
+		$( document ).on( 'mousedown keydown', '.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] a[href*="ec_admin_form_action=edit"]', ecv2_remember_product_list );
+	} );
+
 	/* ====== Square Sync Lock Helpers ====== */
 
 	/**
@@ -1746,11 +1775,17 @@
 					var updated = d.updated || 0;
 					var skipped = d.square_fully_skipped || 0;
 
+					var variant_skipped = parseInt( d.variant_stock_skipped, 10 ) || 0;
+
 					var toast_msg = updated + ' ' + ecv2_lang.products_updated;
 					if ( skipped > 0 ) {
 						toast_msg += ' ' + ( ecv2_lang.square_skipped_suffix || '(%d Square-synced product(s) skipped — managed by Square)' ).replace( '%d', skipped );
 					}
-					ecv2_toast( toast_msg, skipped > 0 ? 'info' : 'success' );
+					/* 6.0.4: products that track stock per variation keep their stock ( the server leaves it to their variations ). */
+					if ( variant_skipped > 0 ) {
+						toast_msg += ' ' + ( ecv2_lang.variant_stock_skipped_suffix || '(stock left as it is on %d product(s) that track stock per variation — change their variations instead)' ).replace( '%d', variant_skipped );
+					}
+					ecv2_toast( toast_msg, ( skipped > 0 || variant_skipped > 0 ) ? 'info' : 'success' );
 					ecv2_close_bulk_edit();
 					setTimeout( function() { location.reload(); }, 1200 );
 				} else {

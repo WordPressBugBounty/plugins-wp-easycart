@@ -206,8 +206,8 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 
 		<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
 		<div class="ec_cart_input_row">
-			<input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
-			<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?>
+			<label class="ec_cart_check_label" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+			<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 		</div>
 		<?php } ?>
 	</div>
@@ -216,18 +216,11 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 
 	<?php if ( ( ! get_option( 'ec_option_allow_guest' ) || $cartpage->has_downloads ) && ( '' == $GLOBALS['ec_cart_data']->cart_data->email || ( '' != $GLOBALS['ec_cart_data']->cart_data->is_guest && $GLOBALS['ec_cart_data']->cart_data->is_guest ) || ! $GLOBALS['ec_user']->user_id ) ) { ?>
 	<div id="ec_user_create_form" style="display:block;">
-		<div id="ec_cart_create_account_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-			<style>
-			@keyframes rotation{
-				0%  { transform:rotate(0deg); }
-				100%{ transform:rotate(359deg); }
-			}
-			</style>
-			<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-				<div class="paypal-checkout-loader">
-					<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-				</div>
-				<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'create_account_please_wait' )?></div>
+		<?php /* 6.0.4: the busy card the payment and the subscription page show ( .wpec-busy in ec-store.css ), in place of the 2015 dark cover; the position stays inline for store copies of ec-store.css from before it. */ ?>
+		<div id="ec_cart_create_account_loader" class="wpec-busy ec_cart_create_account_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+			<div class="wpec-busy-card" role="status" aria-live="polite">
+				<span class="wpec-busy-spinner" aria-hidden="true"></span>
+				<span class="wpec-busy-status"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_payment_information', 'create_account_please_wait' ) ); ?></span>
 			</div>
 		</div>
 		

@@ -206,6 +206,27 @@ body.ecv2-upsell-lock { overflow:hidden; }
 .ecreg-support .ecv2-btn { white-space:nowrap; text-decoration:none; }
 .ecreg-support .dashicons-external { font-size:14px; width:14px; height:14px; }
 @media screen and (max-width:700px) { .ecreg-support .ecv2-btn { flex:1 1 auto; justify-content:center; } }
+/* Registration: a license's development sites ( WP EasyCart PRO 6.0.4 prints the card on wp_easycart_admin_registration_dev_sites ). @since 6.0.4 */
+.ecreg-dev { margin:0 0 14px; padding:16px 18px; background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); }
+.ecreg-dev-head { display:flex; align-items:flex-start; gap:12px; }
+.ecreg-dev-icon { font-size:22px; width:22px; height:22px; flex-shrink:0; margin-top:1px; color:var(--ecv2-g500, #6b7280); }
+.ecreg-dev-title { flex:1 1 auto; min-width:0; }
+.ecreg-dev-title h3 { margin:0 0 4px; font-size:16px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecreg-dev-title p { margin:0; font-size:13px; line-height:1.5; color:var(--ecv2-g600, #4b5563); }
+.ecreg-dev-count { flex-shrink:0; padding:3px 10px; border-radius:999px; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g700, #374151); font-size:11px; font-weight:700; white-space:nowrap; }
+.ecreg-dev-list { list-style:none; margin:12px 0 0; padding:0; border-top:1px solid var(--ecv2-g100, #f3f4f6); }
+.ecreg-dev-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin:0; padding:10px 0; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); font-size:13px; }
+.ecreg-dev-row:last-child { border-bottom:0; padding-bottom:0; }
+.ecreg-dev-site { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12.5px; color:var(--ecv2-g900, #111827); word-break:break-all; }
+.ecreg-dev-tag { padding:2px 8px; border-radius:999px; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g700, #374151); font-size:11px; font-weight:600; }
+.ecreg-dev-row.is-live .ecreg-dev-tag { background:var(--ecv2-primary-light, rgba(34,197,94,.1)); color:var(--ecv2-primary-hover, #16a34a); }
+.ecreg-dev-this { color:var(--ecv2-g500, #6b7280); font-size:11px; font-weight:600; }
+.ecreg-dev-meta { flex:1 1 220px; min-width:0; color:var(--ecv2-g500, #6b7280); font-size:12px; }
+.ecreg-dev-meta b { display:block; color:#b45309; font-weight:600; }
+.ecreg-dev-row.is-stale .ecreg-dev-site { color:var(--ecv2-g500, #6b7280); }
+.ecreg-dev-remove { margin:0 0 0 auto; }
+.ecreg-dev-empty { margin:12px 0 0; color:var(--ecv2-g500, #6b7280); font-size:13px; }
+@media screen and (max-width:600px) { .ecreg-dev-head { flex-wrap:wrap; } .ecreg-dev-remove { margin-left:0; } }
 
 /* 6.0.2: a Premium context ( the extensions ) offers Premium alone: no Pro card, no Pro trial link, one wide card. */
 .ecv2-upsell.is-premium [data-upsell-plan-card="pro"], .ecv2-upsell.is-premium .ecv2-upsell-trial { display:none !important; }

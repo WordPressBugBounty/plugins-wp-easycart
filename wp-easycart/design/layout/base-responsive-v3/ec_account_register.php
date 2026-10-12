@@ -1,4 +1,4 @@
-<div id="ec_account_register">
+<div id="ec_account_register"<?php echo ( $this->account_modern() ) ? ' class="ec_account_page ec_account_v2 ec_account_entry_v2"' : ''; /* 6.0.4: the account forms' look ( ec-store.css ); an Elementor account widget keeps the older markup */ ?>>
 	<div class="ec_cart_left">
 		<?php $this->display_account_register_form_start( ); ?>
 		<div class="ec_cart_header ec_top">
@@ -30,7 +30,7 @@
 		</div>
 
 		<div class="ec_cart_input_row">
-			<label for="ec_account_register_email_retype"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_retype_email' ); ?>*</label>
+			<label for="ec_account_register_retype_email"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_retype_email' ); ?>*</label>
 			<?php $this->display_account_register_retype_email_input( ); ?>
 			<div class="ec_cart_error_row" id="ec_account_register_email_retype_error">
 				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_emails_do_not_match' ); ?>
@@ -172,9 +172,9 @@
 		<?php }?>
 
 		<?php if( get_option( 'ec_option_require_account_terms' ) ){ ?>
-		<div class="ec_cart_button_row">
-			<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" />
-			<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?>
+		<div class="ec_cart_button_row ec_account_check_row">
+			<?php /* 6.0.4: a click on the words ticks the box, as on the checkout */ ?>
+			<label class="ec_cart_check_label"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?></span></label>
 		</div>
 		<div class="ec_cart_error_row" id="ec_terms_error">
 			<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
@@ -189,8 +189,7 @@
 
 		<div class="ec_cart_button_row">
 			<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
-			<?php $this->display_account_register_is_subscriber_input( ); ?>
-			<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?>
+			<label class="ec_cart_check_label ec_account_subscribe_label"><?php $this->display_account_register_is_subscriber_input( ); ?> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 			<?php }?>
 			<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_button' ); ?>" class="ec_account_button" onclick="<?php $ec_register_js_function = apply_filters( 'wpeasycart_register_js_function', 'return ec_account_register_button_click2( );' ); echo esc_attr( $ec_register_js_function ); ?>" />
 		</div>

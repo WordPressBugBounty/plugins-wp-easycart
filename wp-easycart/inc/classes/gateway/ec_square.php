@@ -5,9 +5,19 @@
 class ec_square extends ec_gateway{
 
 	/**
+	 * Why the last refund_charge() / refund_charge_payment() did not refund, in words for the merchant ( Square's own reason, or
+	 * that Square could not be reached ); '' after a refund that went through. WP EasyCart PRO's refund drawer shows it.
+	 *
+	 * @since 6.0.4
+	 * @var string
+	 */
+	public $refund_error = '';
+
+	/**
 	 * Whether a Square account is connected for the mode the store runs in ( sandbox or live ): its access token and the
 	 * location that takes the payments. The same rule as Store Status ( ec_live_payment_missing() ). WP EasyCart PRO's
-	 * hourly inventory and product syncs run only while this is true ( 6.0.2 ), whatever the payment gateway is.
+	 * hourly inventory and product syncs run only while this is true ( 6.0.2 ), whatever the payment gateway is. A saved '0'
+	 * ( the panel's "Your default Square location" ) still counts: payment_location_id() turns it into the account's location.
 	 *
 	 * @since 6.0.2
 	 * @return bool
@@ -17,6 +27,87 @@ class ec_square extends ec_gateway{
 		$token   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_access_token' : 'ec_option_square_access_token' );
 		$place   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' );
 		return ( '' !== $token && '' !== $place );
+	}
+
+	/**
+	 * The Square location saved for a mode, or '' when none is. '0' is not a Square location: it is the Square panel's
+	 * "Your default Square location" ( WP EasyCart 6.0.3 and older, WP EasyCart PRO 6.0.3 and older ) and the live option's
+	 * first value. Before 6.0.4 the checkout printed it into Square's card form ( '0' is not empty ), so Square's
+	 * verifyBuyer failed and no card payment could be made.
+	 *
+	 * @since 6.0.4
+	 * @param bool|null $sandbox The sandbox location ( true ), the live one ( false ), or the mode the store runs in ( null ).
+	 * @return string
+	 */
+	public static function saved_location_id( $sandbox = null ) {
+		if ( null === $sandbox ) {
+			$sandbox = (bool) get_option( 'ec_option_square_is_sandbox' );
+		}
+		$location_id = trim( (string) get_option( $sandbox ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' ) );
+		return ( '0' === $location_id ) ? '' : $location_id;
+	}
+
+	/**
+	 * The location that takes the payments and keeps the stock, for the mode the store runs in: the one saved, else the
+	 * connected account's own ( get_location_id() saves it for next time ); '' when none is saved and Square does not answer.
+	 * Everything that sends a location to Square asks this, in the browser and on the server.
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public function payment_location_id() {
+		$location_id = self::saved_location_id();
+		if ( '' === $location_id ) {
+			$location_id = trim( (string) $this->get_location_id() );
+		}
+		return ( '0' === $location_id ) ? '' : $location_id;
+	}
+
+	/**
+	 * Save the location the Square panel posted, for the mode the store runs in. '' or '0' ( the older panels' "Your default
+	 * Square location", or a panel that could not list the locations ) saves the account's first active location when Square
+	 * lists one, else keeps what is saved: never '0'. WP EasyCart PRO's Square panel saves through it too.
+	 *
+	 * @since 6.0.4
+	 * @param string $location_id The posted location id.
+	 * @return string The location saved for the mode ( '' when none ).
+	 */
+	public function save_location( $location_id ) {
+		$option      = get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id';
+		$location_id = trim( (string) $location_id );
+		if ( '' !== $location_id && '0' !== $location_id ) {
+			update_option( $option, $location_id );
+			return $location_id;
+		}
+		$first = self::first_location( $this->get_locations() );
+		if ( $first ) {
+			update_option( $option, (string) $first->id );
+		}
+		return self::saved_location_id();
+	}
+
+	/**
+	 * The location to use when none is chosen: the first active one Square lists ( ListLocations lists inactive locations
+	 * too, which take no payments ), else the first.
+	 *
+	 * @since 6.0.4
+	 * @param array $locations Square's locations.
+	 * @return object|null
+	 */
+	private static function first_location( $locations ) {
+		$first = null;
+		foreach ( (array) $locations as $location ) {
+			if ( ! is_object( $location ) || ! isset( $location->id ) || '' === (string) $location->id ) {
+				continue;
+			}
+			if ( ! isset( $location->status ) || 'ACTIVE' === strtoupper( (string) $location->status ) ) {
+				return $location;
+			}
+			if ( null === $first ) {
+				$first = $location;
+			}
+		}
+		return $first;
 	}
 
 	/****************************************
@@ -29,10 +120,7 @@ class ec_square extends ec_gateway{
 			$this->set_currency();
 		}
 
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if ( ! $location_id ) {
-			$location_id = $this->get_location_id();
-		}
+		$location_id = $this->payment_location_id();
 
 		$square_order_id = $this->insert_order();
 
@@ -148,6 +236,19 @@ class ec_square extends ec_gateway{
 		);
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
+			/* 6.0.4: Square could not be reached. Answer as Square does when it declines, so the shopper is told and can try
+			   again ( a card token is single use, so a payment that did go through cannot be charged twice ); reading the
+			   body of the failed request was a fatal error on PHP 8. */
+			return wp_json_encode(
+				array(
+					'errors' => array(
+						array(
+							'code'   => 'CONNECTION_ERROR',
+							'detail' => __( 'The payment could not be completed because the payment server could not be reached. Please try again.', 'wp-easycart' ),
+						),
+					),
+				)
+			);
 		}else{
 			$this->mysqli->insert_response( 0, 0, "Square Charge Response", print_r( $response, true ) );
 		}
@@ -165,10 +266,7 @@ class ec_square extends ec_gateway{
 	function insert_order( ){
 
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations/" . $location_id . "/orders" : "https://connect.squareup.com/v2/locations/" . $location_id . "/orders";
 
@@ -193,6 +291,7 @@ class ec_square extends ec_gateway{
 		);
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
+			return false; /* 6.0.4: Square could not be reached ( reading the failed request's body was a fatal error ) */
 		}else{
 			$this->mysqli->insert_response( 0, 0, "Square Order Response", print_r( $response, true ) );
 		}
@@ -211,12 +310,14 @@ class ec_square extends ec_gateway{
 			if( !$order ){
 				return false;
 			}
+			/* 6.0.4: only an order with a fulfillment has one to cancel ( reading the first of none printed PHP warnings into the
+			   refund's answer, which then failed to read although the refund had gone through ). */
+			if ( ! isset( $order->fulfillments ) || ! is_array( $order->fulfillments ) || ! isset( $order->fulfillments[0]->uid ) ) {
+				return false;
+			}
 
 			$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-			$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-			if( !$location_id ){
-				$location_id = $this->get_location_id( );
-			}
+			$location_id = $this->payment_location_id();
 
 			$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations/" . $location_id . "/orders/" . $ids->order_id : "https://connect.squareup.com/v2/locations/" . $location_id . "/orders/" . $ids->order_id;
 
@@ -260,10 +361,7 @@ class ec_square extends ec_gateway{
 
 	function get_order( $order_id ){
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations/" . $location_id . "/orders/batch-retrieve" : "https://connect.squareup.com/v2/locations/" . $location_id . "/orders/batch-retrieve";
 
@@ -292,13 +390,15 @@ class ec_square extends ec_gateway{
 		);
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
+			return false; /* 6.0.4: reading the failed request's body was a fatal error */
 		}else{
 			$this->mysqli->insert_response( 0, 0, "Square Get Order Response", print_r( $response, true ) );
 		}
 
 		$response_arr = json_decode( $response['body'] );
 
-		if( count( $response_arr->orders ) > 0 ){
+		/* 6.0.4: an error answer has no orders ( count() of nothing is a fatal error on PHP 8 ). */
+		if( is_object( $response_arr ) && isset( $response_arr->orders ) && is_array( $response_arr->orders ) && count( $response_arr->orders ) > 0 ){
 			return $response_arr->orders[0];
 		}
 
@@ -306,10 +406,7 @@ class ec_square extends ec_gateway{
 	}
 
 	function get_order_data( ){
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		/* Get Shipping Label */
 		$shipping_method = "";
@@ -558,7 +655,33 @@ class ec_square extends ec_gateway{
 			$json_arr['order']['service_charges'] = $service_charges;
 		}
 
-		if( $this->order_totals->discount_total > 0 ){
+		$giftcard_cents = ( is_object( $this->discount ) && isset( $this->discount->giftcard_discount ) ) ? (int) round( (float) $this->discount->giftcard_discount * 100 ) : 0;
+		$discount_cents = (int) round( (float) $this->order_totals->discount_total * 100 );
+		if ( $giftcard_cents > 0 && $giftcard_cents <= $discount_cents ) {
+			/* 6.0.4: the gift card's share is its own line ( "Gift Card" ), so Square shows what the gift card paid apart from the
+			   discounts. The card payment still matches the order's total: both lines come off it. */
+			$json_arr['order']['discounts'] = array();
+			if ( $discount_cents > $giftcard_cents ) {
+				$json_arr['order']['discounts'][] = array(
+					'name'         => wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_discounts' ),
+					'type'         => 'FIXED_AMOUNT',
+					'amount_money' => array(
+						'amount'   => $discount_cents - $giftcard_cents,
+						'currency' => (string) get_option( 'ec_option_square_currency' ),
+					),
+					'scope'        => 'ORDER',
+				);
+			}
+			$json_arr['order']['discounts'][] = array(
+				'name'         => wp_easycart_language()->get_text( 'cart_coupons', 'cart_gift_card_title' ),
+				'type'         => 'FIXED_AMOUNT',
+				'amount_money' => array(
+					'amount'   => $giftcard_cents,
+					'currency' => (string) get_option( 'ec_option_square_currency' ),
+				),
+				'scope'        => 'ORDER',
+			);
+		} else if( $this->order_totals->discount_total > 0 ){
 			$json_arr['order']['discounts'] = array(
 				array(
 					'name' => wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_discounts' ),
@@ -601,7 +724,10 @@ class ec_square extends ec_gateway{
 		$response_arr = json_decode( $response );
 
 		// Check for errors
-		if( isset( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
+		if( ! is_object( $response_arr ) || ! isset( $response_arr->order->total_money->amount ) ){
+			return false; /* 6.0.4: no answer, or not an order */
+
+		}else if( isset( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
 			return false;
 
 		// Check for problems between totals
@@ -616,9 +742,19 @@ class ec_square extends ec_gateway{
 
 	}
 
+	/**
+	 * The location saved for the mode the store runs in, else the account's first active one, saved for next time ( '' when
+	 * none is saved and Square does not answer ). 6.0.4: a saved '0' counts as none ( saved_location_id() ), and a saved
+	 * location is answered as it is ( this asked Square every time and answered its first location, whichever was saved ).
+	 *
+	 * @return string
+	 */
 	function get_location_id( ){
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
+		$location_id = self::saved_location_id();
+		if ( '' !== $location_id ) {
+			return $location_id;
+		}
 
 		$headr = array(
 			'Accept' => 'application/json',
@@ -651,19 +787,14 @@ class ec_square extends ec_gateway{
 		}
 
 		$response_arr = json_decode( wp_remote_retrieve_body( $response ) );
-		if ( ! is_object( $response_arr ) || ! isset( $response_arr->locations ) || ! is_array( $response_arr->locations ) || count( $response_arr->locations ) < 1 || ! isset( $response_arr->locations[0]->id ) ) {
+		$first        = ( is_object( $response_arr ) && isset( $response_arr->locations ) && is_array( $response_arr->locations ) ) ? self::first_location( $response_arr->locations ) : null;
+		if ( ! $first ) {
 			return (string) $location_id;
 		}
 
-		if( !$location_id ){
-			if( get_option( 'ec_option_square_is_sandbox' ) ){
-				update_option( 'ec_option_square_sandbox_location_id', $response_arr->locations[0]->id );
-			}else{
-				update_option( 'ec_option_square_location_id', $response_arr->locations[0]->id );
-			}
-		}
+		update_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id', (string) $first->id );
 
-		return $response_arr->locations[0]->id;
+		return (string) $first->id;
 	}
 
 	function set_currency( ){
@@ -671,9 +802,14 @@ class ec_square extends ec_gateway{
 		if( count( $locations ) > 0 ){
 			$found = false;
 			for( $i=0; $i<count( $locations ); $i++ ){
-				if( $locations[$i]->id == get_option( 'ec_option_square_location_id' ) ){
+				/* 6.0.4: the location of the mode in use ( a sandbox store compared its sandbox locations with the live one ), and
+				   its country too: Apple Pay and Google Pay's sheet needs it, and "Your default Square location" saved none. */
+				if( $locations[$i]->id == self::saved_location_id() ){
 					$found = true;
 					update_option( 'ec_option_square_currency', $locations[$i]->currency );
+					if ( isset( $locations[$i]->country ) && '' !== (string) $locations[$i]->country ) {
+						update_option( 'ec_option_square_location_country', strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', (string) $locations[$i]->country ), 0, 2 ) ) );
+					}
 				}
 			}
 			if( !$found ){
@@ -684,9 +820,16 @@ class ec_square extends ec_gateway{
 		}
 	}
 
+	/**
+	 * The connected account's locations ( array() when Square does not answer ). 6.0.4: when the location saved for the mode is
+	 * none ( '' or '0' ) or not one of them ( saved for another Square account before a reconnect ), the first active location
+	 * is saved in its place, so the Square panel shows the location that takes the payments and its save never posts '0'.
+	 *
+	 * @return array
+	 */
 	function get_locations( ){
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
+		$location_id = self::saved_location_id();
 
 		if ( '' == $access_token ) {
 			return array();
@@ -717,88 +860,92 @@ class ec_square extends ec_gateway{
 		}
 
 		$response_arr = json_decode( $response['body'] );
+		$locations    = ( is_object( $response_arr ) && isset( $response_arr->locations ) && is_array( $response_arr->locations ) ) ? $response_arr->locations : array();
+		$first        = self::first_location( $locations );
 
-		if( !$location_id && isset( $response_arr->locations ) && count( $response_arr->locations ) > 0 ){
-			if( get_option( 'ec_option_square_is_sandbox' ) ){
-				update_option( 'ec_option_square_sandbox_location_id', $response_arr->locations[0]->id );
-			}else{
-				update_option( 'ec_option_square_location_id', $response_arr->locations[0]->id );
+		if ( $first ) {
+			$listed = false;
+			foreach ( $locations as $location ) {
+				if ( is_object( $location ) && isset( $location->id ) && (string) $location->id === $location_id ) {
+					$listed = true;
+				}
+			}
+			if ( ! $listed ) {
+				update_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id', (string) $first->id );
 			}
 		}
-		if( is_object( $response_arr ) && isset( $response_arr->locations ) && count( $response_arr->locations ) > 0 ){
+		if( count( $locations ) > 0 && isset( $locations[0]->merchant_id ) ){
 			if( get_option( 'ec_option_square_is_sandbox' ) ){
-				update_option( 'ec_option_square_sandbox_merchant_id', $response_arr->locations[0]->merchant_id );
+				update_option( 'ec_option_square_sandbox_merchant_id', $locations[0]->merchant_id );
 			}else{
-				update_option( 'ec_option_square_merchant_id', $response_arr->locations[0]->merchant_id );
+				update_option( 'ec_option_square_merchant_id', $locations[0]->merchant_id );
 			}
 		}
 
-		return ( $response_arr && isset( $response_arr->locations ) && count( $response_arr->locations ) > 0 ) ? $response_arr->locations : array();
+		return $locations;
 	}
 
 	function refund_charge( $transaction_id, $refund_amount ){
+		$this->refund_error = '';
 
 		if( get_option( 'ec_option_square_application_id' ) == '' ){
 			$this->renew_token( );
 		}
 
-		$ids = json_decode( $transaction_id );
+		$ids = json_decode( (string) $transaction_id );
 
 		// V2
-		if( isset( $ids->payment_id ) ){
+		if( is_object( $ids ) && isset( $ids->payment_id ) && '' !== (string) $ids->payment_id ){
 			return $this->refund_charge_payment( $ids->payment_id, $refund_amount );
-
-		// V1
-		}else{
-			$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-			$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations/" . $location_id . "/transactions/" . $ids->transaction_id . "/refund" : "https://connect.squareup.com/v2/locations/" . $location_id . "/transactions/" . $ids->transaction_id . "/refund";
-			$gateway_data = array( 	"idempotency_key"	=> uniqid( ),
-									"tender_id"			=> $ids->tender_id,
-									"amount_money"		=> array(
-										"amount"			=> (integer) number_format( $refund_amount * 100, 0, "", "" ),
-										"currency"			=> get_option( 'ec_option_square_currency' )
-									)
-							);
-
-			$headr = array(
-				'Accept' => 'application/json',
-				'Content-Type' => 'application/json',
-				'Authorization' => ' Bearer ' . $access_token,
-				'Square-Version' => '2022-05-12'
-			);
-
-			$request = new WP_Http;
-			$response = $request->request( 
-				$gateway_url, 
-				array( 
-					'method' => 'POST',
-					'headers' => $headr,
-					'body' => json_encode( $gateway_data ),
-					'timeout' => 30
-				)
-			);
-			if( is_wp_error( $response ) ){
-				$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
-			}else{
-				$this->mysqli->insert_response( 0, 0, "Square Refund Response", print_r( $response, true ) );
-			}
-
-			$response_arr = json_decode( $response['body'] );
-
-			if( isset( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
-				return false;
-			}else{
-				return true;
-			}
 		}
+
+		/* 6.0.4: an order that holds the Square payment id itself, not the JSON checkout saves. */
+		if( ! is_object( $ids ) && preg_match( '/^[A-Za-z0-9_-]{8,}$/', trim( (string) $transaction_id ) ) ){
+			return $this->refund_charge_payment( trim( (string) $transaction_id ), $refund_amount );
+		}
+
+		// V1 ( orders paid through Square's Transactions API )
+		if( ! is_object( $ids ) || empty( $ids->transaction_id ) || empty( $ids->tender_id ) ){
+			$this->refund_error = __( 'This order has no Square payment to refund here ( its payment details are missing ). Refund it in your Square Dashboard.', 'wp-easycart' );
+			$this->mysqli->insert_response( 0, 1, "Square Refund: no payment", (string) $transaction_id );
+			return false;
+		}
+		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
+		/* 6.0.4: the location was never set here ( the address had no location in it ). */
+		$location_id = $this->payment_location_id();
+		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations/" . rawurlencode( (string) $location_id ) . "/transactions/" . rawurlencode( (string) $ids->transaction_id ) . "/refund" : "https://connect.squareup.com/v2/locations/" . rawurlencode( (string) $location_id ) . "/transactions/" . rawurlencode( (string) $ids->transaction_id ) . "/refund";
+		$gateway_data = array( 	"idempotency_key"	=> uniqid( ),
+								"tender_id"			=> $ids->tender_id,
+								"amount_money"		=> array(
+									"amount"			=> (integer) number_format( $refund_amount * 100, 0, "", "" ),
+									"currency"			=> get_option( 'ec_option_square_currency' )
+								)
+						);
+
+		$headr = array(
+			'Accept' => 'application/json',
+			'Content-Type' => 'application/json',
+			'Authorization' => ' Bearer ' . $access_token,
+			'Square-Version' => '2022-05-12'
+		);
+
+		$request = new WP_Http;
+		$response = $request->request(
+			$gateway_url,
+			array(
+				'method' => 'POST',
+				'headers' => $headr,
+				'body' => json_encode( $gateway_data ),
+				'timeout' => 30
+			)
+		);
+		return $this->refund_answer( $response, "Square Refund Response" );
 	}
 
 	function refund_charge_payment( $payment_id, $refund_amount ){
+		$this->refund_error = '';
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/refunds" : "https://connect.squareup.com/v2/refunds";
 		$gateway_data = array( 	"idempotency_key"	=> uniqid( ),
@@ -817,28 +964,62 @@ class ec_square extends ec_gateway{
 		);
 
 		$request = new WP_Http;
-		$response = $request->request( 
-			$gateway_url, 
-			array( 
+		$response = $request->request(
+			$gateway_url,
+			array(
 				'method' => 'POST',
 				'headers' => $headr,
 				'body' => json_encode( $gateway_data ),
 				'timeout' => 30
 			)
 		);
+		return $this->refund_answer( $response, "Square Refund Payment Response" );
+	}
+
+	/**
+	 * Read a refund request's answer: true when Square refunded, else false with the reason in $refund_error. Before 6.0.4 a
+	 * request that never reached Square was a fatal error ( its body was read anyway ), and Square's reason for refusing was
+	 * only in the gateway log, so the refund drawer could only say the gateway declined.
+	 *
+	 * @since 6.0.4
+	 * @param array|WP_Error $response WP_Http::request()'s answer.
+	 * @param string         $log_title The gateway log entry's title.
+	 * @return bool
+	 */
+	private function refund_answer( $response, $log_title ) {
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
-		}else{
-			$this->mysqli->insert_response( 0, 0, "Square Refund Payment Response", print_r( $response, true ) );
-		}
-
-		$response_arr = json_decode( $response['body'] );
-
-		if( isset( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
+			/* translators: %s: the connection error, e.g. "cURL error 28: Operation timed out". */
+			$this->refund_error = sprintf( __( 'Square could not be reached ( %s ), so nothing was refunded. Please try again in a moment.', 'wp-easycart' ), wp_strip_all_tags( $response->get_error_message() ) );
 			return false;
-		}else{
-			return true;
 		}
+		$this->mysqli->insert_response( 0, 0, $log_title, print_r( $response, true ) );
+
+		$response_arr = json_decode( isset( $response['body'] ) ? (string) $response['body'] : '' );
+		if( is_object( $response_arr ) && isset( $response_arr->errors ) && is_array( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
+			$error  = $response_arr->errors[0];
+			$code   = ( is_object( $error ) && isset( $error->code ) ) ? (string) $error->code : '';
+			$detail = ( is_object( $error ) && isset( $error->detail ) && '' !== (string) $error->detail ) ? (string) $error->detail : $code;
+			/* translators: %s: Square's own reason, e.g. "The requested refund amount exceeds the amount available to refund." */
+			$this->refund_error = sprintf( __( 'Square did not refund this payment: %s', 'wp-easycart' ), trim( wp_strip_all_tags( $detail ) . ( '' !== $code && $code !== $detail ? ' ( ' . $code . ' )' : '' ) ) );
+			if( in_array( $code, array( 'UNAUTHORIZED', 'ACCESS_TOKEN_EXPIRED', 'ACCESS_TOKEN_REVOKED', 'INSUFFICIENT_SCOPES', 'FORBIDDEN' ), true ) ){
+				$this->refund_error .= ' ' . __( 'Reconnect Square in Settings › Payments, then try again.', 'wp-easycart' );
+			}
+			return false;
+		}
+		if( ! is_object( $response_arr ) ){
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			/* translators: %d: HTTP status code. */
+			$this->refund_error = sprintf( __( 'Square answered in a way WP EasyCart could not read ( HTTP %d ), so the refund is not confirmed. Check the payment in your Square Dashboard before trying again.', 'wp-easycart' ), $status );
+			return false;
+		}
+		/* A refund Square turned down without an error ( RefundPayment answers the refund with its status ). */
+		if( isset( $response_arr->refund->status ) && in_array( strtoupper( (string) $response_arr->refund->status ), array( 'REJECTED', 'FAILED' ), true ) ){
+			/* translators: %s: the refund's status in Square, e.g. "rejected". */
+			$this->refund_error = sprintf( __( 'Square did not refund this payment ( the refund was %s ). Check the payment in your Square Dashboard.', 'wp-easycart' ), strtolower( (string) $response_arr->refund->status ) );
+			return false;
+		}
+		return true;
 	}
 
 	function renew_token( ){
@@ -847,23 +1028,16 @@ class ec_square extends ec_gateway{
 		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
 		$refresh_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_refresh_token' ) : get_option( 'ec_option_square_refresh_token' );
 
-		$url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.wpeasycart.com/square-sandbox/refresh.php?access_token=" . $access_token . "&refreshv2=true" : "https://connect.wpeasycart.com/square-v2/refresh.php?access_token=" . $access_token . "&refreshv2=true";
-		if ( $refresh_token && $refresh_token != '' ) {
-			$url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.wpeasycart.com/square-sandbox/refresh.php?refresh_token=" . $refresh_token : "https://connect.wpeasycart.com/square-v2/refresh.php?refresh_token=" . $refresh_token;
-		}
-
-		$request = new WP_Http;
-		$response = $request->request( 
-			$url, 
-			array( 
-				'method' => 'GET',
-				'timeout' => 30
-			)
-		);
+		/* 6.0.4: WP EasyCart Connect's /square-v3/ takes the token in a POST body ( wp_easycart_square_relay ); the older
+		   /square-v2/ and /square-sandbox/ scripts took it in the address, and are only asked while /square-v3/ is missing. */
+		$response = wp_easycart_square_relay::refresh( (bool) get_option( 'ec_option_square_is_sandbox' ), (string) $refresh_token, (string) $access_token );
+		/* 6.0.4: the log keeps what came back, never a token ( the whole answer held both tokens, and its address the one sent ). */
 		if( is_wp_error( $response ) ){
-			$this->mysqli->insert_response( 0, 1, "SQUARE RENEW TOKEN ERROR", $response->get_error_message( ) );
+			$message = $response->get_error_message();
+			$this->mysqli->insert_response( 0, 1, 'SQUARE RENEW TOKEN ERROR', class_exists( 'ec_logs' ) ? ec_logs::scrub_tokens( $message ) : preg_replace( '/(_token=)[^&\s]+/i', '$1REDACTED', $message ) );
 		}else{
-			$this->mysqli->insert_response( 0, 0, "Square Renew Token Response", print_r( $response, true ) );
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			$this->mysqli->insert_response( 0, ( $status >= 200 && $status < 300 ) ? 0 : 1, 'Square Renew Token Response', class_exists( 'ec_logs' ) ? ec_logs::token_answer( $status, isset( $response['body'] ) ? $response['body'] : '' ) : '{"status":' . $status . '}' );
 
 			$response_obj = json_decode( $response['body'] );
 
@@ -886,10 +1060,7 @@ class ec_square extends ec_gateway{
 
 	function get_modifiers( $cursor = false, $depth = 0 ){
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/catalog/search" : "https://connect.squareup.com/v2/catalog/search";
 
@@ -938,10 +1109,7 @@ class ec_square extends ec_gateway{
 
 	function get_modifier_items( $cursor = false, $depth = 0 ){
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/catalog/search" : "https://connect.squareup.com/v2/catalog/search";
 
@@ -991,10 +1159,7 @@ class ec_square extends ec_gateway{
 	function get_catalog( $cursor = false, $depth = 0, $types = array( 'ITEM', 'CATEGORY' ), $limit = 5 ){
 
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/catalog/search" : "https://connect.squareup.com/v2/catalog/search";
 
@@ -1304,6 +1469,7 @@ class ec_square extends ec_gateway{
 				'post_type' => 'ec_store',
 			);
 			wp_easycart_post_sync()->insert( 'category', $category_id, $post );
+			wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lists show it */
 			return array( 'success' => 'category-inserted' );
 		}
 	}
@@ -1328,6 +1494,7 @@ class ec_square extends ec_gateway{
 			'post_type' => 'ec_store',
 		);
 		wp_easycart_post_sync()->update( 'category', $category->category_id, $category->post_id, $post );
+		wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lists show the new name */
 
 		return array( 'success' => 'category-updated' );
 	}
@@ -1347,10 +1514,7 @@ class ec_square extends ec_gateway{
 				return $this->update_product( $object, $product, $sync_inventory );
 			}
 
-			$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-			if( !$location_id ){
-				$location_id = $this->get_location_id( );
-			}
+			$location_id = $this->payment_location_id();
 
 			$title = $object->item_data->name;
 			if ( isset( $object->item_data->description_html ) ) {
@@ -1535,10 +1699,7 @@ class ec_square extends ec_gateway{
 		$square_id = $object->id;
 		$stock_quantity = 0;
 
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$title = $object->item_data->name;
 		if ( isset( $object->item_data->description_html ) ) {
@@ -1622,9 +1783,12 @@ class ec_square extends ec_gateway{
 			$square_categories[] = $object->item_data->category_id;
 		}
 
-		/* Manually Update Post */
-		$wpdb->query( $wpdb->prepare( "UPDATE " . $wpdb->prefix . "posts SET post_title = %s, post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d", wp_easycart_language( )->convert_text( $title ), $post_status, $product->post_id ) );
-		clean_post_cache( $product->post_id );
+		/* Manually Update Post ( 6.0.4: only the product's own page, never a post a wrong link points at ) */
+		$own_post_id = function_exists( 'wp_easycart_post_sync' ) ? wp_easycart_post_sync()->own_post_id( 'product', (int) $product->product_id, (int) $product->post_id, true ) : (int) $product->post_id;
+		if ( $own_post_id ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE " . $wpdb->prefix . "posts SET post_title = %s, post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d", wp_easycart_language( )->convert_text( $title ), $post_status, $own_post_id ) );
+			clean_post_cache( $own_post_id );
+		}
 
 		// Update product
 		if ( $sync_inventory ) {
@@ -1710,10 +1874,10 @@ class ec_square extends ec_gateway{
 
 		$final_active = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT activate_in_store FROM ec_product WHERE product_id = %d', $product->product_id ) );
 		$target_status = $final_active ? 'publish' : 'private';
-		$current_status = $wpdb->get_var( $wpdb->prepare( 'SELECT post_status FROM ' . $wpdb->prefix . 'posts WHERE ID = %d', $product->post_id ) );
+		$current_status = $own_post_id ? $wpdb->get_var( $wpdb->prepare( 'SELECT post_status FROM ' . $wpdb->prefix . 'posts WHERE ID = %d', $own_post_id ) ) : null;
 		if ( $current_status && $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d', $target_status, $product->post_id ) );
-			clean_post_cache( $product->post_id );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d', $target_status, $own_post_id ) );
+			clean_post_cache( $own_post_id );
 			ec_db::product_cache_changed();
 		}
 	}
@@ -1868,7 +2032,7 @@ class ec_square extends ec_gateway{
 		if ( ! $post_id || '' === $new_model || $old_model === $new_model ) {
 			return;
 		}
-		$content = $wpdb->get_var( $wpdb->prepare( "SELECT post_content FROM $wpdb->posts WHERE ID = %d", $post_id ) );
+		$content = $wpdb->get_var( $wpdb->prepare( "SELECT post_content FROM $wpdb->posts WHERE ID = %d AND post_type = 'ec_store'", $post_id ) ); /* 6.0.4: store pages only */
 		if ( null === $content || '' === $content ) {
 			return;
 		}
@@ -1983,10 +2147,7 @@ class ec_square extends ec_gateway{
 	function get_variance_stock_quantity( $id ){
 
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/inventory/" . $id . '?location_ids[]=' . $location_id : "https://connect.squareup.com/v2/inventory/" . $id . '?location_ids[]=' . $location_id;
 
@@ -2079,7 +2240,7 @@ class ec_square extends ec_gateway{
 	 */
 	function get_inventory_results( $cursor, $updated_after = false, $incremental = false ) {
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
+		$location_id = $this->payment_location_id(); /* 6.0.4: never '0' ( the panel's default location ) */
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/inventory/counts/batch-retrieve" : "https://connect.squareup.com/v2/inventory/counts/batch-retrieve";
 
 		$headr = array(
@@ -2169,7 +2330,7 @@ class ec_square extends ec_gateway{
 	
 	function get_inventory_updates_results( $cursor, $updated_after ) {
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
+		$location_id = $this->payment_location_id(); /* 6.0.4: never '0' ( the panel's default location ) */
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/inventory/changes/batch-retrieve" : "https://connect.squareup.com/v2/inventory/changes/batch-retrieve";
 
 		$headr = array(
@@ -2214,13 +2375,26 @@ class ec_square extends ec_gateway{
 		return $response_data;
 	}
 	
+	/**
+	 * Tell Square about a stock change EasyCart made ( the hooks wp_easycart_updated_product_stock and
+	 * wp_easycart_updated_optionitem_quantity_value ). A positive quantity was sold: IN_STOCK → SOLD. A negative one came back
+	 * ( a refund or a cancelled order restocked ): UNLINKED_RETURN → IN_STOCK, Square's move for returned items that can be
+	 * sold again. It is "unlinked" because EasyCart's Square orders carry their own lines, not catalog items, and SOLD is
+	 * final in Square. Square takes the quantity as a positive decimal string only ( 6.0.4: a restock sent the number -1,
+	 * which Square refused with EXPECTED_STRING; a sale only got through when the quantity happened to be text ).
+	 *
+	 * @param string    $item_id  Square catalog object id ( the item variation ).
+	 * @param int|float $quantity Units sold ( positive ) or put back ( negative ).
+	 * @return bool|null Whether Square took the change; null when there was nothing to send.
+	 */
 	function adjust_inventory( $item_id, $quantity ) {
+		$quantity = is_numeric( $quantity ) ? (float) $quantity : 0;
+		if ( '' === (string) $item_id || abs( $quantity ) < 0.000005 ) {
+			return null;
+		}
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/inventory/changes/batch-create" : "https://connect.squareup.com/v2/inventory/changes/batch-create";
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$headr = array(
 			'Accept' => 'application/json',
@@ -2229,23 +2403,35 @@ class ec_square extends ec_gateway{
 			'Square-Version' => '2022-05-12'
 		);
 		
+		$sold = ( $quantity > 0 );
+		$adjustment = array(
+			'catalog_object_id' => (string) $item_id,
+			'quantity'          => rtrim( rtrim( number_format( abs( $quantity ), 5, '.', '' ), '0' ), '.' ),
+			'from_state'        => ( $sold ) ? 'IN_STOCK' : 'UNLINKED_RETURN',
+			'to_state'          => ( $sold ) ? 'SOLD' : 'IN_STOCK',
+			'location_id'       => $location_id,
+			'occurred_at'       => gmdate( 'Y-m-d\TH:i:s\Z' ),
+		);
+		/**
+		 * The inventory adjustment sent to Square for a stock change EasyCart made ( e.g. NONE → IN_STOCK to count put-back
+		 * stock as received rather than returned ). Quantity stays a positive decimal string.
+		 *
+		 * @since 6.0.4
+		 * @param array     $adjustment Square InventoryAdjustment fields.
+		 * @param int|float $quantity   Units sold ( positive ) or put back ( negative ).
+		 * @param string    $item_id    Square catalog object id.
+		 */
+		$adjustment = apply_filters( 'wp_easycart_square_inventory_adjustment', $adjustment, $quantity, $item_id );
 		$gateway_data = (object) array(
 			'idempotency_key' => uniqid(),
 			'changes' => array(
 				(object) array(
 					'type' => 'ADJUSTMENT',
-					'adjustment' => (object) array(
-						'catalog_object_id' => $item_id,
-						'quantity' => $quantity,
-						'from_state' => 'IN_STOCK',
-						'to_state' => 'SOLD',
-						'location_id' => $location_id,
-						'occurred_at' => date( 'Y-m-d' ) . 'T' . date( 'H:i:s' ) . 'Z',
-					),
+					'adjustment' => (object) $adjustment,
 				),
 			),
 		);
-		
+
 		$request = new WP_Http;
 		$response = $request->request( 
 			$gateway_url, 
@@ -2259,18 +2445,17 @@ class ec_square extends ec_gateway{
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE Batch Adjust Inventory CURL ERROR", $response->get_error_message( ) );
 			return false;
-		}else{
-			$this->mysqli->insert_response( 0, 0, "Square Batch Adjust Inventory Response", json_encode( $gateway_data ) . ' ----- ' . print_r( $response, true ) );
 		}
+		/* 6.0.4: an answer with errors is logged as an error ( it was logged as a success ). */
+		$answer = json_decode( (string) wp_remote_retrieve_body( $response ) );
+		$refused = ( ! is_object( $answer ) || ( isset( $answer->errors ) && is_array( $answer->errors ) && count( $answer->errors ) > 0 ) || (int) wp_remote_retrieve_response_code( $response ) >= 400 );
+		$this->mysqli->insert_response( 0, ( $refused ) ? 1 : 0, "Square Batch Adjust Inventory Response", json_encode( $gateway_data ) . ' ----- ' . print_r( $response, true ) );
 
-		return;
+		return ! $refused;
 	}
 
 	function allowed_at_location( $object ){
-		$this_location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( $this_location_id == '' ){
-			$this_location_id = $this->get_location_id( );
-		}
+		$this_location_id = $this->payment_location_id();
 
 		if( isset( $object->absent_at_location_ids ) && in_array( $this_location_id, $object->absent_at_location_ids ) )
 			return false;
@@ -2287,10 +2472,7 @@ class ec_square extends ec_gateway{
 	function register_domain( ){
 
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
-		if( !$location_id ){
-			$location_id = $this->get_location_id( );
-		}
+		$location_id = $this->payment_location_id();
 
 		$domain = get_site_url( null, '', 'https' );
 		$url_info = parse_url( $domain );

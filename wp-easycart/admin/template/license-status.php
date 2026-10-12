@@ -21,6 +21,8 @@ $days_left     = 0;
 $is_pro        = false;
 $is_premium    = false;
 $is_trial      = false;
+$is_elite      = false;
+$is_auto       = false;
 $renew_url     = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 $upgrade_url   = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
 $transaction_key = '';
@@ -31,14 +33,17 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 	$days_left       = max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( strtotime( $license_data->support_end_date ) ) : (int) round( ( strtotime( $license_data->support_end_date ) - time() ) / DAY_IN_SECONDS ) );
 	$model           = strtolower( trim( (string) ( isset( $license_data->model_number ) ? $license_data->model_number : '' ) ) );
 	$is_trial        = ! empty( $license_data->is_trial );
-	$is_premium      = ( 'ec410' === $model );
+	/* 6.0.4: Premium and Elite AutoPay keys ( ec61x / ec62x ) are Premium too, not only ec410. */
+	$is_premium      = wp_easycart_admin_edition::is_premium_model( $model );
+	$is_elite        = ( 'elite' === wp_easycart_admin_edition::model_edition( $model ) );
+	$is_auto         = ( ! $is_trial && ! empty( $license_data->is_auto_renew ) );
 	/* Any other active, non-trial license is PRO — don't depend on the exact model code. */
 	$is_pro          = ( ! $is_premium && ! $is_trial );
 	if ( $is_trial ) {
 		$renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key;
 		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium';
 	} else {
-		$renew_url   = $is_pro ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $transaction_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
+		$renew_url   = wp_easycart_admin_edition::renew_url(); // 6.0.4: the account for AutoPay, the pricing page for Elite, else the Pro or Premium renewal.
 		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
 	}
 }
@@ -52,7 +57,7 @@ $has_pro_now  = ( $license_data && $days_left > 0 && ( $is_pro || $is_premium ||
 $has_prem_now = ( $license_data && $days_left > 0 && $is_premium );
 $stats        = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
 /* Plan name for copy: 'Pro/Premium' with no license, else this store's own plan ( a trial is a Pro trial ). */
-$ecss_plan    = $is_free ? __( 'Pro/Premium', 'wp-easycart' ) : ( $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ) );
+$ecss_plan    = $is_free ? __( 'Pro/Premium', 'wp-easycart' ) : ( $is_elite ? __( 'Elite', 'wp-easycart' ) : ( $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ) ) );
 
 /* ---- License hero ( one state ) ------------------------------------- */
 if ( $is_free ) {
@@ -69,17 +74,31 @@ if ( $is_free ) {
 	$hero = array( 'badge' => __( 'Trial ended', 'wp-easycart' ), 'tone' => 'expired', 'ring' => 0, 'title' => __( 'Your Pro trial has ended', 'wp-easycart' ),
 		'text' => __( 'The Pro panels are locked again. Your products, orders and settings are exactly as you left them; upgrade to pick up where you stopped.', 'wp-easycart' ),
 		'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ), 'primary' ), 'cta2' => null );
+} else if ( $is_expired && $is_auto ) {
+	/* 6.0.4: an AutoPay license past its date is a payment that did not go through ( Stripe tries again for a while ). */
+	$hero = array( 'badge' => $ecss_plan, 'tone' => 'expired', 'ring' => 0,
+		/* translators: %s: plan name, Pro, Premium or Elite. */
+		'title' => sprintf( __( 'Your %s license is waiting on a payment', 'wp-easycart' ), $ecss_plan ),
+		'text' => __( 'Your last automatic payment did not go through, so support and updates are paused. Update your card in your WP EasyCart account and the license renews straight away; no data is lost.', 'wp-easycart' ),
+		'cta' => array( $renew_url, __( 'Update payment', 'wp-easycart' ), 'primary' ), 'cta2' => null );
 } else if ( $is_expired ) {
-	$hero = array( 'badge' => $ecss_plan, 'tone' => 'expired', 'ring' => 0, 'title' => $is_premium ? __( 'Premium license expired', 'wp-easycart' ) : __( 'Pro license expired', 'wp-easycart' ),
+	$hero = array( 'badge' => $ecss_plan, 'tone' => 'expired', 'ring' => 0, 'title' => $is_elite ? __( 'Elite license expired', 'wp-easycart' ) : ( $is_premium ? __( 'Premium license expired', 'wp-easycart' ) : __( 'Pro license expired', 'wp-easycart' ) ),
 		'text' => __( 'Support and updates have lapsed, so the paid panels are locked. Renew to reopen them; no data is lost while you decide.', 'wp-easycart' ),
 		'cta' => array( $renew_url, __( 'Renew license', 'wp-easycart' ), 'primary' ), 'cta2' => null );
+} else if ( $is_auto ) {
+	/* 6.0.4: a license on AutoPay renews itself, so there is nothing to renew: say when it renews and where it is managed. */
+	$hero = array( 'badge' => $ecss_plan, 'tone' => 'active', 'ring' => 1,
+		'title' => $is_elite ? __( 'Elite license active', 'wp-easycart' ) : ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'Pro license active', 'wp-easycart' ) ),
+		/* translators: %s: the date the license renews. */
+		'text' => sprintf( __( 'Renews automatically on %s. Support and updates carry on with nothing for you to do.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ) ),
+		'cta' => array( $renew_url, __( 'Manage subscription', 'wp-easycart' ), '' ), 'cta2' => $is_premium ? null : array( $upgrade_url, __( 'Upgrade to Premium', 'wp-easycart' ), '' ) );
 } else {
 	$soon = ( $days_left <= 30 );
 	$crit = ( $days_left <= 7 );
 	$hero = array( 'badge' => $ecss_plan, 'tone' => $crit ? 'expired' : ( $soon ? 'trial' : 'active' ), 'ring' => min( 1, $days_left / 365 ),
 		'title' => $soon
 			? sprintf( _n( '%1$s license ends tomorrow', '%1$s license ends in %2$d days', $days_left, 'wp-easycart' ), $ecss_plan, $days_left )
-			: ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'Pro license active', 'wp-easycart' ) ),
+			: ( $is_elite ? __( 'Elite license active', 'wp-easycart' ) : ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'Pro license active', 'wp-easycart' ) ) ),
 		'text' => $soon
 			/* translators: 1: support end date, 2: plan name, Pro or Premium. */
 			? sprintf( __( 'Support & updates end %1$s. Renew now and a full year is added on top — nothing is lost by renewing early. Let it lapse and the %2$s panels lock, the 2%% gateway fee returns, and updates stop.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ), $ecss_plan )
@@ -195,7 +214,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 					<button type="button" class="ecv2-btn ecv2-btn-ghost" onclick="ecdv2_upsell( { context: 'default' } ); return false;"><?php esc_html_e( "See what's included", 'wp-easycart' ); ?></button>
 					<?php endif; ?>
 				</div>
-				<?php if ( ! $is_free && ! $is_trial && ! $is_expired && $days_left <= 30 && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+				<?php if ( ! $is_free && ! $is_trial && ! $is_expired && ! $is_auto && $days_left <= 30 && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
 				<ul class="ecss-stakes">
 					<?php foreach ( array_slice( wp_easycart_admin_upsell::renewal_stakes(), 0, 4 ) as $ecss_stake ) : ?><li><?php echo esc_html( $ecss_stake ); ?></li><?php endforeach; ?>
 				</ul>

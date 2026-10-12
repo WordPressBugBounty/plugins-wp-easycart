@@ -371,15 +371,19 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( ! $product || empty( $product->post_id ) ) {
 				return;
 			}
+			$post_id = wp_easycart_post_sync()->own_post_id( 'product', (int) $product_id, (int) $product->post_id, true ); /* 6.0.4: only the product's own page */
+			if ( ! $post_id ) {
+				return;
+			}
 			$target  = $product->activate_in_store ? 'publish' : 'private';
-			$current = get_post_status( $product->post_id );
+			$current = get_post_status( $post_id );
 			if ( $current && $current !== $target && in_array( $current, array( 'publish', 'private' ), true ) ) {
 				$wpdb->query( $wpdb->prepare(
 					'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d',
 					$target,
-					$product->post_id
+					$post_id
 				) );
-				clean_post_cache( $product->post_id );
+				clean_post_cache( $post_id );
 				ec_db::product_cache_changed();
 			}
 		}
@@ -470,6 +474,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			echo '<input type="text" name="wpeasycart_restrict_redirect_url_not_auth" id="wpeasycart_restrict_redirect_url_not_auth" class="postbox" value="' . esc_url_raw( $selected_redirect_not_auth ) . '" placeholder="https://www.site.com">';
 
 			echo '<p>' . esc_attr__( 'Note: You must turn off guest checkout or select a download or subscription product from the menu above. Subscription products will check the user has an active subscription. You must create a page to redirect to if a user does not have authorization.', 'wp-easycart' ) . '</p>';
+			/* 6.0.4: the storefront applies the limits only with a redirect address ( wp_easycart_restrict_access() ). */
+			echo '<p><strong>' . esc_html__( 'The limits apply only when at least one redirect address is set. With none, everyone can open this page.', 'wp-easycart' ) . '</strong></p>';
 		}
 
 		/**
@@ -1848,12 +1854,16 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		/* IN ( ... ) lists and appends to the file. The AJAX caller loops    */
 		/* until done; get_order_report() / get_tax_report() run the same     */
 		/* engine to completion for any direct caller. Columns are unchanged. */
+		/* 6.0.4: promo_code_used lists Offers codes too, and the order CSV   */
+		/* adds wp_easycart_order_discounts::export_keys() after              */
+		/* advanced_product_options, as the orders list's export does.        */
 		/* ------------------------------------------------------------------ */
 
 		/**
 		 * Column map for the order export: CSV key => array( source, column ).
 		 * Sources: o = ec_order row ( plus joined order_status / billing_country_name / shipping_country_name ),
-		 * d = ec_orderdetail row, r = the order's first ec_response text.
+		 * d = ec_orderdetail row, r = the order's first ec_response text. 6.0.4: report_line() takes promo_code_used and
+		 * the discount columns from wp_easycart_order_discounts::export_values().
 		 *
 		 * @since 6.0.0
 		 */
@@ -1992,12 +2002,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( 'order' === $type ) {
 				$keys   = array_keys( self::order_report_columns() );
 				$keys[] = 'advanced_product_options';
+				if ( class_exists( 'wp_easycart_order_discounts' ) ) {
+					$keys = array_merge( $keys, wp_easycart_order_discounts::export_keys() ); /* 6.0.4 */
+				}
 				$single = apply_filters(
 					'wp_easycart_order_export_single_keys',
 					array(
 						'sub_total', 'tip_total', 'tax_total', 'tax_total', 'shipping_total', 'discount_total', 'vat_total', 'refund_total',
 						'vat_rate', 'hst_total', 'hst_rate', 'pst_total', 'pst_rate', 'gst_total', 'gst_rate', 'grand_total',
-						'order_date', 'order_status', 'payment_method', 'shipping_method', 'tracking_number', 'promo_code_used',
+						'order_date', 'order_status', 'payment_method', 'shipping_method', 'tracking_number', 'promo_code_used', 'promotions_used',
 						'order_customer_notes', 'agreed_to_terms', 'order_ip_address', 'order_weight',
 						'order_gateway', 'card_holder_name', 'creditcard_digits', 'cc_exp_month', 'cc_exp_year', 'stripe_charge_id', 'order_notes',
 						'gateway_response',
@@ -2152,6 +2165,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$order_id = (int) $order['order_id'];
 				$lines    = isset( $details_by_order[ $order_id ] ) ? $details_by_order[ $order_id ] : array( array() );
 				$is_new   = true;
+				if ( 'order' === $phase['type'] && class_exists( 'wp_easycart_order_discounts' ) && isset( $order['applied_offers'] ) ) {
+					$order['applied_offers'] = wp_easycart_order_discounts::entries( $order['applied_offers'] ); /* 6.0.4: read once per order */
+				}
 				foreach ( $lines as $detail ) {
 					fputcsv( $fh, $this->report_line( $phase, $order, $detail, $is_new, $options_by_detail, $response_by_order, $fees_by_order ), ',', '"', '\\' );
 					$is_new = false;
@@ -2192,6 +2208,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				}
 			}
 
+			/* 6.0.4: promo_code_used and the discount columns ( codes and promotions, classic and Offers ). */
+			$discounts = ( $is_order && class_exists( 'wp_easycart_order_discounts' ) ) ? wp_easycart_order_discounts::export_values( $order, $detail ) : array();
+
 			$new_line = array();
 			foreach ( $phase['keys'] as $key ) {
 				if ( $is_order && 'advanced_product_options' === $key ) {
@@ -2203,7 +2222,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					continue;
 				}
 				$value = null;
-				if ( isset( $columns[ $key ] ) ) {
+				if ( isset( $discounts[ $key ] ) ) {
+					$value = $discounts[ $key ];
+				} elseif ( isset( $columns[ $key ] ) ) {
 					$source = $columns[ $key ][0];
 					$column = $columns[ $key ][1];
 					if ( 'o' === $source ) {
@@ -2777,7 +2798,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					$test_diff = $test_expiration - $test_now;
 					$days_left = round( $test_diff / ( 60 * 60 * 24 ) );
 					$days_left = ( $days_left < 0 ) ? 0 : $days_left; // No Negative
-					if( $days_left < 70 ){
+					/* 6.0.4: a license on AutoPay renews itself; only a missed payment ( past its date ) needs the badge. */
+					$auto_renew = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_auto_renew() );
+					if( $days_left < 70 && ! ( $auto_renew && $days_left > 0 ) ){
 						$license_label = sprintf( __( 'Store Status %s', 'wp-easycart' ), "<span class='update-plugins count-1' title='" . __( 'License', 'wp-easycart' ) . "'><span class='update-count'>" . number_format_i18n(1) . "</span></span>" );
 					}else{
 						$license_label = __( 'Store Status', 'wp-easycart' );
@@ -3065,6 +3088,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( 'wp-easycart-license-manage-trial' === $slug ) {
 				return 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=Premium';
 			}
+			if ( 'wp-easycart-license-renew' === $slug && class_exists( 'wp_easycart_admin_edition' ) ) {
+				return wp_easycart_admin_edition::renew_url(); /* 6.0.4: Premium and Elite AutoPay keys, and the account for AutoPay */
+			}
 			if ( 'wp-easycart-license-renew' === $slug ) {
 				$license_data = function_exists( 'wp_easycart_admin_license' ) ? wp_easycart_admin_license()->license_data : null;
 				$model        = ( is_object( $license_data ) && isset( $license_data->model_number ) ) ? strtolower( trim( (string) $license_data->model_number ) ) : '';
@@ -3169,6 +3195,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				array(
 					'wp_easycart_premium_manager' => 'license_notice',
 					'wp_easycart_groupon_admin'   => 'notice',
+					'wp_easycart_dev_sites'       => 'print_shell_notes', /* 6.0.4: WP EasyCart PRO's outage warning; this page words it */
 				)
 			);
 			global $wp_filter;
@@ -3777,6 +3804,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					wp_localize_script( 'wp-easycart-products-details-v2', 'wpeasycart_ecdv2_i18n', array(
 						'save' => __( 'Save', 'wp-easycart' ),
 						'saved' => __( 'Product saved.', 'wp-easycart' ),
+						'sku_required' => __( 'A SKU is required.', 'wp-easycart' ), /* 6.0.4 */
 						/* Free Media tab. */
 						'searching'           => __( 'Searching…', 'wp-easycart' ),
 						'no_products'         => __( 'No products match', 'wp-easycart' ),
@@ -3867,6 +3895,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 							'manu_new'         => __( '“%s” will be created as a new brand when you save.', 'wp-easycart' ),
 							/* translators: %s is the typed brand name. */
 							'manu_create'      => __( 'Create “%s”', 'wp-easycart' ),
+							/* translators: %s: a category name. */
+							'cat_remove'       => __( 'Remove %s', 'wp-easycart' ),
+							'cat_none'         => __( 'No matching categories.', 'wp-easycart' ),
 							/* translators: %d is a count. */
 							'modifiers_n'      => __( '%d modifiers', 'wp-easycart' ),
 							'no_image'         => __( 'No main image yet', 'wp-easycart' ),
@@ -4099,6 +4130,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'bulk_square_some'      => esc_html__( '%d of %s selected products are synced with Square. Price and stock changes will be skipped for those products.', 'wp-easycart' ),
 				'square_managed'        => esc_html__( 'Managed by Square', 'wp-easycart' ),
 				'square_skipped_suffix' => esc_html__( '(%d Square-synced product(s) skipped — managed by Square)', 'wp-easycart' ),
+				/* translators: %d: how many of the selected products track stock per variation. */
+				'variant_stock_skipped_suffix' => esc_html__( '(stock left as it is on %d product(s) that track stock per variation — change their variations instead)', 'wp-easycart' ),
 				'image_missing'      => esc_html__( 'Image could not be loaded', 'wp-easycart' ),
 			) );
 		}
@@ -4514,7 +4547,12 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return;
 			}
 			$stakes = wp_easycart_admin_upsell::renewal_stakes( $r );
-			if ( 'lapsed' === $r['tone'] ) {
+			if ( 'lapsed' === $r['tone'] && ! empty( $r['auto_renew'] ) ) {
+				/* 6.0.4: an AutoPay license past its date is a payment that did not go through. */
+				/* translators: %s: plan name, Pro, Premium or Elite. */
+				$title = sprintf( __( 'The last automatic payment for your %s license did not go through.', 'wp-easycart' ), $r['edition'] );
+				$lead  = __( 'Support and updates are paused until it does. Update your card in your WP EasyCart account and the license renews straight away. Nothing has been deleted.', 'wp-easycart' );
+			} else if ( 'lapsed' === $r['tone'] ) {
 				$title = sprintf( __( 'Your %1$s license lapsed on %2$s.', 'wp-easycart' ), $r['edition'], $r['end_fmt'] );
 				$lead  = $r['premium']
 					? __( 'Premium features are locked, your extensions are not syncing, and the 2% gateway fee is back. Renew to reopen everything — nothing has been deleted.', 'wp-easycart' )
@@ -4539,7 +4577,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			echo '</div>';
 			echo '<div class="ecv2-renewal-actions">';
-			echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $r['url'] ) . '" target="_blank">' . esc_html( 'lapsed' === $r['tone'] ? __( 'Renew & reopen', 'wp-easycart' ) : __( 'Renew now', 'wp-easycart' ) ) . '</a>';
+			echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $r['url'] ) . '" target="_blank">' . esc_html( ! empty( $r['auto_renew'] ) ? __( 'Update payment', 'wp-easycart' ) : ( 'lapsed' === $r['tone'] ? __( 'Renew & reopen', 'wp-easycart' ) : __( 'Renew now', 'wp-easycart' ) ) ) . '</a>';
 			echo '<a class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration' ) ) . '">' . esc_html__( 'License details', 'wp-easycart' ) . '</a>';
 			if ( 'lapsed' === $r['tone'] ) {
 				$deact = wp_easycart_admin_upsell::pro_deactivate_url();

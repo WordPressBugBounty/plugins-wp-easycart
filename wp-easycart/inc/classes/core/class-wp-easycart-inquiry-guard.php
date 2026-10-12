@@ -283,7 +283,7 @@ if ( ! class_exists( 'wp_easycart_inquiry_guard' ) ) :
 			if ( empty( $settings['honeypot'] ) ) {
 				return;
 			}
-			echo '<div class="ec_inquiry_hp" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">';
+			echo '<div class="ec_inquiry_hp" aria-hidden="true" style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;">';
 			echo '<label for="' . esc_attr( self::HP_FIELD . '_' . $product_id ) . '">' . esc_html__( 'Leave this field empty', 'wp-easycart' ) . '</label>';
 			echo '<input type="text" name="' . esc_attr( self::HP_FIELD ) . '" id="' . esc_attr( self::HP_FIELD . '_' . $product_id ) . '" value="" tabindex="-1" autocomplete="off" />';
 			echo '</div>';

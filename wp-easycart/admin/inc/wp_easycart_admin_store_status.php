@@ -70,6 +70,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'reset_store_permalinks' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_category_permalinks' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_product_permalinks' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_product_pages' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_gateway_log' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_webhook_log' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_data_folders' ) );
@@ -102,6 +103,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				'rebuild-store-permalinks' => array( 'label' => __( 'Rebuilding store permalinks', 'wp-easycart' ), 'success' => 'rebuild-store-permalinks', 'phases' => array( 'menulevel1', 'menulevel2', 'menulevel3', 'product', 'manufacturer', 'category' ) ),
 				'fix-category-permalinks'  => array( 'label' => __( 'Fixing category permalinks', 'wp-easycart' ), 'success' => 'fix-category-permalinks', 'phases' => array( 'category' ) ),
 				'fix-product-permalinks'   => array( 'label' => __( 'Fixing product permalinks', 'wp-easycart' ), 'success' => 'fix-product-permalinks', 'phases' => array( 'product' ) ),
+				'fix-product-pages'        => array( 'label' => __( 'Linking products to their own pages', 'wp-easycart' ), 'success' => 'fix-product-pages', 'phases' => array( 'product' ) ), /* 6.0.4 */
 				'fix-post-tags'            => array( 'label' => __( 'Fixing post tags', 'wp-easycart' ), 'success' => 'fix-post-tags', 'phases' => array( 'product', 'category', 'manufacturer' ) ),
 				'fix-gateway-log'          => array( 'label' => __( 'Trimming the gateway log', 'wp-easycart' ), 'success' => 'fix-gateway-log', 'phases' => array( 'trim' ) ),
 				'fix-webhook-log'          => array( 'label' => __( 'Trimming the webhook log', 'wp-easycart' ), 'success' => 'fix-webhook-log', 'phases' => array( 'trim' ) ),
@@ -229,7 +231,10 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-category-permalinks' ) {
 				$messages[] = __( 'We have completed an attempt to fix your category permalinks.', 'wp-easycart' ) . $this->links_updated_text();
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-product-permalinks' ) {
-				$messages[] = __( 'We have completed an attempt to fix your product permalinks.', 'wp-easycart' ) . $this->links_updated_text();
+				$messages[] = __( 'We have completed an attempt to fix your product permalinks.', 'wp-easycart' ) . $this->pages_fixed_text() . $this->links_updated_text();
+			} else if ( isset( $_GET['success'] ) && 'fix-product-pages' === $_GET['success'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only success flag after a nonce-checked job.
+				$pages = $this->pages_fixed_text();
+				$messages[] = ( '' !== $pages ) ? trim( $pages ) : __( 'Every product is linked to its own product page.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-gateway-log' ) {
 				$messages[] = __( 'Your gateway log size has been reduced.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-webhook-log' ) {
@@ -256,6 +261,27 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			/* translators: %s: number of store posts whose stored link was updated. */
 			return ' ' . sprintf( _n( '%s stored link still pointed at an old store page address and was updated.', '%s stored links still pointed at an old store page address and were updated.', $links, 'wp-easycart' ), number_format_i18n( $links ) );
+		}
+
+		/**
+		 * 6.0.4: " N products now link to their own product page …" after a product page repair, from the counts the
+		 * finished job adds ( fixed, created ).
+		 *
+		 * @return string '' when none did.
+		 */
+		private function pages_fixed_text() {
+			$fixed   = isset( $_GET['fixed'] ) ? absint( $_GET['fixed'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only count after a nonce-checked job.
+			$created = isset( $_GET['created'] ) ? absint( $_GET['created'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only count after a nonce-checked job.
+			if ( ! $fixed ) {
+				return '';
+			}
+			/* translators: %s: number of products. */
+			$text = ' ' . sprintf( _n( '%s product now links to its own product page.', '%s products now link to their own product page.', $fixed, 'wp-easycart' ), number_format_i18n( $fixed ) );
+			if ( $created ) {
+				/* translators: %s: number of products. */
+				$text .= ' ' . sprintf( _n( '%s of them had no page left and got a new one.', '%s of them had no page left and got a new one.', $created, 'wp-easycart' ), number_format_i18n( $created ) );
+			}
+			return $text;
 		}
 
 		/**
@@ -391,6 +417,22 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-product-permalinks' ) ) {
 					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
 					$this->redirect_to_job( 'fix-product-permalinks' );
+				}
+			}
+		}
+
+		/**
+		 * The Diagnostics link for products linked to something other than their own page ( runs as the job ).
+		 *
+		 * @since 6.0.4
+		 */
+		public function fix_product_pages() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_diagnostics' ) ) {
+				return false;
+			}
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'fix-product-pages' === $_GET['ec_admin_form_action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verify_access() checks the nonce.
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-product-pages' ) ) {
+					$this->redirect_to_job( 'fix-product-pages' );
 				}
 			}
 		}
@@ -888,10 +930,13 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$total = $this->job_phase_total( $job, $phase );
 			}
 
-			/* 6.0.2: stored links a permalink fix updated, added up over the job's requests for the closing notice. */
-			$links_key = 'wpec_status_links_' . get_current_user_id();
+			/* 6.0.2: stored links a permalink fix updated, added up over the job's requests for the closing notice. 6.0.4: and
+			   the products a product page repair linked to their own page ( fixed ), and how many of those got a new one. */
+			$tally_keys = array( 'links', 'fixed', 'created' );
 			if ( '' === $cursor && $phase === $phases[0] ) {
-				delete_transient( $links_key );
+				foreach ( $tally_keys as $tally_key ) {
+					delete_transient( 'wpec_status_' . $tally_key . '_' . get_current_user_id() );
+				}
 			}
 
 			$deadline = microtime( true ) + self::JOB_TIME_BUDGET;
@@ -899,8 +944,11 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			if ( isset( $result['error'] ) ) {
 				wp_send_json_error( array( 'message' => $result['error'] ) );
 			}
-			if ( ! empty( $result['links'] ) ) {
-				set_transient( $links_key, (int) get_transient( $links_key ) + (int) $result['links'], DAY_IN_SECONDS );
+			foreach ( $tally_keys as $tally_key ) {
+				if ( ! empty( $result[ $tally_key ] ) ) {
+					$tally_transient = 'wpec_status_' . $tally_key . '_' . get_current_user_id();
+					set_transient( $tally_transient, (int) get_transient( $tally_transient ) + (int) $result[ $tally_key ], DAY_IN_SECONDS );
+				}
 			}
 			if ( isset( $result['total'] ) ) {
 				$total = (int) $result['total'];
@@ -931,11 +979,14 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				'total'     => $total,
 			);
 			if ( $done ) {
-				$args  = array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'success' => $jobs[ $job ]['success'] );
-				$links = (int) get_transient( $links_key );
-				delete_transient( $links_key );
-				if ( $links > 0 ) {
-					$args['links'] = $links;
+				$args = array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'success' => $jobs[ $job ]['success'] );
+				foreach ( $tally_keys as $tally_key ) {
+					$tally_transient = 'wpec_status_' . $tally_key . '_' . get_current_user_id();
+					$tally_value     = (int) get_transient( $tally_transient );
+					delete_transient( $tally_transient );
+					if ( $tally_value > 0 ) {
+						$args[ $tally_key ] = $tally_value;
+					}
 				}
 				$response['redirect'] = add_query_arg( $args, admin_url( 'admin.php' ) );
 			}
@@ -977,6 +1028,16 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			if ( 'delete' === $phase ) {
 				return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'ec_store'" );
 			}
+			if ( 'fix-product-pages' === $job ) {
+				/* 6.0.4: the products the scan reads ( a few may turn out fine ). */
+				return (int) $wpdb->get_var(
+					"SELECT COUNT( DISTINCT p.product_id ) FROM ec_product p
+					LEFT JOIN {$wpdb->posts} wp ON wp.ID = p.post_id
+					LEFT JOIN {$wpdb->postmeta} mt ON mt.post_id = p.post_id AND mt.meta_key = '_wpec_entity_type'
+					LEFT JOIN {$wpdb->postmeta} mi ON mi.post_id = p.post_id AND mi.meta_key = '_wpec_entity_id'
+					WHERE p.post_id > 0 AND ( " . self::product_page_candidate_sql() . ' )' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL.
+				);
+			}
 			$map = $this->entity_map();
 			if ( ! isset( $map[ $phase ] ) ) {
 				return 0;
@@ -1000,6 +1061,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			switch ( $job ) {
 				case 'fix-product-permalinks':
 					return $this->step_fix_product_permalinks( (int) $cursor, $deadline );
+				case 'fix-product-pages':
+					return $this->step_fix_product_pages( (int) $cursor, $deadline );
 				case 'fix-category-permalinks':
 					return $this->step_fix_category_permalinks( (int) $cursor, $deadline );
 				case 'fix-post-tags':
@@ -1041,19 +1104,116 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		 * Step: relink / recreate product posts and correct their status, 200 products per call.
 		 *
 		 * @since 6.0.0
+		 * @since 6.0.4 Through repair_product_post(): a link to a post that is not the product's own is never written to,
+		 *              and the product's page is found again before a new one is made.
 		 */
 		private function step_fix_product_permalinks( $last_id, $deadline ) {
 			global $wpdb;
 			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT activate_in_store, post_id, title, product_id, model_number FROM ec_product WHERE product_id > %d ORDER BY product_id LIMIT %d', $last_id, self::JOB_BATCH ) );
 			$count = 0;
-			$links = 0;
+			$tally = array( 'links' => 0, 'fixed' => 0, 'created' => 0 );
 			$next = $last_id;
 			foreach ( (array) $rows as $product ) {
-				$target_status = $product->activate_in_store ? 'publish' : 'private';
-				$verified_id = wp_easycart_post_sync()->resolve(
+				$this->tally_product_repair( $tally, $this->repair_product_post( $product ) );
+				$next = (int) $product->product_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
+				}
+			}
+			return array_merge( $this->batch_result( $rows, $count, $next ), $tally );
+		}
+
+		/**
+		 * Step: link the products scan_product_pages() finds to their own store pages, 200 at a time.
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param int   $last_id  Last product id handled.
+		 * @param float $deadline microtime() to stop at.
+		 * @return array
+		 */
+		private function step_fix_product_pages( $last_id, $deadline ) {
+			$scan    = $this->scan_product_pages( $last_id, self::JOB_BATCH );
+			$count   = 0;
+			$next    = $last_id;
+			$stopped = false;
+			$tally   = array( 'links' => 0, 'fixed' => 0, 'created' => 0 );
+			foreach ( $scan['ids'] as $product_id ) {
+				if ( isset( $scan['problems'][ $product_id ] ) ) {
+					$this->tally_product_repair( $tally, $this->repair_product_post( $scan['problems'][ $product_id ] ) );
+				}
+				$next = $product_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					$stopped = true;
+					break;
+				}
+			}
+			return array_merge(
+				array(
+					'next'       => $next,
+					'count'      => $count,
+					'phase_done' => ( ! $stopped && $scan['rows'] < self::JOB_BATCH ),
+				),
+				$tally
+			);
+		}
+
+		/**
+		 * Add one repair_product_post() answer to a job's counts.
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param array $tally  links, fixed, created.
+		 * @param array $repair The answer.
+		 */
+		private function tally_product_repair( &$tally, $repair ) {
+			if ( ! empty( $repair['link'] ) ) {
+				$tally['links']++;
+			}
+			if ( in_array( $repair['how'], array( 'relinked', 'mended', 'created' ), true ) ) {
+				$tally['fixed']++;
+			}
+			if ( 'created' === $repair['how'] ) {
+				$tally['created']++;
+			}
+		}
+
+		/**
+		 * 6.0.4: the one rule both product page tools follow for one product. Never writes to a post the stored link points
+		 * at unless it is the product's own: a products CSV import in WP EasyCart 6.0.3 gave new products their first
+		 * category's number as post_id, which on a store could be a menu item, a page, an image or another item's page.
+		 * Order: the stored page when it is proven the product's; its page found again by tag or shortcode ( resolve() );
+		 * the page that import made for it ( find_imported_product_post() ); the stored page when it is a product page only
+		 * this product links to; else a new page. Then the page's shortcode names the product's model number, its status
+		 * follows the product and its stored link follows the store page.
+		 *
+		 * @param object $product product_id, post_id, title, model_number, activate_in_store.
+		 * @return array { post_id, how: own | relinked | mended | created | '', link: the stored link was updated }
+		 */
+		private function repair_product_post( $product ) {
+			$sync       = wp_easycart_post_sync();
+			$product_id = (int) $product->product_id;
+			$stored     = (int) $product->post_id;
+			$how        = 'own';
+			$post_id    = $sync->own_post_id( 'product', $product_id, $stored );
+			if ( ! $post_id ) {
+				$how     = 'relinked';
+				$post_id = (int) $sync->resolve( 'product', $product_id, $stored );
+			}
+			if ( ! $post_id ) {
+				$post_id = $this->find_imported_product_post( $product );
+			}
+			if ( ! $post_id ) {
+				$how     = 'own';
+				$post_id = $sync->own_post_id( 'product', $product_id, $stored, true );
+			}
+			$target_status = $product->activate_in_store ? 'publish' : 'private';
+			if ( ! $post_id ) {
+				$post_id = (int) $sync->insert(
 					'product',
-					$product->product_id,
-					$product->post_id,
+					$product_id,
 					array(
 						'post_content' => '[ec_store modelnumber="' . $product->model_number . '"]',
 						'post_status'  => $target_status,
@@ -1061,24 +1221,255 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 						'post_type'    => 'ec_store',
 					)
 				);
-				if ( $verified_id ) {
-					$current_status = get_post_status( $verified_id );
-					if ( $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
-						wp_easycart_post_sync()->set_status( 'product', $product->product_id, $verified_id, $target_status );
-					}
-					if ( $this->refresh_post_link( $verified_id ) ) {
-						$links++; /* 6.0.2 */
-					}
+				$how = $post_id ? 'created' : '';
+			}
+			$link = false;
+			if ( $post_id ) {
+				if ( $this->fix_product_shortcode( $post_id, $product->model_number ) && 'own' === $how ) {
+					$how = 'mended';
 				}
-				$next = (int) $product->product_id;
-				$count++;
-				if ( microtime( true ) > $deadline ) {
-					break;
+				$current_status = get_post_status( $post_id );
+				if ( $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
+					$sync->set_status( 'product', $product_id, $post_id, $target_status );
+				}
+				$link = $this->refresh_post_link( $post_id ); /* 6.0.2 */
+			}
+			if ( 'own' !== $how ) {
+				ec_db::product_cache_changed();
+			}
+			return array( 'post_id' => $post_id, 'how' => $how, 'link' => $link );
+		}
+
+		/**
+		 * 6.0.4: the page the products CSV import made for a product whose model number had punctuation: the import wrote
+		 * the cell as it was into the page's shortcode and the model number without it, so the page never matched its
+		 * product. Found by the product's title and, with the same punctuation taken out, its model number; only a store
+		 * page no other item links to and no tag gives to another. The page is tagged and linked.
+		 *
+		 * @param object $product product_id, title, model_number.
+		 * @return int
+		 */
+		private function find_imported_product_post( $product ) {
+			global $wpdb;
+			$model = (string) $product->model_number;
+			if ( '' === $model ) {
+				return 0;
+			}
+			$candidates = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_type = 'ec_store' AND post_title = %s AND post_content LIKE %s ORDER BY ID LIMIT 20",
+					wp_easycart_language()->convert_text( $product->title ),
+					'%' . $wpdb->esc_like( 'modelnumber=' ) . '%'
+				)
+			);
+			$chars = "!@#$%^&*()+={}[]|\'\";:,<.>/?`~*"; /* the importer's model number rule ( wp_easycart_admin_products::import_value() ) */
+			foreach ( (array) $candidates as $candidate ) {
+				if ( ! preg_match( '/\[ec_store\b[^\]]*\bmodelnumber\s*=\s*(["\'])(.*?)\1/i', (string) $candidate->post_content, $match ) ) {
+					continue;
+				}
+				if ( preg_replace( '/[' . preg_quote( $chars, '/' ) . ']/', '', $match[2] ) !== $model ) {
+					continue;
+				}
+				$post_id = (int) $candidate->ID;
+				$tagged  = get_post_meta( $post_id, WP_EasyCart_Post_Sync::META_TYPE, true );
+				if ( $tagged && ( 'product' !== $tagged || (int) get_post_meta( $post_id, WP_EasyCart_Post_Sync::META_ID, true ) !== (int) $product->product_id ) ) {
+					continue;
+				}
+				if ( wp_easycart_post_sync()->claimed_by_other( $post_id, 'product', $product->product_id ) ) {
+					continue;
+				}
+				wp_easycart_post_sync()->tag_post( $post_id, 'product', $product->product_id );
+				$wpdb->update( 'ec_product', array( 'post_id' => $post_id ), array( 'product_id' => (int) $product->product_id ) );
+				return $post_id;
+			}
+			return 0;
+		}
+
+		/**
+		 * 6.0.4: make a product's store page name its model number ( its shortcode is what the page shows ). Only the
+		 * shortcode's modelnumber is changed; a page with no product shortcode gets one in front of what it holds.
+		 *
+		 * @param int    $post_id      The product's own store page.
+		 * @param string $model_number The product's model number.
+		 * @return bool True when the page was changed.
+		 */
+		private function fix_product_shortcode( $post_id, $model_number ) {
+			global $wpdb;
+			$model_number = (string) $model_number;
+			$content      = $wpdb->get_var( $wpdb->prepare( "SELECT post_content FROM {$wpdb->posts} WHERE ID = %d AND post_type = 'ec_store'", (int) $post_id ) );
+			if ( null === $content || '' === $model_number || self::content_names_model( $content, $model_number ) ) {
+				return false;
+			}
+			$pattern = '/(\[ec_store\b[^\]]*\bmodelnumber\s*=\s*)(["\'])(.*?)\2/i';
+			if ( preg_match( $pattern, $content ) ) {
+				$updated = preg_replace_callback(
+					$pattern,
+					function ( $match ) use ( $model_number ) {
+						return $match[1] . '"' . $model_number . '"';
+					},
+					$content,
+					1
+				);
+			} else {
+				$updated = '[ec_store modelnumber="' . $model_number . '"]' . ( '' !== trim( $content ) ? "\n" . $content : '' );
+			}
+			if ( ! is_string( $updated ) || $updated === $content ) {
+				return false;
+			}
+			$wpdb->update( $wpdb->posts, array( 'post_content' => $updated ), array( 'ID' => (int) $post_id ) );
+			clean_post_cache( (int) $post_id );
+			return true;
+		}
+
+		/**
+		 * A store page's content names this model number in an ec_store shortcode ( the post sync class's fingerprint:
+		 * any case, either quote, spaces around = ).
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param string $content      Post content.
+		 * @param string $model_number Model number.
+		 * @return bool
+		 */
+		private static function content_names_model( $content, $model_number ) {
+			if ( '' === (string) $model_number ) {
+				return false;
+			}
+			return (bool) preg_match( '/\[ec_store\s+[^\]]*modelnumber\s*=\s*["\']' . preg_quote( (string) $model_number, '/' ) . '["\']/i', (string) $content );
+		}
+
+		/**
+		 * The SQL that picks products whose link may not be their own store page ( aliases p = ec_product, wp = the post,
+		 * mt / mi = its tag ): no post, a post of another type, a tag for another item, or an untagged page without the
+		 * product's shortcode by a byte compare ( CONVERT … USING binary: the tables' collations may differ, and a mix
+		 * would stop the query ). PHP confirms each one ( product_page_reason() ).
+		 *
+		 * @since 6.0.4
+		 *
+		 * @return string
+		 */
+		private static function product_page_candidate_sql() {
+			return "wp.ID IS NULL
+				OR wp.post_type <> 'ec_store'
+				OR ( mt.meta_value IS NOT NULL AND ( mt.meta_value <> 'product' OR mi.meta_value IS NULL OR CAST( mi.meta_value AS UNSIGNED ) <> p.product_id ) )
+				OR ( mt.meta_value IS NULL AND LOCATE( CONCAT( 'modelnumber=\"', CONVERT( p.model_number USING binary ), '\"' ), CONVERT( wp.post_content USING binary ) ) = 0 )";
+		}
+
+		/**
+		 * 6.0.4: products whose stored link ( ec_product.post_id ) is not their own store page.
+		 *
+		 * @param int $after Products with a higher id.
+		 * @param int $limit Rows to read ( 0 = all ).
+		 * @return array { rows: rows read, ids: product ids read ( ascending ), problems: product_id => row with reason }
+		 */
+		public function scan_product_pages( $after = 0, $limit = 0 ) {
+			global $wpdb;
+			$sql = "SELECT p.product_id, p.title, p.model_number, p.post_id, p.activate_in_store, wp.ID AS found_id, wp.post_type, wp.post_title, SUBSTRING( wp.post_content, 1, 2000 ) AS post_content, mt.meta_value AS meta_type, mi.meta_value AS meta_id
+				FROM ec_product p
+				LEFT JOIN {$wpdb->posts} wp ON wp.ID = p.post_id
+				LEFT JOIN {$wpdb->postmeta} mt ON mt.post_id = p.post_id AND mt.meta_key = '_wpec_entity_type'
+				LEFT JOIN {$wpdb->postmeta} mi ON mi.post_id = p.post_id AND mi.meta_key = '_wpec_entity_id'
+				WHERE p.post_id > 0 AND p.product_id > %d AND ( " . self::product_page_candidate_sql() . ' )
+				ORDER BY p.product_id';
+			if ( $limit > 0 ) {
+				$rows = $wpdb->get_results( $wpdb->prepare( $sql . ' LIMIT %d', (int) $after, (int) $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL; the values are placeholders.
+			} else {
+				$rows = $wpdb->get_results( $wpdb->prepare( $sql, (int) $after ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL; the values are placeholders.
+			}
+			$rows   = is_array( $rows ) ? $rows : array();
+			$answer = array( 'rows' => count( $rows ), 'ids' => array(), 'problems' => array() );
+			foreach ( $rows as $row ) {
+				$product_id = (int) $row->product_id;
+				if ( isset( $answer['ids'][ $product_id ] ) ) {
+					continue; /* a page with two tags of one kind reads twice */
+				}
+				$answer['ids'][ $product_id ] = $product_id;
+				$reason = $this->product_page_reason( $row );
+				if ( '' !== $reason ) {
+					$row->reason = $reason;
+					unset( $row->post_content );
+					$answer['problems'][ $product_id ] = $row;
 				}
 			}
-			$result = $this->batch_result( $rows, $count, $next );
-			$result['links'] = $links;
-			return $result;
+			$answer['ids'] = array_values( $answer['ids'] );
+			return $answer;
+		}
+
+		/**
+		 * Why a candidate row is not the product's own page, or '' when it is after all.
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param object $row A scan_product_pages() row.
+		 * @return string missing | other_post | other_item | shortcode | ''
+		 */
+		private function product_page_reason( $row ) {
+			if ( null === $row->found_id ) {
+				return 'missing';
+			}
+			if ( 'ec_store' !== $row->post_type ) {
+				return 'other_post';
+			}
+			if ( null !== $row->meta_type && '' !== (string) $row->meta_type ) {
+				return ( 'product' === $row->meta_type && (int) $row->meta_id === (int) $row->product_id ) ? '' : 'other_item';
+			}
+			if ( self::content_names_model( $row->post_content, $row->model_number ) ) {
+				return '';
+			}
+			return wp_easycart_post_sync()->claimed_by_other( $row->post_id, 'product', $row->product_id ) ? 'other_item' : 'shortcode';
+		}
+
+		/**
+		 * 6.0.4: the Diagnostics check. Read once per request.
+		 *
+		 * @return array { count, rows: up to five problem rows }
+		 */
+		public function product_page_problems() {
+			static $answer = null;
+			if ( null === $answer ) {
+				$scan   = $this->scan_product_pages();
+				$answer = array(
+					'count' => count( $scan['problems'] ),
+					'rows'  => array_slice( array_values( $scan['problems'] ), 0, 5 ),
+				);
+			}
+			return $answer;
+		}
+
+		/**
+		 * One problem row in words: the product, then what its link points at.
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param object $row A product_page_problems() row.
+		 * @return string Plain text.
+		 */
+		public function product_page_text( $row ) {
+			$product = ( '' !== (string) $row->model_number )
+				/* translators: 1: product title, 2: model number. */
+				? sprintf( __( '“%1$s” (%2$s)', 'wp-easycart' ), wp_strip_all_tags( wp_easycart_language()->convert_text( $row->title ) ), $row->model_number )
+				/* translators: %s: product title. */
+				: sprintf( __( '“%s”', 'wp-easycart' ), wp_strip_all_tags( wp_easycart_language()->convert_text( $row->title ) ) );
+			switch ( $row->reason ) {
+				case 'missing':
+					/* translators: 1: the product, 2: post ID. */
+					return sprintf( __( '%1$s is linked to a page that no longer exists (ID %2$d).', 'wp-easycart' ), $product, (int) $row->post_id );
+				case 'other_post':
+					$type  = get_post_type_object( $row->post_type );
+					$label = ( $type && isset( $type->labels->singular_name ) ) ? $type->labels->singular_name : $row->post_type;
+					$title = trim( wp_strip_all_tags( (string) $row->post_title ) );
+					if ( '' !== $title ) {
+						/* translators: 1: the product, 2: what the post is, e.g. Navigation Menu Item, Page or Media, 3: its title, 4: post ID. */
+						return sprintf( __( '%1$s is linked to %2$s “%3$s” (ID %4$d) instead of its product page.', 'wp-easycart' ), $product, $label, $title, (int) $row->post_id );
+					}
+					/* translators: 1: the product, 2: what the post is, e.g. Navigation Menu Item, Page or Media, 3: post ID. */
+					return sprintf( __( '%1$s is linked to %2$s ID %3$d instead of its product page.', 'wp-easycart' ), $product, $label, (int) $row->post_id );
+				case 'other_item':
+					/* translators: 1: the product, 2: post ID. */
+					return sprintf( __( '%1$s is linked to the store page of another product, category or brand (ID %2$d).', 'wp-easycart' ), $product, (int) $row->post_id );
+			}
+			/* translators: 1: the product, 2: post ID. */
+			return sprintf( __( '%1$s has a product page (ID %2$d) that shows another model number.', 'wp-easycart' ), $product, (int) $row->post_id );
 		}
 
 		/**
@@ -1219,6 +1610,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$wpdb->query( 'UPDATE ec_menulevel3 SET ec_menulevel3.post_id = 0' );
 				$wpdb->query( 'UPDATE ec_category SET ec_category.post_id = 0' );
 				$wpdb->query( 'UPDATE ec_manufacturer SET ec_manufacturer.post_id = 0' );
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the cached category rows named the pages just deleted */
 			}
 			return $result;
 		}
@@ -2450,7 +2842,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			$live  = (string) get_option( 'ec_option_payment_process_method' );
 			$tests = array(
-				'stripe'              => ( 0 === strpos( (string) get_option( 'ec_option_stripe_api_key' ), 'sk_test' ) || 0 === strpos( (string) get_option( 'ec_option_stripe_public_api_key' ), 'pk_test' ) ),
+				'stripe'              => class_exists( 'wp_easycart_stripe_mode' ) ? ( wp_easycart_stripe_mode::TEST === wp_easycart_stripe_mode::store_mode( 'stripe' ) ) : ( 0 === strpos( (string) get_option( 'ec_option_stripe_api_key' ), 'sk_test' ) || 0 === strpos( (string) get_option( 'ec_option_stripe_public_api_key' ), 'pk_test' ) ),
 				'stripe_connect'      => (bool) get_option( 'ec_option_stripe_connect_use_sandbox' ),
 				'square'              => (bool) get_option( 'ec_option_square_is_sandbox' ),
 				'braintree'           => ( 'sandbox' === (string) get_option( 'ec_option_braintree_environment' ) ),

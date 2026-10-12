@@ -462,7 +462,8 @@ class ec_orderdisplay {
 	}
 
 	public function display_order_giftcard( ){
-		echo esc_attr( $this->giftcard_id );	
+		/* 6.0.4: as the store names the card ( wp_easycart_giftcard_label(): a Square gift card shows only its last four digits ). */
+		echo esc_html( function_exists( 'wp_easycart_giftcard_label' ) ? wp_easycart_giftcard_label( $this->giftcard_id ) : $this->giftcard_id );
 	}
 
 	public function has_tracking_number( ){
@@ -646,6 +647,48 @@ class ec_orderdisplay {
 
 	public function display_order_link( $link_text ){
 		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\">" . esc_attr( $link_text ) . "</a>";
+	}
+
+	/**
+	 * The colour of the order's status badge in My Account ( 6.0.4 ): waiting ( not paid yet ), paid, done ( shipped, delivered or
+	 * picked up ), refunded ( fully or partly ) or closed ( cancelled or a failed payment ).
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public function account_tone() {
+		$status = (int) $this->orderstatus_id;
+		if ( 16 === $status || 17 === $status ) {
+			$tone = 'refunded';
+		} else if ( in_array( $status, array( 7, 9, 19 ), true ) ) {
+			$tone = 'closed';
+		} else if ( ! $this->is_approved ) {
+			$tone = 'waiting';
+		} else if ( class_exists( 'wp_easycart_shipments' ) && method_exists( 'wp_easycart_shipments', 'is_fulfilled_status' ) && wp_easycart_shipments::is_fulfilled_status( $status ) ) {
+			$tone = 'done';
+		} else {
+			$tone = 'paid';
+		}
+		/**
+		 * The colour of an order's status badge in My Account.
+		 *
+		 * @since 6.0.4
+		 * @param string          $tone  waiting | paid | done | refunded | closed.
+		 * @param ec_orderdisplay $order The order.
+		 */
+		return (string) apply_filters( 'wp_easycart_account_order_tone', $tone, $this );
+	}
+
+	/**
+	 * The order's status as My Account words it, as text.
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public function account_status_text() {
+		ob_start();
+		$this->display_order_status();
+		return trim( html_entity_decode( wp_strip_all_tags( (string) ob_get_clean() ), ENT_QUOTES, 'UTF-8' ) );
 	}
 
 	/**
@@ -1359,12 +1402,25 @@ class ec_orderdisplay {
 		}
 	}
 
-	public function send_gift_cards() {
+	/**
+	 * Email each gift card the order sold to its recipient ( and a copy to the store ).
+	 *
+	 * @since 6.0.4 $only, and a line still waiting for its card is skipped.
+	 * @param int[]|null $only Order lines ( orderdetail_id ) to send; null = every gift card line.
+	 */
+	public function send_gift_cards( $only = null ) {
 		foreach ( $this->cart->cart as $cart_item ) {
 			if ( $cart_item->is_giftcard ) {
-				global $wpdb;
-				$cart_item->gift_card_value = $cart_item->unit_price;
-				$cart_item->gift_card_value = $wpdb->get_var( $wpdb->prepare( "SELECT amount FROM ec_giftcard WHERE giftcard_id = %s", $cart_item->giftcard_id ) );
+				/* 6.0.4: a card another issuer makes once the order is paid ( WP EasyCart PRO's Square gift cards ) has no number yet:
+				   its email goes when it is made. */
+				if ( '' === trim( (string) $cart_item->giftcard_id ) || '0' === (string) $cart_item->giftcard_id ) {
+					continue;
+				}
+				if ( is_array( $only ) && ! in_array( (int) ( isset( $cart_item->orderdetail_id ) ? $cart_item->orderdetail_id : 0 ), array_map( 'intval', $only ), true ) ) {
+					continue;
+				}
+				/* 6.0.4: the card's balance, or the line's value for a card WP EasyCart does not hold ( a Square gift card ). */
+				$cart_item->gift_card_value = function_exists( 'wp_easycart_gift_card_value' ) ? wp_easycart_gift_card_value( $cart_item->giftcard_id, $cart_item->unit_price ) : $cart_item->unit_price;
 
 				$store_page = $this->store_page;
 				$email_logo_url = get_option( 'ec_option_email_logo' );

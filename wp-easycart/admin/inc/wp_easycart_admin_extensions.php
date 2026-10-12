@@ -1783,10 +1783,35 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			$out   = array();
 			foreach ( (array) $items as $item ) {
 				if ( is_array( $item ) && ! empty( $item['label'] ) && ! empty( $item['url'] ) ) {
-					$out[] = wp_parse_args( $item, array( 'current' => false ) );
+					$out[] = array( count( $out ), self::nav_sort_key( $item['label'] ), wp_parse_args( $item, array( 'current' => false ) ) );
 				}
 			}
-			return $out;
+			/* 6.0.4: alphabetical by label ( extensions add their entries in the order they load, which was hard to scan with many
+			   installed ). Case and accents ignored, numbers in natural order; entries with the same label keep their order. */
+			usort(
+				$out,
+				function ( $a, $b ) {
+					$cmp = strnatcasecmp( $a[1], $b[1] );
+					return ( 0 !== $cmp ) ? $cmp : $a[0] - $b[0];
+				}
+			);
+			$sorted = array();
+			foreach ( $out as $row ) {
+				$sorted[] = $row[2];
+			}
+			return $sorted;
+		}
+
+		/**
+		 * The text a left nav label sorts by: no tags, no accents.
+		 *
+		 * @since 6.0.4
+		 * @param string $label Entry label.
+		 * @return string
+		 */
+		private static function nav_sort_key( $label ) {
+			$key = trim( wp_strip_all_tags( (string) $label ) );
+			return function_exists( 'remove_accents' ) ? remove_accents( $key ) : $key;
 		}
 
 		/* ------------------------------------------------------------------ */

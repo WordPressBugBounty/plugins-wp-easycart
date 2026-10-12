@@ -30,12 +30,19 @@ foreach ( $ec_sub_payments as $ec_sub_payment ) {
 	$ec_sub_order_ids[] = (int) $ec_sub_payment->order_id;
 }
 $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
+/* 6.0.4: across the page's width under breadcrumbs ( they replace the back link ), no account menu ( .ec_account_details_v2 ); an Elementor account widget keeps the older markup. */
+$ec_account_modern = $this->account_modern();
 ?>
-<section class="ec_account_page ec_account_subscription_v2 ec_account_subscription_status_<?php echo esc_attr( $ec_sub_status ); ?>" id="ec_account_subscription_details">
+<section class="ec_account_page ec_account_subscription_v2 ec_account_subscription_status_<?php echo esc_attr( $ec_sub_status ); ?><?php echo ( $ec_account_modern ) ? ' ec_account_v2 ec_account_details_v2' : ''; ?>" id="ec_account_subscription_details">
+	<?php if ( $ec_account_modern ) { ?>
+	<div class="ec_account_left ec_account_main_v2">
+	<?php $this->display_account_crumbs( $this->account_crumb_trail( 'subscription_details', wp_strip_all_tags( $ec_sub_title ) ) ); ?>
+	<?php } else { ?>
 
 	<div class="ec_account_subscription_v2_back">
 		<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'subscriptions' ) ); ?>">&larr; <?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_back', 'Back to subscriptions' ) ); ?></a>
 	</div>
+	<?php } ?>
 
 	<?php do_action( 'wpeasycart_account_subscription_details_before', $ec_sub ); ?>
 
@@ -240,17 +247,11 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 					<div id="ec_card_errors" class="ec_account_subscription_v2_field_error" role="alert"></div>
 				</div>
 
-				<div id="stripe-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-					<style>
-					@keyframes rotation{
-						0%  { transform:rotate(0deg); }
-						100%{ transform:rotate(359deg); }
-					}
-					</style>
-					<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; max-width: 90%; top: 50%; left: 50%; position: absolute; transform: translate( -50%, -50% ); cursor: pointer; text-align: center;'>
-						<div class="paypal-checkout-loader">
-							<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-						</div>
+				<?php /* 6.0.4: the busy card the checkout and the subscription page show ( .wpec-busy in ec-store.css ), in place of the 2015 dark cover; the position stays inline for store copies of ec-store.css from before it. */ ?>
+				<div id="stripe-success-cover" class="wpec-busy ec_account_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+					<div class="wpec-busy-card" role="status" aria-live="polite">
+						<span class="wpec-busy-spinner" aria-hidden="true"></span>
+						<span class="wpec-busy-status"><?php echo esc_html( function_exists( 'wp_easycart_checkout_wait_text' ) ? wp_easycart_checkout_wait_text( 'saving' ) : '' ); ?></span>
 					</div>
 				</div>
 				<script><?php
@@ -428,6 +429,9 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 	</div>
 
 	<?php do_action( 'wpeasycart_account_subscription_details_after', $ec_sub ); ?>
+	<?php if ( $ec_account_modern ) { ?>
+	</div>
+	<?php } ?>
 </section>
 
 <div style="clear:both;"></div>

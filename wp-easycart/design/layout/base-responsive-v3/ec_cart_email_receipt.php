@@ -422,7 +422,7 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 
 	/* Gift card print link / download link */
 	$ec_receipt_show_link = ! empty( $ec_receipt_item->is_giftcard ) || ( ! empty( $ec_receipt_item->is_download ) && $advanced_option_allow_download );
-	if ( $ec_receipt_show_link && ! empty( $ec_receipt_item->is_giftcard ) && $this->is_approved ) {
+	if ( $ec_receipt_show_link && ! empty( $ec_receipt_item->is_giftcard ) && '' !== trim( (string) $ec_receipt_item->giftcard_id ) && $this->is_approved ) { /* 6.0.4: no number yet = a Square gift card still being made */
 		$ed::detail( '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $ec_receipt_item->orderdetail_id . '&giftcard_id=' . $ec_receipt_item->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . wp_kses_post( $ec_receipt_lang->get_text( 'account_order_details', 'account_orders_details_print_online' ) ) . '</a>', array( 'style' => 'padding-top:4px;' ) ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual, WordPress.PHP.YodaConditions.NotYoda -- gift card URL built exactly as before; guest_key may be null on older orders.
 	} elseif ( $ec_receipt_show_link && ! empty( $ec_receipt_item->is_download ) ) {
 		$ed::detail( '<a href="' . esc_url( $ec_receipt_orders_url ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . wp_kses_post( $ec_receipt_lang->get_text( 'account_order_details', 'account_orders_details_download' ) ) . '</a>', array( 'style' => 'padding-top:4px;' ) );

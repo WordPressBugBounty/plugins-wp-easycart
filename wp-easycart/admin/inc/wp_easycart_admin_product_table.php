@@ -11,6 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/* 6.0.4: the Product type filter reads the editor's types. */
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_types.php' );
+
 if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 	class wp_easycart_admin_product_table extends wp_easycart_admin_table_v2 {
@@ -41,6 +44,14 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			'model_number'      => array( 'label' => 'SKU / Model Number', 'check' => 'not_empty' ),
 			'category_count'    => array( 'label' => 'Category Assigned',  'check' => 'greater_zero' ),
 		);
+
+		/**
+		 * The Product type filter's index ( its name in the address, filter_6 ): after the six older filters, so their
+		 * links keep working. The drawer shows it before Category.
+		 *
+		 * @since 6.0.4
+		 */
+		const TYPE_FILTER = 6;
 
 		private $health_data = array();
 		private $view_url_cache = array();
@@ -124,6 +135,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$this->set_header( __( 'Manage Products', 'wp-easycart' ) );
 			$this->set_importer( true, __( 'Import Products', 'wp-easycart' ) );
 			$this->set_docs_link( 'products', 'products' );
+			/* Add product opens the Quick add panel ( Matt 2026-10-10: one Add product button, never the editor on a draft ). */
+			$this->set_add_new( true, 'add-new', __( 'Add product', 'wp-easycart' ) );
 			$this->set_add_new_js( 'wp_easycart_admin_open_slideout( \'new_product_box\' ); return false;' );
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
 			$this->set_label( __( 'Product', 'wp-easycart' ), __( 'Products', 'wp-easycart' ) );
@@ -246,8 +259,19 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				$manufacturer_list[] = (object) $manufacturer_option;
 			}
 
+			/* The type filter's pill counts are kept with the health tiles' ( one cached query ). */
+			$this->compute_health_data();
+
+			/*
+			 * A filter's place in this list is its name in the address ( filter_N ), which links from the category,
+			 * manufacturer and delete screens carry: add new filters at the end and place them in the drawer with
+			 * set_filter_order(). 'key' names each one for get_filter_callback_where() and the drawer order ( 6.0.4: the
+			 * callbacks went by the label, which a translated admin changes, so Stock, Price Range and Completeness did
+			 * nothing in German, Spanish, Italian … ).
+			 */
 			$filters = array(
 				array(
+					'key'   => 'status',
 					'data' => array(
 						(object) array( 'value' => '1', 'label' => __( 'Active', 'wp-easycart' ), 'icon' => 'visibility' ),
 						(object) array( 'value' => '0', 'label' => __( 'Inactive', 'wp-easycart' ), 'icon' => 'hidden' ),
@@ -257,6 +281,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where' => 'ec_product.activate_in_store = %d',
 				),
 				array(
+					'key'   => 'stock',
 					'data' => array(
 						(object) array( 'value' => 'instock', 'label' => __( 'In Stock', 'wp-easycart' ), 'icon' => 'yes-alt' ),
 						(object) array( 'value' => 'low', 'label' => __( 'Low Stock', 'wp-easycart' ), 'icon' => 'warning' ),
@@ -267,6 +292,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where_callback' => true,
 				),
 				array(
+					'key'   => 'category',
 					'data' => $category_list,
 					'label' => __( 'Category', 'wp-easycart' ),
 					'type'  => 'select',
@@ -281,6 +307,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where' => 'ec_categoryitem.category_id = %d',
 				),
 				array(
+					'key'   => 'manufacturer',
 					'data' => $manufacturer_list,
 					'label' => __( 'Manufacturer', 'wp-easycart' ),
 					'type'  => 'select',
@@ -288,6 +315,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where' => 'ec_product.manufacturer_id = %d',
 				),
 				array(
+					'key'   => 'price',
 					'data' => array(),
 					'label' => __( 'Price Range', 'wp-easycart' ),
 					'type'  => 'range',
@@ -296,6 +324,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where_callback' => true,
 				),
 				array(
+					'key'   => 'completeness',
 					'data' => array(
 						(object) array( 'value' => 'complete', 'label' => __( 'Complete (85%+)', 'wp-easycart' ), 'icon' => 'yes-alt' ),
 						(object) array( 'value' => 'needs_work', 'label' => __( 'Needs Work (50–84%)', 'wp-easycart' ), 'icon' => 'warning' ),
@@ -306,10 +335,19 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'where_callback' => true,
 				),
 			);
-			$this->set_filters( apply_filters( 'wp_easycart_admin_product_list_filters', $filters ) );
+			/* 6.0.4: Product type ( filter_6 ), shown before Category. */
+			$filters[ self::TYPE_FILTER ] = array(
+				'key'            => 'product_type',
+				'data'           => $this->product_type_options( $this->filter_value( self::TYPE_FILTER ) ),
+				'label'          => __( 'Product type', 'wp-easycart' ),
+				'type'           => 'pills',
+				'where_callback' => true,
+			);
+			$filters = apply_filters( 'wp_easycart_admin_product_list_filters', $filters );
+			$this->set_filters( $filters );
+			$this->set_filter_order( $this->drawer_filter_order( $filters ) );
 
 			// Health dashboard.
-			$this->compute_health_data();
 			$health_stats = array(
 				array( 'label' => __( 'All', 'wp-easycart' ), 'value' => $this->health_data['total'], 'filter_value' => '', 'color' => 'default', 'group' => 'catalog' ),
 				array( 'label' => __( 'Active', 'wp-easycart' ), 'value' => $this->health_data['active'], 'filter_value' => 'active', 'color' => 'green', 'group' => 'catalog' ),
@@ -322,7 +360,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber', 'group' => 'attention' ),
 			);
 			/* 6.0.1: only shown while some downloadable product is missing its file. */
-			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' ) AND NOT ( is_amazon_download = 1 AND amazon_key IS NOT NULL AND amazon_key <> '' )" );
+			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' ) AND NOT ( is_amazon_download = 1 AND amazon_key IS NOT NULL AND amazon_key <> '' )" . $this->base_where() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_where() is a fixed SQL fragment.
 			if ( $download_missing > 0 ) {
 				$health_stats[] = array( 'label' => __( 'Missing download file', 'wp-easycart' ), 'value' => $download_missing, 'filter_value' => 'download_missing', 'color' => 'red', 'group' => 'attention' );
 			}
@@ -332,6 +370,69 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				) );
 			}
 			$this->set_health_stats( $health_stats );
+		}
+
+		/**
+		 * The Product type filter's pills: the types the catalog has ( the editor's words and order, with how many
+		 * products each ), and the chosen one even when no product has it any more, so its tag keeps its name.
+		 *
+		 * @since 6.0.4
+		 * @param string $selected The chosen type.
+		 * @return object[] { value, label, icon, count }
+		 */
+		private function product_type_options( $selected ) {
+			$selected = sanitize_key( $selected );
+			$types    = wp_easycart_admin_product_types::types();
+			$counts   = isset( $this->health_data['types'] ) && is_array( $this->health_data['types'] ) ? $this->health_data['types'] : array();
+			$options  = array();
+			foreach ( wp_easycart_admin_product_types::filter_keys() as $key ) {
+				$count = isset( $counts[ $key ] ) ? (int) $counts[ $key ] : 0;
+				if ( $count <= 0 && $key !== $selected ) {
+					continue;
+				}
+				$is_custom = ( 'custom' === $key );
+				$options[] = (object) array(
+					'value' => $key,
+					'label' => $is_custom ? wp_easycart_admin_product_types::custom_label() : ( isset( $types[ $key ]['label'] ) ? (string) $types[ $key ]['label'] : $key ),
+					'icon'  => $is_custom ? 'admin-generic' : ( isset( $types[ $key ]['icon'] ) ? (string) $types[ $key ]['icon'] : '' ),
+					'count' => $count,
+				);
+			}
+			return $options;
+		}
+
+		/**
+		 * The drawer's order: the filters as declared, with Product type moved to just before Category.
+		 *
+		 * @since 6.0.4
+		 * @param array $filters The list's filters, after wp_easycart_admin_product_list_filters.
+		 * @return int[] Indices, or none to keep the declared order.
+		 */
+		private function drawer_filter_order( $filters ) {
+			$order    = array();
+			$type     = null;
+			$category = null;
+			$count    = is_array( $filters ) ? count( $filters ) : 0;
+			for ( $i = 0; $i < $count; $i++ ) {
+				$key = ( isset( $filters[ $i ] ) && is_array( $filters[ $i ] ) && isset( $filters[ $i ]['key'] ) ) ? $filters[ $i ]['key'] : '';
+				if ( 'product_type' === $key ) {
+					$type = $i;
+				} elseif ( 'category' === $key ) {
+					$category = $i;
+				}
+			}
+			if ( null === $type || null === $category ) {
+				return array();
+			}
+			for ( $i = 0; $i < $count; $i++ ) {
+				if ( $i === $category ) {
+					$order[] = $type;
+				}
+				if ( $i !== $type ) {
+					$order[] = $i;
+				}
+			}
+			return $order;
 		}
 
 		public static function get_has_image_sql() {
@@ -358,9 +459,12 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$low_stock_at  = (int) self::low_stock_threshold();
 			$square_sync   = ( 'square' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_square_auto_product_sync' ) ) ? 1 : 0;
 
-			/* Serve the cached counts unless the inputs that shape them ( low stock number, Square sync ) changed. */
+			$types_sig     = wp_easycart_admin_product_types::signature();
+
+			/* Serve the cached counts unless the inputs that shape them ( low stock number, Square sync, the product types )
+			   changed. */
 			$cached = get_transient( self::HEALTH_TRANSIENT );
-			if ( is_array( $cached ) && isset( $cached['total'], $cached['_threshold'], $cached['_square'] ) && (int) $cached['_threshold'] === $low_stock_at && (int) $cached['_square'] === $square_sync ) {
+			if ( is_array( $cached ) && isset( $cached['total'], $cached['_threshold'], $cached['_square'], $cached['types'], $cached['_types'] ) && (int) $cached['_threshold'] === $low_stock_at && (int) $cached['_square'] === $square_sync && $cached['_types'] === $types_sig ) {
 				$this->health_data = $cached;
 				return;
 			}
@@ -374,14 +478,14 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				SUM(CASE WHEN NOT " . $has_image_sql . " THEN 1 ELSE 0 END) AS no_image,
 				SUM(CASE WHEN price <= 0 THEN 1 ELSE 0 END) AS zero_price,
 				SUM(CASE WHEN square_id IS NOT NULL AND square_id != '' THEN 1 ELSE 0 END) AS square_synced
-			FROM ec_product" );
+			FROM ec_product WHERE 1 = 1" . $this->base_where() );
 			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 			$incomplete_sql = "SELECT COUNT(*) FROM ec_product WHERE 
 				(title = '' OR title IS NULL OR price <= 0 OR NOT " . $has_image_sql . " OR 
 				description = '' OR description IS NULL OR short_description = '' OR short_description IS NULL OR 
 				model_number = '' OR model_number IS NULL OR 
-				(SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)";
+				(SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)" . $this->base_where();
  
 			
 			if ( $square_sync ) {
@@ -399,10 +503,13 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				'no_image'     => $row ? (int) $row->no_image : 0,
 				'zero_price'   => $row ? (int) $row->zero_price : 0,
 				'incomplete'   => (int) $incomplete,
-				'on_sale'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE list_price > 0 AND list_price > price" ),
+				'on_sale'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE list_price > 0 AND list_price > price" . $this->base_where() ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_where() is a fixed SQL fragment.
 				'square_synced' => $row ? (int) $row->square_synced : 0,
+				/* 6.0.4: products per type, for the Product type filter's pills. */
+				'types'        => wp_easycart_admin_product_types::counts( $this->base_where() ),
 				'_threshold'   => $low_stock_at,
 				'_square'      => $square_sync,
+				'_types'       => $types_sig,
 			);
 			set_transient( self::HEALTH_TRANSIENT, $this->health_data, 5 * MINUTE_IN_SECONDS );
 		}
@@ -431,6 +538,15 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		protected function get_data() {
 			parent::get_data();
 			$this->prime_variant_data();
+		}
+
+		/**
+		 * 6.0.4: unsaved new-product drafts are never listed ( wp_easycart_product_drafts ).
+		 *
+		 * @return string
+		 */
+		protected function base_where() {
+			return function_exists( 'wp_easycart_product_draft_sql' ) ? wp_easycart_product_draft_sql( 'ec_product' ) : '';
 		}
 
 		private function prime_variant_data() {
@@ -578,9 +694,26 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 
 			$filter_label = isset( $filter['label'] ) ? $filter['label'] : '';
+			/* 6.0.4: by key ( the label is translated ); a filter without one still goes by its English label. */
+			$filter_key = isset( $filter['key'] ) ? (string) $filter['key'] : '';
+			if ( '' === $filter_key ) {
+				$lower = strtolower( $filter_label );
+				if ( false !== strpos( $lower, 'stock' ) && false === strpos( $lower, 'price' ) ) {
+					$filter_key = 'stock';
+				} elseif ( false !== strpos( $lower, 'price' ) ) {
+					$filter_key = 'price';
+				} elseif ( false !== strpos( $lower, 'completeness' ) ) {
+					$filter_key = 'completeness';
+				}
+			}
+
+			// Product type filter ( 6.0.4 ).
+			if ( 'product_type' === $filter_key ) {
+				return wp_easycart_admin_product_types::where_sql( sanitize_key( $value ) );
+			}
 
 			// Stock filter.
-			if ( strpos( strtolower( $filter_label ), 'stock' ) !== false && strpos( strtolower( $filter_label ), 'price' ) === false ) {
+			if ( 'stock' === $filter_key ) {
 				$value = sanitize_key( $value );
 				switch ( $value ) {
 					case 'instock':
@@ -593,7 +726,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 
 			// Price range filter (value format: "min-max").
-			if ( strpos( strtolower( $filter_label ), 'price' ) !== false ) {
+			if ( 'price' === $filter_key ) {
 				$value = sanitize_text_field( $value );
 				$parts = explode( '-', $value, 2 );
 				$min = isset( $parts[0] ) && is_numeric( $parts[0] ) ? floatval( $parts[0] ) : null;
@@ -609,7 +742,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 
 			// Completeness filter.
-			if ( strpos( strtolower( $filter_label ), 'completeness' ) !== false ) {
+			if ( 'completeness' === $filter_key ) {
 				$value = sanitize_key( $value );
 				// Build a scoring expression: count how many of the SCORE_FIELDS pass.
 				$total_fields = count( self::SCORE_FIELDS );
@@ -1909,7 +2042,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			echo '<a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import' ) ) . '">' . esc_html__( 'From WooCommerce or Square', 'wp-easycart' ) . '</a></div></details>';
 			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-ecv2pi-open="export" title="' . esc_attr__( 'Export products to a CSV file', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> <span class="ecv2-btn-label">' . esc_html__( 'Export', 'wp-easycart' ) . '</span></button>';
 			if ( $this->add_new ) {
-				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
+				echo '<a href="' . esc_url( $this->add_new_url() ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
 			}
 			echo '</div>';
 			echo '</div>';
@@ -1921,7 +2054,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		 */
 		protected function print_empty_state() {
 			global $wpdb;
-			if ( (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product' ) > 0 ) {
+			if ( (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE 1 = 1' . wp_easycart_product_draft_sql( 'ec_product' ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- a fixed SQL fragment.
 				parent::print_empty_state();
 				return;
 			}
@@ -1930,7 +2063,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			echo '<span>' . esc_html__( 'Add your first product, or bring your catalog in from the store you use now.', 'wp-easycart' ) . '</span>';
 			echo '<span class="ecv2-empty-start-actions">';
 			if ( $this->add_new ) {
-				echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '>' . esc_html__( 'Add a product', 'wp-easycart' ) . '</a>';
+				echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $this->add_new_url() ) . '"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '>' . esc_html__( 'Add a product', 'wp-easycart' ) . '</a>';
 			}
 			echo '<a class="ecv2-btn" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import' ) ) . '">' . esc_html__( 'Import from WooCommerce or Square', 'wp-easycart' ) . '</a>';
 			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost" data-ecv2pi-open="import">' . esc_html__( 'Import a CSV file', 'wp-easycart' ) . '</button>';
@@ -2085,6 +2218,26 @@ function ecv2_is_square_active_locked( $product_id ) {
 	return ( null !== $square_id && '' !== $square_id );
 }
 
+if ( ! function_exists( 'ecv2_product_weight_value' ) ) {
+	/**
+	 * A weight typed into the products list: a number of at least 0, a decimal comma read as a point ( "1,5" ) and a
+	 * thousands comma dropped ( "1,250.5" ).
+	 *
+	 * @since 6.0.4
+	 * @param string $value Typed value.
+	 * @return string
+	 */
+	function ecv2_product_weight_value( $value ) {
+		$value = preg_replace( '/[^0-9.,]/', '', (string) $value );
+		if ( false !== strpos( $value, ',' ) && false === strpos( $value, '.' ) && 1 === substr_count( $value, ',' ) ) {
+			$value = str_replace( ',', '.', $value );
+		} else {
+			$value = str_replace( ',', '', $value );
+		}
+		return (string) round( max( 0, (float) $value ), 3 );
+	}
+}
+
 add_action( 'wp_ajax_ecv2_product_inline_update', 'ecv2_product_inline_update' );
 function ecv2_product_inline_update() {
 	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
@@ -2106,12 +2259,13 @@ function ecv2_product_inline_update() {
 		wp_send_json_error( array( 'message' => __( 'This product is synced with Square. Please make changes in your Square dashboard.', 'wp-easycart' ) ) );
 	}
 	/* 6.0.2: a field the product's managing service owns ( e.g. a fulfillment partner ) is not edited here. */
-	$wpec_lock_keys = array( 'title' => 'title', 'price' => 'price', 'list_price' => 'list_price', 'stock_quantity' => 'stock', 'model_number' => 'sku' );
+	$wpec_lock_keys = array( 'title' => 'title', 'price' => 'price', 'list_price' => 'list_price', 'stock_quantity' => 'stock', 'model_number' => 'sku', 'weight' => 'weight' );
 	if ( isset( $wpec_lock_keys[ $field ] ) && class_exists( 'wp_easycart_product_lock' ) ) {
 		wp_easycart_product_lock::refuse( $product_id, $wpec_lock_keys[ $field ] );
 	}
 
-	$allowed_fields = array( 'title', 'price', 'list_price', 'stock_quantity', 'model_number' );
+	/* 6.0.4: weight too ( the spreadsheet view lets it be edited, and was answered "Field not allowed." ). */
+	$allowed_fields = array( 'title', 'price', 'list_price', 'stock_quantity', 'model_number', 'weight' );
 	if ( ! in_array( $field, $allowed_fields, true ) ) {
 		wp_send_json_error( array( 'message' => __( 'Field not allowed.', 'wp-easycart' ) ) );
 	}
@@ -2119,12 +2273,24 @@ function ecv2_product_inline_update() {
 	global $wpdb;
 	$old_value = $wpdb->get_var( $wpdb->prepare( "SELECT `$field` FROM ec_product WHERE product_id = %d", $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $field is strictly whitelisted against $allowed_fields above.
 
+	/* 6.0.4: a product tracked per variation counts its variations' stock; its own total is never typed over. */
+	if ( 'stock_quantity' === $field && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT use_optionitem_quantity_tracking FROM ec_product WHERE product_id = %d', $product_id ) ) ) {
+		wp_send_json_error( array( 'message' => __( 'This product tracks stock for each variation. Change the stock of its variations instead.', 'wp-easycart' ) ) );
+	}
+	/* 6.0.4: the product's own page, found while the row still names its SKU ( an older page is known by its shortcode ). */
+	$own_post_id = 0;
+	if ( in_array( $field, array( 'title', 'model_number' ), true ) && function_exists( 'wp_easycart_post_sync' ) ) {
+		$own_post_id = (int) wp_easycart_post_sync()->find_own_post( 'product', $product_id, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_product WHERE product_id = %d', $product_id ) ) );
+	}
+
 	$format = '%s';
 	if ( $field === 'stock_quantity' ) {
 		$value = (int) $value;
 		$format = '%d';
 	} else if ( in_array( $field, array( 'price', 'list_price' ), true ) ) {
 		$value = wp_easycart_admin_verification()->filter_float( $value );
+	} else if ( 'weight' === $field ) {
+		$value = ecv2_product_weight_value( $value );
 	} else {
 		$value = wp_easycart_escape_html( $value );
 	}
@@ -2155,19 +2321,16 @@ function ecv2_product_inline_update() {
 			do_action( 'wpeasycart_product_deactivated', $product_id );
 		}
 	}
-	if ( 'model_number' === $field ) {
-		$linked_post_id = (int) $wpdb->get_var( $wpdb->prepare(
-			'SELECT post_id FROM ec_product WHERE product_id = %d',
-			$product_id
-		) );
-		if ( $linked_post_id > 0 ) {
-			$wpdb->query( $wpdb->prepare(
-				'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d AND post_type = %s',
-				'[ec_store modelnumber="' . $value . '"]',
-				$linked_post_id,
-				'ec_store'
-			) );
-		}
+	/* 6.0.4: the product's own page takes a new title or SKU ( its shortcode ); the raw post_id of the row was written before,
+	 * whatever post it named, and a new title never reached the page. */
+	if ( in_array( $field, array( 'title', 'model_number' ), true ) && function_exists( 'wp_easycart_admin_products' ) ) {
+		wp_easycart_admin_products()->sync_product_post( $product_id, $own_post_id );
+	}
+	/* 6.0.4: listeners hear of the change, as from the editor ( once per product and request ). */
+	if ( class_exists( 'wp_easycart_product_writer' ) ) {
+		wp_easycart_product_writer::updated( $product_id );
+	} else {
+		do_action( 'wpeasycart_product_updated', $product_id, (string) $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) ) );
 	}
 	wp_cache_flush();
 
@@ -2176,6 +2339,8 @@ function ecv2_product_inline_update() {
 		$display_value = $GLOBALS['currency']->get_currency_display( $value );
 	} else if ( in_array( $field, array( 'title', 'model_number' ), true ) ) {
 		$display_value = wp_specialchars_decode( $value, ENT_QUOTES );
+	} else if ( 'weight' === $field ) {
+		$display_value = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT weight FROM ec_product WHERE product_id = %d', $product_id ) ); /* as the spreadsheet prints it */
 	}
 
 	wp_send_json_success( array(
@@ -2256,11 +2421,16 @@ function ecv2_product_bulk_edit() {
 	$updated = 0;
 	$square_skipped_count  = 0;
 	$square_fully_skipped  = 0;
+	$variant_stock_skipped = 0;
 
 
 	foreach ( $product_ids as $pid ) {
 		$update_data = array();
 		$update_format = array();
+		$pid_row = $wpdb->get_row( $wpdb->prepare( 'SELECT price, stock_quantity, use_optionitem_quantity_tracking FROM ec_product WHERE product_id = %d', $pid ) );
+		if ( ! $pid_row ) {
+			continue;
+		}
 		$pid_is_square = ecv2_is_square_locked( $pid );
 		/* 6.0.2: price and stock the product's managing service owns ( e.g. a fulfillment partner ) are left as they are. */
 		$pid_price_locked = class_exists( 'wp_easycart_product_lock' ) && wp_easycart_product_lock::is_locked( $pid, 'price' );
@@ -2276,7 +2446,7 @@ function ecv2_product_bulk_edit() {
 		}
 		if ( ! $pid_is_square && ! $pid_price_locked && isset( $changes['price_mode'] ) && $changes['price_mode'] !== '' && isset( $changes['price_value'] ) ) {
 			$price_val = (float) $changes['price_value'];
-			$current_price = (float) $wpdb->get_var( $wpdb->prepare( "SELECT price FROM ec_product WHERE product_id = %d", $pid ) );
+			$current_price = (float) $pid_row->price;
 			switch ( sanitize_key( $changes['price_mode'] ) ) {
 				case 'set':              $update_data['price'] = $price_val; break;
 				case 'increase':         $update_data['price'] = $current_price + $price_val; break;
@@ -2289,9 +2459,16 @@ function ecv2_product_bulk_edit() {
 				$update_format[] = '%s';
 			}
 		}
-		if ( ! $pid_is_square && ! $pid_stock_locked && isset( $changes['stock_quantity_mode'] ) && $changes['stock_quantity_mode'] !== '' && isset( $changes['stock_quantity_value'] ) ) {
+		/* 6.0.4: a product tracked per variation counts its variations' stock: its total is left as it is and the product is
+		 * reported as skipped ( the edit wrote it over the variations' sum ). */
+		$pid_stock_asked = ! $pid_is_square && ! $pid_stock_locked && isset( $changes['stock_quantity_mode'] ) && '' !== $changes['stock_quantity_mode'] && isset( $changes['stock_quantity_value'] );
+		if ( $pid_stock_asked && (int) $pid_row->use_optionitem_quantity_tracking ) {
+			++$variant_stock_skipped;
+			$pid_stock_asked = false;
+		}
+		if ( $pid_stock_asked ) {
 			$stock_val = (int) $changes['stock_quantity_value'];
-			$current_stock = (int) $wpdb->get_var( $wpdb->prepare( "SELECT stock_quantity FROM ec_product WHERE product_id = %d", $pid ) );
+			$current_stock = (int) $pid_row->stock_quantity;
 			switch ( sanitize_key( $changes['stock_quantity_mode'] ) ) {
 				case 'set':      $update_data['stock_quantity'] = $stock_val; break;
 				case 'increase': $update_data['stock_quantity'] = $current_stock + $stock_val; break;
@@ -2319,6 +2496,12 @@ function ecv2_product_bulk_edit() {
 					do_action( 'wpeasycart_product_deactivated', $pid );
 				}
 			}
+			/* 6.0.4: listeners hear of each product changed, as from the editor ( once per product and request ). */
+			if ( class_exists( 'wp_easycart_product_writer' ) ) {
+				wp_easycart_product_writer::updated( $pid );
+			} else {
+				do_action( 'wpeasycart_product_updated', $pid, (string) $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $pid ) ) );
+			}
 		}
 	}
 
@@ -2330,6 +2513,7 @@ function ecv2_product_bulk_edit() {
 		'square_skipped_count'    => $square_skipped_count,
 		'square_fully_skipped'    => $square_fully_skipped,
 		'square_skipped_fields'   => $requested_square_fields,
+		'variant_stock_skipped'   => $variant_stock_skipped,
 	) );
 }
 
@@ -2399,7 +2583,7 @@ function ecv2_product_bulk_delete() {
 		do_action( 'wpeasycart_product_deleting', $pid );
 
 		if ( $post_id ) {
-			wp_easycart_post_sync()->delete( 'product', $pid, (int) $post_id );
+			wp_easycart_post_sync()->delete( 'product', $pid, (int) $post_id, true );
 		}
 
 		$ok = true;
@@ -2421,7 +2605,7 @@ function ecv2_product_bulk_delete() {
 		}
 	}
 
-	wp_cache_delete( 'wpeasycart-all-categories' );
+	wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 	wp_cache_flush();
 
 	wp_send_json_success( array(
@@ -2476,8 +2660,10 @@ function ecv2_product_bulk_set_status( $new_status ) {
 	$resolved_post_ids    = array();
 	foreach ( $rows as $row ) {
 		$resolved_product_ids[] = (int) $row->product_id;
-		if ( ! empty( $row->post_id ) ) {
-			$resolved_post_ids[] = (int) $row->post_id;
+		/* 6.0.4: only the product's own page, never a post a wrong link points at. */
+		$own_post_id = empty( $row->post_id ) ? 0 : wp_easycart_post_sync()->own_post_id( 'product', (int) $row->product_id, (int) $row->post_id, true );
+		if ( $own_post_id ) {
+			$resolved_post_ids[] = $own_post_id;
 		}
 	}
 
@@ -3789,7 +3975,7 @@ add_action( 'wp_ajax_ecv2_product_text_repair', function() {
 	$after    = isset( $_POST['after'] ) ? max( 0, (int) $_POST['after'] ) : 0;
 	$fixed    = isset( $_POST['fixed'] ) ? max( 0, (int) $_POST['fixed'] ) : 0;
 	$excerpts = isset( $_POST['excerpts'] ) ? max( 0, (int) $_POST['excerpts'] ) : 0;
-	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.product_id, p.post_id, p.description, p.short_description, p.specifications, po.post_excerpt FROM ec_product p LEFT JOIN {$wpdb->posts} po ON po.ID = p.post_id WHERE p.product_id > %d ORDER BY p.product_id ASC LIMIT %d", $after, $batch ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$wpdb->posts} is the core posts table name; the cursor and limit go through prepare().
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.product_id, p.post_id, p.description, p.short_description, p.specifications, po.post_excerpt FROM ec_product p LEFT JOIN {$wpdb->posts} po ON po.ID = p.post_id AND po.post_type = 'ec_store' WHERE p.product_id > %d ORDER BY p.product_id ASC LIMIT %d", $after, $batch ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$wpdb->posts} is the core posts table name; the cursor and limit go through prepare().
 	$rows = is_array( $rows ) ? $rows : array();
 	$last = $after;
 	foreach ( $rows as $r ) {

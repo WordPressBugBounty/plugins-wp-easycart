@@ -4243,6 +4243,53 @@ function ecodv2_stock_fix( btn, what ) {
 	return false;
 }
 
+/* 6.0.4: the Withdrawal received notice ( wp_easycart_admin_withdrawals::order_flags() ): Mark as handled. Nothing else on the
+   order changes; the answer redraws the notices ( flags_html ) and the rest of the screen. */
+function ecodv2_withdrawal_handled( btn, withdrawal_id ) {
+	var $ = jQuery;
+	if ( btn && btn.disabled ) {
+		return false;
+	}
+	var buttons = $( btn ).closest( '.ecodv2-callout' ).find( 'button' ).get();
+	buttons.forEach( function( b ) {
+		b.disabled = true;
+	} );
+	ecodv2_btn_busy( btn, true );
+	var failed = function( answer ) {
+		ecodv2_btn_busy( btn, false );
+		buttons.forEach( function( b ) {
+			b.disabled = false;
+		} );
+		ecodv2_save_toast( ( answer && answer.data && answer.data.message ) ? answer.data.message : ecodv2_t( 'withdrawal_failed', 'The withdrawal could not be marked handled. Reload the page and try again.' ), true );
+	};
+	$.ajax( {
+		url: wpeasycart_admin_ajax_object.ajax_url,
+		type: 'post',
+		dataType: 'json',
+		data: { action: 'ecv2_order_withdrawal_handled', withdrawal_id: parseInt( withdrawal_id, 10 ) || 0, order_id: $( '#order_id' ).val(), wp_easycart_nonce: $( '#wp_easycart_order_details_nonce' ).val() }
+	} ).done( function( r ) {
+		if ( ! r || ! r.success || ! r.data ) {
+			failed( r );
+			return;
+		}
+		ecodv2_refresh_apply( r.data );
+		ecodv2_save_toast( r.data.message || ecodv2_t( 'saved', 'Saved' ) );
+		ecodv2_history_refresh();
+	} ).fail( function( xhr ) {
+		failed( ecodv2_json( xhr ) );
+	} );
+	return false;
+}
+
+/* 6.0.4: the Withdrawal received notice's Refund: WP EasyCart PRO's refund window, when the page has it. */
+function ecodv2_withdrawal_refund() {
+	var pro = window.ecodv2_pro || {};
+	if ( 'function' === typeof pro.open_refund && document.getElementById( 'ec_admin_refund_button' ) ) {
+		pro.open_refund();
+	}
+	return false;
+}
+
 /* Local pickup collected ( the next step, free from 6.0.2 ): Order Picked Up through the status change. */
 function ecodv2_mark_picked_up() {
 	ecodv2_confirm( {

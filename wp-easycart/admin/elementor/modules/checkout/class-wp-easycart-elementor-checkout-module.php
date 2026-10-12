@@ -138,6 +138,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Module' ) ) :
 			add_action( 'elementor/document/before_save', array( __CLASS__, 'reset_plain_cart' ) );
 			add_filter( 'wp_easycart_cart_state', array( __CLASS__, 'cart_state' ), 10, 2 );
 			add_action( 'wpeasycart_success_page_content_middle', array( __CLASS__, 'confirmation_extras' ), 20, 2 );
+			add_filter( 'wp_easycart_success_page_summary', array( __CLASS__, 'confirmation_summary' ), 10, 2 );
 			add_filter( 'wp_easycart_settings_page_elementor', array( __CLASS__, 'settings_section' ) );
 			add_action( 'wp_ajax_wp_easycart_elementor_cart', array( __CLASS__, 'ajax_cart' ) );
 			add_action( 'wp_ajax_nopriv_wp_easycart_elementor_cart', array( __CLASS__, 'ajax_cart' ) );
@@ -1100,6 +1101,18 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Module' ) ) :
 			if ( '' !== $rows ) {
 				echo '<section class="wpec-thank-you__section wpec-thank-you__meta"><dl class="wpec-thank-you__meta-list">' . $rows . '</dl></section>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
 			}
+		}
+
+		/**
+		 * Filter wp_easycart_success_page_summary ( 6.0.4 ): the Order Confirmation widget draws its own items, totals and addresses
+		 * ( confirmation_extras() ), so the order summary WP EasyCart's confirmation page shows under the thank-you card stays off there.
+		 *
+		 * @param bool   $show  Show it.
+		 * @param object $order ec_orderdisplay.
+		 * @return bool
+		 */
+		public static function confirmation_summary( $show, $order = null ) {
+			return ( null !== self::context_settings( 'wp_easycart_thank_you' ) ) ? false : $show;
 		}
 
 		/**

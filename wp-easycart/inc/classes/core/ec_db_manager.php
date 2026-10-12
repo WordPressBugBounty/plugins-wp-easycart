@@ -225,7 +225,9 @@ class ec_db_manager {
 			if( count( $table_data ) == 3 && is_array( $table_data[1] ) && count( $table_data[1] ) == 1 && $table_data[1][0] != '' ){
 				$table_name = trim( $table_data[1][0] );
 				$table_rows_string = $table_data[2][0];
-				$table_rows_strings = explode( PHP_EOL, $table_rows_string );
+				/* 6.0.4: split on any line break. The schema's lines end in \n, and on a Windows server PHP_EOL is \r\n, so explode( PHP_EOL )
+				   left one line per table and no column was ever checked there. */
+				$table_rows_strings = preg_split( '/\r\n|\r|\n/', $table_rows_string );
 				$table_rows = array( );
 				foreach( $table_rows_strings as $table_row_string ){
 					preg_match_all( '/([a-z0-9\_]*)\s(text|[a-zA-Z\(\)\,0-9]*)(\sDEFAULT NULL|\sNOT\sNULL\s|\sNOT\sNULL|\sNULL\s|\sNULL|\s|.*)(DEFAULT.*|.*)\,/', trim( $table_row_string ), $table_row_item );
@@ -776,6 +778,10 @@ class ec_db_manager {
 				'wpeasycart_sql_6_0_3_plan_groups',
 				'wpeasycart_sql_6_0_3_plan_changes',
 				'wpeasycart_sql_6_0_3_subscription_options'
+			),
+			'6.0.4' => array(
+				'wpeasycart_sql_6_0_4_withdrawals',
+				'wpeasycart_sql_6_0_4_square_gift_cards'
 			),
 		);
 
@@ -2549,6 +2555,41 @@ class ec_db_manager {
 	}
 
 	/**
+	 * 6.0.4 withdrawals ( EC_UPGRADE_DB 124 ): ec_order_withdrawal keeps every EU withdrawal statement a shopper sends from the
+	 * withdrawal button ( Article 11a of the Consumer Rights Directive ): the order ( 0 when the order number and email typed matched
+	 * none ), who sent it, the items, when it was received and whether that was within the period, and whether the store has handled it
+	 * ( wp_easycart_withdrawals ). ec_product gains no_withdrawal ( the product switch "No right of withdrawal" ). The switch
+	 * ec_option_withdrawal_enabled starts on for a store in the EU or the EEA ( wp_easycart_withdrawals::seed_setting() ). dbDelta
+	 * adds the table and column from get_schema() too.
+	 */
+	/**
+	 * 6.0.4 Square gift cards ( no schema change ): the old "Pay with Gift Card" button of the Square checkout is gone ( a Square gift
+	 * card goes in the gift card box, WP EasyCart PRO's wp_easycart_square_giftcards_pro ), so its option, which no settings page ever
+	 * wrote, is removed.
+	 */
+	private function wpeasycart_sql_6_0_4_square_gift_cards() {
+		delete_option( 'ec_option_square_gift_cards' );
+	}
+
+	private function wpeasycart_sql_6_0_4_withdrawals() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_order_withdrawal' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_withdrawal ( withdrawal_id int(11) NOT NULL AUTO_INCREMENT, order_id int(11) NOT NULL DEFAULT '0', user_id int(11) NOT NULL DEFAULT '0', order_ref varchar(64) NOT NULL DEFAULT '', customer_name varchar(255) NOT NULL DEFAULT '', customer_email varchar(255) NOT NULL DEFAULT '', reason text NULL, note text NULL, withdrawn_lines longtext NULL, withdrawal_source varchar(20) NOT NULL DEFAULT 'page', submitted_at datetime DEFAULT NULL, deadline_at datetime DEFAULT NULL, in_time tinyint(1) DEFAULT NULL, withdrawal_status varchar(20) NOT NULL DEFAULT 'received', handled_at datetime DEFAULT NULL, handled_by int(11) NOT NULL DEFAULT '0', ack_sent_at datetime DEFAULT NULL, store_sent_at datetime DEFAULT NULL, PRIMARY KEY  (withdrawal_id), KEY order_id (order_id), KEY withdrawal_status (withdrawal_status) ) $collate;" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed DDL; $collate is the charset clause.
+			$sql_error = $wpdb->last_error;
+			if ( ! $this->table_exists( 'ec_order_withdrawal' ) ) {
+				$this->record_update_failure( '6.0.4 withdrawals: could not create ec_order_withdrawal: ' . $sql_error );
+			}
+		}
+		if ( ! $this->add_column( 'ec_product', 'no_withdrawal', "tinyint(1) NOT NULL DEFAULT '0'" ) || ( $this->table_exists( 'ec_product' ) && ! $this->column_exists( 'ec_product', 'no_withdrawal' ) ) ) {
+			$this->record_update_failure( '6.0.4 withdrawals: could not add ec_product.no_withdrawal: ' . $wpdb->last_error );
+		}
+		if ( class_exists( 'wp_easycart_withdrawals' ) ) {
+			wp_easycart_withdrawals::seed_setting();
+		}
+	}
+
+	/**
 	 * 6.0.2 payments: what each order has been paid ( amount_paid, NULL = not recorded ) and the part of its refunds that gave
 	 * back an overpayment ( overpaid_refund_total ), so an order edited after it was paid shows its balance ( see
 	 * wp_easycart_order_payments ). dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 116 ). Paid orders whose lines and
@@ -2957,6 +2998,7 @@ class ec_db_manager {
 			"ec_order_tag",
 			"ec_order_tag_item",
 			"ec_order_transaction",
+			"ec_order_withdrawal",
 			"ec_orderdetail",
 			"ec_orderstatus",
 			"ec_package",
@@ -4042,6 +4084,29 @@ CREATE TABLE ec_order_tag_item (
   KEY order_id (order_id),
   KEY tag_id (tag_id)
 ) $collate;
+CREATE TABLE ec_order_withdrawal (
+  withdrawal_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  user_id int(11) NOT NULL DEFAULT '0',
+  order_ref varchar(64) NOT NULL DEFAULT '',
+  customer_name varchar(255) NOT NULL DEFAULT '',
+  customer_email varchar(255) NOT NULL DEFAULT '',
+  reason text NULL,
+  note text NULL,
+  withdrawn_lines longtext NULL,
+  withdrawal_source varchar(20) NOT NULL DEFAULT 'page',
+  submitted_at datetime DEFAULT NULL,
+  deadline_at datetime DEFAULT NULL,
+  in_time tinyint(1) DEFAULT NULL,
+  withdrawal_status varchar(20) NOT NULL DEFAULT 'received',
+  handled_at datetime DEFAULT NULL,
+  handled_by int(11) NOT NULL DEFAULT '0',
+  ack_sent_at datetime DEFAULT NULL,
+  store_sent_at datetime DEFAULT NULL,
+  PRIMARY KEY  (withdrawal_id),
+  KEY order_id (order_id),
+  KEY withdrawal_status (withdrawal_status)
+) $collate;
 CREATE TABLE ec_orderdetail (
   orderdetail_id int(11) NOT NULL AUTO_INCREMENT,
   order_id int(11) NOT NULL DEFAULT '0',
@@ -4324,6 +4389,7 @@ CREATE TABLE ec_product (
   fulfillment_provider varchar(40) NOT NULL DEFAULT '',
   plan_tier_id int(11) NOT NULL DEFAULT '0',
   plan_interval varchar(10) NOT NULL DEFAULT '',
+  no_withdrawal tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   KEY product_model_number (model_number($max_index_length)),

@@ -667,6 +667,12 @@ if ( ! class_exists( 'wp_easycart_order_ledger' ) ) :
 			if ( function_exists( 'wp_cache_delete' ) ) {
 				wp_cache_delete( 'wpeasycart-user-list', 'wpeasycart-users' );
 			}
+			/* 6.0.4: each account's row ( ec_db::get_user() ) carries these totals ( Offers' lifetime spend conditions read them ). */
+			if ( class_exists( 'wp_easycart_cache' ) ) {
+				foreach ( $ids as $user_id ) {
+					wp_easycart_cache::forget_user( $user_id );
+				}
+			}
 		}
 
 		// ------------------------------------------------------------------

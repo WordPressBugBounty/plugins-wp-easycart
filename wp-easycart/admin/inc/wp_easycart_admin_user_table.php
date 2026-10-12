@@ -763,8 +763,7 @@ function ecv2_user_bulk_edit() {
 		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
 	}
 
-	$ids_raw = isset( $_POST['user_ids'] ) ? (array) $_POST['user_ids'] : array();
-	$ids = array_filter( array_map( 'intval', $ids_raw ) );
+	$ids = isset( $_POST['user_ids'] ) ? array_values( array_unique( array_filter( array_map( 'intval', (array) wp_unslash( $_POST['user_ids'] ) ) ) ) ) : array();
 	if ( empty( $ids ) ) {
 		wp_send_json_error( array( 'message' => __( 'No customers selected.', 'wp-easycart' ) ) );
 	}
@@ -801,7 +800,15 @@ function ecv2_user_bulk_edit() {
 
 	$data = apply_filters( 'wp_easycart_admin_user_bulk_edit_data', $data, $_POST ); // PRO adds its fields (validated in PRO).
 
-	if ( empty( $data ) ) {
+	/*
+	 * 6.0.4: changes an extension saved itself, outside ec_user ( WP EasyCart PRO's Add tag writes ec_user_to_tag in the
+	 * filter above ). It answers the ids of the accounts it changed, so a tag-only edit is no longer "No changes selected"
+	 * and those accounts get the update hook too. An older PRO never answers: a tag-only edit then reads as before.
+	 */
+	$handled = apply_filters( 'wp_easycart_admin_user_bulk_edit_handled', array(), $ids, $_POST );
+	$handled = is_array( $handled ) ? array_values( array_intersect( $ids, array_map( 'intval', $handled ) ) ) : array();
+
+	if ( empty( $data ) && empty( $handled ) ) {
 		wp_send_json_error( array( 'message' => __( 'No changes selected.', 'wp-easycart' ) ) );
 	}
 
@@ -814,17 +821,27 @@ function ecv2_user_bulk_edit() {
 		}
 	}
 
-	$updated = 0;
-	foreach ( $ids as $id ) {
-		$result = $wpdb->update( 'ec_user', $data, array( 'user_id' => $id ) );
-		if ( false !== $result ) {
-			$updated++;
-			if ( isset( $before[ $id ] ) && (int) $before[ $id ]->is_subscriber !== (int) $data['is_subscriber'] ) {
-				wp_easycart_subscribers::sync_account( $before[ $id ]->email, $data['is_subscriber'], wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->first_name ), ENT_QUOTES ), wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->last_name ), ENT_QUOTES ), (bool) $before[ $id ]->is_subscriber );
+	$touched = array();
+	if ( ! empty( $data ) ) {
+		foreach ( $ids as $id ) {
+			$result = $wpdb->update( 'ec_user', $data, array( 'user_id' => $id ) );
+			if ( false !== $result ) {
+				$touched[ $id ] = true;
+				if ( isset( $before[ $id ] ) && (int) $before[ $id ]->is_subscriber !== (int) $data['is_subscriber'] ) {
+					wp_easycart_subscribers::sync_account( $before[ $id ]->email, $data['is_subscriber'], wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->first_name ), ENT_QUOTES ), wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->last_name ), ENT_QUOTES ), (bool) $before[ $id ]->is_subscriber );
+				}
+				do_action( 'wpeasycart_admin_user_updated', $id, $data );
 			}
-			do_action( 'wpeasycart_admin_user_updated', $id, $data );
 		}
 	}
+	/* Accounts only an extension changed ( no ec_user column ) get the hook with no columns. */
+	foreach ( $handled as $id ) {
+		if ( ! isset( $touched[ $id ] ) ) {
+			$touched[ $id ] = true;
+			do_action( 'wpeasycart_admin_user_updated', $id, array() );
+		}
+	}
+	$updated = count( $touched );
 	wp_cache_flush();
 
 	wp_send_json_success( array(

@@ -700,8 +700,9 @@ if ( ! class_exists( 'wp_easycart_import' ) ) :
 					if ( $post_id && function_exists( 'wp_delete_post' ) ) {
 						wp_delete_post( $post_id, true );
 					}
-					wp_cache_delete( 'wpeasycart-all-categories', 'wpeasycart-categories' );
-					wp_cache_delete( 'wpeasycart-all-categories' );
+					if ( class_exists( 'wp_easycart_cache' ) ) {
+						wp_easycart_cache::categories_changed(); /* 6.0.4: every cached category lookup ( keys carry a generation now ) */
+					}
 					break;
 				case 'brand':
 					/* A manufacturer goes only when no product uses it any more. */
@@ -741,13 +742,15 @@ if ( ! class_exists( 'wp_easycart_import' ) ) :
 				return false;
 			}
 			do_action( 'wpeasycart_product_deleting', $product_id );
-			if ( (int) $product->post_id && function_exists( 'wp_delete_post' ) ) {
-				wp_delete_post( (int) $product->post_id, true );
+			if ( (int) $product->post_id && function_exists( 'wp_easycart_post_sync' ) ) {
+				wp_easycart_post_sync()->delete( 'product', $product_id, (int) $product->post_id, true ); /* 6.0.4: only the product's own page */
 			}
 			foreach ( array( 'ec_product', 'ec_optionitemimage', 'ec_pricetier', 'ec_roleprice', 'ec_optionitemquantity', 'ec_option_to_product', 'ec_review', 'ec_categoryitem' ) as $table ) {
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $table . ' WHERE product_id = %d', $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed table names.
 			}
-			wp_cache_delete( 'wpeasycart-all-categories' );
+			if ( class_exists( 'wp_easycart_cache' ) ) {
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the key before had no group and forgot nothing */
+			}
 			do_action( 'wpeasycart_product_deleted', $product_id );
 			if ( class_exists( 'ec_db' ) && method_exists( 'ec_db', 'product_cache_changed' ) ) {
 				ec_db::product_cache_changed();

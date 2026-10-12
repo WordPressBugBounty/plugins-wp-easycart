@@ -17,7 +17,30 @@ class ec_order{
 	public $order_status;												// INT
 	
 	public $order_id;													// INT
-	
+
+	/**
+	 * 6.0.4: set by a checkout that took the money before it saved the order ( Stripe, PayPal ). A gift card that cannot be
+	 * redeemed then never removes the order: it is kept, giftcard_hold_note says why, and that checkout holds it.
+	 *
+	 * @var bool
+	 */
+	public $payment_taken = false;
+
+	/**
+	 * 6.0.4: why the order's gift card could not be redeemed ( '' = it was, or the order used none ). A Square gift card's own
+	 * reason ( WP EasyCart PRO ), else "Not a valid gift card number".
+	 *
+	 * @var string
+	 */
+	public $giftcard_failed = '';
+
+	/**
+	 * 6.0.4: the staff note for a paid order kept without its gift card ( payment_taken ); '' otherwise.
+	 *
+	 * @var string
+	 */
+	public $giftcard_hold_note = '';
+
 	private $store_page;												// VARCHAR
 	private $cart_page;													// VARCHAR
 	private $account_page;												// VARCHAR
@@ -188,7 +211,8 @@ class ec_order{
 		else if( $payment_type == "amazonpay" )
 			$order_gateway = "amazonpay";
 		// End order gateway section
-		
+
+		$wpec_payment_kind = (string) $payment_type; /* 6.0.4: credit_card, manual_bill, third_party … as asked ( the card's brand replaces credit_card below ) */
 		if( $payment_type == "credit_card" || $payment_type == "affirm" )
 			$payment_type = $this->payment->credit_card->payment_method;
 		
@@ -207,9 +231,29 @@ class ec_order{
 			// First process gift cards if using third party system
 			$gift_card_processed_successfully = true;
 			if( $this->discount->giftcard_discount > 0 ){
-				$gift_card_processed_successfully = apply_filters( 'wpeasycart_redeem_gift_card', $this->discount->giftcard_code, $this->order_id, $this->discount->giftcard_discount );
+				/**
+				 * Redeem the order's gift card before the payment is taken. An outside gift card system answers it ( WP EasyCart
+				 * PRO's Square gift cards ); WP EasyCart's own cards are taken off once the order is paid ( update_giftcard_total() ).
+				 *
+				 * @since 6.0.4 $payment_type and $order; a WP_Error answer.
+				 * @param string|bool|WP_Error $redeemed     The code: redeemed. False or a WP_Error ( its message goes to the shopper ): not.
+				 * @param int                  $order_id     Order.
+				 * @param float                $amount       The gift card's share of the order.
+				 * @param string               $payment_type credit_card, affirm, manual_bill, third_party, ideal or amazonpay ( as asked: never the card's brand ).
+				 * @param ec_order             $order        This order ( payment_taken: the rest was paid before the order was saved ).
+				 */
+				$wpec_redeemed = apply_filters( 'wpeasycart_redeem_gift_card', $this->discount->giftcard_code, $this->order_id, $this->discount->giftcard_discount, $wpec_payment_kind, $this );
+				$gift_card_processed_successfully = ( $wpec_redeemed && ! is_wp_error( $wpec_redeemed ) );
+				if ( ! $gift_card_processed_successfully ) {
+					$this->giftcard_failed = ( is_wp_error( $wpec_redeemed ) && '' !== $wpec_redeemed->get_error_message() ) ? $wpec_redeemed->get_error_message() : wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'cart_coupons', 'cart_invalid_giftcard' ) );
+					if ( $this->payment_taken ) {
+						/* 6.0.4: the rest was already paid: a paid order is never removed ( see keep_paid_order_without_giftcard() ). */
+						$this->keep_paid_order_without_giftcard();
+						$gift_card_processed_successfully = true;
+					}
+				}
 			}
-			
+
 			if( $gift_card_processed_successfully ){
 				
 				// Now Process Payments
@@ -270,8 +314,13 @@ class ec_order{
 					// Run Necessary Processes Based on Payment Type
 					if( !$this->payment->is_3d_auth ){
 						if( $payment_type != 'third_party' && $payment_type != "ideal" && $payment_type != "amazonpay" ){
-							
-							do_action( 'wpeasycart_order_paid', $this->order_id );
+
+							/* 6.0.4: an order is announced as paid only when its status counts as paid. A bank transfer or check
+							   ( Direct Deposit Pending ) is announced once the store marks it paid ( a paid status, Mark as paid,
+							   its pay link ); code that wants it as it is placed listens to wpeasycart_order_inserted. */
+							if ( $this->status_counts_as_paid() ) {
+								do_action( 'wpeasycart_order_paid', $this->order_id );
+							}
 							$this->send_email_receipt(); //leave it to third party to send email
 						
 						}
@@ -286,9 +335,10 @@ class ec_order{
 							$this->mysqli->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 							$this->clear_session( );
 						}
-						
-						if( $this->discount->giftcard_code ){
+
+						if( $this->discount->giftcard_code && '' === $this->giftcard_failed ){
 							$this->mysqli->update_giftcard_total( $this->discount->giftcard_code, $this->discount->giftcard_discount );
+							$this->confirm_giftcard();
 						}
 					}
 				
@@ -300,11 +350,12 @@ class ec_order{
 					
 					$this->mysqli->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 					$this->clear_session( );
-					
-					if( $this->discount->giftcard_code ){
+
+					if( $this->discount->giftcard_code && '' === $this->giftcard_failed ){
 						$this->mysqli->update_giftcard_total( $this->discount->giftcard_code, $this->discount->giftcard_discount );
+						$this->confirm_giftcard();
 					}
-					
+
 					$this->process_result = "1";
 					
 				}else{ // CC Payment Failed, Void GC if applicable
@@ -326,6 +377,8 @@ class ec_order{
 				}
 			}else{ //Gift Card failed to process
 				$this->mysqli->remove_order( $this->order_id );
+				/* 6.0.4: the reason goes back to the shopper ( the Square checkout answers process_result, which was left empty ). */
+				$this->process_result = $this->giftcard_failed;
 				return "gift-card-error";
 			}
 			
@@ -335,6 +388,51 @@ class ec_order{
 			$this->mysqli->insert_response( $this->order_id, 1, __( 'Error Inserting Order', 'wp-easycart' ), '' );
 			return "Error Inserting Order";
 		}
+	}
+
+	/**
+	 * 6.0.4: the order's gift card was redeemed and the order is paid ( wpeasycart_redeem_gift_card answered yes, the payment
+	 * went through ): an outside gift card system takes what it only held ( WP EasyCart PRO completes a Square gift card payment
+	 * it held while the card was charged ). The counterpart of wpeasycart_void_gift_card_redemption.
+	 */
+	private function confirm_giftcard() {
+		if ( $this->discount->giftcard_discount <= 0 ) {
+			return;
+		}
+		/**
+		 * The order's gift card was redeemed and the order is paid.
+		 *
+		 * @since 6.0.4
+		 * @param string $code     Gift card.
+		 * @param int    $order_id Order.
+		 * @param float  $amount   The gift card's share of the order.
+		 */
+		do_action( 'wpeasycart_confirm_gift_card_redemption', $this->discount->giftcard_code, $this->order_id, $this->discount->giftcard_discount );
+	}
+
+	/**
+	 * 6.0.4: the shopper already paid the rest ( payment_taken: Stripe or PayPal took the money before the order was saved ), but
+	 * the gift card could not be redeemed. Removing the order would lose a paid order, so it stays: nothing was taken from the
+	 * card, so the order no longer names one ( a cancel or refund would give back what it never took ), and giftcard_hold_note
+	 * says what is still owed for the checkout that took the money to hold the order with.
+	 */
+	private function keep_paid_order_without_giftcard() {
+		global $wpdb;
+		$code   = (string) $this->discount->giftcard_code;
+		$amount = (float) $this->discount->giftcard_discount;
+		if ( method_exists( 'ec_db', 'order_accounting_columns_ready' ) && ec_db::order_accounting_columns_ready() ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET giftcard_id = '', giftcard_total = 0 WHERE order_id = %d", (int) $this->order_id ) );
+		} else {
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET giftcard_id = '' WHERE order_id = %d", (int) $this->order_id ) );
+		}
+		$owed = ( isset( $GLOBALS['currency'] ) && is_object( $GLOBALS['currency'] ) ) ? wp_strip_all_tags( (string) $GLOBALS['currency']->get_currency_display( $amount ) ) : number_format( $amount, 2 );
+		$this->giftcard_hold_note = sprintf(
+			/* translators: 1: gift card, 2: why it could not be redeemed, 3: amount. */
+			__( 'Gift card %1$s could not be redeemed ( %2$s ), but the rest of this order was already paid, so the order was kept and put on hold. The %3$s the gift card was to pay is still owed.', 'wp-easycart' ),
+			function_exists( 'wp_easycart_giftcard_label' ) ? wp_easycart_giftcard_label( $code ) : $code,
+			$this->giftcard_failed,
+			$owed
+		);
 	}
 
 	private function insert_details( $payment_type ) {
@@ -353,11 +451,23 @@ class ec_order{
 			for ( $i = 0; $i < $num_times; $i++ ) {
 				$giftcard_id = 0;
 				if ( $cart_item->is_giftcard ) {
-					$giftcard_id = $this->mysqli->insert_new_giftcard( $cart_item->gift_card_value, $cart_item->gift_card_message );
+					/**
+					 * Who issues the gift cards this order sells. '' = WP EasyCart, now ( a card in ec_giftcard ). Anything else
+					 * ( WP EasyCart PRO's 'square' ) leaves the line without a code: that issuer makes the card once the order is
+					 * paid, saves its number on the line and sends the gift card email ( ec_orderdisplay::send_gift_cards() ).
+					 *
+					 * @since 6.0.4
+					 * @param string      $issuer       ''.
+					 * @param ec_cartitem $cart_item    The gift card line.
+					 * @param int         $order_id     Order.
+					 * @param string      $payment_type manual_bill, third_party … ( for a card, the card's brand ).
+					 */
+					$wpec_issuer = (string) apply_filters( 'wp_easycart_gift_card_issuer', '', $cart_item, $this->order_id, $payment_type );
+					$giftcard_id = ( '' === $wpec_issuer ) ? $this->mysqli->insert_new_giftcard( $cart_item->gift_card_value, $cart_item->gift_card_message ) : '';
 				}
 				$cart_item->giftcard_id = $giftcard_id;
 
-				if ( $cart_item->is_giftcard && $payment_type != "manual_bill" && $payment_type != "third_party" && $payment_type != "ideal" && $payment_type != "amazonpay" && !$this->payment->is_3d_auth ) {
+				if ( $cart_item->is_giftcard && '' !== (string) $giftcard_id && $payment_type != "manual_bill" && $payment_type != "third_party" && $payment_type != "ideal" && $payment_type != "amazonpay" && !$this->payment->is_3d_auth ) {
 					$this->send_gift_card_email( $cart_item, $giftcard_id );
 				}
 
@@ -405,14 +515,77 @@ class ec_order{
 		}
 	}
 
-	private function update_user_addresses( ){
-		$this->mysqli->update_user_address( $this->user->billing_id, $this->user->billing->first_name, $this->user->billing->last_name, $this->user->billing->address_line_1, $this->user->billing->address_line_2, $this->user->billing->city, $this->user->billing->state, $this->user->billing->zip, $this->user->billing->country, $this->user->billing->phone, $this->user->billing->company_name, $this->user->user_id );
-		
-		$this->mysqli->update_user_address( $this->user->shipping_id, $this->user->shipping->first_name, $this->user->shipping->last_name, $this->user->shipping->address_line_1, $this->user->shipping->address_line_2, $this->user->shipping->city, $this->user->shipping->state, $this->user->shipping->zip, $this->user->shipping->country, $this->user->shipping->phone, $this->user->shipping->company_name, $this->user->user_id );
+	/**
+	 * Once an order is placed, the customer's account keeps the address it used wherever the account has none yet.
+	 *
+	 * 6.0.4 ( Matt ): the one-page checkout makes its account first ( Create account: the name only ) and saves the address typed after
+	 * it to the checkout session alone, so a new account kept empty addresses after its first order, while the stepped checkout's
+	 * Continue saves them. This wrote the account's own saved address back over itself ( a signed-in shopper's ec_user holds the
+	 * saved one, never what was typed ). Each side is read from the order just saved ( what checkout recorded ); a side the account
+	 * already has is left as it is, and a side the order has no street for ( a pickup ) is skipped.
+	 *
+	 * @since 6.0.4
+	 */
+	private function update_user_addresses() {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE order_id = %d', (int) $this->order_id ) );
+		if ( ! $order || ! (int) $order->user_id ) {
+			return;
+		}
+		$user_id = (int) $order->user_id;
+		$account = $wpdb->get_row( $wpdb->prepare( 'SELECT default_billing_address_id, default_shipping_address_id FROM ec_user WHERE user_id = %d', $user_id ) );
+		if ( ! $account ) {
+			return;
+		}
+		$filled = false;
+		foreach ( array( 'billing', 'shipping' ) as $side ) {
+			if ( '' === trim( (string) $order->{ $side . '_address_line_1' } ) ) {
+				continue;
+			}
+			$address_id = (int) $account->{ 'default_' . $side . '_address_id' };
+			$saved      = ( $address_id ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT address_line_1, city FROM ec_address WHERE address_id = %d AND user_id = %d', $address_id, $user_id ) ) : null;
+			if ( $saved && ( '' !== trim( (string) $saved->address_line_1 ) || '' !== trim( (string) $saved->city ) ) ) {
+				continue;
+			}
+			$values = array(
+				(string) $order->{ $side . '_first_name' },
+				(string) $order->{ $side . '_last_name' },
+				(string) $order->{ $side . '_address_line_1' },
+				(string) $order->{ $side . '_address_line_2' },
+				(string) $order->{ $side . '_city' },
+				(string) $order->{ $side . '_state' },
+				(string) $order->{ $side . '_zip' },
+				(string) $order->{ $side . '_country' },
+				(string) $order->{ $side . '_phone' },
+				(string) $order->{ $side . '_company_name' },
+			);
+			if ( $saved ) {
+				$this->mysqli->update_user_address( $address_id, $values[0], $values[1], $values[2], $values[3], $values[4], $values[5], $values[6], $values[7], $values[8], $values[9], $user_id );
+			} else {
+				/* No row of its own ( none saved, or one that belongs to no account ): a new one, made the account's default. */
+				$this->mysqli->insert_user_address( $values[0], $values[1], $values[9], $values[2], $values[3], $values[4], $values[5], $values[6], $values[7], $values[8], $user_id, $side );
+			}
+			$filled = true;
+		}
+		if ( $filled ) {
+			wp_easycart_cache::forget_user( $user_id );
+			do_action( 'wpeasycart_account_updated', $user_id, true );
+		}
 	}
 	
+	/**
+	 * Does the status checkout gave this order count as paid ( ec_orderstatus.is_approved; the built-in flags are fixed )?
+	 *
+	 * @since 6.0.4
+	 * @return bool
+	 */
+	private function status_counts_as_paid() {
+		global $wpdb;
+		return (bool) (int) $wpdb->get_var( $wpdb->prepare( 'SELECT is_approved FROM ec_orderstatus WHERE status_id = %d', (int) $this->order_status ) );
+	}
+
 	public function send_email_receipt(){
-		
+
 		$db_admin = new ec_db_admin( );
 		$order_row = $db_admin->get_order_row_admin( $this->order_id );
 		$order_display = new ec_orderdisplay( $order_row, true, true );

@@ -706,6 +706,7 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			$first_ts     = ( '' !== $first ) ? strtotime( $first ) : 0;
 			$summary      = get_option( 'wp_easycart_reports_summary' );
 			$tax          = class_exists( 'wp_easycart_tax_providers' ) && method_exists( 'wp_easycart_tax_providers', 'active_id' ) ? (string) wp_easycart_tax_providers::active_id() : '';
+			$cli          = get_option( 'wp_easycart_cli_used' ); // 6.0.4: when a wp easycart command last ran, and which groups.
 
 			$data = array(
 				'live_gateway'     => ( '0' === $live ) ? '' : $live,
@@ -735,6 +736,8 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 				'store_age'        => $installed > 0 ? self::days_band( time() - $installed ) : 'unknown',
 				'first_order_days' => ( $installed > 0 && $first_ts > 0 ) ? self::days_band( max( 0, $first_ts - $installed ) ) : ( $first_ts > 0 ? 'unknown' : 'none' ),
 				'milestones'       => implode( ',', $this->reached() ),
+				'cli'              => ( is_array( $cli ) && ! empty( $cli['last'] ) ) ? self::days_band( time() - (int) $cli['last'] ) : 'none',
+				'cli_commands'     => ( is_array( $cli ) && ! empty( $cli['groups'] ) ) ? implode( ',', array_map( 'sanitize_key', (array) $cli['groups'] ) ) : '',
 			);
 			/**
 			 * The weekly check-in's fields ( WP EasyCart PRO adds its own ). Keep to keys, flags and bands: scrub() removes
@@ -1125,7 +1128,9 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 				$type = 'PRO';
 				if ( function_exists( 'ec_license_manager' ) ) {
 					$license_data = ec_license_manager()->ec_get_license();
-					if ( isset( $license_data->model_number ) && 'ec410' === strtolower( trim( (string) $license_data->model_number ) ) ) {
+					/* 6.0.4: Premium and Elite AutoPay keys report as PREMIUM too ( the receiver knows FREE, PRO and PREMIUM ). */
+					$premium_model = ( isset( $license_data->model_number ) && ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::is_premium_model( $license_data->model_number ) : 'ec410' === strtolower( trim( (string) $license_data->model_number ) ) ) );
+					if ( $premium_model ) {
 						$type = 'PREMIUM';
 					}
 				}

@@ -354,7 +354,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( $this->use_manual_payment( ) ){?>
 	<div class="ec_cart_option_row">
-		<input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_manual" value="manual_bill"<?php if( $this->get_selected_payment_method( ) == "manual_bill" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_manual_payment' )?>
+		<label class="ec_cart_option_label" for="ec_payment_manual"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_manual" value="manual_bill"<?php if( $this->get_selected_payment_method( ) == "manual_bill" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <span class="ec_cart_option_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_manual_payment' )?></span></label>
 	</div>
 
 	<div id="ec_manual_payment_form"<?php if( $this->get_selected_payment_method( ) == "manual_bill" ){ ?> style="display:block;"<?php }?>>
@@ -364,9 +364,9 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	</div>
 	<?php } ?>
 
-	<?php if( get_option( 'ec_option_use_affirm' ) ){ ?>
+	<?php if( get_option( 'ec_option_use_affirm' ) && $this->payment_method_allowed( 'affirm' ) ){ /* 6.0.4 */ ?>
 	<div class="ec_cart_option_row">
-		<input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_affirm" value="affirm"<?php if( $this->get_selected_payment_method( ) == "affirm" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_affirm' ); ?>
+		<label class="ec_cart_option_label" for="ec_payment_affirm"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_affirm" value="affirm"<?php if( $this->get_selected_payment_method( ) == "affirm" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <span class="ec_cart_option_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_affirm' ); ?></span></label>
 	</div>
 
 	<div id="ec_affirm_form"<?php if( $this->get_selected_payment_method( ) == "affirm" ){ ?> style="display:block;"<?php }?>>
@@ -434,7 +434,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( $this->use_third_party( ) ){?>
 	<div class="ec_cart_option_row">
-		<input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_third_party" value="third_party"<?php if( $this->get_selected_payment_method( ) == "third_party" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_third_party' )?> <?php $this->ec_cart_display_current_third_party_name( ); ?>
+		<label class="ec_cart_option_label" for="ec_payment_third_party"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_third_party" value="third_party"<?php if( $this->get_selected_payment_method( ) == "third_party" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <span class="ec_cart_option_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_third_party' )?> <?php $this->ec_cart_display_current_third_party_name( ); ?></span></label>
 	</div>
 
 
@@ -475,7 +475,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	<?php if( $this->use_payment_gateway( ) ){?>
 
 	<div class="ec_cart_option_row">
-		<input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_credit_card" value="credit_card"<?php if( $this->get_selected_payment_method( ) == "credit_card" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_credit_card' )?>
+		<label class="ec_cart_option_label" for="ec_payment_credit_card"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_credit_card" value="credit_card"<?php if( $this->get_selected_payment_method( ) == "credit_card" ){ ?> checked="checked"<?php }?> onChange="ec_update_payment_display( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <span class="ec_cart_option_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_credit_card' )?></span></label>
 	</div>
 
 	<div id="ec_credit_card_form"<?php if( $this->get_selected_payment_method( ) == "credit_card" ){ ?> style="display:block;"<?php }?>>
@@ -491,6 +491,9 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 			} else if( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' && get_option( 'ec_option_stripe_public_api_key' ) != "" ) || ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
 			do_action( 'wp_easycart_display_stripe_payment_pre' );
+			if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+				wp_easycart_stripe_mode::print_notice(); /* 6.0.4: Stripe test mode for this customer's account, or for the whole store */
+			}
 			if ( $this->order_totals->grand_total >= .5 ) { ?>
 			<div class="form-row" style="margin-top:12px;">
 				<div id="ec_stripe_card_row">
@@ -531,7 +534,13 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 				/* 6.0.2 checkout protection: while this shopper is paused or owes a human check there is no client secret,
 				   and the form is skipped ( no "Stripe has a problem" alert ); the protection script shows why instead. */
 				$wpec_client_secret = $this->get_stripe_intent_client_secret();
-				echo ( '' === $wpec_client_secret && method_exists( $this, 'stripe_held_by_protection' ) && $this->stripe_held_by_protection() ) ? 'if ( false ) ' : '';
+				/* 6.0.4: this checkout's payment went through and has no order yet: no second payment form, the return page makes its order. */
+				$wpec_paid_return = ( '' === $wpec_client_secret && method_exists( $this, 'stripe_paid_intent_return_url' ) ) ? $this->stripe_paid_intent_return_url() : '';
+				if ( '' !== $wpec_paid_return ) {
+					echo 'window.location.href = ' . wp_json_encode( esc_url_raw( $wpec_paid_return ) ) . '; if ( false ) '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of esc_url_raw().
+				} else {
+					echo ( '' === $wpec_client_secret && method_exists( $this, 'stripe_held_by_protection' ) && $this->stripe_held_by_protection() ) ? 'if ( false ) ' : '';
+				}
 				?>try {
 					var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
 					const options = {
@@ -579,6 +588,8 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 						},
 					} );
 					paymentElement.mount( '#ec_stripe_card_row' );
+					/* 6.0.4 ( #290 ): the Payment Element's amount follows the cart ( ec-checkout-busy.js ), so Place order needs no read of the intent. */
+					var wpecStripeAmount = ( 'function' === typeof window.wpeasycart_stripe_amount ) ? window.wpeasycart_stripe_amount( elements, '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-payment-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>', <?php echo wp_json_encode( isset( $GLOBALS['ec_cart_data']->cart_data->payment_type ) ? (string) $GLOBALS['ec_cart_data']->cart_data->payment_type : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of a string. ?> ) : null;
 					paymentElement.addEventListener( 'change', function( event ){
 						var displayError = document.getElementById( 'ec_card_errors' );
 						if( event.error ){
@@ -586,7 +597,9 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 						}else{
 							displayError.textContent = '';
 						}
-						if ( event.value && event.value.type ) {
+						if ( event.value && event.value.type && wpecStripeAmount ) {
+							wpecStripeAmount.type( event.value.type );
+						} else if ( event.value && event.value.type ) {
 							var data = {
 								action: 'ec_ajax_update_payment_type',
 								payment_type: event.value.type,
@@ -612,6 +625,20 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 							jQuery( document.getElementById( 'stripe-success-cover' ) ).show( );
 							jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).hide( );
 							jQuery( document.getElementById( 'ec_card_errors' ) ).hide( );
+							/* 6.0.4 ( #290 ): Safari opens Apple Pay's sheet only while the click that asked for it counts, so the Payment Element
+							   checks its fields and opens a wallet's sheet here, in the submit itself ( elements.submit() ); confirmPayment() follows the
+							   saves and the stock check. Before, the sheet was asked for after them and never opened ( "Your payment is processing" for good ). */
+							var wpecStripeSubmitted = ( 'function' === typeof elements.submit ) ? elements.submit() : Promise.resolve( {} );
+							wpecStripeSubmitted.then( function( submitted ) {
+							if ( submitted && submitted.error ) {
+								jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
+								jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
+								jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
+								if ( submitted.error.message ) {
+									jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( submitted.error.message );
+								}
+								return;
+							}
 							var stock_data = {
 								action: 'ec_ajax_cart_validate_stock',
 								language: wpeasycart_ajax_object.current_language,
@@ -668,12 +695,57 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 											address_state: state,
 											address_zip: zip
 										};
-										/* 6.0.2: the Payment Element reads the intent again first, so an Apple Pay / Google Pay sheet shows the
-										   amount it charges ( a Card flex fee added when the wallet was picked ). */
-										( elements.fetchUpdates ? elements.fetchUpdates() : Promise.resolve() ).then( function() { return stripe.confirmPayment( {
+										/* 6.0.4 ( #290 ): no elements.fetchUpdates() here any more ( it came between the wallet sheet and the payment ): the Payment
+										   Element reads the intent again whenever its amount changes ( after the payment type is saved, and when the total moves ). */
+										var wpecStripeReturn = <?php echo wp_json_encode( esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'stripe' => 'returning', 'wpecnonce' => wp_create_nonce( 'wp-easycart-stripe-pi-order-complete-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of esc_url_raw(). ?>;
+										var wpecStripeComplete = function( paidIntent ) {
+											var data = {
+												action: 'ec_ajax_get_stripe_complete_payment_main',
+												language: wpeasycart_ajax_object.current_language,
+												ec_terms_agree: ec_terms_agree,
+												ec_cart_is_subscriber: ec_cart_is_subscriber,
+												payment_status: paidIntent.status,
+												nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-main-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
+											};
+											if ( 'function' === typeof window.wpeasycart_stripe_finish ) { /* 6.0.4: never Place order again once paid */
+												window.wpeasycart_stripe_finish( paidIntent, data, wpecStripeReturn );
+												return;
+											}
+											jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
+												wpeasycart_checkout_goto( result );
+											} } );
+										};
+										var wpecStripeNotPaid = function( error ) {
+											jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
+											jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
+											jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
+											if ( error && error.message ) {
+												jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( ).find( 'div' ).html( error.message );
+												jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( error.message );
+											} else {
+												jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( );
+											}
+										};
+										/* 6.0.4: Stripe.js can answer with an error for a payment that went through ( a dropped connection, a phone that
+										   slept through 3-D Secure, or a second press: already succeeded ). Ask Stripe before bringing Place order back:
+										   a paid intent gets its order, never a second payment. */
+										var wpecStripeAfterError = function( error ) {
+											if ( 'function' !== typeof window.wpeasycart_stripe_paid_intent ) {
+												wpecStripeNotPaid( error );
+												return;
+											}
+											window.wpeasycart_stripe_paid_intent( stripe, options.clientSecret, error ).then( function( paidIntent ) {
+												if ( paidIntent ) {
+													wpecStripeComplete( paidIntent );
+												} else {
+													wpecStripeNotPaid( error );
+												}
+											} );
+										};
+										Promise.resolve().then( function() { return stripe.confirmPayment( {
 											elements,
 											confirmParams: {
-												return_url: '<?php echo esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'stripe' => 'returning', 'wpecnonce' => wp_create_nonce( 'wp-easycart-stripe-pi-order-complete-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) ) ); ?>',
+												return_url: wpecStripeReturn,
 												shipping: {
 													address: {
 														line1: shipping_address1,
@@ -705,24 +777,10 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 											redirect: 'if_required'
 										} ); } ).then( function( result ){
 											if( result.error ){
-												jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
-												jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
-												jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
-												jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( ).find( 'div' ).html( result.error.message );
-												jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( result.error.message );
+												wpecStripeAfterError( result.error );
 											}else{
 												if ( 'processing' == result.paymentIntent.status || 'succeeded' == result.paymentIntent.status || 'requires_capture' == result.paymentIntent.status ) {
-													var data = {
-														action: 'ec_ajax_get_stripe_complete_payment_main',
-														language: wpeasycart_ajax_object.current_language,
-														ec_terms_agree: ec_terms_agree,
-														ec_cart_is_subscriber: ec_cart_is_subscriber,
-														payment_status: result.paymentIntent.status,
-														nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-main-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
-													};
-													jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
-														wpeasycart_checkout_goto( result );
-													} } );
+													wpecStripeComplete( result.paymentIntent );
 												} else if ( 'requires_action' == result.paymentIntent.status || 'requires_source_action' == result.paymentIntent.status ) {
 													ec_stripe_3ds_waiting_for_response( result.paymentIntent.id, result.paymentIntent.client_secret );
 												} else if ( 'requires_source' == result.paymentIntent.status || 'requires_payment_method' == result.paymentIntent.status ) {
@@ -735,16 +793,19 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 												}
 											}
 										} ).catch( function() {
-											/* 6.0.2: Stripe.js refused before any payment ( network, a closed window ): Place order comes back. */
-											jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
-											jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
-											jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
-											jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( );
+											/* 6.0.2: Stripe.js refused ( network, a closed window ): Place order comes back. 6.0.4: unless Stripe says it was paid. */
+											wpecStripeAfterError( null );
 										} );
 									}
 								}
 							} );
 							} ); /* savers */
+							} ).catch( function() { /* 6.0.4: Stripe.js could not check the form: Place order comes back */
+								jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
+								jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
+								jQuery( document.getElementById( 'stripe-success-cover' ) ).fadeOut( );
+								jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn( );
+							} ); /* elements.submit() */
 						}
 					} );
 				} catch( err ) {
@@ -1078,7 +1139,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section" id="ec_terms_agreement_row">
-		<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?>
+		<label class="ec_cart_check_label" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 	</div>
 	<?php }else{ ?>
 		<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -1086,8 +1147,8 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( get_option( 'ec_option_show_subscriber_feature' ) && ( !$GLOBALS['ec_user']->user_id || !$GLOBALS['ec_user']->is_subscriber ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section"<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?> style="margin-top:-10px;"<?php }?>>
-		<input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
-		<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?>
+		<label class="ec_cart_check_label" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+		<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 	</div>
 	<?php }?>
 

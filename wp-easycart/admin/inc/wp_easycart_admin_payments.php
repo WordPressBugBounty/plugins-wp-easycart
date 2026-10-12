@@ -390,7 +390,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			if ( isset( $_POST['ec_option_stripe_company_country'] ) ) {
 				update_option( 'ec_option_stripe_company_country', $verify->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_company_country'] ) ), 2 ) );
 			}
-			foreach ( array( 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret' ) as $option ) {
+			foreach ( array( 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret', 'ec_option_stripe_sandbox_webhook_secret' ) as $option ) { /* 6.0.4: the test-mode webhook's secret too */
 				if ( isset( $_POST[ $option ] ) ) {
 					update_option( $option, sanitize_text_field( wp_unslash( $_POST[ $option ] ) ) );
 				}
@@ -472,10 +472,28 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 
 			if ( $_GET['ec_admin_form_action'] == 'stripe_onboard' && isset( $_GET['env'] ) && in_array( $_GET['env'], array( 'sandbox', 'production' ), true ) ) {
 
-				$stripe_access_token    = isset( $_GET['access_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) : '';
-				$stripe_refresh_token   = isset( $_GET['refresh_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
-				$stripe_publishable_key = isset( $_GET['stripe_publishable_key'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_publishable_key'] ) ) ) : '';
-				$stripe_user_id         = isset( $_GET['stripe_user_id'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_user_id'] ) ) ) : '';
+				$stripe_env = sanitize_key( wp_unslash( $_GET['env'] ) );
+				if ( isset( $_GET['wpec_stripe_claim'] ) && class_exists( 'wp_easycart_stripe_connect_relay' ) ) {
+					/* 6.0.4: WP EasyCart Connect's /stripe-v2/ sends back a one-time claim, never the account's keys; this server collects
+					   them with the verifier its Connect Stripe link kept ( wp_easycart_stripe_connect_relay::handle_connect() ). */
+					$claimed = wp_easycart_stripe_connect_relay::claim( sanitize_text_field( wp_unslash( $_GET['wpec_stripe_claim'] ) ) );
+					if ( is_wp_error( $claimed ) ) {
+						$db = new ec_db();
+						$db->insert_response( 0, 1, 'Stripe Connect Claim', $claimed->get_error_message() );
+						$claimed = array( 'access_token' => '', 'refresh_token' => '', 'publishable_key' => '', 'user_id' => '', 'sandbox' => ( 'sandbox' === $stripe_env ) );
+					}
+					$stripe_access_token    = $claimed['access_token'];
+					$stripe_refresh_token   = $claimed['refresh_token'];
+					$stripe_publishable_key = $claimed['publishable_key'];
+					$stripe_user_id         = $claimed['user_id'];
+					$stripe_env             = $claimed['sandbox'] ? 'sandbox' : 'production';
+				} else {
+					/* The /connect/ return ( the keys in the address ), while /stripe-v2/ is missing on Connect. */
+					$stripe_access_token    = isset( $_GET['access_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) : '';
+					$stripe_refresh_token   = isset( $_GET['refresh_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
+					$stripe_publishable_key = isset( $_GET['stripe_publishable_key'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_publishable_key'] ) ) ) : '';
+					$stripe_user_id         = isset( $_GET['stripe_user_id'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_user_id'] ) ) ) : '';
+				}
 
 				// Reject the return if any required credential is missing or blank. Do NOT save or enable the gateway.
 				if ( '' == $stripe_access_token || '' == $stripe_publishable_key || '' == $stripe_user_id ) {
@@ -487,8 +505,8 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 					die();
 				}
 
-				$stripe_option_prefix = ( 'sandbox' == $_GET['env'] ) ? 'ec_option_stripe_connect_sandbox_' : 'ec_option_stripe_connect_production_';
-				update_option( 'ec_option_stripe_connect_use_sandbox', ( 'sandbox' == $_GET['env'] ) ? 1 : 0 );
+				$stripe_option_prefix = ( 'sandbox' == $stripe_env ) ? 'ec_option_stripe_connect_sandbox_' : 'ec_option_stripe_connect_production_';
+				update_option( 'ec_option_stripe_connect_use_sandbox', ( 'sandbox' == $stripe_env ) ? 1 : 0 );
 				update_option( $stripe_option_prefix . 'access_token', $stripe_access_token );
 				update_option( $stripe_option_prefix . 'refresh_token', $stripe_refresh_token );
 				update_option( $stripe_option_prefix . 'publishable_key', $stripe_publishable_key );
@@ -496,7 +514,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				update_option( 'ec_option_payment_process_method', 'stripe_connect' );
 				update_option( 'ec_option_default_payment_type', 'credit_card' );
 				do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
-				$stripe_success_message = ( 'sandbox' == $_GET['env'] ) ? 'stripe-sandbox-connected' : 'stripe-live-connected';
+				$stripe_success_message = ( 'sandbox' == $stripe_env ) ? 'stripe-sandbox-connected' : 'stripe-live-connected';
 				if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
 					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&success=' . $stripe_success_message );
 				} else {
@@ -559,14 +577,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			}
 
 			if ( $_GET['ec_admin_form_action'] == 'handle-square' && isset( $_GET['wpeasycart_square_failed'] ) ) {
-				if ( isset( $_GET['goto'] ) && 'import' === $_GET['goto'] ) { /* 6.0.3: Products › Import */
-					wp_redirect( 'admin.php?page=wp-easycart-products&subpage=import&source=square&error=square-failed-to-connect' );
-				} else if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
-					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&error=square-failed-to-connect' );
-				} else {
-					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=payment&error=square-failed-to-connect' );
-				}
-				die();
+				$this->square_connect_failed();
 
 			// Handle a Successful Connect Attempt
 			} else if ( $_GET['ec_admin_form_action'] == 'handle-square' && isset( $_GET['wpeasycart_square_state'] ) ) {
@@ -576,9 +587,31 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				if ( false === wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['wpeasycart_square_state'] ) ), 'wp-easycart-square' ) ) {
 					return false;
 				}
-				$access_token = ( isset( $_GET['access_token'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\._\~\+\/]/', '', sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) : '';
-				$refresh_token = ( isset( $_GET['refresh_token'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\._\~\+\/]/', '', sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
-				$expires = ( isset( $_GET['expires'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\:]/', '', sanitize_text_field( wp_unslash( $_GET['expires'] ) ) ) : '';
+				$merchant_id = '';
+				if ( isset( $_GET['wpec_square_claim'] ) && class_exists( 'wp_easycart_square_relay' ) ) {
+					/* 6.0.4: WP EasyCart Connect's /square-v3/ sends back a one-time claim, never the tokens; this server collects
+					   them with the verifier its Connect Square link kept ( wp_easycart_square_relay::handle_connect() ). */
+					$claimed = wp_easycart_square_relay::claim( sanitize_text_field( wp_unslash( $_GET['wpec_square_claim'] ) ) );
+					if ( is_wp_error( $claimed ) ) {
+						$db = new ec_db();
+						$db->insert_response( 0, 1, 'Square Connect Claim', $claimed->get_error_message() );
+						$this->square_connect_failed();
+					}
+					$access_token  = $claimed['access_token'];
+					$refresh_token = $claimed['refresh_token'];
+					$expires       = $claimed['expires'];
+					$merchant_id   = $claimed['merchant_id'];
+					$is_sandbox    = $claimed['sandbox'];
+				} else {
+					/* The /square-v2/ and /square-sandbox/ return ( tokens in the address ), while /square-v3/ is missing on Connect. */
+					$access_token = ( isset( $_GET['access_token'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\._\~\+\/]/', '', sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) : '';
+					$refresh_token = ( isset( $_GET['refresh_token'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\._\~\+\/]/', '', sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
+					$expires = ( isset( $_GET['expires'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\:]/', '', sanitize_text_field( wp_unslash( $_GET['expires'] ) ) ) : '';
+					$is_sandbox = isset( $_GET['sandbox'] );
+				}
+				if ( '' === $access_token ) {
+					$this->square_connect_failed();
+				}
 
 				/* 6.0.3: connected from Products › Import only to bring the catalog in: the payment gateway stays as it is
 				   ( a Stripe or PayPal store could not import from Square, since connecting made Square the gateway ). */
@@ -586,12 +619,15 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				if ( ! $for_import ) {
 					update_option( 'ec_option_payment_process_method', 'square' );
 				}
-				if ( isset( $_GET['sandbox'] ) ) {
+				if ( $is_sandbox ) {
 					update_option( 'ec_option_square_is_sandbox', 1 );
 					update_option( 'ec_option_square_sandbox_application_id', '' );
 					update_option( 'ec_option_square_sandbox_access_token', $access_token );
 					update_option( 'ec_option_square_sandbox_refresh_token', $refresh_token );
 					update_option( 'ec_option_square_sandbox_token_expires', $expires );
+					if ( '' !== $merchant_id ) {
+						update_option( 'ec_option_square_sandbox_merchant_id', $merchant_id );
+					}
 
 				} else {
 					update_option( 'ec_option_square_is_sandbox', 0 );
@@ -599,6 +635,9 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 					update_option( 'ec_option_square_access_token', $access_token );
 					update_option( 'ec_option_square_refresh_token', $refresh_token );
 					update_option( 'ec_option_square_token_expires', $expires );
+					if ( '' !== $merchant_id ) {
+						update_option( 'ec_option_square_merchant_id', $merchant_id );
+					}
 				}
 				if ( ! $for_import ) {
 					do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
@@ -626,15 +665,8 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			} else if ( $_GET['ec_admin_form_action'] == 'square-disconnect' ) {
 				ecv2_payment_link_guard( 'wp-easycart-payment-square-disconnect' );
 				if ( isset( $_GET['sandbox'] ) ) {
-					$access_token = get_option( 'ec_option_square_sandbox_access_token' );
-					$request = new WP_Http;
-					$response = $request->request( 
-						'https://connect.wpeasycart.com/square-sandbox/disconnect.php?access_token=' . $access_token, 
-						array( 
-							'method' => 'GET',
-							'timeout' => 5
-						)
-					);
+					/* 6.0.4: the token goes to /square-v3/ in a POST body ( wp_easycart_square_relay ), never in the address. */
+					wp_easycart_square_relay::disconnect( true, (string) get_option( 'ec_option_square_sandbox_access_token' ) );
 					update_option( 'ec_option_payment_process_method', '0' );
 					update_option( 'ec_option_square_sandbox_application_id', '' );
 					update_option( 'ec_option_square_sandbox_access_token', '' );
@@ -642,15 +674,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 					update_option( 'ec_option_square_sandbox_token_expires', '' );
 
 				} else {
-					$access_token = get_option( 'ec_option_square_access_token' );
-					$request = new WP_Http;
-					$response = $request->request( 
-						'https://connect.wpeasycart.com/square/disconnect.php?access_token=' . $access_token, 
-						array( 
-							'method' => 'GET',
-							'timeout' => 5
-						)
-					);
+					wp_easycart_square_relay::disconnect( false, (string) get_option( 'ec_option_square_access_token' ) );
 					update_option( 'ec_option_payment_process_method', '0' );
 					update_option( 'ec_option_square_application_id', '' );
 					update_option( 'ec_option_square_access_token', '' );
@@ -678,6 +702,22 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			}
 		}
 
+		/**
+		 * Connect Square did not finish: back to where it started, with the error ( never returns ).
+		 *
+		 * @since 6.0.4 ( the wpeasycart_square_failed branch of process_square_app() )
+		 */
+		private function square_connect_failed() {
+			if ( isset( $_GET['goto'] ) && 'import' === $_GET['goto'] ) { /* 6.0.3: Products › Import */
+				wp_redirect( 'admin.php?page=wp-easycart-products&subpage=import&source=square&error=square-failed-to-connect' );
+			} else if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
+				wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&error=square-failed-to-connect' );
+			} else {
+				wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=payment&error=square-failed-to-connect' );
+			}
+			die();
+		}
+
 		public function update_square() {
 			ecv2_payment_settings_guard();
 
@@ -686,7 +726,9 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ), array( 'square' ) ) );
 			}
 			if ( isset( $_POST['ec_option_square_location_id'] ) ) {
-				update_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id', sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_id'] ) ) );
+				/* 6.0.4: never '0' ( "Your default Square location" ): the account's location is saved instead ( ec_square::save_location() ). */
+				$square_location = new ec_square();
+				$square_location->save_location( sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_id'] ) ) );
 			}
 			if ( isset( $_POST['ec_option_square_location_country'] ) ) {
 				update_option( 'ec_option_square_location_country', wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_country'] ) ), 2 ) );

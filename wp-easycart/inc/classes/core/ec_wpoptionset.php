@@ -1419,6 +1419,12 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_stripe_connect_webhook_secret');		array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_stripe_sandbox_webhook_secret');		array_push($this->wp_option_defaults, '' ); /* 6.0.4: the test-mode webhook's signing secret */
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_stripe_sandbox_public_api_key');		array_push($this->wp_option_defaults, '' ); /* 6.0.4: Stripe v1 test keys ( wp_easycart_stripe_mode; ec_option_stripe_use_sandbox stays unset until chosen ) */
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_stripe_sandbox_api_key');			array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_stripe_payment_theme');				array_push($this->wp_option_defaults, 'stripe' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_stripe_payment_layout');				array_push($this->wp_option_defaults, 'tabs' );
@@ -1790,7 +1796,11 @@ class ec_wpoptionset{
 		delete_option( 'ec_option_v3_fix' );
 		delete_option( 'ec_option_wpoptions_version' );
 		delete_option( 'ec_option_data_folders_installed' );
-		
+		/* 6.0.4: each language's wording and their index ( wp_easycart_language ). */
+		if ( class_exists( 'wp_easycart_language' ) ) {
+			wp_easycart_language::delete_storage();
+		}
+
 	}
 	
 	public function get_db_dump_options( ){

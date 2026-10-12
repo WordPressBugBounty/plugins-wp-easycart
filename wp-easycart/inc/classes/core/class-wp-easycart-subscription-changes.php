@@ -1237,6 +1237,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			if ( $now && ( (string) $now->id === $price || abs( $old_unit - $new_unit ) < 0.005 ) ) {
 				/* Already paying it: keep the stored price in step so the subscriber no longer counts as behind. */
 				$wpdb->update( 'ec_subscription', array( 'price' => $new_unit ), array( 'subscription_id' => (int) $row->subscription_id ) );
+				wp_easycart_cache::forget_subscription( $row->subscription_id ); /* 6.0.4 */
 				$out['state'] = 'current';
 				return $out;
 			}

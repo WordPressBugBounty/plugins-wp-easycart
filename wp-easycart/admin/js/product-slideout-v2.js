@@ -70,6 +70,10 @@
 		return u;
 	}
 	var DIGITAL_TYPES = { '1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '9': 1, '13': 1 };
+	/* 6.0.4: on create the shipping fields follow Settings › Admin › Quick add panel; quick edit always shows them. */
+	function ship_shown() { return state.mode === 'edit' || $box().attr( 'data-show-shipping' ) === '1'; }
+	/* 6.0.4: a classic product ships unless the merchant says otherwise ( the server's rule when the switch is not shown ). */
+	function ship_default() { return val( 'ecpsv2_type' ) === '0'; }
 	function opt_max() { var n = parseInt( $box().attr( 'data-max-opts' ), 10 ); return ( n > 0 ) ? n : 5; }
 	function opt_max_label() {
 		return V.is_pro ? ( L.opt_max || 'Maximum of 5 — use modifiers for more' )
@@ -193,8 +197,50 @@
 			/* Options card absent ( "Variant fields" off ) => no options, all slots 0. 6.0.3: 1 whenever a variation set is picked. */
 			option_type:       state.mode === 'create' ? ( $.grep( opt_ids(), function( id ) { return id !== '0'; } ).length ? '1' : '0' ) : '',
 			options:           state.mode === 'create' ? opt_ids() : [],
-			modifiers:         state.mode === 'create' ? mod_ids() : []
+			modifiers:         state.mode === 'create' ? mod_ids() : [],
+			categories:        state.mode === 'create' ? cat_ids() : []
 		};
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Categories ( create, 6.0.4 ): search existing ones, chips           */
+	/* ------------------------------------------------------------------ */
+
+	var cat_seq = 0, cat_timer = null;
+	function cat_ids() {
+		return $( '#ecpsv2_cats .ecpsv2-cat-chip' ).map( function() { return String( $( this ).data( 'id' ) ); } ).get();
+	}
+	function cat_add( id, name ) {
+		id = parseInt( id, 10 );
+		if ( ! id || $( '#ecpsv2_cats .ecpsv2-cat-chip[data-id="' + id + '"]' ).length ) { return; }
+		var $chip = $( '<span class="ecpsv2-cat-chip" role="listitem">' ).attr( 'data-id', id ).append( $( '<span>' ).text( name ) );
+		$( '<button type="button" class="ecpsv2-cat-x">' ).attr( 'aria-label', ( L.cat_remove || 'Remove %s' ).replace( '%s', name ) ).text( '×' ).appendTo( $chip );
+		$f( 'ecpsv2_cats' ).append( $chip );
+	}
+	function cat_close() {
+		$f( 'ecpsv2_cat_list' ).prop( 'hidden', true );
+		$f( 'ecpsv2_cat_input' ).attr( 'aria-expanded', 'false' );
+	}
+	function cat_open() {
+		var raw = val( 'ecpsv2_cat_input' ), my = ++cat_seq;
+		clearTimeout( cat_timer );
+		if ( '' === raw ) { cat_close(); return; }
+		cat_timer = setTimeout( function() {
+			$.post( AJAX, { action: 'ecv2_category_search', search: raw, wp_easycart_nonce: $f( 'ecpsv2_cat_combo' ).data( 'nonce' ) }, function( r ) {
+				if ( my !== cat_seq || val( 'ecpsv2_cat_input' ) !== raw ) { return; }
+				var list = ( r && r.success && r.data && r.data.results ) ? r.data.results : [];
+				var $ul = $f( 'ecpsv2_cat_list' ).empty();
+				$.each( list, function( i, c ) {
+					if ( $ul.children().length >= 8 || $( '#ecpsv2_cats .ecpsv2-cat-chip[data-id="' + c.id + '"]' ).length ) { return; }
+					$( '<li role="option">' ).attr( 'data-id', c.id ).text( c.name ).appendTo( $ul );
+				} );
+				if ( ! $ul.children().length ) {
+					$( '<li class="ecpsv2-combo-none" aria-disabled="true">' ).text( L.cat_none || 'No matching categories.' ).appendTo( $ul );
+				}
+				$ul.prop( 'hidden', false );
+				$f( 'ecpsv2_cat_input' ).attr( 'aria-expanded', 'true' );
+			}, 'json' );
+		}, 200 );
 	}
 
 	function reset_fields() {
@@ -210,7 +256,7 @@
 		apply_picture( '', {} );
 		$f( 'ecpsv2_stock' ).val( '0' );
 		$f( 'ecpsv2_qty' ).val( '' );
-		$f( 'ecpsv2_ship' ).prop( 'checked', false );
+		$f( 'ecpsv2_ship' ).prop( 'checked', ship_default() );
 		$f( 'ecpsv2_tax' ).val( V.default_tax || '0' );
 		$( '#ecpsv2_weight, #ecpsv2_length, #ecpsv2_width, #ecpsv2_height' ).val( '' );
 		$f( 'ecpsv2_opt_list' ).empty();
@@ -221,6 +267,9 @@
 		mod_refresh();
 		mod_results_close();
 		$f( 'ecpsv2_mod_search' ).val( '' );
+		$f( 'ecpsv2_cats' ).empty();
+		$f( 'ecpsv2_cat_input' ).val( '' );
+		cat_close();
 		$( '.ecpsv2-err' ).prop( 'hidden', true );
 		$( '.ecv2-input.is-invalid, .ecpsv2-money.is-invalid' ).removeClass( 'is-invalid' );
 		state.sku_touched = false;
@@ -852,12 +901,19 @@
 				ec_new_product_option_type: d.option_type,
 				option1: d.options[ 0 ], option2: d.options[ 1 ], option3: d.options[ 2 ], option4: d.options[ 3 ], option5: d.options[ 4 ],
 				ec_new_product_modifiers: d.modifiers.join( ',' ),
-				ec_new_product_is_shippable: d.is_shippable,
-				ec_new_product_weight: d.weight, ec_new_product_length: d.length, ec_new_product_width: d.width, ec_new_product_height: d.height,
 				ec_new_product_is_taxable: d.is_taxable,
 				ec_new_product_stock_option: d.stock_option,
-				ec_new_product_stock_quantity: d.stock_quantity
+				ec_new_product_stock_quantity: d.stock_quantity,
+				ec_new_product_categories: d.categories.join( ',' )
 			};
+			/* 6.0.4: only a switch the merchant could see is posted. Without it the server makes a classic product shippable
+			 * ( 0.1 weight, 1 × 1 × 1 ) and every other type not; the hidden switch posted 0 for every product. */
+			if ( ship_shown() ) {
+				$.extend( payload, {
+					ec_new_product_is_shippable: d.is_shippable,
+					ec_new_product_weight: d.weight, ec_new_product_length: d.length, ec_new_product_width: d.width, ec_new_product_height: d.height
+				} );
+			}
 			$.post( AJAX, payload, function( data ) {
 				var r; try { r = JSON.parse( data ); } catch ( err ) { r = { error: 'parse' }; }
 				state.saving = false; loader( false );
@@ -980,7 +1036,7 @@
 				$( this ).val( '0' );
 				if ( typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products' } ); }
 			}
-			if ( ! state.ship_touched && DIGITAL_TYPES[ val( 'ecpsv2_type' ) ] ) { $f( 'ecpsv2_ship' ).prop( 'checked', false ); }
+			if ( ! state.ship_touched ) { $f( 'ecpsv2_ship' ).prop( 'checked', ship_default() ); } /* 6.0.4: back on for a classic product */
 			refresh_type_hint(); refresh_shipping();
 		} );
 		$b.on( 'click', '#ecpsv2_opt_list .ecpsv2-opt-rm', function() { $( this ).closest( '.ecpsv2-opt-row' ).remove(); opt_refresh(); refresh_dirty(); } );
@@ -1070,6 +1126,32 @@
 			}
 		} );
 		$b.on( 'blur', '#ecpsv2_manu_input', function() { setTimeout( manu_close, 120 ); } );
+
+		// Categories ( create, 6.0.4 ).
+		$b.on( 'input', '#ecpsv2_cat_input', cat_open );
+		$b.on( 'mousedown', '#ecpsv2_cat_list li[data-id]', function( e ) {
+			e.preventDefault();
+			cat_add( $( this ).data( 'id' ), $( this ).text() );
+			$f( 'ecpsv2_cat_input' ).val( '' );
+			cat_close();
+			refresh_dirty();
+		} );
+		$b.on( 'keydown', '#ecpsv2_cat_input', function( e ) {
+			var $ul = $f( 'ecpsv2_cat_list' ), $act = $ul.find( '.is-active' );
+			if ( e.key === 'ArrowDown' || e.key === 'ArrowUp' ) {
+				e.preventDefault();
+				var $items = $ul.children( '[data-id]' ), i = $items.index( $act );
+				i = e.key === 'ArrowDown' ? Math.min( i + 1, $items.length - 1 ) : Math.max( i - 1, 0 );
+				$items.removeClass( 'is-active' ).eq( i ).addClass( 'is-active' );
+			} else if ( e.key === 'Enter' ) {
+				e.preventDefault();
+				( $act.length ? $act : $ul.children( '[data-id]' ).first() ).trigger( 'mousedown' );
+			} else if ( e.key === 'Escape' && ! $ul.is( '[hidden]' ) ) {
+				e.stopPropagation(); cat_close();
+			}
+		} );
+		$b.on( 'blur', '#ecpsv2_cat_input', function() { setTimeout( cat_close, 120 ); } );
+		$b.on( 'click', '.ecpsv2-cat-x', function() { $( this ).closest( '.ecpsv2-cat-chip' ).remove(); refresh_dirty(); $f( 'ecpsv2_cat_input' ).trigger( 'focus' ); } );
 		$b.on( 'click', '#ecpsv2_manu_clear', function() { manu_set( 0, '' ); refresh_dirty(); $f( 'ecpsv2_manu_input' ).trigger( 'focus' ); } );
 
 		opt_init_sortable();

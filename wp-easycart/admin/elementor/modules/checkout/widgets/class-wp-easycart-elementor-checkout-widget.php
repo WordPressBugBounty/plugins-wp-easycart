@@ -314,7 +314,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Widget' ) && class_exists( 
 			$this->ec_fields_section(
 				'fields',
 				__( 'Fields', 'wp-easycart' ),
-				'.ec_cart_input_row label:not(.ec_cart_full_radio)',
+				'.ec_cart_input_row label:not(.ec_cart_full_radio):not(.ec_cart_check_label)', /* 6.0.4: the terms / newsletter words keep their own look */
 				'.ec_cart_input_row input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), .ec_cart_input_row select, .ec_cart_input_row textarea, .ec_cart_box_section input[type="text"], #ec_order_notes',
 				array(),
 				array(
@@ -1090,7 +1090,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Widget' ) && class_exists( 
 				$html = '<label>' . esc_html( $label ) . '</label><input type="text" value="' . esc_attr( $value ) . '" tabindex="-1" readonly />';
 				return ( '' === $half ) ? '<div class="ec_cart_input_row">' . $html . '</div>' : '<div class="ec_cart_input_' . esc_attr( $half ) . '_half">' . $html . '</div>';
 			};
-			echo '<div class="ec_cart_page wpec-checkout-sample">';
+			echo '<div class="ec_cart_page wpec-checkout-sample' . ( $onepage ? ' ec_cart_onepage_page' : '' ) . '">'; /* 6.0.4: the one-page checkout's wrapper, as the page has it */
 			if ( $onepage ) {
 				echo '<div class="ec_cart_breadcrumbs_v2"><span class="ec_cart_breadcrumb_item_v2">' . esc_html( $t( 'breadcrumb_cart', 'Cart', 'cart_onepage' ) ) . '</span> <span class="dashicons dashicons-arrow-right-alt2"></span> <span class="ec_cart_breadcrumb_item_v2">' . esc_html( $t( 'breadcrumb_information', 'Information', 'cart_onepage' ) ) . '</span> <span class="dashicons dashicons-arrow-right-alt2"></span> <span class="ec_cart_breadcrumb_item_v2">' . esc_html( $t( 'breadcrumb_shipping', 'Shipping', 'cart_onepage' ) ) . '</span> <span class="dashicons dashicons-arrow-right-alt2"></span> <span class="ec_cart_breadcrumb_item_v2">' . esc_html( $t( 'breadcrumb_payment', 'Payment', 'cart_onepage' ) ) . '</span></div>';
 			} else {
@@ -1124,7 +1124,13 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Widget' ) && class_exists( 
 			echo '<div class="ec_cart_header ec_top">' . esc_html( $onepage ? $t( 'order_summary', 'Order Summary', 'cart_onepage' ) : $t( 'your_cart_title', 'YOUR CART', 'cart' ) ) . '</div>';
 			foreach ( $lines as $n => $line ) {
 				if ( $onepage ) {
-					echo '<div class="ec_cart_price_row_v2"><div class="ec_cart_image_row_v2">' . ( '' !== $line['image'] ? '<img src="' . esc_url( $line['image'] ) . '" alt="" />' : '' ) . '</div><div class="ec_cart_price_row_label_v2">' . esc_html( $line['title'] ) . ( $line['quantity'] > 1 ? ' x ' . esc_html( (string) $line['quantity'] ) : '' ) . ( '' !== $line['options'] ? '<dl><dt>' . esc_html( $line['options'] ) . '</dt></dl>' : '' ) . '</div><div class="ec_cart_price_row_total_v2">' . esc_html( $line['total'] ) . '</div></div>';
+					/* 6.0.4: the summary line's look ( ec_cart_summary_line_v2.php ): the stepper and bin when quantities can be changed, else the quantity on the picture. */
+					$editable = (bool) get_option( 'ec_option_onepage_checkout_quantity_adjust_on' );
+					$controls = '';
+					if ( $editable ) {
+						$controls = '<div class="ec_cart_summary_controls" aria-hidden="true"><div class="ec_cart_summary_qty"><button type="button" class="ec_cart_summary_qty_step ec_cart_summary_qty_minus" tabindex="-1"' . ( $line['quantity'] <= 1 ? ' aria-disabled="true"' : '' ) . '><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg></button><input type="number" class="ec_quantity_small_v2" value="' . esc_attr( (string) $line['quantity'] ) . '" readonly tabindex="-1" /><button type="button" class="ec_cart_summary_qty_step ec_cart_summary_qty_plus" tabindex="-1"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8h10M8 3v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg></button></div><button type="button" class="ec_cart_summary_remove" tabindex="-1"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16" /><path d="M10 11v6M14 11v6" /><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" /><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" /></svg></button></div>';
+					}
+					echo '<div class="ec_cart_price_row_v2 ec_cart_summary_line' . ( $editable ? ' ec_cart_summary_line_editable ec_cart_summary_line_has_controls' : '' ) . '"><div class="ec_cart_image_row_v2">' . ( '' !== $line['image'] ? '<img src="' . esc_url( $line['image'] ) . '" alt="" />' : '' ) . ( ! $editable && $line['quantity'] > 1 ? '<span class="ec_cart_summary_badge">' . esc_html( (string) $line['quantity'] ) . '</span>' : '' ) . '</div><div class="ec_cart_price_row_label_v2"><span class="ec_cart_summary_title">' . esc_html( $line['title'] ) . '</span>' . ( '' !== $line['options'] ? '<dl><dt>' . esc_html( $line['options'] ) . '</dt></dl>' : '' ) . '</div><div class="ec_cart_price_row_total_v2">' . esc_html( $line['total'] ) . '</div>' . $controls . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $controls is fixed markup with escaped values.
 				} else {
 					echo '<div class="ec_cart_price_row ec_cart_price_row_cartitem_' . esc_attr( (string) $n ) . '"><div class="ec_cart_price_row_label">' . esc_html( $line['title'] ) . ( $line['quantity'] > 1 ? ' x ' . esc_html( (string) $line['quantity'] ) : '' ) . '</div><div class="ec_cart_price_row_total">' . esc_html( $line['total'] ) . '</div></div>';
 				}

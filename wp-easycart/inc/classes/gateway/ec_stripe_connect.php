@@ -2155,13 +2155,17 @@ function wpeasycart_stripe_connect_update_intent( ){
 			$stripe->update_payment_intent_total( $GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id, $order_totals );
 			$GLOBALS['ec_cart_data']->cart_data->stripe_last_pi_data = $payment_intent_data;
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-			wp_cache_flush();
+			wp_easycart_cache::cart_changed();
 		}
 	}
 }
 
-add_filter( 'wp_easycart_is_stripe_sandbox', 'wp_easycart_filter_stripe_is_sandbox' );
+/* 6.0.4: wp_easycart_stripe_mode answers wp_easycart_is_stripe_sandbox for both Stripe gateways ( this file only loads for Stripe
+   Connect ). The test-mode customer's flag no longer applies in admin AJAX. Kept for code that calls it. */
 function wp_easycart_filter_stripe_is_sandbox( $is_sandbox ) {
+	if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+		return wp_easycart_stripe_mode::filter_is_sandbox( $is_sandbox );
+	}
 	if ( get_option( 'ec_option_stripe_connect_use_sandbox' ) ) {
 		return true;
 	}

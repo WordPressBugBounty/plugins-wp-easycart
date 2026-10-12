@@ -443,13 +443,16 @@
 			}
 		},
 
-		/* The lowest price the rules give price ( price itself when none lowers it ): ec_offer_display::apply_price_rules(). */
+		/* The lowest price the rules give price ( price itself when none lowers it ): ec_offer_display::apply_price_rules().
+		 * 6.0.4: when every rule carries stack ( offers the cart takes together ), what they take off is added up instead. */
 		price: function( rules, price ) {
 			price = Number( price );
 			var best = price;
 			if ( ! $.isArray( rules ) || ! ( price > 0 ) ) {
 				return price;
 			}
+			var stack = rules.length > 1;
+			var taken = 0;
 			$.each( rules, function( i, rule ) {
 				var value = Number( rule && rule.value ) || 0;
 				var floor = Number( rule && rule.floor ) || 0;
@@ -468,8 +471,12 @@
 				if ( preview < best ) {
 					best = preview;
 				}
+				taken += price - preview;
+				if ( ! ( rule && rule.stack ) ) {
+					stack = false;
+				}
 			} );
-			return best;
+			return stack ? Math.max( 0, price - taken ) : best;
 		},
 
 		/* An amount as the form shows money ( ec-store.js's ec_details_format_money_v2() and the form's currency fields ). */

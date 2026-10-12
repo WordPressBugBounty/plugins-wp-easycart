@@ -1,4 +1,4 @@
-<section class="ec_account_page" id="ec_account_forgot_password">
+<section class="ec_account_page<?php echo ( $this->account_modern() ) ? ' ec_account_v2 ec_account_entry_v2' : ''; /* 6.0.4: the account forms' look ( ec-store.css ); an Elementor account widget keeps the older markup */ ?>" id="ec_account_forgot_password">
 
 	<div class="ec_cart_left">
 

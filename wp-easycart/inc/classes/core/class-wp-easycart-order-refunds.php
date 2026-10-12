@@ -428,28 +428,16 @@ if ( ! class_exists( 'wp_easycart_order_refunds' ) ) :
 			/* translators: %s: payment name. */
 			$declined = sprintf( __( 'The refund of %s was declined by the payment gateway.', 'wp-easycart' ), $payment['name'] );
 			if ( 'stripe' === $payment['route'] ) {
-				$api = self::stripe_api( $payment['gateway'] );
-				if ( ! $api ) {
-					return new WP_Error( 'refund_gateway', __( 'Stripe is not set up on this store, so this payment cannot be refunded here. Refund it in Stripe.', 'wp-easycart' ) );
+				/* 6.0.4: an order paid in Stripe test mode ( a test-mode customer's ) is refunded with the test keys. */
+				$test = class_exists( 'wp_easycart_stripe_mode' ) && wp_easycart_stripe_mode::TEST === wp_easycart_stripe_mode::order_mode( (int) $order->order_id );
+				if ( $test ) {
+					wp_easycart_stripe_mode::force( wp_easycart_stripe_mode::TEST );
 				}
-				$charge = self::stripe_charge( $api, $payment );
-				if ( '' === $charge ) {
-					return new WP_Error( 'refund_gateway', __( 'The Stripe charge of this payment could not be found. Refund it in Stripe.', 'wp-easycart' ) );
+				$result = self::refund_stripe( $payment, $amount, $declined );
+				if ( $test ) {
+					wp_easycart_stripe_mode::release();
 				}
-				self::pending_begin( $charge, $amount );
-				if ( ! $api->refund_charge( $charge, $amount ) ) {
-					self::pending_end( $charge );
-					return new WP_Error( 'refund_declined', $declined );
-				}
-				$reference = '';
-				if ( method_exists( $api, 'get_charge_refunds' ) ) {
-					$list      = $api->get_charge_refunds( $charge, 1 );
-					$reference = ( $list && isset( $list->data[0]->id ) ) ? (string) $list->data[0]->id : '';
-				}
-				return array(
-					'reference' => $reference,
-					'charge'    => $charge,
-				);
+				return $result;
 			}
 			if ( 'square' === $payment['route'] ) {
 				if ( ! class_exists( 'ec_square' ) ) {
@@ -457,7 +445,8 @@ if ( ! class_exists( 'wp_easycart_order_refunds' ) ) :
 				}
 				$square = new ec_square();
 				if ( ! $square->refund_charge_payment( (string) $payment['reference'], $amount ) ) {
-					return new WP_Error( 'refund_declined', $declined );
+					/* 6.0.4: Square's own reason, or that Square could not be reached. */
+					return new WP_Error( 'refund_declined', ( isset( $square->refund_error ) && '' !== (string) $square->refund_error ) ? (string) $square->refund_error : $declined );
 				}
 				return array(
 					'reference' => '',
@@ -479,6 +468,39 @@ if ( ! class_exists( 'wp_easycart_order_refunds' ) ) :
 				);
 			}
 			return new WP_Error( 'refund_route', __( 'This payment is refunded another way.', 'wp-easycart' ) );
+		}
+
+		/**
+		 * Refund part of a Stripe payment through its charge.
+		 *
+		 * @param array  $payment  A payments() entry.
+		 * @param float  $amount   Amount.
+		 * @param string $declined The message when Stripe declines.
+		 * @return array|WP_Error reference, charge.
+		 */
+		private static function refund_stripe( $payment, $amount, $declined ) {
+			$api = self::stripe_api( $payment['gateway'] );
+			if ( ! $api ) {
+				return new WP_Error( 'refund_gateway', __( 'Stripe is not set up on this store, so this payment cannot be refunded here. Refund it in Stripe.', 'wp-easycart' ) );
+			}
+			$charge = self::stripe_charge( $api, $payment );
+			if ( '' === $charge ) {
+				return new WP_Error( 'refund_gateway', __( 'The Stripe charge of this payment could not be found. Refund it in Stripe.', 'wp-easycart' ) );
+			}
+			self::pending_begin( $charge, $amount );
+			if ( ! $api->refund_charge( $charge, $amount ) ) {
+				self::pending_end( $charge );
+				return new WP_Error( 'refund_declined', $declined );
+			}
+			$reference = '';
+			if ( method_exists( $api, 'get_charge_refunds' ) ) {
+				$list      = $api->get_charge_refunds( $charge, 1 );
+				$reference = ( $list && isset( $list->data[0]->id ) ) ? (string) $list->data[0]->id : '';
+			}
+			return array(
+				'reference' => $reference,
+				'charge'    => $charge,
+			);
 		}
 
 		/**

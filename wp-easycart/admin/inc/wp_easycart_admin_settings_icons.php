@@ -115,7 +115,7 @@ class wp_easycart_admin_settings_icons {
 		return array(
 			'account' => array( 'registration' => 'user-plus', 'account-page' => 'user', 'spam-protection' => 'shield' ),
 			'admin' => array( 'quick-add' => 'plus-circle', 'orders' => 'receipt', 'admin-screens' => 'monitor', 'mobile-apps' => 'smartphone', 'storefront' => 'store', 'diagnostics' => 'activity', 'integrations' => 'puzzle' ),
-			'checkout' => array( 'cart' => 'cart', 'checkout-flow' => 'zap', 'checkout-form' => 'file-text', 'address-fields' => 'map', 'payment-page' => 'credit-card', 'orders' => 'hash', 'stock-alerts' => 'bell', 'abandoned-cart' => 'refresh', 'pickup-schedule' => 'calendar', 'text-notifications' => 'message' ),
+			'checkout' => array( 'cart' => 'cart', 'checkout-flow' => 'zap', 'checkout-form' => 'file-text', 'address-fields' => 'map', 'payment-page' => 'credit-card', 'orders' => 'hash', 'withdrawal' => 'scale', 'stock-alerts' => 'bell', 'abandoned-cart' => 'refresh', 'pickup-schedule' => 'calendar', 'text-notifications' => 'message' ),
 			'design' => array( 'colors' => 'palette', 'typography' => 'type', 'product-listings' => 'grid', 'product-page' => 'layout', 'cart-checkout' => 'cart', 'cart-icon' => 'cart', 'newsletter-popup' => 'mail', 'custom-css' => 'code', 'theme-integration' => 'puzzle', 'templates' => 'layers' ),
 			'newsletter-services' => array( /* 6.0.2: Settings › Email marketing */
 				'mailerlite'           => array( 'text' => 'ML', 'bg' => '#09c269' ),

@@ -857,6 +857,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 				wp_easycart_post_sync()->delete( 'category', $categories[ $i ]->category_id, $categories[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_category WHERE category_id = %d', $categories[ $i ]->category_id ) );
 			}
+			if ( $categories_count ) {
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lists */
+			}
 
 			$users = $wpdb->get_results( 'SELECT user_id, default_billing_address_id, default_shipping_address_id FROM ec_user WHERE is_demo_item = 1' );
 			$users_count = count( $users );

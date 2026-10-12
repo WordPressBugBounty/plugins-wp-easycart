@@ -204,6 +204,8 @@ if( get_option( 'ec_option_payment_process_method' ) == 'authorize' ){
 
 // THIRD PARTY GATEWAYS
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/ec_third_party.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/class-wp-easycart-stripe-connect-relay.php' ); /* 6.0.4: Connect Stripe through WP EasyCart Connect's /stripe-v2/ ( the account's keys come back as a one-time claim, never in an address ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/class-wp-easycart-square-relay.php' ); /* 6.0.4: every call to WP EasyCart Connect's Square relay ( /square-v3/: tokens never in an address ) and its Connect Square links */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/class-wp-easycart-paypal-connect.php' ); /* 6.0.2: every call to WP EasyCart Connect's PayPal relay ( /paypal-v3/ ) and its Connect PayPal links, whatever the gateway in use */
 
 if( get_option( 'ec_option_payment_third_party' ) == '2checkout_thirdparty' ){
@@ -366,6 +368,7 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_currency.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_googleanalytics.php' ); 
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_db.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_db_admin.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-cache.php' ); /* 6.0.4: storefront changes forget only the cached keys they change ( no whole-site cache flush ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_db_manager.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_discount.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_language.php' );
@@ -386,9 +389,11 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-documents.ph
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-payments.php' ); /* 6.0.2: what each order has been paid, and its balance */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-ledger.php' ); /* 6.0.2: payments, refunds and order facts for Reports */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-refunds.php' ); /* 6.0.2: each payment of an order and how it is refunded */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-discounts.php' ); /* 6.0.4: the codes and promotions an order used ( classic coupons and Offers ), for exports */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-store-activity.php' ); /* 6.0.2: daily store activity counts for Reports ( views, adds, visits, checkout steps, searches ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-reports.php' ); /* 6.0.2: the Reports engine ( tabs, kept days, the summary email on WP-Cron ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-pay.php' ); /* 6.0.2: pay an existing order from its link ( ec_page=invoice ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-stripe-mode.php' ); /* 6.0.4: Stripe live / test keys for each request ( test-mode customers ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-paypal-webhooks.php' ); /* 6.0.2: PayPal notifications ( registration, status, the Payments drawer's Notifications group ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-gateway.php' ); /* 6.0.2: subscriptions need Stripe; what to tell the merchant and the shopper when they can't be sold */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-prices.php' ); /* 6.0.3: the Stripe price a subscription bills, checked before every use; one way to change a subscription's product */
@@ -413,9 +418,14 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-privacy.php'
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-variants.php' ); /* 6.0.2: a product's variant rows, kept when its option sets change */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-storefront-access.php' ); /* 6.0.2: what a shopper may add to the cart, download and open ( memberships ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-writer.php' ); /* 6.0.2: create and update products from code ( importers, catalog extensions ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-drafts.php' ); /* 6.0.4: the product editor's hidden new-product drafts */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/import/class-wp-easycart-import.php' ); /* 6.0.3: the import framework ( WooCommerce, Square ), its WP-Cron runner and old address redirects */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-fulfillment.php' ); /* 6.0.2: fulfillment partners ( print on demand ): order lines, release, state */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-returns.php' ); /* 6.0.3: a cancelled order's stock and gift card balance go back */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-withdrawals.php' ); /* 6.0.4: the EU withdrawal button ( Article 11a ): eligibility, statements, emails, the page */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-lookup.php' ); /* 6.0.4: guest order lookup ( order number + email, the order's link emailed ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-confirmation.php' ); /* 6.0.4: the order confirmation page's items, totals, details and addresses */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-cart-quantity.php' ); /* 6.0.4: cart quantity limits and what the cart says about them */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-shipping-groups.php' ); /* 6.0.2: checkout shipping for lines a fulfillment partner ships */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_page_options.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_payment.php' );
@@ -591,4 +601,11 @@ function wpeasycart_load_admin( ){
 	if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && is_admin( ) ){
 		include( EC_PLUGIN_DIRECTORY . '/admin/admin-init.php' );
 	}
+}
+
+/* 6.0.4: WP-CLI commands ( wp easycart ). Checked with defined(), never class_exists( 'WP_CLI' ): the test kit defines a WP_CLI
+   stand-in during admin requests. */
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/cli/class-wp-easycart-cli.php';
+	wp_easycart_cli::init();
 }

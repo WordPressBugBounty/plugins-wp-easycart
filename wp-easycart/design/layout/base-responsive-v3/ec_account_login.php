@@ -1,5 +1,5 @@
 <?php if ( ! isset( $form_only ) || ! $form_only ) { ?>
-<section class="ec_account_page">
+<section class="ec_account_page<?php echo ( $this->account_modern() ) ? ' ec_account_v2 ec_account_entry_v2' : ''; /* 6.0.4: the account forms' look ( ec-store.css ); an Elementor account widget keeps the older markup */ ?>">
 	<div class="ec_account_left ec_account_login">
 <?php }?>
 		<?php $this->display_account_login_form_start(); ?>

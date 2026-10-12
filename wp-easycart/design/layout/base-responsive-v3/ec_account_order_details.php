@@ -24,12 +24,31 @@
 		$has_billing = true;
 	}
 ?>
-<section class="ec_account_page" id="ec_account_order_details">
+<?php /* 6.0.4: ec_account_order_details_v2 and the row classes below give the order the order confirmation page's look ( ec-store.css ); a store's copy of this template without them keeps the look it had. */ ?>
+<?php
+/* 6.0.4: a signed-in customer sees the order across the page's width under breadcrumbs back to the orders and the account ( Matt: the
+   breadcrumbs are enough on a details page, so the account menu is left out here: .ec_account_details_v2 ); a guest's order link shows
+   the order alone under its number ( there is no account to go back to ). An Elementor account widget keeps the older markup. */
+$ec_account_modern = $this->account_modern();
+$ec_account_nav    = $ec_account_modern && $this->account_signed_in();
+?>
+<section class="ec_account_page ec_account_order_details_v2<?php echo ( $ec_account_modern ) ? ' ec_account_v2' : ''; ?><?php echo ( $ec_account_nav ) ? ' ec_account_details_v2' : ''; ?><?php echo ( $ec_account_modern && ! $ec_account_nav ) ? ' ec_account_order_details_guest' : ''; ?>" id="ec_account_order_details">
+	<?php if ( $ec_account_nav ) { ?>
+	<div class="ec_account_left ec_account_main_v2">
+	<?php } ?>
 	<?php if ( $this->order ) { ?>
 	<?php
 	/* 6.0.2: an unpaid order can be paid from its pay link ( asked once: the notice below says so too ). */
 	$ec_order_can_pay = class_exists( 'wp_easycart_order_pay' ) && method_exists( 'wp_easycart_order_pay', 'can_pay' ) && wp_easycart_order_pay::can_pay( $this->order );
 	?>
+	<?php if ( $ec_account_modern ) { ?>
+	<div class="ec_account_page_head_v2">
+		<?php if ( $ec_account_nav ) { ?>
+		<?php $this->display_account_crumbs( $this->account_crumb_trail( 'order_details', (int) $this->order->order_id ) ); ?>
+		<?php } else { ?>
+		<div class="ec_account_order_title_v2"><?php echo esc_html( str_replace( '[order_id]', (string) (int) $this->order->order_id, ec_accountpage::account_phrase( 'account_navigation', 'account_navigation_order_number', 'Order #[order_id]' ) ) ); ?></div>
+		<?php } ?>
+	<?php } ?>
 	<?php /* 6.0.2: a row of its own above the order ( ec-store.css ), styled from the store's main colour. */ ?>
 	<div class="right ec_account_order_details_actions">
 		<?php do_action( 'wp_easycart_order_details_header_right', $this->order ); ?>
@@ -38,9 +57,16 @@
 		<?php } ?>
 		<?php /* 6.0.2: Settings › Documents › Customer downloads can turn the print link off, and a document rule can for some orders. */ ?>
 		<?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'print_receipt', (int) $this->order->order_id ) : get_option( 'ec_option_account_print_receipt', 1 ) ) { ?>
+		<?php if ( $ec_account_modern ) { /* 6.0.4: a button with words, as on the order confirmation page */ ?>
+		<a class="ec_account_order_print_v2" href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $this->order->order_id, 'ec_guest_key' => ( ( '' != $this->order->guest_key ) ? $this->order->guest_key : null ) ) ) ); ?>" target="_blank"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span><?php echo esc_html( ec_accountpage::account_phrase( 'cart_success', 'cart_success_print_receipt_text', 'Print Receipt' ) ); ?></span></a>
+		<?php } else { ?>
 		<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $this->order->order_id, 'ec_guest_key' => ( ( '' != $this->order->guest_key ) ? $this->order->guest_key : null ) ) ) ); ?>" target="_blank"><img src="<?php echo esc_attr( $this->get_print_order_icon_url( ) ); ?>" alt="<?php echo esc_attr__( 'Print', 'wp-easycart' ); ?>" /></a>
 		<?php } ?>
+		<?php } ?>
 	</div>
+	<?php if ( $ec_account_modern ) { ?>
+	</div>
+	<?php } ?>
 
 	<div class="ec_account_order_details_main_holder">
 		<?php if ( ! $this->order->is_approved && ( 7 == $this->order->orderstatus_id || 9 == $this->order->orderstatus_id || 19 == $this->order->orderstatus_id ) ) { ?>
@@ -158,105 +184,105 @@
 		<?php }?>
 
 		<div class="ec_account_order_details_left">
-			<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_info_title' )?></div>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_number' )?></strong> <?php $this->order->display_order_id( ); ?></div>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_date' )?></strong> <?php $this->order->display_order_date( ); ?></div>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_status' )?></strong> <?php $this->order->display_order_status( ); ?></div>
+			<div class="ec_cart_header ec_top ec_account_order_details_heading"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_info_title' )?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_number' )?></strong> <?php $this->order->display_order_id( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_date' )?></strong> <?php $this->order->display_order_date( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_status' )?></strong> <?php $this->order->display_order_status( ); ?></div>
 
 			<?php if( $has_shipping ){
 				if( $this->order->shipping_method ){ ?>
-				<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_method' )?></strong> <?php $this->order->display_order_shipping_method( ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_method' )?></strong> <?php $this->order->display_order_shipping_method( ); ?></div>
 				<?php }
 			} ?>
 
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email' )?></strong> <?php $this->order->display_order_email( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email' )?></strong> <?php $this->order->display_order_email( ); ?></div>
 			<?php if ( '' != $this->order->email_other ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email_other' )?></strong> <?php $this->order->display_order_email_other( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email_other' )?></strong> <?php $this->order->display_order_email_other( ); ?></div>
 			<?php } ?>
 
 			<?php if ( $this->order->promo_code && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $this->order ) ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_coupon_code' )?></strong> <?php $this->order->display_order_promocode( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_coupon_code' )?></strong> <?php $this->order->display_order_promocode( ); ?></div>
 			<?php } ?>
 
 			<?php if ( $this->order->giftcard_id ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_gift_card' )?></strong> <?php $this->order->display_order_giftcard( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_gift_card' )?></strong> <?php $this->order->display_order_giftcard( ); ?></div>
 			<?php } ?>
 
 			<?php if ( $this->order->has_tracking_number() ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_tracking' )?></strong> <?php $this->order->display_order_tracking_number(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_order_tracking' )?></strong> <?php $this->order->display_order_tracking_number(); ?></div>
 			<?php } ?>
 
 			<?php if ( $this->order->subscription_id ) {?>
-			<div class="ec_cart_input_row"><strong><?php $this->order->display_subscription_link( wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_view_subscription' ) ); ?></strong> <?php $this->order->display_order_tracking_number( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php $this->order->display_subscription_link( wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_view_subscription' ) ); ?></strong> <?php $this->order->display_order_tracking_number( ); ?></div>
 			<?php } ?>
 
 			<?php if ( $this->order->has_membership_page() ) { ?>
-			<div class="ec_cart_input_row"><strong><a href="<?php echo esc_attr( $this->order->get_membership_page_link( ) ); ?>"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_5" ); ?></a></strong></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><a href="<?php echo esc_attr( $this->order->get_membership_page_link( ) ); ?>"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_5" ); ?></a></strong></div>
 			<?php } ?>
 
 			<?php if ( $this->order->vat_registration_number != "" ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ); ?>:</strong> <?php echo esc_attr( htmlspecialchars( stripslashes( $this->order->vat_registration_number ), ENT_QUOTES ) ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ); ?>:</strong> <?php echo esc_attr( htmlspecialchars( stripslashes( $this->order->vat_registration_number ), ENT_QUOTES ) ); ?></div>
 			<?php } ?>
 
 			<?php do_action( 'wpeasycart_order_details_after_basic_info', $this->order ); ?>
 
-			<div class="ec_cart_input_row">&nbsp;&nbsp;&nbsp;</div>
+			<div class="ec_cart_input_row ec_account_order_details_spacer">&nbsp;&nbsp;&nbsp;</div>
 
 			<?php if ( $has_shipping && ( ! $this->order->subscription_id || get_option( 'ec_option_collect_shipping_for_subscriptions' ) ) ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_label' )?></strong></div>
-			<div class="ec_cart_input_row"><?php $this->order->display_order_shipping_first_name( ); ?> <?php $this->order->display_order_shipping_last_name( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_title"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_label' )?></strong></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_first_name( ); ?> <?php $this->order->display_order_shipping_last_name( ); ?></div>
 			<?php if ( '' != $this->order->shipping_company_name ) { ?>
-			<div class="ec_cart_input_row"><?php echo esc_attr( $this->order->shipping_company_name ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( $this->order->shipping_company_name ); ?></div>
 			<?php } ?>
-			<div class="ec_cart_input_row"><?php $this->order->display_order_shipping_address_line_1(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_address_line_1(); ?></div>
 			<?php if( '' != $this->order->shipping_address_line_2 ) { ?>
-			<div class="ec_cart_input_row"><?php echo esc_attr( $this->order->shipping_address_line_2 ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( $this->order->shipping_address_line_2 ); ?></div>
 			<?php }?>
-			<div class="ec_cart_input_row"><?php $this->order->display_order_shipping_city(); ?>, <?php $this->order->display_order_shipping_state( ); ?> <?php $this->order->display_order_shipping_zip(); ?></div>
-			<div class="ec_cart_input_row"><?php $this->order->display_order_shipping_country(); ?></div>
-			<div class="ec_cart_input_row"><?php $this->order->display_order_shipping_phone(); ?></div>
-			<div class="ec_cart_input_row">&nbsp;&nbsp;&nbsp;</div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_city(); ?>, <?php $this->order->display_order_shipping_state( ); ?> <?php $this->order->display_order_shipping_zip(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_country(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_phone(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_spacer">&nbsp;&nbsp;&nbsp;</div>
 			<?php }?>
 
 			<?php do_action( 'wpeasycart_order_details_after_shipping', $this->order ); ?>
 
 			<?php if ( $has_billing ) { ?>
-				<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_billing_label' )?></strong></div>
-				<div class="ec_cart_input_row"><?php $this->order->display_order_billing_first_name( ); ?> <?php $this->order->display_order_billing_last_name( ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_title"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_billing_label' )?></strong></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_first_name( ); ?> <?php $this->order->display_order_billing_last_name( ); ?></div>
 				<?php if ( '' != $this->order->billing_company_name ){ ?>
-				<div class="ec_cart_input_row"><?php echo esc_attr( htmlspecialchars( $this->order->billing_company_name, ENT_QUOTES ) ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( htmlspecialchars( $this->order->billing_company_name, ENT_QUOTES ) ); ?></div>
 				<?php }?>
-				<div class="ec_cart_input_row"><?php $this->order->display_order_billing_address_line_1(); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_address_line_1(); ?></div>
 				<?php if ( '' != $this->order->billing_address_line_2 ) { ?>
-				<div class="ec_cart_input_row"><?php echo esc_attr( htmlspecialchars( $this->order->billing_address_line_2, ENT_QUOTES ) ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( htmlspecialchars( $this->order->billing_address_line_2, ENT_QUOTES ) ); ?></div>
 				<?php }?>
-				<div class="ec_cart_input_row"><?php $this->order->display_order_billing_city(); ?>, <?php $this->order->display_order_billing_state(); ?> <?php $this->order->display_order_billing_zip(); ?></div>
-				<div class="ec_cart_input_row"><?php $this->order->display_order_billing_country(); ?></div>
-				<div class="ec_cart_input_row"><?php $this->order->display_order_billing_phone(); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_city(); ?>, <?php $this->order->display_order_billing_state(); ?> <?php $this->order->display_order_billing_zip(); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_country(); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_phone(); ?></div>
 
 				<?php do_action( 'wpeasycart_order_details_after_billing', $this->order ); ?>
-				<div class="ec_cart_input_row">&nbsp;&nbsp;&nbsp;</div>
+				<div class="ec_cart_input_row ec_account_order_details_spacer">&nbsp;&nbsp;&nbsp;</div>
 			<?php }?>
 
 			<?php if ( '' != $this->order->creditcard_digits ) { ?>
 				<?php if ( '' != $this->order->card_holder_name ) { ?>
-					<div class="ec_cart_input_row"><strong><?php echo esc_attr( $this->order->card_holder_name ); ?></strong></div>
+					<div class="ec_cart_input_row ec_account_order_details_payment"><strong><?php echo esc_attr( $this->order->card_holder_name ); ?></strong></div>
 				<?php } ?>
-				<div class="ec_cart_input_row"><?php $this->order->display_payment_method( ); ?>: ************<?php echo esc_attr( $this->order->creditcard_digits ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_payment"><?php $this->order->display_payment_method( ); ?>: ************<?php echo esc_attr( $this->order->creditcard_digits ); ?></div>
 			<?php } else { ?>
-				<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_payment_method' )?></strong> <?php $this->order->display_payment_method( ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_payment"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_payment_method' )?></strong> <?php $this->order->display_payment_method( ); ?></div>
 			<?php } ?>
-			<div class="ec_cart_input_row">&nbsp;&nbsp;&nbsp;</div>
+			<div class="ec_cart_input_row ec_account_order_details_spacer">&nbsp;&nbsp;&nbsp;</div>
 
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_subtotal' )?></strong> <?php $this->order->display_sub_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_subtotal' )?></strong> <?php $this->order->display_sub_total( ); ?></div>
 			<?php if ( $this->order->tip_total > 0 ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tip' ); ?></strong> <?php $this->order->display_tip_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tip' ); ?></strong> <?php $this->order->display_tip_total( ); ?></div>
 			<?php } ?>
 			<?php if ( get_option( 'ec_option_use_shipping' ) && ( $this->order->shipping_method || $this->order->shipping_total > 0 ) ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_total' )?></strong> <?php $this->order->display_shipping_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_shipping_total' )?></strong> <?php $this->order->display_shipping_total( ); ?></div>
 			<?php }?>
 			<?php if ( $this->order->tax_total > 0 ) {?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_tax_total' )?></strong> <?php $this->order->display_tax_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_tax_total' )?></strong> <?php $this->order->display_tax_total( ); ?></div>
 			<?php } ?>
 			<?php
 			$ec_account_offers = ( isset( $this->order->applied_offers ) && '' != $this->order->applied_offers ) ? json_decode( (string) $this->order->applied_offers, true ) : false;
@@ -264,41 +290,41 @@
 				foreach ( $ec_account_offers['applied_offers'] as $ec_account_offer ) {
 					if ( $ec_account_offer['amount'] <= 0 ) { continue; }
 			?>
-			<div class="ec_cart_input_row ec_offer_totals_row"><strong><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_account_offer['label'] ); ?><?php if ( '' != $ec_account_offer['code'] ) { echo ' (' . esc_attr( $ec_account_offer['code'] ) . ')'; } ?></strong> -<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_account_offer['amount'] ) ); ?></div>
+			<div class="ec_cart_input_row ec_offer_totals_row ec_account_order_details_total"><strong><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_account_offer['label'] ); ?><?php if ( '' != $ec_account_offer['code'] ) { echo ' (' . esc_attr( $ec_account_offer['code'] ) . ')'; } ?></strong> -<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_account_offer['amount'] ) ); ?></div>
 			<?php } } ?>
 			<?php if ( $this->order->discount_total != 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $this->order ) ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_discount_total' )?></strong> -<?php $this->order->display_discount_total(); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total ec_account_order_details_total_discount"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_discount_total' )?></strong> -<?php $this->order->display_discount_total(); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->has_duty() ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_duty_total' )?></strong> <?php $this->order->display_duty_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_duty_total' )?></strong> <?php $this->order->display_duty_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->has_vat() ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_vat_total' )?></strong> <?php $this->order->display_vat_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_vat_total' )?></strong> <?php $this->order->display_vat_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->gst_total > 0 ) {?>
-			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->gst_rate ); ?>%)</strong> <?php $this->order->display_gst_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->gst_rate ); ?>%)</strong> <?php $this->order->display_gst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->pst_total > 0 ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->pst_rate ); ?>%)</strong> <?php $this->order->display_pst_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->pst_rate ); ?>%)</strong> <?php $this->order->display_pst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->hst_total > 0 ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->hst_rate ); ?>%)</strong> <?php $this->order->display_hst_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->hst_rate ); ?>%)</strong> <?php $this->order->display_hst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( count( $this->order->order_fees ) > 0 ) { ?>
 				<?php foreach ( $this->order->order_fees as $order_fee ) { ?>
-				<div class="ec_cart_input_row"><strong><?php echo esc_attr( $order_fee->fee_label ); ?></strong> <?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_fee->fee_total ) ); ?></div>
+				<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo esc_attr( $order_fee->fee_label ); ?></strong> <?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_fee->fee_total ) ); ?></div>
 				<?php } ?>
 			<?php } ?>
 			<?php if ( $this->order->has_refund() ) { ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_refund_total' )?></strong> <?php $this->order->display_refund_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_refund_total' )?></strong> <?php $this->order->display_refund_total( ); ?></div>
 			<?php } ?>
-			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_grand_total' )?></strong> <?php $this->order->display_grand_total( ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_total ec_account_order_details_grand_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_grand_total' )?></strong> <?php $this->order->display_grand_total( ); ?></div>
 			<?php do_action( 'wpeasycart_order_details_after_totals', $this->order ); ?>
 		</div>
 
 		<div class="ec_account_order_details_right">
 			<?php do_action( 'wpeasycart_account_order_details_right_top', $this->order->order_id, $this->order ); ?>
-			<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_your_order_title' )?></div>
+			<div class="ec_cart_header ec_top ec_account_order_details_heading"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_your_order_title' )?></div>
 			<?php $this->order->display_order_customer_details_notes( ); ?>
 			<table class="ec_account_order_details_table">
 				<thead>
@@ -313,7 +339,7 @@
 				<?php $this->display_order_detail_product_list( ); ?>
 				</tbody>
 			</table>
-			<?php if ( get_option( 'ec_option_user_order_notes' ) && strlen( trim( $this->order->order_customer_notes ) ) > 0 ) { ?>
+			<?php if ( get_option( 'ec_option_user_order_notes' ) && strlen( trim( (string) $this->order->order_customer_notes ) ) > 0 ) { ?>
 			<div class="ec_account_order_notes">
 				<hr />
 				<h4><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ); ?></h4>
@@ -327,6 +353,9 @@
 	<?php } else { ?>
 	<div class="ec_account_no_order_found"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'no_order_found' )?></div>
 	<div class="ec_account_return_to_dashboard_button"><a href="<?php echo esc_attr( $this->account_page ); ?>"><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'return_to_dashboard' )?></a></div>
+	<?php } ?>
+	<?php if ( $ec_account_nav ) { ?>
+	</div>
 	<?php } ?>
 
 	<div style="clear:both;"></div>

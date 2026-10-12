@@ -213,12 +213,31 @@ jQuery( document ).ready( function( ){
 		}
 	} );
 
-	jQuery( document.getElementById( 'model_number' ) ).on( 'change', function( ){
-		if( jQuery( document.getElementById( 'model_number' ) ).val( ) == "" ){
-			jQuery( document.getElementById( 'model_number' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-			jQuery( document.getElementById( 'model_number_validation' ) ).show( );
+	/* The SKU check's answer on the field: '' fine, else required | invalid | duplicate. 6.0.4: the V2 editor shows a field's
+	 * message only while the field has an error ( ecdv2.field_error() ), so these messages stayed hidden. */
+	function ec_admin_product_sku_state( code ){
+		var input = document.getElementById( 'model_number' );
+		has_valid_model_number = ( '' === code );
+		if( window.ecdv2 && 'function' === typeof window.ecdv2.field_error ){
+			if( '' === code ){
+				window.ecdv2.field_ok( 'model_number' );
+			}else{
+				window.ecdv2.field_error( 'model_number', code, '' );
+			}
+		}
+		jQuery( input ).toggleClass( 'ec_admin_field_error', '' !== code );
+		jQuery( document.getElementById( 'model_number_validation' ) ).toggle( '' !== code );
+		jQuery( document.getElementById( 'sku_required_error' ) ).toggle( 'required' === code );
+		jQuery( document.getElementById( 'sku_invalid_error' ) ).toggle( 'invalid' === code );
+		jQuery( document.getElementById( 'sku_duplicate_error' ) ).toggle( 'duplicate' === code );
+	}
 
-		} else if ( jQuery( document.getElementById( 'model_number' ) ).val().toLowerCase() != jQuery( document.getElementById( 'model_number_orig' ) ).val().toLowerCase() ) {
+	jQuery( document.getElementById( 'model_number' ) ).on( 'change', function( ){
+		var sku = jQuery( document.getElementById( 'model_number' ) ).val( );
+		if( jQuery.trim( sku ) == "" ){
+			ec_admin_product_sku_state( 'required' );
+
+		} else if ( sku.toLowerCase() != String( jQuery( document.getElementById( 'model_number_orig' ) ).val() ).toLowerCase() ) {
 			var data = {
 				action: 'ec_admin_ajax_validate_model_number',
 				product_id: ec_admin_get_value( 'product_id', 'hidden' ),
@@ -226,33 +245,23 @@ jQuery( document ).ready( function( ){
 				wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
 			};
 
-			jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+			jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+				if ( jQuery( document.getElementById( 'model_number' ) ).val( ) !== sku ) {
+					return; /* the field moved on; its own change asks again */
+				}
+				data = jQuery.trim( String( data ) );
 				if( data == '0' ){
-					jQuery( document.getElementById( 'model_number' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-					jQuery( document.getElementById( 'model_number_validation' ) ).show( );
-					jQuery( document.getElementById( 'sku_invalid_error' ) ).show( );
-					jQuery( document.getElementById( 'sku_duplicate_error' ) ).hide( );
-					has_valid_model_number = false;
+					ec_admin_product_sku_state( 'invalid' );
 
 				}else if( data == '-1' ){
-					jQuery( document.getElementById( 'model_number' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-					jQuery( document.getElementById( 'model_number_validation' ) ).show( );
-					jQuery( document.getElementById( 'sku_invalid_error' ) ).hide( );
-					jQuery( document.getElementById( 'sku_duplicate_error' ) ).show( );
-					has_valid_model_number = false;
+					ec_admin_product_sku_state( 'duplicate' );
 
 				}else{
-					jQuery( document.getElementById( 'model_number' ) ).removeClass( 'ec_admin_field_error' );
-					jQuery( document.getElementById( 'model_number_validation' ) ).hide( );
-					jQuery( document.getElementById( 'sku_invalid_error' ) ).hide( );
-					jQuery( document.getElementById( 'sku_duplicate_error' ) ).hide( );
-					has_valid_model_number = true;
+					ec_admin_product_sku_state( '' );
 				}
 			} } );
 		}else{
-			jQuery( document.getElementById( 'model_number' ) ).removeClass( 'ec_admin_field_error' );
-			jQuery( document.getElementById( 'model_number_validation' ) ).hide( );
-			has_valid_model_number = true;
+			ec_admin_product_sku_state( '' );
 		}
 		return false;
 	} );

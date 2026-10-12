@@ -314,6 +314,9 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		 * customer's lifetime spend twice for Refunded, or marking the order paid twice ), or when another request moved the
 		 * order first.
 		 *
+		 * 6.0.4: wpeasycart_order_paid fires when the order moves from a status that does not count as paid to one that does,
+		 * whatever the status ( it fired for 3, 6, 10 and 15 only, also when the order was paid already ).
+		 *
 		 * @since 6.0.2 ( the body of update_orderstatus() )
 		 * @param int $order_id       Order.
 		 * @param int $orderstatus_id Status.
@@ -362,9 +365,13 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$order_log_id = $wpdb->insert_id;
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
 
-			if ( '3' == $orderstatus_id || '6' == $orderstatus_id || '10' == $orderstatus_id || '15' == $orderstatus_id ) {
+			/* 6.0.4: paid is announced on the move that makes the order paid ( the one that takes its stock above ), for every
+			   paid status: a bank transfer moved straight to Shipped, Ready for pickup or a custom paid status is announced
+			   too, and a move from one paid status to another ( Card Approved to Order Confirmed ) no longer announces it again. */
+			if ( ! $order->is_approved && $orderstatus->is_approved ) {
 				do_action( 'wpeasycart_order_paid', $order_id );
-			} else if ( '2' == $orderstatus_id ) {
+			}
+			if ( '2' == $orderstatus_id ) {
 				do_action( 'wpeasycart_order_shipped', $order_id );
 			} else if ( '16' == $orderstatus_id ) {
 				do_action( 'wpeasycart_full_order_refund', $order_id );
@@ -857,7 +864,7 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$orderdetail_id = ( isset( $_POST['orderdetail_id'] ) ) ? (int) $_POST['orderdetail_id'] : 0;
 			// phpcs:enable WordPress.Security.NonceVerification.Missing
 			$cart_item = $wpdb->get_row( $wpdb->prepare( 'SELECT giftcard_id, gift_card_message, gift_card_from_name, gift_card_to_name, gift_card_email, title, unit_price, unit_price AS gift_card_value, is_deconetwork, deconetwork_image_link, image1, 0 AS image1_optionitem FROM ec_orderdetail WHERE orderdetail_id = %d', $orderdetail_id ) );
-			if ( ! $cart_item || '' == trim( (string) $cart_item->gift_card_email ) ) {
+			if ( ! $cart_item || '' == trim( (string) $cart_item->gift_card_email ) || '' === trim( (string) $cart_item->giftcard_id ) ) { /* 6.0.4: a Square gift card not made yet has no number to send */
 				return false;
 			}
 
@@ -879,7 +886,7 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 
 		private function send_gift_card_email( $cart_item, $giftcard_id ) {
 			global $wpdb;
-			$cart_item->gift_card_value = $wpdb->get_var( $wpdb->prepare( "SELECT amount FROM ec_giftcard WHERE giftcard_id = %s", $cart_item->giftcard_id ) );
+			$cart_item->gift_card_value = function_exists( 'wp_easycart_gift_card_value' ) ? wp_easycart_gift_card_value( $cart_item->giftcard_id, isset( $cart_item->unit_price ) ? $cart_item->unit_price : 0 ) : $wpdb->get_var( $wpdb->prepare( "SELECT amount FROM ec_giftcard WHERE giftcard_id = %s", $cart_item->giftcard_id ) ); /* 6.0.4: a Square gift card has no ec_giftcard row */
 			$email_logo_url = get_option( 'ec_option_email_logo' );
 			$storepageid = get_option('ec_option_storepage');
 			if ( function_exists( 'icl_object_id' ) ) {

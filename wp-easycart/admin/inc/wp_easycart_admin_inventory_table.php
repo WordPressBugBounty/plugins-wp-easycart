@@ -195,7 +195,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				( CASE WHEN p.square_id != '' OR p.square_variation_id != '' THEN 1 ELSE 0 END ) AS square_locked"
 				. $extra['basic'] . '
 				FROM ec_product p
-				WHERE p.use_optionitem_quantity_tracking = 0';
+				WHERE p.use_optionitem_quantity_tracking = 0' . $this->drafts_sql( 'p' ); /* 6.0.4: never a new product's unsaved draft */
 
 			$variant = "SELECT CONCAT( 'v', q.optionitemquantity_id ) AS row_key,
 				'variant' AS row_type,
@@ -222,9 +222,19 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				LEFT JOIN ec_optionitem oi3 ON oi3.optionitem_id = q.optionitem_id_3
 				LEFT JOIN ec_optionitem oi4 ON oi4.optionitem_id = q.optionitem_id_4
 				LEFT JOIN ec_optionitem oi5 ON oi5.optionitem_id = q.optionitem_id_5
-				WHERE q.is_enabled = 1';
+				WHERE q.is_enabled = 1' . $this->drafts_sql( 'p' );
 
 			return '( ' . $basic . ' UNION ALL ' . $variant . ' ) inv';
+		}
+
+		/**
+		 * 6.0.4: leaves the product editor's unsaved new-product drafts out ( wp_easycart_product_drafts ).
+		 *
+		 * @param string $alias ec_product's alias.
+		 * @return string
+		 */
+		private function drafts_sql( $alias ) {
+			return function_exists( 'wp_easycart_product_draft_sql' ) ? wp_easycart_product_draft_sql( $alias ) : '';
 		}
 
 		/**
@@ -363,7 +373,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 					SUM( CASE WHEN show_stock_quantity = 1 AND stock_quantity > 0 AND stock_quantity <= ' . (int) $threshold . ' THEN 1 ELSE 0 END ) AS low_stock,
 					SUM( CASE WHEN show_stock_quantity = 1 AND stock_quantity <= 0 THEN 1 ELSE 0 END ) AS out_of_stock,
 					SUM( CASE WHEN show_stock_quantity = 0 THEN 1 ELSE 0 END ) AS untracked
-				FROM ec_product WHERE use_optionitem_quantity_tracking = 0'
+				FROM ec_product WHERE use_optionitem_quantity_tracking = 0' . $this->drafts_sql( 'ec_product' ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- drafts_sql() is a fixed SQL fragment.
 			);
 			$variant_row = $this->wpdb->get_row(
 				'SELECT COUNT(*) AS total,
@@ -373,7 +383,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 					SUM( CASE WHEN q.is_stock_tracking_enabled = 0 THEN 1 ELSE 0 END ) AS untracked
 				FROM ec_optionitemquantity q
 				INNER JOIN ec_product p ON p.product_id = q.product_id AND p.use_optionitem_quantity_tracking = 1
-				WHERE q.is_enabled = 1'
+				WHERE q.is_enabled = 1' . $this->drafts_sql( 'p' ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- drafts_sql() is a fixed SQL fragment.
 			);
 
 			$keys = array( 'total', 'in_stock', 'low_stock', 'out_of_stock', 'untracked' );

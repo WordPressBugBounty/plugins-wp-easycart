@@ -125,6 +125,7 @@ function wp_easycart_shell_output_root_css() {
  * Preserves the exact thresholds from the previous left_nav.php:
  *   trial:      <=4 danger, <=9 warn, else ok
  *   non-trial:  <=35 danger (includes <=0), <=69 warn, else ok
+ *   AutoPay:    ok until its date passes ( 6.0.4: it renews itself )
  *
  * @return array{ level:string, days_left:int, is_trial:bool, has_license:bool }
  */
@@ -151,7 +152,7 @@ function wp_easycart_shell_store_status() {
 		} elseif ( $out['days_left'] <= 9 ) {
 			$out['level'] = 'warn';
 		}
-	} else {
+	} elseif ( ! ( $out['days_left'] > 0 && class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_auto_renew() ) ) {
 		if ( $out['days_left'] <= 35 ) {
 			$out['level'] = 'danger';
 		} elseif ( $out['days_left'] <= 69 ) {

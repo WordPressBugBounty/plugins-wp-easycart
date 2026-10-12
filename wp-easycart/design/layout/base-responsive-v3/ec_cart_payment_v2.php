@@ -187,7 +187,7 @@
 			</div>
 		<?php } ?>
 
-		<?php if( get_option( 'ec_option_use_affirm' ) ){ ?>
+		<?php if( get_option( 'ec_option_use_affirm' ) && $cartpage->payment_method_allowed( 'affirm' ) ){ /* 6.0.4 */ ?>
 			<label for="ec_payment_affirm" class="ec_cart_full_radio">
 				<div class="ec_cart_payment_table_row<?php echo ( 'affirm' == $cartpage->get_selected_payment_method() ) ? ' ec_payment_row_selected' : ''; ?>">
 					<div class="ec_cart_payment_table_column">
@@ -345,6 +345,7 @@
 					$cartpage->print_square_payment_card();
 
 				} else if( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' && get_option( 'ec_option_stripe_public_api_key' ) != "" ) || ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ){ ?>
+				<?php if ( class_exists( 'wp_easycart_stripe_mode' ) ) { wp_easycart_stripe_mode::print_notice(); } /* 6.0.4: Stripe test mode for this customer's account, or for the whole store */ ?>
 				<?php if( $cartpage->order_totals->grand_total >= .5 ){ ?>
 				<div class="form-row" style="margin-top:12px;">
 					<div id="ec_stripe_card_row">
@@ -677,7 +678,7 @@
 
 	<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section" id="ec_terms_agreement_row">
-		<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?>
+		<label class="ec_cart_check_label" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 	</div>
 	<?php }else{ ?>
 		<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />

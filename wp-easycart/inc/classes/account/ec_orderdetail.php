@@ -249,7 +249,7 @@ class ec_orderdetail{
 	private function ec_get_permalink( $post_id, $model_number ) {
 
 		if ( !get_option( 'ec_option_use_old_linking_style' ) && $post_id != "0" ) {
-			return get_permalink( $post_id );
+			return wp_easycart_store_post_link( $post_id, $this->store_page . $this->permalink_divider . "model_number=" . $model_number ); /* 6.0.4: store pages only */
 		}else{
 			return $this->store_page . $this->permalink_divider . "model_number=" . $model_number;
 		}
@@ -489,19 +489,27 @@ class ec_orderdetail{
 	}
 
 	public function display_gift_card_id( $label_text ) {
-		if ( $this->is_giftcard )
+		if ( $this->has_gift_card_number() )
 			echo esc_attr( $label_text . $this->giftcard_id );
 	}
 
+	/**
+	 * A gift card line whose card exists: WP EasyCart PRO's Square gift cards are made once the order is paid, and the line has
+	 * no number until then ( or while Square refuses to make it ), so there is nothing to show or print yet.
+	 *
+	 * @since 6.0.4
+	 * @return bool
+	 */
+	public function has_gift_card_number() {
+		return $this->is_giftcard && '' !== trim( (string) $this->giftcard_id ) && '0' !== (string) $this->giftcard_id;
+	}
+
 	public function has_print_gift_card_link() {
-		if ( $this->is_giftcard )
-			return true;
-		else
-			return false;
+		return $this->has_gift_card_number();
 	}
 
 	public function display_print_online_link( $link_text ) {
-		if ( $this->is_giftcard )
+		if ( $this->has_gift_card_number() )
 			echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->orderdetail_id . '&giftcard_id=' . $this->giftcard_id ) . '" target="_blank">' . esc_attr( $link_text ) . '</a>';
 	}
 

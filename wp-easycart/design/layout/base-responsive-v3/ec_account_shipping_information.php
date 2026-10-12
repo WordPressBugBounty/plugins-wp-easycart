@@ -1,38 +1,13 @@
-<div id="ec_account_shipping_information">
-	<div class="ec_account_mobile">
-		<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_title' )?></div>
-		<?php do_action( 'wpeasycart_account_links' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_billing_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_billing_information' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_billing' ); ?>
-		<?php if( get_option( 'ec_option_use_shipping' ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_shipping_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_shipping_information' ) ); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_shipping' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_personal_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_basic_inforamtion' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_personal' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_password_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_password' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_password' ); ?>
-		<?php if( $this->using_subscriptions( ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_subscriptions_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_subscriptions' )); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_subscriptions' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_logout_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_sign_out' )); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_end' ); ?>
-	</div>
+<?php $ec_account_modern = $this->account_modern(); /* 6.0.4: the account menu beside the page ( ec_accountpage::display_account_navigation() ) and breadcrumbs; an Elementor account widget keeps the older markup */ ?>
+<div id="ec_account_shipping_information"<?php echo ( $ec_account_modern ) ? ' class="ec_account_page ec_account_v2 ec_account_forms_v2"' : ''; ?>>
+	<?php if ( ! $ec_account_modern ) { ?>
+	<?php $this->display_account_navigation_legacy( 'mobile' ); ?>
+	<?php } ?>
 
-	<div class="ec_account_left">
+	<div class="ec_account_left<?php echo ( $ec_account_modern ) ? ' ec_account_main_v2' : ''; ?>">
+		<?php if ( $ec_account_modern ) { ?>
+		<?php $this->display_account_crumbs( $this->account_crumb_trail( 'shipping_information' ) ); ?>
+		<?php } ?>
 		<?php $this->display_account_shipping_information_form_start(); ?>
 
 		<div class="ec_cart_header ec_top">
@@ -143,38 +118,11 @@
 
 	</div>
 
-	<div class="ec_account_right">
-		<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_title' )?></div>
-		<?php do_action( 'wpeasycart_account_links' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_billing_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_billing_information' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_billing' ); ?>
-		<?php if( get_option( 'ec_option_use_shipping' ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_shipping_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_shipping_information' ) ); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_shipping' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_personal_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_basic_inforamtion' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_personal' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_password_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_password' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_password' ); ?>
-		<?php if( $this->using_subscriptions( ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_subscriptions_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_subscriptions' )); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_subscriptions' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_logout_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_sign_out' )); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_end' ); ?>
-	</div>
+	<?php if ( $ec_account_modern ) { ?>
+	<?php $this->display_account_navigation( 'shipping_information' ); ?>
+	<?php } else { ?>
+	<?php $this->display_account_navigation_legacy( 'right' ); ?>
+	<?php } ?>
 </div>
 <div style="clear:both;"></div>
 <div id="ec_current_media_size"></div>

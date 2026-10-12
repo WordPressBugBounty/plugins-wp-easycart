@@ -450,6 +450,7 @@ class wp_easycart_admin_payment_v2 {
 				if ( $s['connected'] ) {
 					self::fact( $s, __( 'Webhook URL', 'wp-easycart' ), wp_easycart_hook_url( 'stripe-webhook' ) );
 				}
+				self::test_customers_fact( $s );
 				break;
 
 			case 'square':
@@ -511,12 +512,29 @@ class wp_easycart_admin_payment_v2 {
 				break;
 
 			case 'stripe':
-				$pk = (string) get_option( 'ec_option_stripe_public_api_key' );
-				$s['connected']  = '' !== $pk && '' !== (string) get_option( 'ec_option_stripe_api_key' );
-				$s['test']       = ( 0 === strpos( $pk, 'pk_test' ) );
-				$s['live_ready'] = $s['connected'] && ! $s['test'];
-				$s['test_ready'] = $s['connected'] && $s['test'];
+				if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+					/* 6.0.4: live and test keys of their own ( WP EasyCart PRO 6.0.4's panel ); test keys saved as the only keys before
+					   6.0.4 still mean test mode. */
+					$s['live_ready'] = wp_easycart_stripe_mode::ready( wp_easycart_stripe_mode::LIVE, 'stripe' );
+					$s['test_ready'] = wp_easycart_stripe_mode::ready( wp_easycart_stripe_mode::TEST, 'stripe' );
+					$s['test']       = wp_easycart_stripe_mode::TEST === wp_easycart_stripe_mode::store_mode( 'stripe' );
+					$s['connected']  = $s['test'] ? $s['test_ready'] : $s['live_ready'];
+					$s['facts'][ __( 'Keys', 'wp-easycart' ) ] = implode(
+						' · ',
+						array(
+							$s['live_ready'] ? __( 'Live keys saved', 'wp-easycart' ) : __( 'No live keys', 'wp-easycart' ),
+							$s['test_ready'] ? __( 'Test keys saved', 'wp-easycart' ) : __( 'No test keys', 'wp-easycart' ),
+						)
+					);
+				} else {
+					$pk = (string) get_option( 'ec_option_stripe_public_api_key' );
+					$s['connected']  = '' !== $pk && '' !== (string) get_option( 'ec_option_stripe_api_key' );
+					$s['test']       = ( 0 === strpos( $pk, 'pk_test' ) );
+					$s['live_ready'] = $s['connected'] && ! $s['test'];
+					$s['test_ready'] = $s['connected'] && $s['test'];
+				}
 				self::generic_facts( $s, $gw );
+				self::test_customers_fact( $s );
 				break;
 
 			default:
@@ -581,6 +599,25 @@ class wp_easycart_admin_payment_v2 {
 		$value = trim( (string) $value );
 		if ( '' !== $value ) {
 			$s['facts'][ $label ] = $value;
+		}
+	}
+
+	/**
+	 * 6.0.4: how many customers are Stripe test-mode customers, and whether they really pay in test mode.
+	 *
+	 * @param array $s Status.
+	 */
+	private static function test_customers_fact( &$s ) {
+		if ( ! class_exists( 'wp_easycart_stripe_mode' ) || ! $s['enabled'] || $s['test'] ) {
+			return;
+		}
+		$count = wp_easycart_stripe_mode::test_customers();
+		if ( $count > 0 ) {
+			$s['facts'][ __( 'Test-mode customers', 'wp-easycart' ) ] = $s['test_ready']
+				/* translators: %d: number of customer accounts. */
+				? sprintf( _n( '%d account checks out with the test keys', '%d accounts check out with the test keys', $count, 'wp-easycart' ), $count )
+				/* translators: %d: number of customer accounts. */
+				: sprintf( _n( '%d account, but no test keys, so it pays live', '%d accounts, but no test keys, so they pay live', $count, 'wp-easycart' ), $count );
 		}
 	}
 
@@ -763,19 +800,18 @@ class wp_easycart_admin_payment_v2 {
 	/** array( 'live' => url, 'test' => url ) for Connect-style gateways; empty for the rest. */
 	public static function connect_urls( $key ) {
 		$admin = esc_url_raw( admin_url() );
-		$base  = function_exists( 'wp_easycart_admin' ) && method_exists( wp_easycart_admin(), 'get_available_url' ) ? esc_url_raw( wp_easycart_admin()->get_available_url() ) : 'https://connect.wpeasycart.com';
 		switch ( $key ) {
 			case 'stripe_connect':
-				$nonce = wp_create_nonce( 'wp-easycart-stripe' );
+				/* 6.0.4: through admin-post to WP EasyCart Connect's /stripe-v2/ ( wp_easycart_stripe_connect_relay ), same return handler. */
 				return array(
-					'live' => $base . '/connect/?step=start&redirect=' . rawurlencode( $admin . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . $nonce ) . '&env=production',
-					'test' => $base . '/connect/?step=start&redirect=' . rawurlencode( $admin . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . $nonce ) . '&env=sandbox',
+					'live' => wp_easycart_stripe_connect_relay::connect_url( false ),
+					'test' => wp_easycart_stripe_connect_relay::connect_url( true ),
 				);
 			case 'square':
-				$state = wp_create_nonce( 'wp-easycart-square' );
+				/* 6.0.4: through admin-post to WP EasyCart Connect's /square-v3/ ( wp_easycart_square_relay ), same return handler. */
 				return array(
-					'live' => 'https://connect.wpeasycart.com/square-v2/?url=' . rawurlencode( $admin . '?ec_admin_form_action=handle-square' ) . '&state=' . $state,
-					'test' => 'https://connect.wpeasycart.com/square-sandbox/?url=' . rawurlencode( $admin . '?ec_admin_form_action=handle-square' ) . '&state=' . $state,
+					'live' => wp_easycart_square_relay::connect_url( false ),
+					'test' => wp_easycart_square_relay::connect_url( true ),
 				);
 			case 'paypal':
 				/* 6.0.2: WP EasyCart Connect's /paypal-v3/ onboarding ( wp_easycart_paypal_connect ), same return handler. */
@@ -1175,10 +1211,14 @@ class wp_easycart_admin_payment_v2 {
 				} else {
 					if ( $s['enabled'] && $s['test'] && $s['live_ready'] ) {
 						$items[] = self::menu_button( __( 'Take live payments', 'wp-easycart' ), 'data-ecpay-mode="' . esc_attr( $key ) . '" data-mode="live"' );
-					} elseif ( $s['enabled'] && ! $s['test'] && $s['test_ready'] && 'stripe' !== $key ) {
+					} elseif ( $s['enabled'] && ! $s['test'] && $s['test_ready'] && ( 'stripe' !== $key || class_exists( 'wp_easycart_stripe_mode' ) ) ) {
 						$items[] = self::menu_button( __( 'Switch to test mode', 'wp-easycart' ), 'data-ecpay-mode="' . esc_attr( $key ) . '" data-mode="test"' );
 					}
 					if ( $gw['connect'] && ! empty( $urls ) ) {
+						/* 6.0.4: a store connected to a sandbox only had no way to its live account here. */
+						if ( $s['ready'] && ! $s['live_ready'] && ! empty( $urls['live'] ) ) {
+							$items[] = '<a role="menuitem" class="ecpay-menu-item ecpay-connect" href="' . ( $gate ? '#' : esc_url( $urls['live'] ) ) . '" data-href="' . esc_url( $urls['live'] ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . '>' . esc_html__( 'Connect live account', 'wp-easycart' ) . '</a>';
+						}
 						if ( $s['ready'] && ! $s['test_ready'] && ! empty( $urls['test'] ) ) {
 							$items[] = '<a role="menuitem" class="ecpay-menu-item ecpay-connect" href="' . ( $gate ? '#' : esc_url( $urls['test'] ) ) . '" data-href="' . esc_url( $urls['test'] ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . '>' . esc_html__( 'Connect a sandbox account', 'wp-easycart' ) . '</a>';
 						}
@@ -1500,25 +1540,32 @@ class wp_easycart_admin_payment_v2 {
 		$success = isset( $_GET['success'] ) ? sanitize_key( wp_unslash( $_GET['success'] ) ) : '';
 		$error   = isset( $_GET['error'] ) ? sanitize_key( wp_unslash( $_GET['error'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		$text = '';
-		$kind = 'brand';
+		$text    = '';
+		$tone    = 'success';
+		$actions = array();
 		if ( 'square-connected' === $success ) {
 			$text = __( 'Square is connected and set as your live gateway.', 'wp-easycart' );
+			/* 6.0.3: a store that just connected Square is one click from bringing its Square items in. */
+			$actions[] = array(
+				'label' => __( 'Bring your Square items into your store', 'wp-easycart' ),
+				'url'   => admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=square' ),
+				'link'  => true,
+			);
 		} elseif ( 'connected' === $success ) {
 			$text = __( 'Connected.', 'wp-easycart' );
 		} elseif ( 'square-failed-to-connect' === $error ) {
 			$text = __( 'Square did not finish connecting. Try again, and make sure you finish the authorisation on Square’s side.', 'wp-easycart' );
-			$kind = 'amber';
+			$tone = 'warning';
 		} elseif ( 'failed-to-connect' === $error ) {
 			$text = __( 'The gateway did not finish connecting. Try again.', 'wp-easycart' );
-			$kind = 'amber';
+			$tone = 'warning';
 		}
 		if ( '' === $text ) {
 			return;
 		}
-		/* 6.0.3: a store that just connected Square is one click from bringing its Square items in. */
-		$link = ( 'square-connected' === $success ) ? ' <a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=square' ) ) . '">' . esc_html__( 'Bring your Square items into your store', 'wp-easycart' ) . '</a>' : '';
-		echo '<div class="ecpay-flash is-' . esc_attr( $kind ) . '">' . esc_html( $text ) . $link . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link is built from escaped parts.
+		/* 6.0.4: the admin's own notice ( icon, accent bar, dismiss ), inset like the notices above and below it; it was a plain grey bar
+		   running edge to edge. */
+		echo wp_easycart_admin::notice_html( $tone, $text, array( 'actions' => $actions, 'class' => 'ecpay-flash' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -1623,7 +1670,12 @@ class wp_easycart_admin_payment_v2 {
 				update_option( 'ec_option_paypal_production_access_token_expires', 0 );
 				break;
 			case 'stripe':
-				return new WP_Error( 'ecpay_keys', __( 'Stripe ( API keys ) follows the keys you enter: swap the test keys for live keys under Manage.', 'wp-easycart' ) );
+				if ( ! class_exists( 'wp_easycart_stripe_mode' ) ) {
+					return new WP_Error( 'ecpay_keys', __( 'Stripe ( API keys ) follows the keys you enter: swap the test keys for live keys under Manage.', 'wp-easycart' ) );
+				}
+				/* 6.0.4: the live and test keys are kept apart, so the switch only picks the pair ( status() checked it is saved ). */
+				update_option( 'ec_option_stripe_use_sandbox', $test ? '1' : '0' );
+				break;
 			default:
 				if ( empty( $gw['test'] ) ) {
 					return new WP_Error( 'ecpay_no_mode', sprintf( __( '%s has no test mode setting.', 'wp-easycart' ), $gw['label'] ) );

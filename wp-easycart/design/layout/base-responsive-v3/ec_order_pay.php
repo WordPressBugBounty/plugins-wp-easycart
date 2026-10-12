@@ -270,6 +270,7 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 							<?php if ( $ec_pay_online ) : ?>
 							<div class="ec-pay-loading" data-loading="card" role="status"><span class="ec-pay-spinner" aria-hidden="true"></span><span><?php echo $ec_pay_loading; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span></div>
 							<?php endif; ?>
+							<?php if ( isset( $pay_methods['stripe'] ) && class_exists( 'wp_easycart_stripe_mode' ) ) { wp_easycart_stripe_mode::print_notice(); } /* 6.0.4: Stripe test mode */ ?>
 							<div id="<?php echo isset( $pay_methods['stripe'] ) ? 'ec-pay-stripe' : 'ec-pay-square'; ?>"></div>
 							<button type="button" class="ec-pay-button" id="ec-pay-card-button" disabled><?php echo $ec_pay_text( 'pay_button', __( 'Pay now', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?> <?php echo $ec_pay_money( $ec_pay_owed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the closure. ?></button>
 						</div>
@@ -465,7 +466,7 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 			if ( r && r.success && r.data && ( r.data.paid || r.data.pending ) ) { window.location.href = C.page; return; }
 			if ( ! r || ! r.success ) { loaded( 'card' ); say( ( r && r.data && r.data.message ) ? String( r.data.message ).replace( /<[^>]+>/g, '' ) : C.text.error, true ); return; }
 			elements = stripe.elements( { clientSecret: r.data.client_secret } );
-			var paymentElement = elements.create( 'payment' );
+			var paymentElement = elements.create( 'payment', { fields: { billingDetails: { name: 'never', address: 'never' } } } ); /* 6.0.4: the card's name and ZIP are the billing address's ( sent with the payment ), never a second box */
 			paymentElement.on( 'ready', function() { loaded( 'card' ); } );
 			paymentElement.on( 'loaderror', function() { loaded( 'card' ); say( C.text.error, true ); } );
 			paymentElement.mount( '#ec-pay-stripe' );
@@ -475,7 +476,11 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 			var b = billing();
 			if ( ! b || ! elements ) { return; }
 			busy( true );
-			post( 'billing', { billing: JSON.stringify( b ) } ).then( function( r ) {
+			/* 6.0.4 ( #290 ): Safari opens Apple Pay's sheet only while this click counts: the Payment Element checks its fields and opens
+			   a wallet's sheet first ( elements.submit() ), then the billing address is saved and the payment confirmed. */
+			( 'function' === typeof elements.submit ? elements.submit() : Promise.resolve( {} ) ).then( function( submitted ) {
+			if ( submitted && submitted.error ) { busy( false ); say( submitted.error.message || C.text.error, true ); return; }
+			return post( 'billing', { billing: JSON.stringify( b ) } ).then( function( r ) {
 				if ( ! r || ! r.success || ( r.data && ( r.data.paid || r.data.pending ) ) ) { done( r ); return; }
 				return stripe.confirmPayment( {
 					elements: elements,
@@ -488,6 +493,7 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 					if ( result.error ) { busy( false ); say( result.error.message, true ); return; }
 					return post( 'stripe_complete', { payment_intent: result.paymentIntent.id } ).then( done );
 				} );
+			} );
 			} ).catch( function() { busy( false ); say( C.text.error, true ); } );
 		} );
 	}

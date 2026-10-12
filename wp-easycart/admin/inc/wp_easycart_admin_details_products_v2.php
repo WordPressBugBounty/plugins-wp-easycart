@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_reviews_card.php' );
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_types.php' );
 
 class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_products {
 
@@ -34,11 +35,54 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	public $print_except = array();
 
 	/**
+	 * When false, print_fields() leaves out hidden fields too: a section's second card ( the Price card of the basic section,
+	 * 6.0.4 ) must not print the first card's hidden inputs again under the same ids.
+	 *
+	 * @var bool
+	 */
+	public $print_hidden = true;
+
+	/**
 	 * Currently rendering section key, stamped on every field for dirty tracking.
 	 *
 	 * @var string
 	 */
 	public $current_section = '';
+
+	/**
+	 * 6.0.4: a new product's hidden draft that has never been saved ( wp_easycart_product_drafts ). Its SKU field starts empty.
+	 *
+	 * @var bool
+	 */
+	public $is_draft = false;
+
+	/**
+	 * 6.0.4: the tab group being printed ( tabset_open() ).
+	 *
+	 * @var string
+	 */
+	private $tabset_id = '';
+
+	/**
+	 * 6.0.4: whether the tab group's first pane is still to come.
+	 *
+	 * @var bool
+	 */
+	private $tabset_first = true;
+
+	/**
+	 * 6.0.4: labels for fields printed somewhere their list label does not fit ( the summary column ): name => label.
+	 *
+	 * @var array
+	 */
+	public $label_overrides = array();
+
+	/**
+	 * 6.0.4: this product's review counts ( review_counts_v2() ), worked out once for the Reviews heading and its card.
+	 *
+	 * @var array|null
+	 */
+	private $review_counts = null;
 
 	public function load_template() {
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-details-v2.php' );
@@ -52,6 +96,11 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$this->init();
 		if ( 'edit' == $type ) {
 			$this->init_data();
+			if ( $this->id && class_exists( 'wp_easycart_product_drafts' ) && wp_easycart_product_drafts::is_draft( $this->product ) ) {
+				$this->is_draft = true;
+				$this->product->model_number = ''; /* the draft's mark is no SKU: the merchant gives one ( or the title does ) */
+				$this->product->activate_in_store = 1; /* Active once saved, unless switched off first */
+			}
 		}
 		if ( $this->record_not_found ) {
 			$this->print_record_not_found_notice();
@@ -72,15 +121,21 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$this->current_section = $section;
 		$this->print_only = isset( $args['only'] ) ? $args['only'] : false;
 		$this->print_except = isset( $args['except'] ) ? $args['except'] : array();
-		$lock = $this->section_lock( $section ); /* 6.0.2: what the product's managing service owns in this card */
-		echo '<div class="ecdv2-card' . ( $lock['fields'] ? ' is-managed' : '' ) . '" data-ecdv2-section="' . esc_attr( $section ) . '"' . ( $lock['ids'] ? ' data-ecdv2-locked-ids="' . esc_attr( implode( ',', $lock['ids'] ) ) . '"' : '' ) . '>';
+		$this->print_hidden = ! isset( $args['hidden'] ) || false !== $args['hidden'];
+		$lock = $this->section_lock( $section, $this->print_only, $this->print_except ); /* 6.0.2: what the product's managing service owns in this card */
+		/* 6.0.4: a card inside a tab group ( pane, see tabset_open() ) keeps its title for the search and screen readers; the tab
+		   names it on screen. So does a card whose section heading already says it ( 'heading' => false: Basics' name and SKU, the
+		   parts of the Shipping box, the summary column's parts ). */
+		$pane    = ! empty( $args['pane'] );
+		$classes = 'ecdv2-card' . ( $pane ? ' ecdv2-card-pane' : '' ) . ( ( isset( $args['heading'] ) && false === $args['heading'] ) ? ' ecdv2-card-headless' : '' ) . ( ! empty( $args['class'] ) ? ' ' . $args['class'] : '' ) . ( $lock['fields'] ? ' is-managed' : '' );
+		echo '<div class="' . esc_attr( $classes ) . '"' . ( ! empty( $args['id'] ) ? ' id="' . esc_attr( $args['id'] ) . '"' : '' ) . ' data-ecdv2-section="' . esc_attr( $section ) . '"' . ( $lock['ids'] ? ' data-ecdv2-locked-ids="' . esc_attr( implode( ',', $lock['ids'] ) ) . '"' : '' ) . '>';
 		echo '<div class="ecdv2-card-saving"></div>';
 		echo '<div class="ecdv2-card-header">';
 		echo '<h3 class="ecdv2-card-title">' . esc_html( $title ) . '</h3>';
 		if ( '' !== $hint ) {
 			echo '<span class="ecdv2-card-hint">' . esc_html( $hint ) . '</span>';
 		}
-		echo '<a href="' . esc_url_raw( $this->docs_link ) . '" target="_blank" class="ecdv2-help-link"><span class="dashicons dashicons-editor-help" style="font-size:14px;width:14px;height:14px;"></span>' . esc_html__( 'Help', 'wp-easycart' ) . '</a>';
+		/* 6.0.4: no Help link on every card ( each went to the same guide ); the header's menu has Documentation. */
 		echo '</div><div class="ecdv2-card-body">';
 		if ( $lock['fields'] ) {
 			$this->print_lock( $lock );
@@ -126,10 +181,12 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	 * What a managed product's service owns in one save section.
 	 *
 	 * @since 6.0.2
-	 * @param string $section Section key.
+	 * @param string      $section Section key.
+	 * @param array|false $only    6.0.4: the card prints only these inputs ( section_open()'s only ), so only the locks on them count.
+	 * @param array       $except  6.0.4: the card leaves these inputs out, so locks on nothing but them do not count.
 	 * @return array fields ( locked keys in the section ), ids ( inputs to disable ), full ( every input of the card ).
 	 */
-	public function section_lock( $section ) {
+	public function section_lock( $section, $only = false, $except = array() ) {
 		$out = array(
 			'fields' => array(),
 			'ids'    => array(),
@@ -145,6 +202,10 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		}
 		$whole = true;
 		foreach ( $map[ $section ] as $field => $ids ) {
+			/* 6.0.4: a card that prints part of a section ( the Price card ) names only what it shows. */
+			if ( true !== $ids && ( ( false !== $only && ! array_intersect( (array) $ids, (array) $only ) ) || ( $except && ! array_diff( (array) $ids, (array) $except ) ) ) ) {
+				continue;
+			}
 			if ( ! in_array( $field, $locked, true ) ) {
 				$whole = false;
 				continue;
@@ -193,6 +254,104 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$this->current_section = '';
 		$this->print_only = false;
 		$this->print_except = array();
+		$this->print_hidden = true;
+	}
+
+	/**
+	 * 6.0.4: cards that do the same kind of job share one card with tabs ( the product page's text; the notes shown after a
+	 * purchase ), so they take one card's height. Each pane holds an ordinary section card ( section_open() with 'pane' ), so
+	 * saving, unsaved marks, locks and the search work as before; products-details-v2.js switches the panes ( bind_tabsets() )
+	 * and opens the one holding a field it takes the merchant to.
+	 *
+	 * @since 6.0.4
+	 * @param string $id    Key of the group ( [a-z_] ).
+	 * @param string $title The card's title.
+	 * @param string $hint  What the card is for.
+	 * @param array  $tabs  key => array( label, chip ( escaped HTML after the label ), empty ( bool: show "Empty" ), check ( the
+	 *                      field whose text decides "Empty" as it changes ) ), in order.
+	 */
+	public function tabset_open( $id, $title, $hint, $tabs, $args = array() ) {
+		$this->tabset_id    = $id;
+		$this->tabset_first = true;
+		$base = 'ecdv2_tabset_' . $id;
+		/* 6.0.4: 'heading' => false keeps the title for screen readers only ( the product page's text sits under Basics ). */
+		$headless = isset( $args['heading'] ) && false === $args['heading'];
+		echo '<div class="ecdv2-tabset' . ( $headless ? ' ecdv2-tabset-headless' : '' ) . '" id="' . esc_attr( $base ) . '" data-ecdv2-tabset="' . esc_attr( $id ) . '">';
+		echo '<div class="ecdv2-tabset-head"><div class="ecdv2-tabset-heading">';
+		echo '<h3 class="ecdv2-tabset-title" id="' . esc_attr( $base . '_title' ) . '">' . esc_html( $title ) . '</h3>';
+		if ( '' !== $hint ) {
+			echo '<span class="ecdv2-tabset-hint">' . esc_html( $hint ) . '</span>';
+		}
+		echo '</div>';
+		echo '<div class="ecdv2-tabset-tabs" role="tablist" aria-labelledby="' . esc_attr( $base . '_title' ) . '">';
+		$first = true;
+		foreach ( $tabs as $key => $tab ) {
+			$pane_id = $base . '_' . $key;
+			echo '<button type="button" role="tab" class="ecdv2-tabset-tab' . ( $first ? ' is-active' : '' ) . '" id="' . esc_attr( $pane_id . '_tab' ) . '" aria-controls="' . esc_attr( $pane_id ) . '" aria-selected="' . ( $first ? 'true' : 'false' ) . '" tabindex="' . ( $first ? '0' : '-1' ) . '" data-ecdv2-pane="' . esc_attr( $key ) . '"' . ( ! empty( $tab['check'] ) ? ' data-ecdv2-pane-check="' . esc_attr( $tab['check'] ) . '"' : '' ) . '>';
+			echo '<span class="ecdv2-tabset-label">' . esc_html( $tab['label'] ) . '</span>';
+			if ( ! empty( $tab['chip'] ) ) {
+				echo $tab['chip']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the caller's chip is escaped markup ( wp_easycart_admin_edition::badge() ).
+			}
+			if ( isset( $tab['empty'] ) ) {
+				echo '<span class="ecdv2-tabset-empty"' . ( $tab['empty'] ? '' : ' hidden' ) . '>' . esc_html__( 'Empty', 'wp-easycart' ) . '</span>';
+			}
+			echo '<span class="ecdv2-tabset-dot" title="' . esc_attr__( 'Unsaved changes', 'wp-easycart' ) . '"></span>';
+			echo '</button>';
+			$first = false;
+		}
+		echo '</div></div>';
+	}
+
+	/**
+	 * 6.0.4: a heading over cards of one job ( the Shipping box's Package, Charges and Where it goes ). The cards inside are
+	 * header-less ( section_open( …, array( 'heading' => false ) ) ), so each still saves as its own section.
+	 *
+	 * @since 6.0.4
+	 * @param string $title The group's title.
+	 * @param string $hint  What it is for.
+	 * @param array  $args  id, class.
+	 */
+	public function group_open( $title, $hint = '', $args = array() ) {
+		echo '<div class="ecdv2-group' . ( ! empty( $args['class'] ) ? ' ' . esc_attr( $args['class'] ) : '' ) . '"' . ( ! empty( $args['id'] ) ? ' id="' . esc_attr( $args['id'] ) . '"' : '' ) . '>';
+		echo '<div class="ecdv2-group-head"><h4 class="ecdv2-group-title">' . esc_html( $title ) . '</h4>';
+		if ( '' !== $hint ) {
+			echo '<span class="ecdv2-group-hint">' . esc_html( $hint ) . '</span>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * @since 6.0.4
+	 */
+	public function group_close() {
+		echo '</div>';
+	}
+
+	/**
+	 * Opens one pane of the tab group ( the first is shown ).
+	 *
+	 * @since 6.0.4
+	 * @param string $key The tab's key.
+	 */
+	public function pane_open( $key ) {
+		$pane_id = 'ecdv2_tabset_' . $this->tabset_id . '_' . $key;
+		echo '<div class="ecdv2-tabset-pane' . ( $this->tabset_first ? ' is-active' : '' ) . '" role="tabpanel" id="' . esc_attr( $pane_id ) . '" aria-labelledby="' . esc_attr( $pane_id . '_tab' ) . '" data-ecdv2-pane="' . esc_attr( $key ) . '"' . ( $this->tabset_first ? '' : ' hidden' ) . '>';
+		$this->tabset_first = false;
+	}
+
+	/**
+	 * @since 6.0.4
+	 */
+	public function pane_close() {
+		echo '</div>';
+	}
+
+	/**
+	 * @since 6.0.4
+	 */
+	public function tabset_close() {
+		echo '</div>';
+		$this->tabset_id = '';
 	}
 
 	/**
@@ -337,6 +496,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$sample_b = ( $assigned[2] && isset( $item_names[ $assigned[2] ] ) ) ? array_slice( $names_of( $item_names[ $assigned[2] ] ), 0, 2 ) : array( __( 'Small', 'wp-easycart' ), __( 'Large', 'wp-easycart' ) );
 		$sku_base = ! empty( $p->model_number ) ? $p->model_number : 'sku';
 		$price    = isset( $p->price ) ? (float) $p->price : 24.99;
+		/* 6.0.4: the variant table has weight too ( WP EasyCart PRO's Phase 3 table ). */
+		$weight_unit = ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'units' ) ) ? wp_easycart_packages::units()['weight'] : 'lb';
+		$weight_text = ( ( isset( $p->weight ) && (float) $p->weight > 0 ) ? rtrim( rtrim( number_format( (float) $p->weight, 2, '.', '' ), '0' ), '.' ) : '0.5' ) . ' ' . $weight_unit;
 
 		echo '<div class="ecdv2-media-upsell" data-upsell-context="products">';
 		echo '<div class="ecdv2-media-upsell-head">';
@@ -352,7 +514,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 		echo '<div class="ecdv2-media-mock ecdv2-opt-mock" onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;" role="button" tabindex="0">';
 		echo '<div class="ecdv2-media-mock-tag"><span class="dashicons dashicons-visibility"></span> ' . esc_html__( 'Preview — variations from your option sets', 'wp-easycart' ) . '</div>';
-		echo '<table class="ecdv2-opt-mock-table"><thead><tr><th>' . esc_html__( 'Variation', 'wp-easycart' ) . '</th><th>' . esc_html__( 'SKU', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Price', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Stock', 'wp-easycart' ) . '</th></tr></thead><tbody>';
+		echo '<table class="ecdv2-opt-mock-table"><thead><tr><th>' . esc_html__( 'Variation', 'wp-easycart' ) . '</th><th>' . esc_html__( 'SKU', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Price', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Stock', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Weight', 'wp-easycart' ) . '</th></tr></thead><tbody>';
 		$n = 0;
 		$stock_samples = array( 12, 3, 0, 26 );
 		foreach ( $sample_a as $a ) {
@@ -360,7 +522,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				$stock = $stock_samples[ $n % 4 ];
 				$sku   = strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', $sku_base . '-' . substr( $a, 0, 3 ) . '-' . substr( $b, 0, 3 ) ) );
 				echo '<tr><td><strong>' . esc_html( $a . ' / ' . $b ) . '</strong></td><td><code>' . esc_html( $sku ) . '</code></td><td>' . esc_html( $GLOBALS['currency']->get_currency_display( $price + ( 1 === $n % 2 ? 2 : 0 ) ) ) . '</td>';
-				echo '<td><span class="ecdv2-opt-mock-stock' . ( 0 === $stock ? ' is-out' : ( $stock < 5 ? ' is-low' : '' ) ) . '">' . esc_html( 0 === $stock ? __( 'Out of stock', 'wp-easycart' ) : sprintf( __( '%d in stock', 'wp-easycart' ), $stock ) ) . '</span></td></tr>';
+				/* translators: %d: units in stock. */
+				echo '<td><span class="ecdv2-opt-mock-stock' . ( 0 === $stock ? ' is-out' : ( $stock < 5 ? ' is-low' : '' ) ) . '">' . esc_html( 0 === $stock ? __( 'Out of stock', 'wp-easycart' ) : sprintf( __( '%d in stock', 'wp-easycart' ), $stock ) ) . '</span></td><td>' . esc_html( $weight_text ) . '</td></tr>';
 				$n++;
 			}
 		}
@@ -378,7 +541,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 		echo '<ul class="ecdv2-media-upsell-list">';
 		$bullets = array(
-			array( 'dashicons-editor-table', __( 'Variant manager', 'wp-easycart' ), __( 'Every combination in a grid with its own SKU, price adjustment, weight and image.', 'wp-easycart' ) ),
+			array( 'dashicons-editor-table', __( 'Variant manager', 'wp-easycart' ), __( 'Every combination in one table with its own SKU, price, stock, weight and cost. Tick rows to set many at once.', 'wp-easycart' ) ),
 			array( 'dashicons-archive', __( 'Stock per variation', 'wp-easycart' ), __( 'Sell out of Red / Small without hiding Red / Large. Low-stock and out-of-stock per combination.', 'wp-easycart' ) ),
 			array( 'dashicons-edit', __( 'Modifiers', 'wp-easycart' ), __( 'Text, numbers, dates, file uploads, checkbox and radio add-ons — each with its own price.', 'wp-easycart' ) ),
 			array( 'dashicons-randomize', __( 'Conditional logic', 'wp-easycart' ), __( 'Show or hide a modifier based on what the shopper picked before it.', 'wp-easycart' ) ),
@@ -637,14 +800,14 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$list_price_field = array(
 			'name'            => 'list_price',
 			'type'            => 'currency',
-			'label'           => __( 'Previous Price', 'wp-easycart' ),
+			'label'           => __( 'Compare-at price', 'wp-easycart' ),
 			'required'        => false,
 			'validation_type' => 'price',
 			'visible'         => true,
 			'default'         => '0.00',
 			'value'           => $this->product->list_price,
 			'placeholder'     => '0.00',
-			'description'     => __( 'Optional compare-at price. When it is higher than Price, shoppers see it crossed out next to the new price. Leave 0 to hide.', 'wp-easycart' ),
+			'description'     => __( 'Optional. When it is higher than the price, shoppers see it crossed out next to the price. Leave 0 to hide.', 'wp-easycart' ),
 		);
 		$out = array();
 		$inserted = false;
@@ -778,6 +941,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			$chips[] = array(
 				'label' => sprintf( _n( 'Volume pricing (%d tier)', 'Volume pricing (%d tiers)', $tier_count, 'wp-easycart' ), $tier_count ),
 				'tab'   => 'pricing',
+				'card'  => '#ecdv2_advanced_pricing',
 			);
 		}
 
@@ -786,17 +950,18 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			$chips[] = array(
 				'label' => sprintf( _n( 'B2B pricing (%d role)', 'B2B pricing (%d roles)', $role_count, 'wp-easycart' ), $role_count ),
 				'tab'   => 'pricing',
+				'card'  => '#ecdv2_advanced_pricing',
 			);
 		}
 
 		if ( (int) $p->enable_price_label > 0 ) {
-			$chips[] = array( 'label' => __( 'Custom price label', 'wp-easycart' ), 'tab' => 'pricing' );
+			$chips[] = array( 'label' => __( 'Custom price label', 'wp-easycart' ), 'tab' => 'pricing', 'card' => '.ecdv2-card[data-ecdv2-section="pricing"]' );
 		}
 		if ( ! empty( $p->show_custom_price_range ) ) {
-			$chips[] = array( 'label' => __( 'Price range display', 'wp-easycart' ), 'tab' => 'pricing' );
+			$chips[] = array( 'label' => __( 'Price range display', 'wp-easycart' ), 'tab' => 'pricing', 'card' => '.ecdv2-card[data-ecdv2-section="pricing"]' );
 		}
 		if ( ! empty( $p->login_for_pricing ) ) {
-			$chips[] = array( 'label' => __( 'Login for pricing', 'wp-easycart' ), 'tab' => 'pricing' );
+			$chips[] = array( 'label' => __( 'Login for pricing', 'wp-easycart' ), 'tab' => 'pricing', 'card' => '.ecdv2-card[data-ecdv2-section="pricing"]' );
 		}
 
 		$chips = apply_filters( 'wp_easycart_admin_v2_price_context_chips', $chips, $p );
@@ -813,7 +978,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			if ( empty( $chip['label'] ) || empty( $chip['tab'] ) ) {
 				continue;
 			}
-			echo '<button type="button" class="ecdv2-price-context-chip" onclick="ecdv2.go_tab( \'' . esc_attr( $chip['tab'] ) . '\' );">';
+			/* 6.0.4: a chip whose card is on the Price card's own section ( Pricing ) goes to that card. */
+			$chip_go = empty( $chip['card'] ) ? 'ecdv2.go_tab( ' . wp_json_encode( $chip['tab'] ) . ' );' : 'ecdv2.go_card( ' . wp_json_encode( $chip['card'] ) . ' );';
+			echo '<button type="button" class="ecdv2-price-context-chip" onclick="' . esc_attr( $chip_go ) . '">';
 			echo esc_html( $chip['label'] );
 			echo '<span class="dashicons dashicons-arrow-right-alt2"></span>';
 			echo '</button>';
@@ -896,7 +1063,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$cluster_title   = '';
 		if ( 'pricing' === $this->current_section ) {
 			$cluster_members = array( 'enable_price_label', 'replace_price_label', 'custom_price_label' );
-			$cluster_title   = __( 'Custom Price Label', 'wp-easycart' );
+			$cluster_title   = __( 'Price label', 'wp-easycart' );
 		}
 		$cluster_open = false;
 
@@ -921,7 +1088,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			/* General tab: right under the Price / Previous Price pair, surface
 			 * every other place this product's pricing is defined ( variants,
 			 * volume tiers, B2B roles, labels ) with one-click navigation. */
-			if ( 'basic' === $this->current_section && 'list_price' === $fname ) {
+			if ( 'basic' === $this->current_section && 'list_price' === $fname && $this->prints_field( 'list_price' ) ) {
 				$this->print_price_context();
 			}
 
@@ -977,9 +1144,24 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	 */
 	private function print_menu_locations( $fields ) {
 		echo '<div class="ecdv2-menu-locations">';
-		echo '<p class="ecdv2-menu-locations-note">' . esc_html__( 'Each location drills down Menu Level 1 → 2 → 3. Choose a Level 1, then narrow with Level 2 and 3 if you need to; leave a level on "None Selected" to stop there.', 'wp-easycart' ) . '</p>';
+		echo '<p class="ecdv2-menu-locations-note">' . esc_html__( 'Each location goes Level 1, then Level 2 and 3 if you need them. Leave a level on "None Selected" to stop there.', 'wp-easycart' ) . '</p>';
+
+		/* 6.0.4: the first location always shows; one more appears with Add another menu location, and those in use show. */
+		$used = array();
+		$loc  = 0;
+		foreach ( $fields as $field ) {
+			$fname = isset( $field['name'] ) ? $field['name'] : '';
+			if ( $fname && preg_match( '/^menulevel(\d+)_id_1$/', $fname, $m ) ) {
+				$loc = (int) $m[1];
+			}
+			if ( $loc && $fname && 0 === strpos( $fname, 'menulevel' ) && (int) $this->field_value( $field ) > 0 ) {
+				$used[ $loc ] = true;
+			}
+		}
+		$waiting = 0;
 
 		$open = false;
+		$first = true;
 		foreach ( $fields as $field ) {
 			$fname = isset( $field['name'] ) ? $field['name'] : '';
 
@@ -989,10 +1171,16 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 					echo '</div></div>';
 				}
 				$loc = (int) $m[1];
-				echo '<div class="ecdv2-menu-location">';
+				$show = $first || ! empty( $used[ $loc ] );
+				$first = false;
+				if ( ! $show ) {
+					$waiting++;
+				}
+				echo '<div class="ecdv2-menu-location"' . ( $show ? '' : ' hidden' ) . '>';
 				echo '<div class="ecdv2-menu-location-head">';
 				echo '<span class="ecdv2-menu-location-badge">' . esc_html( $loc ) . '</span>';
-				echo '<span class="ecdv2-menu-location-title">' . esc_html( sprintf( __( 'Menu Location %d', 'wp-easycart' ), $loc ) ) . '</span>';
+				/* translators: %d: 1, 2 or 3. */
+				echo '<span class="ecdv2-menu-location-title">' . esc_html( sprintf( __( 'Menu location %d', 'wp-easycart' ), $loc ) ) . '</span>';
 				echo '</div>';
 				echo '<div class="ecdv2-menu-location-body">';
 				$open = true;
@@ -1008,6 +1196,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		}
 		if ( $open ) {
 			echo '</div></div>';
+		}
+		if ( $waiting ) {
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecdv2-menu-location-add" onclick="ecdv2.menu_location_add( this );"><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>' . esc_html__( 'Add another menu location', 'wp-easycart' ) . '</button>';
 		}
 		echo '</div>';
 	}
@@ -1137,22 +1328,22 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	public function print_reviews_v2() {
 		global $wpdb;
 		$pid = (int) $this->id; $on = (bool) $this->product->use_customer_reviews; $is_new = ! $pid;
-		$total = $pid ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_review WHERE product_id = %d', $pid ) ) : 0;
-		$approved = $pid ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_review WHERE product_id = %d AND approved = 1', $pid ) ) : 0;
-		$pending = $total - $approved;
-		$avg = $approved ? (float) $wpdb->get_var( $wpdb->prepare( 'SELECT AVG( rating ) FROM ec_review WHERE product_id = %d AND approved = 1', $pid ) ) : 0;
+		$counts = $this->review_counts_v2();
+		$total = $counts['total'];
+		$approved = $counts['approved'];
+		$avg = $counts['avg'];
 		$rows = $pid ? $wpdb->get_results( $wpdb->prepare( 'SELECT review_id, approved, rating, title, description AS review, reviewer_name, date_submitted FROM ec_review WHERE product_id = %d ORDER BY date_submitted DESC LIMIT 5', $pid ) ) : array();
 		$list_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&filter_2=' . $pid );
-		$settings_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&tab=requests' ); /* 6.0.2: the review settings tab is "requests" ( tab=settings opened the list ) */
 		$nonce = wp_create_nonce( 'wp-easycart-ecdv2-reviews-toggle' );
 
-		echo '<div class="ecdv2-card ecdv2-reviews-card' . ( $on ? '' : ' is-off' ) . '" id="ecdv2-reviews-card" data-product-id="' . $pid . '" data-nonce="' . esc_attr( $nonce ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $pid is (int) cast above.
+		/* 6.0.4: section reviews ( the switch saves with the product, through the general options save that posts the carrier ).
+		   6.0.4: the Reviews section's heading carries the count and Review settings ( the template ), so the card has no heading
+		   of its own on screen ( its title stays for the search and screen readers ). */
+		echo '<div class="ecdv2-card ecdv2-card-headless ecdv2-reviews-card' . ( $on ? '' : ' is-off' ) . '" id="ecdv2-reviews-card"' . ( $pid ? ' data-ecdv2-section="reviews"' : '' ) . ' data-product-id="' . $pid . '" data-nonce="' . esc_attr( $nonce ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $pid is (int) cast above.
 		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Customer reviews', 'wp-easycart' ) . '</h3>';
-		if ( $pid ) { echo '<span class="ecdv2-card-hint">' . esc_html( $total ? sprintf( _n( '%d review', '%d reviews', $total, 'wp-easycart' ), $total ) . ( $pending ? ' · ' . sprintf( _n( '%d pending', '%d pending', $pending, 'wp-easycart' ), $pending ) : '' ) : __( 'No reviews yet', 'wp-easycart' ) ) . '</span>'; }
-		echo '<a href="' . esc_url( $settings_url ) . '" class="ecdv2-help-link"><span class="dashicons dashicons-admin-generic"></span>' . esc_html__( 'Review settings', 'wp-easycart' ) . '</a>';
 		echo '</div><div class="ecdv2-card-body">';
 
-		/* the toggle — saves on change, mirrors the hidden carrier in the general card */
+		/* the toggle mirrors the hidden carrier in the general card; 6.0.4: it saves with the product */
 		echo '<div class="ecdv2-field ecdv2-field-full ecdv2-toggle-row ecdv2-reviews-toggle-row">';
 		/* .ecdv2-toggle-track is the painted switch ( the input itself is transparent ); any other class renders nothing. */
 		echo '<span class="ecdv2-toggle"><input type="checkbox" id="ecdv2_reviews_allow" value="1"' . checked( true, $on, false ) . ( $is_new ? ' data-new="1"' : '' ) . ' onchange="ecdv2_reviews_toggle( this );" /><span class="ecdv2-toggle-track"></span></span>';
@@ -1430,7 +1621,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		}
 		$mock .= '</div>';
 
-		echo '<div class="ecdv2-card ecdv2-offers-card" id="ecdv2_offers">';
+		/* 6.0.4: the Offers section's heading says what this card is ( its title stays for the search and screen readers ). */
+		echo '<div class="ecdv2-card ecdv2-card-headless ecdv2-offers-card" id="ecdv2_offers">';
 		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Offers for this product', 'wp-easycart' ) . '</h3><span class="ecdv2-card-hint">' . esc_html__( 'Promotions and coupon codes that discount it', 'wp-easycart' ) . '</span></div>';
 		echo '<div class="ecdv2-card-body">';
 		$this->print_pro_panel_preview(
@@ -1447,6 +1639,70 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			)
 		);
 		echo '</div></div>';
+	}
+
+	/**
+	 * 6.0.4: the Google Shopping tab while WP EasyCart PRO has not hooked its Google Merchant fields ( it does only with an active
+	 * license ): the locked preview the Offers and Stock history sections use ( state-aware button, a preview built from this
+	 * product, the upsell catalog's google_feed features ).
+	 *
+	 * @since 6.0.4
+	 * @param string $card_image The product's main picture ( the summary column's card ).
+	 * @return bool false while the gate reads the store as licensed ( the caller prints the fields instead ).
+	 */
+	public function print_google_shopping_upsell_v2( $card_image = '' ) {
+		global $wpdb;
+		$gate = class_exists( 'wp_easycart_admin_pro_gate' ) ? wp_easycart_admin_pro_gate::evaluate( array() ) : array(
+			'state' => 'upsell',
+			'desc'  => '',
+			'url'   => '',
+		);
+		if ( 'enabled' === $gate['state'] || ! class_exists( 'wp_easycart_admin_edition' ) ) {
+			return false;
+		}
+		$p        = $this->product;
+		$title    = wp_unslash( (string) $p->title );
+		$in_stock = empty( $p->show_stock_quantity ) || ! empty( $p->use_optionitem_quantity_tracking ) || (int) $p->stock_quantity > 0;
+		$category = $this->id ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT ec_category.category_name FROM ec_categoryitem INNER JOIN ec_category ON ec_category.category_id = ec_categoryitem.category_id WHERE ec_categoryitem.product_id = %d ORDER BY ec_category.category_name ASC LIMIT 1', (int) $this->id ) ) : '';
+
+		/* A Google Shopping result for this product, and the attributes this tab sets ( this product's values where it has them ). */
+		$mock  = '<div class="ecdv2-gm-mock">';
+		$mock .= '<div class="ecdv2-gm-mock-tile"><span class="ecdv2-gm-mock-img">';
+		$mock .= '' !== $card_image ? '<img src="' . esc_url( $card_image ) . '" alt="" loading="lazy" />' : '<span class="dashicons dashicons-format-image" aria-hidden="true"></span>';
+		$mock .= '</span><span class="ecdv2-gm-mock-title">' . esc_html( '' !== $title ? $title : __( 'Your product', 'wp-easycart' ) ) . '</span>';
+		$mock .= '<span class="ecdv2-gm-mock-price">' . esc_html( $this->format_price( $p->price ) ) . '</span>';
+		$mock .= '<span class="ecdv2-gm-mock-store">' . esc_html( get_bloginfo( 'name' ) ) . '</span>';
+		$mock .= '<span class="ecdv2-gm-mock-stock' . ( $in_stock ? '' : ' is-out' ) . '">' . ( $in_stock ? esc_html__( 'In stock', 'wp-easycart' ) : esc_html__( 'Out of stock', 'wp-easycart' ) ) . '</span></div>';
+		/* Only what the tab sets: the barcode, part number and condition are the free Search & AI tab's. */
+		$mock .= '<dl class="ecdv2-gm-mock-fields">';
+		foreach ( array(
+			__( 'Google product category', 'wp-easycart' ) => __( 'Apparel & Accessories › Clothing › Shirts & Tops', 'wp-easycart' ),
+			__( 'Product type', 'wp-easycart' )            => '' !== $category ? wp_unslash( $category ) : __( 'Your own category', 'wp-easycart' ),
+			__( 'Gender', 'wp-easycart' )                  => __( 'Unisex', 'wp-easycart' ),
+			__( 'Age group', 'wp-easycart' )               => __( 'Adult', 'wp-easycart' ),
+			__( 'Color and size', 'wp-easycart' )          => __( 'From each variation', 'wp-easycart' ),
+			__( 'Item group ID', 'wp-easycart' )           => '' !== (string) $p->model_number ? wp_unslash( (string) $p->model_number ) : '—',
+			__( 'Availability', 'wp-easycart' )            => __( 'Follows your stock', 'wp-easycart' ),
+		) as $label => $value ) {
+			$mock .= '<div><dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( $value ) . '</dd></div>';
+		}
+		$mock .= '</dl></div>';
+
+		$this->print_pro_panel_preview(
+			array(
+				'gate'      => $gate,
+				'context'   => 'google_feed',
+				'feature'   => 'attributes',
+				'headline'  => __( 'Show this product on Google Shopping', 'wp-easycart' ),
+				/* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */
+				'copy'      => sprintf( __( 'With %s your store keeps a Google product feed up to date by itself, and this tab gives this product its Google category, color, size, gender, age group and the other attributes Google asks for, so it shows up for the right searches.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
+				'tag'       => __( 'Preview with this product and sample values', 'wp-easycart' ),
+				'veil'      => __( 'Unlock Google Shopping', 'wp-easycart' ),
+				'mock_html' => $mock,
+				'features'  => array( 'attributes', 'auto', 'variants', 'connect' ),
+			)
+		);
+		return true;
 	}
 
 	/*
@@ -1556,6 +1812,20 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$this->section_close();
 	}
 
+	/**
+	 * Whether the card being printed shows a visible field ( section_open()'s only / except ).
+	 *
+	 * @since 6.0.4
+	 * @param string $name Field name.
+	 * @return bool
+	 */
+	public function prints_field( $name ) {
+		if ( false !== $this->print_only && ! in_array( $name, (array) $this->print_only, true ) ) {
+			return false;
+		}
+		return ! in_array( $name, (array) $this->print_except, true );
+	}
+
 	public function print_field_v2( $field ) {
 		$name = isset( $field['name'] ) ? $field['name'] : ( isset( $field['alt_name'] ) ? $field['alt_name'] : '' );
 		if ( '' === $name ) {
@@ -1574,10 +1844,16 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		if ( in_array( $name, $this->print_except, true ) && 'hidden' !== $field['type'] ) {
 			return;
 		}
+		if ( 'hidden' === $field['type'] && ! $this->print_hidden ) {
+			return;
+		}
 
 		$type = $field['type'];
 		$value = $this->field_value( $field );
 		$label = isset( $field['label'] ) ? $field['label'] : '';
+		if ( isset( $this->label_overrides[ $name ] ) ) {
+			$label = $this->label_overrides[ $name ];
+		}
 		$sec = ' data-ecdv2-sec="' . esc_attr( $this->current_section ) . '"';
 		$deps = $this->dep_attrs( $field );
 		$hidden_dep = ( isset( $field['requires'] ) && ( ! isset( $field['requires']['default_show'] ) || ! $field['requires']['default_show'] ) );
@@ -1597,7 +1873,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		/* Locked PRO field: keep a hidden carrier input so save payloads stay complete. */
 		if ( $this->field_is_gated( $field ) ) {
 			$carrier = ( 'checkbox' === $type && ! $value ) ? '' : $value;
-			echo '<div class="ecdv2-field ecdv2-field-full"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
+			/* 6.0.4: a locked type switch ( preorder, restaurant ) shows only while the type is Custom, as the others. */
+			$gated_type_row = ( $this->id && self::is_type_switch_v2( $name ) ) ? ' ecdv2-type-switch' : '';
+			echo '<div class="ecdv2-field ecdv2-field-full' . esc_attr( $gated_type_row ) . '"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
 			echo '<input type="hidden" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( is_array( $value ) ? wp_json_encode( $value ) : $carrier ) . '"' . $sec . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sec is built from esc_attr() above.
 			$this->gate_row( $label, apply_filters( 'wp_easycart_admin_v2_gate_description', sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Unlock this feature with %s.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ), $name ) );
 			echo '</div>';
@@ -1612,7 +1890,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				if ( isset( $field['show'] ) ) {
 					$show_attr = ' data-ecdv2-shows="' . esc_attr( $field['show']['name'] ) . '"';
 				}
-				echo '<div class="ecdv2-field ecdv2-field-full ecdv2-toggle-row"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
+				/* 6.0.4: a type switch's row is the Product type choice's; it shows only while the type is Custom. */
+				$type_row = ( $this->id && self::is_type_switch_v2( $name ) ) ? ' ecdv2-type-switch' : '';
+				echo '<div class="ecdv2-field ecdv2-field-full ecdv2-toggle-row' . esc_attr( $type_row ) . '"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
 				echo '<span class="ecdv2-toggle"><input type="checkbox" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="1"' . checked( 1, (int) $value, false ) . $sec . $show_attr . $onclick . $onchange . ' /><span class="ecdv2-toggle-track"></span></span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sec, $show_attr, $onclick and $onchange are built from esc_attr() above.
 				echo '<span class="ecdv2-toggle-meta"><label class="ecdv2-toggle-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label>';
 				if ( '' !== $desc ) {
@@ -1665,8 +1945,14 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 			case 'number':
 				$step = isset( $field['step'] ) ? $field['step'] : 'any';
+				/* 6.0.4: weight and size say their unit ( the store's, as the packer and the carriers read them ). */
+				$unit = '';
+				if ( 'packaging' === $this->current_section && class_exists( 'wp_easycart_packages' ) ) {
+					$units = wp_easycart_packages::units();
+					$unit  = ( 'weight' === $name ) ? $units['weight'] : ( in_array( $name, array( 'width', 'height', 'length' ), true ) ? $units['dim'] : '' );
+				}
 				echo '<div class="ecdv2-field"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
-				echo '<label class="ecdv2-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . $required . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $required is a static markup literal.
+				echo '<label class="ecdv2-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . $required . ( '' !== $unit ? ' <span class="ecdv2-label-hint">' . esc_html( $unit ) . '</span>' : '' ) . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $required is a static markup literal; the unit is escaped.
 				echo '<input type="number" step="' . esc_attr( $step ) . '" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . $sec . $placeholder . $validation . $onchange . ' />' . $msg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sec, $placeholder, $validation and $onchange are built from esc_attr() and $msg from wp_kses_post() above.
 				break;
 
@@ -1721,14 +2007,18 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 					echo '<option value="' . esc_attr( $current_manufacturer_id ) . '" selected>' . esc_html( $current_manufacturer_name ) . '</option>';
 				}
 				echo '</select>';
-				echo '<div style="display:flex; gap:8px; margin-top:6px;">';
+				/* 6.0.4: making a manufacturer is one click away, not a row of its own under the picker. */
+				echo '<button type="button" class="ecdv2-inline-link" id="ecdv2_manufacturer_new_toggle" aria-expanded="false" aria-controls="ecdv2_manufacturer_new" onclick="ecdv2.manufacturer_new( true );"><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>' . esc_html__( 'New manufacturer', 'wp-easycart' ) . '</button>';
+				echo '<div class="ecdv2-manufacturer-new" id="ecdv2_manufacturer_new" hidden>';
 				/* Nonce ACTION must match the server's verify_access() in
 				 * ec_admin_ajax_product_details_insert_manufacturer — it checks
 				 * 'wp-easycart-manufacturer-details'. A mismatched action here
 				 * made every Create attempt fail verification and return "0". */
 				wp_easycart_admin_verification()->print_nonce_field( 'manufacturer_new_nonce', 'wp-easycart-manufacturer-details' );
-				echo '<input type="text" id="manufacturer_name" placeholder="' . esc_attr__( 'New manufacturer name', 'wp-easycart' ) . '" style="flex:1;" />';
-				echo '<input type="button" value="' . esc_attr__( 'Create', 'wp-easycart' ) . '" onclick="return ec_admin_product_details_add_new_manufacturer( );" />';
+				echo '<label class="screen-reader-text" for="manufacturer_name">' . esc_html__( 'New manufacturer name', 'wp-easycart' ) . '</label>';
+				echo '<input type="text" id="manufacturer_name" placeholder="' . esc_attr__( 'New manufacturer name', 'wp-easycart' ) . '" />';
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="return ec_admin_product_details_add_new_manufacturer( );">' . esc_html__( 'Create', 'wp-easycart' ) . '</button>';
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2.manufacturer_new( false );">' . esc_html__( 'Cancel', 'wp-easycart' ) . '</button>';
 				echo '</div></div>';
 				break;
 
@@ -1799,7 +2089,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				echo '<div class="ecdv2-field"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $deps is built from esc_attr() in dep_attrs().
 				echo '<label class="ecdv2-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . $required; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $required is a static markup literal.
 				if ( $is_slug ) {
-					echo ' <span class="ecdv2-label-hint">' . esc_html__( '(auto-generated from title)', 'wp-easycart' ) . '</span>';
+					echo ' <span class="ecdv2-label-hint">' . esc_html__( '( follows the title )', 'wp-easycart' ) . '</span>';
 				}
 				echo '</label>';
 				if ( $is_slug ) {
@@ -1843,7 +2133,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		 * @since 6.0.0
 		 */
 		echo '<div class="ecdv2-cat-add">';
-		echo '<div class="ecdv2-cat-combo" id="ecdv2_cat_combo" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-category-search' ) ) . '" data-product-id="' . esc_attr( (int) $this->id ) . '">';
+		echo '<div class="ecdv2-cat-combo" id="ecdv2_cat_combo" data-ecdv2-nodirty="1" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-category-search' ) ) . '" data-product-id="' . esc_attr( (int) $this->id ) . '">';
 		echo '<input type="text" id="ecdv2_cat_input" class="ecv2-input" autocomplete="off" placeholder="' . esc_attr__( 'Type to add a category — or create a new one…', 'wp-easycart' ) . '" />';
 		echo '<div class="ecdv2-cat-menu" id="ecdv2_cat_menu" style="display:none;"></div>';
 		echo '</div>';
@@ -1871,7 +2161,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 		/* Add row at the TOP, written as a fill-in-the-blank sentence so the
 		 * columns are self-labeling; the list rows below read the same way. */
-		echo '<div class="ecdv2-tier-add">';
+		echo '<div class="ecdv2-tier-add" data-ecdv2-nodirty="1">'; /* 6.0.4: typing a new tier changes nothing until Add Tier */
 		echo '<span class="ecdv2-tier-sentence">';
 		echo '<span class="ecdv2-tier-word">' . esc_html__( 'Buy', 'wp-easycart' ) . '</span>';
 		echo '<input type="number" id="ec_admin_new_price_tier_quantity" min="2" step="1" placeholder="10" />';
@@ -1940,7 +2230,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		echo '</div>';
 
 		/* Add row on top, same fill-in-the-blank sentence pattern as volume. */
-		echo '<div class="ecdv2-tier-add ecdv2-role-add">';
+		echo '<div class="ecdv2-tier-add ecdv2-role-add" data-ecdv2-nodirty="1">';
 		echo '<span class="ecdv2-tier-sentence">';
 		echo '<select id="add_new_role_price_role">';
 		/* 6.0.2: nothing is picked until the merchant picks a role ( the first role, admin, was chosen silently ). */
@@ -1975,7 +2265,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	private function role_price_row_html( $rp ) {
 		$id  = $rp->roleprice_id;
 		$rid = 'ec_admin_product_details_role_price_row_' . $id;
-		$h  = '<div class="ec_admin_role_price_row" id="' . esc_attr( $rid ) . '" data-role="' . esc_attr( $rp->role_label ) . '">';
+		$h  = '<div class="ec_admin_role_price_row" id="' . esc_attr( $rid ) . '" data-role="' . esc_attr( $rp->role_label ) . '" data-price="' . esc_attr( (float) $rp->role_price ) . '">';
 		$h .= '<span class="ecdv2-role-label">' . esc_html( $rp->role_label ) . '</span>';
 		$h .= '<span class="ecdv2-role-price">' . esc_html( $this->format_price( $rp->role_price ) ) . '</span>';
 		$h .= '<span class="ecdv2-role-actions"><a href="" class="ecdv2-row-del" onclick="return ec_admin_product_details_delete_role_price( \'' . esc_attr( $id ) . '\' );" title="' . esc_attr__( 'Delete', 'wp-easycart' ) . '">' . $this->x_icon() . '</a></span>';
@@ -1996,10 +2286,10 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			array( 'key' => 'image', 'label' => __( 'At least one product image', 'wp-easycart' ), 'done' => $has_image, 'tab' => 'media' ),
 			array( 'key' => 'description', 'label' => __( 'Description written', 'wp-easycart' ), 'done' => ( strlen( wp_strip_all_tags( (string) $p->description ) ) > 20 ), 'tab' => 'general' ),
 			array( 'key' => 'short_description', 'label' => __( 'Short description for listings', 'wp-easycart' ), 'done' => ( '' !== trim( (string) $p->short_description ) ), 'tab' => 'general' ),
-			array( 'key' => 'price', 'label' => __( 'Price set', 'wp-easycart' ), 'done' => ( (float) $p->price > 0 || $p->is_donation || $p->inquiry_mode ), 'tab' => 'general' ),
+			array( 'key' => 'price', 'label' => __( 'Price set', 'wp-easycart' ), 'done' => ( (float) $p->price > 0 || $p->is_donation || $p->inquiry_mode ), 'tab' => 'pricing' ),
 			array( 'key' => 'category', 'label' => __( 'Assigned to a category', 'wp-easycart' ), 'done' => ( $category_count > 0 ), 'tab' => 'organize' ),
 			array( 'key' => 'seo', 'label' => __( 'SEO description added', 'wp-easycart' ), 'done' => ( '' !== trim( (string) $p->seo_description ) ), 'tab' => 'seo' ),
-			array( 'key' => 'weight', 'label' => __( 'Shipping weight entered', 'wp-easycart' ), 'done' => ( ! $p->is_shippable || (float) $p->weight > 0 ), 'tab' => 'inventory' ),
+			array( 'key' => 'weight', 'label' => __( 'Shipping weight entered', 'wp-easycart' ), 'done' => ( ! $p->is_shippable || (float) $p->weight > 0 ), 'tab' => 'shipping' ),
 			array( 'key' => 'stock', 'label' => __( 'Stock level or tracking decided', 'wp-easycart' ), 'done' => ( ! $p->show_stock_quantity || (int) $p->stock_quantity > 0 || $p->use_optionitem_quantity_tracking ), 'tab' => 'inventory' ),
 			array( 'key' => 'active', 'label' => __( 'Product activated in store', 'wp-easycart' ), 'done' => (bool) $p->activate_in_store, 'tab' => 'general' ),
 		);
@@ -2039,6 +2329,514 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			echo '</div>';
 		}
 		echo '</div></div>';
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* 6.0.4: the summary column, and the view's settings for the script    */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * The product type switches ( Type & Behavior ) and what each one makes the product, in the order the summary names
+	 * them. A product with none is a standard product.
+	 *
+	 * @since 6.0.4
+	 * @return array input id => label.
+	 */
+	public static function type_labels_v2() {
+		return apply_filters(
+			'wp_easycart_admin_product_type_labels',
+			array(
+				'is_subscription_item' => __( 'Subscription', 'wp-easycart' ),
+				'is_download'          => __( 'Digital download', 'wp-easycart' ),
+				'is_giftcard'          => __( 'Gift card', 'wp-easycart' ),
+				'is_donation'          => __( 'Donation or invoice', 'wp-easycart' ),
+				'inquiry_mode'         => __( 'Inquiry only', 'wp-easycart' ),
+				'catalog_mode'         => __( 'Seasonal ( not for sale now )', 'wp-easycart' ),
+				'is_preorder_type'     => __( 'Preorder for pickup', 'wp-easycart' ),
+				'is_restaurant_type'   => __( 'Restaurant pickup', 'wp-easycart' ),
+				'is_deconetwork'       => __( 'Deconetwork', 'wp-easycart' ),
+			)
+		);
+	}
+
+	/**
+	 * The product types the summary column's Product type choice offers ( 6.0.4, editor plan Phase 2 ), in its order. A
+	 * type writes the switches the Type settings section has always had: its flag on and every other type's flag off, and
+	 * for the types that say so, whether the product ships. Physical and Service set no flag; the switch Ships decides
+	 * between them. A product with more than one flag on is Custom ( every switch shows ). Types marked pro are the ones
+	 * Quick add offers only with WP EasyCart PRO.
+	 *
+	 * The list lives in wp_easycart_admin_product_types, which the products list's Product type filter reads too.
+	 *
+	 * @since 6.0.4
+	 * @return array key => label, flag ( '' = none ), ships ( 1 | 0 | null = leave it ), pro, help, icon.
+	 */
+	public static function product_types_v2() {
+		return wp_easycart_admin_product_types::types();
+	}
+
+	/**
+	 * The type this product is now ( product_types_v2() key, or custom ).
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public function product_type_key_v2() {
+		return wp_easycart_admin_product_types::key_for( $this->product );
+	}
+
+	/**
+	 * Whether a type switch's row in Type settings belongs to the Product type choice ( hidden there unless the type is Custom ).
+	 *
+	 * @since 6.0.4
+	 * @param string $name Field name.
+	 * @return bool
+	 */
+	public static function is_type_switch_v2( $name ) {
+		static $flags = null;
+		if ( null === $flags ) {
+			$flags = array();
+			foreach ( self::product_types_v2() as $type ) {
+				if ( '' !== $type['flag'] ) {
+					$flags[] = $type['flag'];
+				}
+			}
+		}
+		return in_array( $name, $flags, true );
+	}
+
+	/**
+	 * What the product is, in a few words ( the summary column's Product type card ).
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public function product_type_text_v2() {
+		$names = array();
+		foreach ( self::type_labels_v2() as $flag => $label ) {
+			if ( ! empty( $this->product->{$flag} ) ) {
+				$names[] = $label;
+			}
+		}
+		return $names ? implode( ' + ', $names ) : __( 'Standard product', 'wp-easycart' );
+	}
+
+	/**
+	 * The summary column beside the editor ( 6.0.4 ): visibility and product type as summaries with a way to their fields,
+	 * the real Categories card ( it saves as it changes, so it can live anywhere ), listing health, the product card as
+	 * shoppers see it, and sales. products-details-v2.js keeps the summaries current as fields change.
+	 *
+	 * @since 6.0.4
+	 * @param array $args card_image ( the main picture's address ).
+	 */
+	public function print_side_v2( $args = array() ) {
+		global $wpdb;
+		$p          = $this->product;
+		$card_image = isset( $args['card_image'] ) ? (string) $args['card_image'] : '';
+
+		echo '<aside class="ecdv2-side" id="ecdv2_side" aria-label="' . esc_attr__( 'Product summary', 'wp-easycart' ) . '">';
+		/* 6.0.4: below 960px of the editor's width the column is a drawer ( products-details-v2.js side_drawer() ), with this
+		 * heading and a close button; the header's Summary button opens it. Hidden while the column sits beside the fields. */
+		echo '<div class="ecdv2-side-head" id="ecdv2_side_head"><div class="ecdv2-side-head-text"><h2 class="ecdv2-side-head-title" id="ecdv2_side_title">' . esc_html__( 'Summary', 'wp-easycart' ) . '</h2>';
+		echo '<span class="ecdv2-side-head-hint">' . esc_html__( 'Status, type, shipping, tax, categories and listing health', 'wp-easycart' ) . '</span></div>';
+		echo '<button type="button" class="ecdv2-side-close" id="ecdv2_side_close" aria-label="' . esc_attr__( 'Close the summary', 'wp-easycart' ) . '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
+
+		/* 6.0.4: Status, as the editor plan's mockup drew it: the Active switch ( it saves at once, ecdv2.quick_activate(), so it
+		 * left the header ), who can see it ( role_id, the general options section ) and the page address ( post_slug, the basic
+		 * section ). Each field is a header-less card of its own section, so it saves as before. */
+		$active = (bool) $p->activate_in_store;
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-status" id="ecdv2_side_visibility">';
+		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Status', 'wp-easycart' ) . '</h3></div>';
+		echo '<div class="ecdv2-card-body">';
+		echo '<label class="ecdv2-side-switch" for="activate_in_store" title="' . esc_attr__( 'Shows or hides the product in your store. Saves at once; your other changes wait for Save.', 'wp-easycart' ) . '">';
+		echo '<span class="ecdv2-toggle"><input type="checkbox" id="activate_in_store" name="activate_in_store" value="1"' . checked( $active, true, false ) . ' data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-toggle-' . (int) $p->product_id ) ) . '" onchange="ecdv2.quick_activate( this );" /><span class="ecdv2-toggle-track"></span></span>';
+		echo '<span class="ecdv2-side-switch-text"><b id="ecdv2_side_status_title">' . ( $active ? esc_html__( 'Active', 'wp-easycart' ) : esc_html__( 'Draft', 'wp-easycart' ) ) . '</b>';
+		echo '<span id="ecdv2_side_status">' . ( $active ? esc_html__( 'Shoppers can find and buy it', 'wp-easycart' ) : esc_html__( 'Hidden from your store until you switch it on', 'wp-easycart' ) ) . '</span></span>';
+		echo '</label>';
+		$this->label_overrides['role_id'] = __( 'Who can see it', 'wp-easycart' );
+		$this->section_open( 'general_options_visibility', __( 'Who can see it', 'wp-easycart' ), '', array( 'only' => array( 'role_id' ), 'hidden' => false, 'heading' => false, 'class' => 'ecdv2-side-part' ) );
+		do_action( 'wp_easycart_admin_product_details_general_options_fields' );
+		$this->section_close();
+		$this->label_overrides['post_slug'] = __( 'Page address', 'wp-easycart' );
+		$this->section_open( 'basic', __( 'Page address', 'wp-easycart' ), '', array( 'only' => array( 'post_slug' ), 'hidden' => false, 'heading' => false, 'class' => 'ecdv2-side-part' ) );
+		do_action( 'wp_easycart_admin_product_details_basic_fields' );
+		$this->section_close();
+		echo '</div></div>';
+
+		/* Product type ( 6.0.4, editor plan Phase 2 ): one choice that writes the type switches; the sections a type does not
+		 * use move to the rail's "Not used for this type" ( products-details-v2.js ). Not part of any save section: the
+		 * switches it sets mark their own sections unsaved. */
+		$types   = self::product_types_v2();
+		$current = $this->product_type_key_v2();
+		$is_pro  = ( '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) );
+		echo '<div class="ecdv2-card ecdv2-side-card" id="ecdv2_side_type_card">';
+		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title"><label for="ecdv2_type">' . esc_html__( 'Product type', 'wp-easycart' ) . '</label></h3>';
+		echo '<button type="button" class="ecdv2-side-link" data-ecdv2-go="behavior">' . esc_html__( 'Settings', 'wp-easycart' ) . '</button></div>';
+		echo '<div class="ecdv2-card-body">';
+		echo '<select class="ecdv2-side-select" id="ecdv2_type" aria-describedby="ecdv2_type_help">';
+		foreach ( $types as $key => $type ) {
+			$locked = ! empty( $type['pro'] ) && ! $is_pro && $key !== $current;
+			/* translators: 1: a product type, 2: the plan that includes it ( Pro ). */
+			$text = $locked && class_exists( 'wp_easycart_admin_edition' ) ? sprintf( __( '%1$s ( %2$s )', 'wp-easycart' ), $type['label'], wp_easycart_admin_edition::badge( 'pro' ) ) : $type['label'];
+			echo '<option value="' . esc_attr( $key ) . '"' . selected( $current, $key, false ) . ( $locked ? ' disabled' : '' ) . '>' . esc_html( $text ) . '</option>';
+		}
+		echo '<option value="custom"' . selected( $current, 'custom', false ) . '>' . esc_html__( 'Custom: every type switch', 'wp-easycart' ) . '</option>';
+		echo '</select>';
+		$help = 'custom' === $current ? __( 'This product mixes types, so every type switch shows in Type settings.', 'wp-easycart' ) : ( isset( $types[ $current ]['help'] ) ? $types[ $current ]['help'] : '' );
+		echo '<p class="ecdv2-side-note" id="ecdv2_type_help">' . esc_html( $help ) . '</p>';
+		if ( ! $is_pro && class_exists( 'wp_easycart_admin_edition' ) ) {
+			/* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */
+			echo '<p class="ecdv2-side-note ecdv2-side-upsell"><button type="button" class="ecdv2-side-link" onclick="ecdv2_upsell( { context: \'products\' } ); return false;">' . esc_html( sprintf( __( 'Downloads, subscriptions, gift cards and more are %s types.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ) ) . '</button></p>';
+		}
+		echo '</div></div>';
+
+		$this->print_ship_card_v2();
+		$this->print_tax_card_v2();
+
+		/* 6.0.4: Organization ( the mockup's ): the real Categories card ( section categories, moved here from Storefront ), with
+		 * the manufacturer ( basic ) and Show on the store page ( general options ) as header-less cards of their own sections. */
+		$this->section_open( 'categories', __( 'Organization', 'wp-easycart' ), '', array( 'class' => 'ecdv2-side-org' ) );
+		echo '<span class="ecdv2-label ecdv2-side-label">' . esc_html__( 'Categories', 'wp-easycart' ) . '</span>';
+		do_action( 'wp_easycart_admin_product_details_categories_fields' );
+		$this->section_open( 'basic', __( 'Manufacturer', 'wp-easycart' ), '', array( 'only' => array( 'manufacturer_id' ), 'hidden' => false, 'heading' => false, 'class' => 'ecdv2-side-part' ) );
+		do_action( 'wp_easycart_admin_product_details_basic_fields' );
+		$this->section_close();
+		$this->label_overrides['show_on_startup'] = __( 'Show on the store page', 'wp-easycart' );
+		$this->section_open( 'general_options_visibility', __( 'Store page', 'wp-easycart' ), '', array( 'only' => array( 'show_on_startup' ), 'hidden' => false, 'heading' => false, 'class' => 'ecdv2-side-part' ) );
+		do_action( 'wp_easycart_admin_product_details_general_options_fields' );
+		$this->section_close();
+		echo '</div></div>'; /* the Organization card */
+
+		$this->print_health_v2();
+
+		/* The product card as shoppers see it in a list. */
+		$list_price = (float) $p->list_price;
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-preview" id="ecdv2_side_preview">';
+		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Storefront card', 'wp-easycart' ) . '</h3><span class="ecdv2-card-hint">' . esc_html__( 'Follows your changes', 'wp-easycart' ) . '</span></div>';
+		echo '<div class="ecdv2-card-body"><div class="ecdv2-pv">';
+		echo '<div class="ecdv2-pv-img" id="ecdv2_pv_img">';
+		if ( '' !== $card_image ) {
+			echo '<img src="' . esc_url( $card_image ) . '" alt="" loading="lazy" />';
+		} else {
+			echo '<span class="dashicons dashicons-format-image" aria-hidden="true"></span>';
+		}
+		echo '<span class="ecdv2-pv-badge" id="ecdv2_pv_badge" hidden></span></div>';
+		echo '<div class="ecdv2-pv-text"><span class="ecdv2-pv-title" id="ecdv2_pv_title">' . esc_html( wp_unslash( $p->title ) ) . '</span>';
+		echo '<span class="ecdv2-pv-price"><span id="ecdv2_pv_price">' . esc_html( $this->format_price( $p->price ) ) . '</span> <s id="ecdv2_pv_was"' . ( ( $list_price > (float) $p->price ) ? '' : ' hidden' ) . '>' . esc_html( $this->format_price( $list_price ) ) . '</s></span>';
+		echo '<span class="ecdv2-pv-stock" id="ecdv2_pv_stock" hidden></span></div>';
+		echo '</div></div></div>';
+
+		/* Sales ( the Activity endpoint, which needs a store manager ). */
+		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) {
+			echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-insights" id="ecdv2_side_insights">';
+			echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Sales', 'wp-easycart' ) . '</h3><span class="ecdv2-card-hint">' . esc_html__( 'All time', 'wp-easycart' ) . '</span></div>';
+			echo '<div class="ecdv2-card-body"><div class="ecdv2-side-kpis">';
+			foreach ( array(
+				'units'       => __( 'Units sold', 'wp-easycart' ),
+				'revenue'     => __( 'Revenue', 'wp-easycart' ),
+				'order_count' => __( 'Orders', 'wp-easycart' ),
+				'views'       => __( 'Page views', 'wp-easycart' ),
+			) as $kpi => $label ) {
+				echo '<div><b data-ecdv2-kpi="' . esc_attr( $kpi ) . '">&ndash;</b><span>' . esc_html( $label ) . '</span></div>';
+			}
+			echo '</div><button type="button" class="ecv2-btn ecv2-btn-sm ecdv2-side-open-insights" data-ecdv2-mode-set="insights"><span class="dashicons dashicons-chart-bar" aria-hidden="true"></span>' . esc_html__( 'Open Insights', 'wp-easycart' ) . '</button></div></div>';
+		}
+
+		echo '</aside>';
+		/* 6.0.4: behind the drawer; a click on it closes the drawer. */
+		echo '<div class="ecdv2-side-backdrop" id="ecdv2_side_backdrop" aria-hidden="true"></div>';
+	}
+
+	/**
+	 * 6.0.4: the summary column's Shipping card, under Product type: whether the product ships, its weight and size, how it
+	 * packs and what it adds, or why it does not ship; amber when it ships with no weight while the store's rates read
+	 * weights. One button to the Shipping section. products-details-v2.js keeps it current ( paint_ship_card() ).
+	 *
+	 * @since 6.0.4
+	 */
+	public function print_ship_card_v2() {
+		$p      = $this->product;
+		$units  = class_exists( 'wp_easycart_packages' ) ? wp_easycart_packages::units() : array( 'weight' => 'lb', 'dim' => 'in' );
+		$method = ( isset( $GLOBALS['ec_setting'] ) && is_object( $GLOBALS['ec_setting'] ) && method_exists( $GLOBALS['ec_setting'], 'get_shipping_method' ) ) ? (string) $GLOBALS['ec_setting']->get_shipping_method() : '';
+		/* Rates that read a product's weight: by weight, live carrier rates and Fraktjakt. */
+		$needs  = in_array( $method, array( 'weight', 'live', 'fraktjakt' ), true );
+		$ships  = ! empty( $p->is_shippable );
+		$weight = (float) $p->weight;
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-ship' . ( $ships ? '' : ' is-noship' ) . ( $ships && $needs && $weight <= 0 ? ' is-warn' : '' ) . '" id="ecdv2_side_shipping" data-needs-weight="' . ( $needs ? '1' : '0' ) . '" data-weight-unit="' . esc_attr( $units['weight'] ) . '" data-dim-unit="' . esc_attr( $units['dim'] ) . '">';
+		echo '<button type="button" class="ecdv2-side-ship-go" data-ecdv2-go="shipping">';
+		echo '<span class="ecdv2-side-ship-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>';
+		echo '<span class="ecdv2-side-ship-title" id="ecdv2_side_ship_title">' . ( $ships ? esc_html__( 'Ships to the customer', 'wp-easycart' ) : esc_html__( 'Doesn’t ship', 'wp-easycart' ) ) . '</span>';
+		echo '<span class="ecdv2-side-link" aria-hidden="true">' . esc_html__( 'Edit', 'wp-easycart' ) . '</span>';
+		echo '<span class="screen-reader-text">' . esc_html__( 'Open the Shipping section', 'wp-easycart' ) . '</span>';
+		echo '</button>';
+		echo '<dl class="ecdv2-side-ship-facts" id="ecdv2_side_ship_facts"' . ( $ships ? '' : ' hidden' ) . '>';
+		/* translators: 1: a weight, 2: its unit ( lb or kg ). */
+		echo '<dt>' . esc_html__( 'Weight', 'wp-easycart' ) . '</dt><dd id="ecdv2_side_ship_weight">' . ( $weight > 0 ? esc_html( sprintf( __( '%1$s %2$s', 'wp-easycart' ), rtrim( rtrim( number_format( $weight, 3, '.', '' ), '0' ), '.' ), $units['weight'] ) ) : esc_html__( 'Not set', 'wp-easycart' ) ) . '</dd>';
+		echo '<dt>' . esc_html__( 'Size', 'wp-easycart' ) . '</dt><dd id="ecdv2_side_ship_size">&ndash;</dd>';
+		echo '<dt>' . esc_html__( 'Packs in', 'wp-easycart' ) . '</dt><dd id="ecdv2_side_ship_packs">&ndash;</dd>';
+		echo '<dt>' . esc_html__( 'Charges', 'wp-easycart' ) . '</dt><dd id="ecdv2_side_ship_charges">&ndash;</dd>';
+		echo '</dl>';
+		echo '<p class="ecdv2-side-ship-off" id="ecdv2_side_ship_off"' . ( $ships ? ' hidden' : '' ) . '>' . esc_html__( 'Checkout asks no shipping address and adds no shipping for it.', 'wp-easycart' ) . '</p>';
+		echo '<p class="ecdv2-side-ship-warn" id="ecdv2_side_ship_warn"' . ( $ships && $needs && $weight <= 0 ? '' : ' hidden' ) . '>' . esc_html__( 'Add a weight: your shipping rates read it.', 'wp-easycart' ) . '</p>';
+		echo '</div>';
+	}
+
+	/**
+	 * 6.0.4: the summary column's Tax card, under Shipping: whether the product is taxable ( sales tax, VAT ), one button to
+	 * the Tax card in Pricing. products-details-v2.js keeps it current ( paint_tax_card() ).
+	 *
+	 * @since 6.0.4
+	 */
+	public function print_tax_card_v2() {
+		$p   = $this->product;
+		$tax = 1 === (int) $p->is_taxable;
+		$vat = (float) $p->vat_rate > 0;
+		$sub = $tax && $vat ? __( 'Sales tax and VAT', 'wp-easycart' ) : ( $tax ? __( 'Sales tax', 'wp-easycart' ) : ( $vat ? __( 'VAT', 'wp-easycart' ) : __( 'No sales tax or VAT', 'wp-easycart' ) ) );
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-row ecdv2-side-tax' . ( $tax || $vat ? '' : ' is-off' ) . '" id="ecdv2_side_tax">';
+		echo '<button type="button" class="ecdv2-side-row-go" data-ecdv2-go="pricing" data-ecdv2-go-section="tax">';
+		echo '<span class="ecdv2-side-row-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg></span>';
+		echo '<span class="ecdv2-side-row-text"><b id="ecdv2_side_tax_title">' . ( $tax || $vat ? esc_html__( 'Taxable', 'wp-easycart' ) : esc_html__( 'Not taxable', 'wp-easycart' ) ) . '</b><span id="ecdv2_side_tax_sub">' . esc_html( $sub ) . '</span></span>';
+		echo '<span class="ecdv2-side-link" aria-hidden="true">' . esc_html__( 'Edit', 'wp-easycart' ) . '</span>';
+		echo '<span class="screen-reader-text">' . esc_html__( 'Open the Tax settings in Pricing', 'wp-easycart' ) . '</span>';
+		echo '</button>';
+		echo '</div>';
+	}
+
+	/**
+	 * 6.0.4: under Basics' title and SKU, the price ( set in Pricing ) and the manufacturer ( in the summary column ), each a
+	 * button to its field. products-details-v2.js keeps the values current ( paint_quick_links() ).
+	 *
+	 * @since 6.0.4
+	 */
+	public function print_quick_links_v2() {
+		global $wpdb;
+		$p        = $this->product;
+		$maker_id = (int) $p->manufacturer_id;
+		$maker    = $maker_id ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT name FROM ec_manufacturer WHERE manufacturer_id = %d', $maker_id ) ) : '';
+		echo '<div class="ecdv2-quick-links" id="ecdv2_quick_links">';
+		echo '<button type="button" class="ecdv2-quick-link" data-ecdv2-go="pricing" data-ecdv2-field="price" title="' . esc_attr__( 'Set the price in Pricing', 'wp-easycart' ) . '">';
+		echo '<span class="dashicons dashicons-money-alt" aria-hidden="true"></span><span class="ecdv2-quick-link-label">' . esc_html__( 'Price', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-quick-link-value" id="ecdv2_quick_price">' . esc_html( $this->format_price( $p->price ) ) . '</span>';
+		echo '<span class="ecdv2-quick-link-go" aria-hidden="true">' . esc_html__( 'Edit', 'wp-easycart' ) . '</span></button>';
+		echo '<button type="button" class="ecdv2-quick-link" data-ecdv2-go="side" data-ecdv2-field="manufacturer_id" title="' . esc_attr__( 'Choose the manufacturer in the summary column', 'wp-easycart' ) . '">';
+		echo '<span class="dashicons dashicons-building" aria-hidden="true"></span><span class="ecdv2-quick-link-label">' . esc_html__( 'Manufacturer', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-quick-link-value" id="ecdv2_quick_manufacturer">' . ( '' !== $maker ? esc_html( wp_unslash( $maker ) ) : esc_html__( 'None', 'wp-easycart' ) ) . '</span>';
+		echo '<span class="ecdv2-quick-link-go" aria-hidden="true">' . esc_html__( 'Edit', 'wp-easycart' ) . '</span></button>';
+		echo '</div>';
+	}
+
+	/**
+	 * 6.0.4: this product's reviews, counted once for the Reviews section's heading and its card.
+	 *
+	 * @since 6.0.4
+	 * @return array total, approved, pending, avg, chip ( "1 review · 1 pending", for the heading ).
+	 */
+	public function review_counts_v2() {
+		global $wpdb;
+		if ( null !== $this->review_counts ) {
+			return $this->review_counts;
+		}
+		$pid      = (int) $this->id;
+		$total    = $pid ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_review WHERE product_id = %d', $pid ) ) : 0;
+		$approved = $pid ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_review WHERE product_id = %d AND approved = 1', $pid ) ) : 0;
+		$pending  = $total - $approved;
+		$avg      = $approved ? (float) $wpdb->get_var( $wpdb->prepare( 'SELECT AVG( rating ) FROM ec_review WHERE product_id = %d AND approved = 1', $pid ) ) : 0;
+		/* translators: %d: a number of reviews. */
+		$chip = $total ? sprintf( _n( '%d review', '%d reviews', $total, 'wp-easycart' ), $total ) : __( 'No reviews yet', 'wp-easycart' );
+		if ( $pending ) {
+			/* translators: %d: reviews waiting for approval. */
+			$chip .= ' · ' . sprintf( _n( '%d pending', '%d pending', $pending, 'wp-easycart' ), $pending );
+		}
+		$this->review_counts = array(
+			'total'    => $total,
+			'approved' => $approved,
+			'pending'  => $pending,
+			'avg'      => $avg,
+			'chip'     => $chip,
+		);
+		return $this->review_counts;
+	}
+
+	/**
+	 * Listing health for the summary column ( 6.0.4 ): the same checks as print_health(), unfinished ones first, each a
+	 * button to its field. products-details-v2.js re-checks them as fields change ( the keys it knows; others keep their
+	 * state from the page load ).
+	 *
+	 * @since 6.0.4
+	 */
+	public function print_health_v2() {
+		$checks = $this->get_health_checks();
+		$todo   = array();
+		$done   = array();
+		foreach ( $checks as $check ) {
+			if ( empty( $check['key'] ) || empty( $check['label'] ) ) {
+				continue;
+			}
+			if ( ! empty( $check['done'] ) ) {
+				$done[] = $check;
+			} else {
+				$todo[] = $check;
+			}
+		}
+		$total = count( $todo ) + count( $done );
+		$pct   = $total ? round( count( $done ) / $total * 100 ) : 0;
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-health" id="ecdv2_health">';
+		/* translators: 1: checks passed, 2: all checks. */
+		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Listing health', 'wp-easycart' ) . '</h3><span class="ecdv2-side-count" id="ecdv2_health_count">' . esc_html( sprintf( __( '%1$d of %2$d', 'wp-easycart' ), count( $done ), $total ) ) . '</span></div>';
+		echo '<div class="ecdv2-card-body">';
+		echo '<div class="ecdv2-health-bar"><div class="ecdv2-health-bar-fill" id="ecdv2_health_fill" style="width:' . esc_attr( $pct ) . '%;"></div></div>';
+		echo '<ul class="ecdv2-side-health-list" id="ecdv2_health_list">';
+		foreach ( array_merge( $todo, $done ) as $check ) {
+			$is_done = ! empty( $check['done'] );
+			echo '<li class="ecdv2-side-health-item ' . ( $is_done ? 'is-done' : 'is-todo' ) . '" data-ecdv2-check="' . esc_attr( $check['key'] ) . '" data-ecdv2-tab="' . esc_attr( isset( $check['tab'] ) ? $check['tab'] : '' ) . '">';
+			echo '<button type="button" class="ecdv2-side-health-go"><span class="ecdv2-side-health-mark" aria-hidden="true"></span><span class="ecdv2-side-health-label">' . esc_html( $check['label'] ) . '</span>';
+			echo '<span class="screen-reader-text">' . ( $is_done ? esc_html__( 'Done', 'wp-easycart' ) : esc_html__( 'To do', 'wp-easycart' ) ) . '</span></button></li>';
+		}
+		echo '</ul></div></div>';
+	}
+
+	/**
+	 * What products-details-v2.js needs for the views ( 6.0.4 ): the person's choices, the editing sections in order, the
+	 * AJAX action and nonce for the choices, the list the previous / next buttons read, and the wording.
+	 *
+	 * @since 6.0.4
+	 * @param array    $prefs   wp_easycart_admin_product_editor_prefs().
+	 * @param string   $view    page | focus.
+	 * @param array    $tabs    The editor's sections.
+	 * @param callable $mode_of Section key => edit | insights.
+	 * @return array
+	 */
+	public function view_config_v2( $prefs, $view, $tabs, $mode_of ) {
+		$sections = array();
+		foreach ( $tabs as $key => $tab ) {
+			$sections[] = array(
+				'key'   => $key,
+				'label' => isset( $tab['label'] ) ? $tab['label'] : $key,
+				'mode'  => call_user_func( $mode_of, $key ),
+			);
+		}
+		return array(
+			'view'       => $view,
+			'tip'        => ! empty( $prefs['tip'] ),
+			'sections'   => $sections,
+			'action'     => 'ecv2_product_editor_prefs',
+			'nonce'      => wp_create_nonce( 'wp-easycart-ecv2-product-editor' ),
+			'product_id' => (int) $this->id,
+			'edit_url'   => admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=edit&product_id=' ),
+			'draft'      => $this->is_draft,
+			'type_flags' => self::type_labels_v2(),
+			'types'      => self::product_types_v2(),
+			'type'       => $this->product_type_key_v2(),
+			'text'       => array(
+				/* translators: %s: the next section of the product editor, e.g. Media. */
+				'next'            => __( 'Next: %s', 'wp-easycart' ),
+				'last'            => __( 'That was the last section. Save when you are ready.', 'wp-easycart' ),
+				/* translators: 1: this product's place in the list, 2: products in the list. */
+				'nav_position'    => __( '%1$d of %2$d', 'wp-easycart' ),
+				'save_first'      => __( 'Save your changes first?', 'wp-easycart' ),
+				/* translators: %s: a product title. */
+				'save_first_body' => __( 'This product has changes that are not saved yet. Save them and open %s?', 'wp-easycart' ),
+				'next_product'    => __( 'the next product', 'wp-easycart' ),
+				'save_and_open'   => __( 'Save and open', 'wp-easycart' ),
+				'stay'            => __( 'Stay here', 'wp-easycart' ),
+				'no_next'         => __( 'This is the last product in the list you came from.', 'wp-easycart' ),
+				'standard'        => __( 'Standard product', 'wp-easycart' ),
+				'ships'           => __( 'Ships to the customer', 'wp-easycart' ),
+				'no_ship'         => __( 'Doesn’t ship', 'wp-easycart' ),
+				'active'          => __( 'Shoppers can find and buy it', 'wp-easycart' ),
+				'draft'           => __( 'Hidden from your store until you switch it on', 'wp-easycart' ),
+				'active_title'    => __( 'Active', 'wp-easycart' ),
+				'draft_title'     => __( 'Draft', 'wp-easycart' ),
+				/* The Shipping card and section ( 6.0.4 ). */
+				'ships_free'      => __( 'Ships free', 'wp-easycart' ),
+				'not_set'         => __( 'Not set', 'wp-easycart' ),
+				/* translators: 1: a number, 2: its unit ( lb, kg, in or cm ). */
+				'with_unit'       => __( '%1$s %2$s', 'wp-easycart' ),
+				'packs_auto'      => __( 'Best box, automatic', 'wp-easycart' ),
+				'packs_own'       => __( 'Its own box', 'wp-easycart' ),
+				'no_handling'     => __( 'Your shipping rates', 'wp-easycart' ),
+				/* translators: %s: an amount of money. */
+				'handling_order'  => __( '%s handling per order', 'wp-easycart' ),
+				/* translators: %s: an amount of money. */
+				'handling_item'   => __( '%s per item', 'wp-easycart' ),
+				'left_out'        => __( 'Left out of your rates', 'wp-easycart' ),
+				'billing_address' => __( 'Ships to the billing address', 'wp-easycart' ),
+				'off_download'    => __( 'A digital download: checkout asks no shipping address and adds no shipping.', 'wp-easycart' ),
+				'off_service'     => __( 'Booked or attended, never sent: checkout asks no shipping address and adds no shipping.', 'wp-easycart' ),
+				'off_other'       => __( 'Checkout asks no shipping address and adds no shipping for it.', 'wp-easycart' ),
+				/* translators: 1: a weight with its unit, 2: a size with its unit. */
+				'ship_summary'    => __( '%1$s · %2$s', 'wp-easycart' ),
+				/* The Tax card, the quick links and Design ( 6.0.4 ). */
+				'taxable'         => __( 'Taxable', 'wp-easycart' ),
+				'not_taxable'     => __( 'Not taxable', 'wp-easycart' ),
+				'tax_sales_vat'   => __( 'Sales tax and VAT', 'wp-easycart' ),
+				'tax_sales'       => __( 'Sales tax', 'wp-easycart' ),
+				'tax_vat'         => __( 'VAT', 'wp-easycart' ),
+				'tax_none'        => __( 'No sales tax or VAT', 'wp-easycart' ),
+				'no_manufacturer' => __( 'None', 'wp-easycart' ),
+				'no_badge'        => __( 'No badge', 'wp-easycart' ),
+				/* translators: %s: the text of a product card's badge, e.g. Sale. */
+				'badge'           => __( 'Badge: %s', 'wp-easycart' ),
+				'startup_on'      => __( 'Shown on the store page', 'wp-easycart' ),
+				'startup_off'     => __( 'Not on the store page', 'wp-easycart' ),
+				'everyone'        => __( 'Everyone', 'wp-easycart' ),
+				/* translators: %s: a user role, e.g. Wholesale. */
+				'only_role'       => __( 'Only %s customers', 'wp-easycart' ),
+				'one_role'        => __( 'One customer role only', 'wp-easycart' ),
+				/* translators: 1: checks passed, 2: all checks. */
+				'health_count'    => __( '%1$d of %2$d', 'wp-easycart' ),
+				'out_of_stock'    => __( 'Out of stock', 'wp-easycart' ),
+				/* Folded section summaries. */
+				'no_title'        => __( 'No title yet', 'wp-easycart' ),
+				'no_sku'          => __( 'no SKU', 'wp-easycart' ),
+				'picture_one'     => __( '1 picture', 'wp-easycart' ),
+				/* translators: %d: a number of pictures. */
+				'pictures'        => __( '%d pictures', 'wp-easycart' ),
+				'no_pictures'     => __( 'No pictures yet', 'wp-easycart' ),
+				'taxed'           => __( 'Taxed', 'wp-easycart' ),
+				'not_taxed'       => __( 'Not taxed', 'wp-easycart' ),
+				'not_tracked'     => __( 'Stock not tracked', 'wp-easycart' ),
+				/* translators: %d: units in stock. */
+				'in_stock'        => __( '%d in stock', 'wp-easycart' ),
+				'per_variant'     => __( 'Stock per variant', 'wp-easycart' ),
+				/* translators: %s: a weight with its unit. */
+				'weight'          => __( 'weight %s', 'wp-easycart' ),
+				'no_weight'       => __( 'no weight yet', 'wp-easycart' ),
+				'no_options'      => __( 'No options: sold as one item', 'wp-easycart' ),
+				'menu_one'        => __( '1 menu', 'wp-easycart' ),
+				/* translators: %d: a number of menus. */
+				'menus'           => __( '%d menus', 'wp-easycart' ),
+				'related_one'     => __( '1 related product', 'wp-easycart' ),
+				/* translators: %d: a number of related products. */
+				'related'         => __( '%d related products', 'wp-easycart' ),
+				'seo_set'         => __( 'Search description written', 'wp-easycart' ),
+				'seo_missing'     => __( 'No search description yet', 'wp-easycart' ),
+				/* translators: 1: notes written, 2: notes there could be. */
+				'notes'           => __( '%1$d of %2$d order notes written', 'wp-easycart' ),
+				'units'           => __( 'Units sold', 'wp-easycart' ),
+				/* Product type ( 6.0.4, editor plan Phase 2 ). */
+				'type_custom'     => __( 'This product mixes types, so every type switch shows in Type settings.', 'wp-easycart' ),
+				'type_unused'     => __( 'Not used for this type', 'wp-easycart' ),
+				/* translators: %s: a section of the product editor, e.g. Shipping. */
+				'type_show'       => __( 'Show %s', 'wp-easycart' ),
+				/* Add product ( 6.0.4, editor plan Phase 2 ). */
+				'created'         => __( 'Product created.', 'wp-easycart' ),
+				'draft_basics'    => __( 'Give the product a title first: it is created when you save.', 'wp-easycart' ),
+				/* One way to save ( 6.0.4, editor plan Phase 2 ). */
+				'errors_go'       => __( 'Show me', 'wp-easycart' ),
+				/* translators: %s: a card of the product editor, e.g. Categories. */
+				'errors_section'  => __( '%s was not saved. Try Save again.', 'wp-easycart' ),
+				'discard_title'   => __( 'Discard your changes?', 'wp-easycart' ),
+				'discard_body'    => __( 'Everything you changed since the last save goes back to how it was saved. Pictures you uploaded and categories you made stay.', 'wp-easycart' ),
+				'discard'         => __( 'Discard', 'wp-easycart' ),
+				'keep_editing'    => __( 'Keep editing', 'wp-easycart' ),
+				'category_created' => __( 'Category created. Save to add this product to it.', 'wp-easycart' ),
+				'tier_qty'        => __( 'Enter how many a shopper buys, 1 or more.', 'wp-easycart' ),
+				'tier_dup'        => __( 'There is already a price break for that quantity.', 'wp-easycart' ),
+				'no_tiers'        => __( 'No volume pricing tiers yet. Add your first price break above.', 'wp-easycart' ),
+				'no_role_prices'  => __( 'No B2B role pricing yet. Add a role price above.', 'wp-easycart' ),
+			),
+		);
 	}
 }
 

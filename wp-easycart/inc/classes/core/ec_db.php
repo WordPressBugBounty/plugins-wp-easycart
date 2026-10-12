@@ -442,6 +442,78 @@ class ec_db{
 		wp_cache_set( 'last_changed', microtime(), 'wpeasycart-product-list' );
 	}
 
+	/**
+	 * The object cache key for a category lookup ( group wpeasycart-categories ): the category tree ( ec_categories ), the store
+	 * page's category lists ( get_category_list_items() ) and each product's categories ( get_category_values() ).
+	 *
+	 * The key carries the category cache generation, so one change retires every one of them ( category_cache_changed() ), however
+	 * many category and product keys there are.
+	 *
+	 * @since 6.0.4
+	 * @param string $base Readable start of the key, e.g. 'wpeasycart-all-categories'.
+	 * @return string
+	 */
+	public static function category_cache_key( $base ) {
+		return $base . '-' . md5( (string) self::category_cache_generation() );
+	}
+
+	/**
+	 * The category cache generation, part of every category lookup key ( a time, as product_cache_generation() ).
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	public static function category_cache_generation() {
+		$generation = wp_cache_get( 'last_changed', 'wpeasycart-categories' );
+		if ( ! $generation ) {
+			$generation = microtime();
+			wp_cache_set( 'last_changed', $generation, 'wpeasycart-categories' );
+		}
+		return $generation;
+	}
+
+	/**
+	 * Retire every cached category lookup after categories change ( see category_cache_key() ). Call it through
+	 * wp_easycart_cache::categories_changed(), which also retires the product lookups that list a category's products.
+	 *
+	 * Before 6.0.4 nothing forgot these lookups when a category was switched on or off, featured, renamed or moved, so a store with
+	 * a persistent object cache ( Redis, Memcached ) kept showing the categories it had before.
+	 *
+	 * @since 6.0.4
+	 * @return void
+	 */
+	public static function category_cache_changed() {
+		wp_cache_set( 'last_changed', microtime(), 'wpeasycart-categories' );
+	}
+
+	/**
+	 * Forget what is cached about a customer account ( its row with the default addresses, its order list, its subscriptions )
+	 * after a write here changed it. Before 6.0.4 the storefront's whole-cache flushes hid writes that forgot nothing.
+	 *
+	 * @since 6.0.4
+	 * @param int $user_id Store account.
+	 */
+	private static function forget_user_cache( $user_id ) {
+		if ( class_exists( 'wp_easycart_cache' ) ) {
+			wp_easycart_cache::forget_user( $user_id );
+		} else {
+			wp_cache_delete( 'wpeasycart-user-' . (int) $user_id, 'wpeasycart-user' );
+		}
+	}
+
+	/**
+	 * Forget the subscription lists of the accounts owning some subscriptions ( see forget_user_cache() ).
+	 *
+	 * @since 6.0.4
+	 * @param int|string $value  What the subscriptions are found by.
+	 * @param string     $column subscription_id, stripe_subscription_id or paypal_subscr_id.
+	 */
+	private static function forget_subscription_cache( $value, $column = 'subscription_id' ) {
+		if ( class_exists( 'wp_easycart_cache' ) ) {
+			wp_easycart_cache::forget_subscription( $value, $column );
+		}
+	}
+
 	public static function get_product_list( $where_query, $order_query, $limit_query, $session_id, $cache_key = "", $optionitem_filter = '', $extra_joins = '' ) {
 		if ( '' != $cache_key ) {
 			/* 6.0.2: a caller's key is only a base; the stored key also names this viewer and this query. */
@@ -2228,6 +2300,13 @@ class ec_db{
 	}
 
 	public static function update_cartitem( $tempcart_id, $session_id, $quantity ) {
+		/* 6.0.4: what was asked, and why the store kept another quantity ( wp_easycart_cart_quantity::record(), said on the cart page ). */
+		$requested = (int) $quantity;
+		$limit_reason = '';
+		$limit_args = array();
+		if ( class_exists( 'wp_easycart_cart_quantity' ) ) {
+			wp_easycart_cart_quantity::$last = null;
+		}
 		if ( $quantity <= 0 ) { // If someone tries to update to 0 or less, just remove it from the cart
 			self::delete_cartitem( $tempcart_id, $session_id );
 		} else {
@@ -2293,25 +2372,37 @@ class ec_db{
 			if ( $product->use_optionitem_quantity_tracking == 1 ) {
 				if ( $quantity > $stock_quantity ) {
 					$quantity = $stock_quantity;
+					$limit_reason = 'stock';
+					$limit_args = array( 'stock' => $stock_quantity );
 				}
 			} else if ( $product->show_stock_quantity && $product->stock_quantity <= 0 && $product->allow_backorders ) {
 				// Do not worry about amount in cart as it will be backordered
 
 			} else if ( $product->show_stock_quantity == 1 && $tempcart->quantity + $quantity - $tempcart_optionitem->quantity > $stock_quantity ) {
 				$quantity = $stock_quantity - ( $tempcart->quantity - $tempcart_optionitem->quantity );
+				$limit_reason = 'stock';
+				$limit_args = array( 'stock' => $stock_quantity, 'other' => $tempcart->quantity - $tempcart_optionitem->quantity );
 
 			} else if ( $product->show_stock_quantity == 1 && $quantity > $stock_quantity ) {
 				$quantity = $stock_quantity;
+				$limit_reason = 'stock';
+				$limit_args = array( 'stock' => $stock_quantity );
 			}
 
 			// Don't allow less than the minimum
 			if ( $product->min_purchase_quantity > 0 && $quantity < $product->min_purchase_quantity ) {
 				$quantity = $product->min_purchase_quantity;
+				if ( $requested < $product->min_purchase_quantity ) {
+					$limit_reason = 'min';
+					$limit_args = array( 'min' => $product->min_purchase_quantity );
+				}
 			}
 
 			// Don't allow more than the maximum
 			if ( $product->max_purchase_quantity > 0 && $quantity > $product->max_purchase_quantity ) {
 				$quantity = $product->max_purchase_quantity;
+				$limit_reason = 'max';
+				$limit_args = array( 'max' => $product->max_purchase_quantity );
 			}
 
 			// Don't allow negative quantities!
@@ -2322,6 +2413,9 @@ class ec_db{
 			$quantity = apply_filters( 'wp_easycart_update_item_quantity', $quantity, $tempcart_id, $session_id, $product_id );
 			$sql = "UPDATE ec_tempcart SET quantity = %d WHERE tempcart_id = %d AND session_id = %s";
 			self::$mysqli->query( self::$mysqli->prepare( $sql, $quantity, $tempcart_id, $session_id ) );
+			if ( class_exists( 'wp_easycart_cart_quantity' ) ) {
+				wp_easycart_cart_quantity::record( $tempcart_id, $requested, (int) $quantity, $limit_reason, $limit_args );
+			}
 			do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
 		}
 	}
@@ -2786,6 +2880,9 @@ class ec_db{
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
 		}
+		if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+			wp_easycart_stripe_mode::order_inserted( $order_id ); /* 6.0.4: a Stripe test-mode payment says so, and refunds in test mode */
+		}
 
 		if ( class_exists( 'wp_easycart_shipping_groups' ) ) {
 			wp_easycart_shipping_groups::record( $order_id, $shipping, $order_totals ); /* 6.0.2: the shipping chosen for a fulfillment partner's lines */
@@ -2920,8 +3017,8 @@ class ec_db{
 	
 	public static function update_address( $address_id, $first_name, $last_name, $address_line_1, $address_line_2, $city, $state, $zip, $country, $phone, $company_name ){
 		
-		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_address SET first_name = %s, last_name = %s, address_line_1 = %s, address_line_2 = %s, city = %s, state = %s, zip = %s, country = %s, phone = %s, company_name = %s WHERE address_id = %d", $first_name, $last_name, $address_line_1, $address_line_2, $city, $state, $zip, $country, $phone, $company_name, $address_id ) );	
-	
+		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_address SET first_name = %s, last_name = %s, address_line_1 = %s, address_line_2 = %s, city = %s, state = %s, zip = %s, country = %s, phone = %s, company_name = %s WHERE address_id = %d", $first_name, $last_name, $address_line_1, $address_line_2, $city, $state, $zip, $country, $phone, $company_name, $address_id ) );
+		self::forget_user_cache( (int) self::$mysqli->get_var( self::$mysqli->prepare( 'SELECT user_id FROM ec_address WHERE address_id = %d', $address_id ) ) ); /* 6.0.4: the account row carries its default addresses */
 	}
 	
 	public static function insert_user( $email, $password, $first_name, $last_name, $billing_id, $shipping_id, $user_level, $is_subscriber, $user_notes = "", $vat_registration_number = "" ){
@@ -2957,7 +3054,7 @@ class ec_db{
 	
 	public static function update_user( $user_id, $vat_registration_number ){
 		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_user SET vat_registration_number = %s WHERE user_id = %d", $vat_registration_number, $user_id ) );
-		wp_cache_delete( 'wpeasycart-user-' . $user_id, 'wpeasycart-user' );
+		self::forget_user_cache( $user_id );
 	}
 	
 	public static function insert_subscriber( $email, $first_name, $last_name ){
@@ -3015,6 +3112,7 @@ class ec_db{
 			),
 			array( '%s', '%s' )
 		);
+		self::forget_user_cache( $user_id ); /* 6.0.4 */
 	}
 
 	public static function insert_order_detail( $order_id, $giftcard_id, $download_key, $cart_item ) {
@@ -3207,6 +3305,10 @@ class ec_db{
 	
 	public static function insert_response( $order_id, $is_error, $processor, $response_text ){
 		if( get_option( 'ec_option_enable_gateway_log' ) ){
+			/* 6.0.4: no OAuth token or client secret is stored, whatever a gateway, carrier or extension logs ( ec_logs::scrub_tokens() ). */
+			if ( is_string( $response_text ) && class_exists( 'ec_logs' ) && method_exists( 'ec_logs', 'scrub_tokens' ) ) {
+				$response_text = ec_logs::scrub_tokens( $response_text );
+			}
 			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_response( order_id, is_error, processor, response_text ) VALUES( %d, %d, %s, %s )", $order_id, $is_error, $processor, $response_text ) );
 			$response_id = self::$mysqli->insert_id;
 			if ( $order_id != 0 ) {
@@ -4036,7 +4138,7 @@ class ec_db{
 					self::remove_subscriber( $email );
 				}
 			}
-			return self::$mysqli->update(
+			$updated = self::$mysqli->update(
 				'ec_user',
 				array(
 					'first_name' => $first_name,
@@ -4052,6 +4154,8 @@ class ec_db{
 				),
 				array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 			);
+			self::forget_user_cache( $user_id ); /* 6.0.4 */
+			return $updated;
 		}
 		
 	}
@@ -4068,6 +4172,7 @@ class ec_db{
 			$new_password_hash = wp_easycart_hash_password( $new_password );
 			$new_password_hash = apply_filters( 'wpeasycart_password_hash', $new_password_hash, $new_password );
 			self::$mysqli->update(	'ec_user', array( 'password' => $new_password_hash ), array( 'user_id' => $user_id ), array( '%s', '%d' ) );
+			self::forget_user_cache( $user_id ); /* 6.0.4 */
 			do_action( 'wpeasycart_password_changed', $user_id, $new_password_hash );
 			return true;
 		} else {
@@ -4076,6 +4181,7 @@ class ec_db{
 	}
 	
 	public static function update_user_address( $address_id, $first_name, $last_name, $address, $address2, $city, $state, $zip, $country, $phone, $company_name, $user_id ){
+		self::forget_user_cache( $user_id ); /* 6.0.4: the account row carries its default addresses */
 		return self::$mysqli->update(	'ec_address', 
 										array(	'first_name'						=> $first_name,
 												'last_name'							=> $last_name,
@@ -4114,7 +4220,8 @@ class ec_db{
 											);
 											
 		$address_id = self::$mysqli->insert_id;
-		
+		self::forget_user_cache( $user_id ); /* 6.0.4: the account row carries its default addresses */
+
 		if( $address_type == "billing" ){
 			return self::$mysqli->update(	"ec_user",
 											array( 	"default_billing_address_id"	=> $address_id ),
@@ -4240,27 +4347,30 @@ class ec_db{
 	}
 	
 	public static function get_category_list_items( $parent_id ){
-		if ( ! $parent_id || $parent_id == -1 ) {
-			$category_list = wp_cache_get( 'wpeasycart-category-list', 'wpeasycart-categories' );
+		/* 6.0.4: each list has its own key ( the featured categories and the top level shared one, so whichever was read first was
+		 * served for both ), under the category cache generation ( category_cache_changed() ): nothing forgot these lists, so with a
+		 * persistent object cache the store page kept listing a category after it was switched off. */
+		if ( -1 === (int) $parent_id ) {
+			$list = 'top';
+		} else if ( $parent_id ) {
+			$list = (int) $parent_id;
 		} else {
-			$category_list = wp_cache_get( 'wpeasycart-category-list-'.$parent_id, 'wpeasycart-categories' );
+			$list = 'featured';
 		}
+		$cache_key     = self::category_cache_key( 'wpeasycart-category-list-' . $list );
+		$category_list = wp_cache_get( $cache_key, 'wpeasycart-categories' );
 		if( !$category_list ){
-			if( $parent_id == -1 ){
+			if ( 'top' === $list ) {
 				$category_list = self::$mysqli->get_results( "SELECT ec_category.* FROM ec_category WHERE ec_category.is_active = 1 AND ec_category.parent_id = 0 ORDER BY ec_category.priority DESC, ec_category.category_name ASC" );
-			}else if( $parent_id )
-				$category_list = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT ec_category.* FROM ec_category WHERE ec_category.is_active = 1 AND ec_category.parent_id = %d ORDER BY ec_category.priority DESC, ec_category.category_name ASC", $parent_id ) );
-			else
+			} else if ( 'featured' === $list ) {
 				$category_list = self::$mysqli->get_results( "SELECT ec_category.* FROM ec_category WHERE ec_category.is_active = 1 AND ec_category.featured_category = 1 ORDER BY ec_category.priority DESC, ec_category.category_name ASC" );
-			
-			if( count( $category_list ) == 0 ){
+			} else {
+				$category_list = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT ec_category.* FROM ec_category WHERE ec_category.is_active = 1 AND ec_category.parent_id = %d ORDER BY ec_category.priority DESC, ec_category.category_name ASC", $list ) );
+			}
+			if ( empty( $category_list ) ) {
 				$category_list = "EMPTY";
 			}
-			if( !$parent_id || $parent_id == -1 )
-				wp_cache_set( 'wpeasycart-category-list', $category_list, 'wpeasycart-categories' );
-			else
-				wp_cache_set( 'wpeasycart-category-list-'.$parent_id, $category_list, 'wpeasycart-categories' );
-			
+			wp_cache_set( $cache_key, $category_list, 'wpeasycart-categories', DAY_IN_SECONDS );
 		}
 		if( $category_list == "EMPTY" )
 			return array( );
@@ -4294,13 +4404,15 @@ class ec_db{
 	}
 	
 	public static function get_product_from_post_id( $post_id ){
-		$product = wp_cache_get( 'wpeasycart-product-from-post-' . $post_id, 'wpeasycart-product-list' );
+		/* 6.0.4: under the product generation, as every product lookup ( the row carries stock; ec_db::product_cache_changed() ). */
+		$product_cache_key = 'wpeasycart-product-from-post-' . $post_id . '-' . md5( (string) self::product_cache_generation() );
+		$product = wp_cache_get( $product_cache_key, 'wpeasycart-product-list' );
 		if( !$product ){
 			$sql = "SELECT ec_product.* FROM ec_product WHERE ec_product.post_id = %d";
 			$product = self::$mysqli->get_row( self::$mysqli->prepare( $sql, $post_id ) );
 			if( !$product )
 				$product = "EMPTY";
-			wp_cache_set( 'wpeasycart-product-from-post-' . $post_id, $product, 'wpeasycart-product-list' );
+			wp_cache_set( $product_cache_key, $product, 'wpeasycart-product-list', DAY_IN_SECONDS );
 		}
 		if( $product == "EMPTY" )
 			return false;
@@ -4527,12 +4639,14 @@ class ec_db{
 		
 		$sql = "UPDATE ec_subscription SET next_payment_date = %s, number_payments_completed = number_payments_completed + 1, last_payment_date = NOW( ) WHERE paypal_subscr_id = %s";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $next_payment_date, $subscr_id ) );
+		self::forget_subscription_cache( $subscr_id, 'paypal_subscr_id' ); /* 6.0.4 */
 		
 	}
 	
 	public static function cancel_paypal_subscription( $subscr_id ){
 		$sql = "UPDATE ec_subscription SET subscription_status = 'Canceled' WHERE paypal_subscr_id = %s";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $subscr_id ) );
+		self::forget_subscription_cache( $subscr_id, 'paypal_subscr_id' ); /* 6.0.4 */
 	}
 	
 	public static function update_order_fraktjakt_info( $order_id, $ship_order_info ){
@@ -4566,6 +4680,7 @@ class ec_db{
 		/* 6.0.3: the model number is kept too ( Zapier and the admin read it ). */
 		$sql = "INSERT INTO ec_subscription( subscription_type, title, user_id, email, first_name, last_name, user_country, product_id, model_number, price, payment_length, payment_period, payment_duration, stripe_subscription_id, last_payment_date, next_payment_date, quantity ) VALUES( 'stripe', %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %d, %s, %s, %s, %d )";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->user_id, $user->email, $user->billing->first_name, $user->billing->last_name, $user->billing->country, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $subscription->id, $subscription->current_period_start, $subscription->current_period_end, $quantity ) );
+		self::forget_user_cache( $user->user_id ); /* 6.0.4: the account's subscriptions */
 		
 		return self::$mysqli->insert_id;
 	}
@@ -4674,6 +4789,9 @@ class ec_db{
 		}
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
+		}
+		if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+			wp_easycart_stripe_mode::order_inserted( $order_id ); /* 6.0.4: a Stripe test-mode payment says so, and refunds in test mode */
 		}
 		$image1 = $product->images->get_single_image( );
 		
@@ -4958,11 +5076,13 @@ class ec_db{
 	public static function upgrade_subscription( $subscription_id, $product, $quantity ){
 		$sql = "UPDATE ec_subscription SET title = %s, product_id = %d, model_number = %s, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
+		self::forget_subscription_cache( $subscription_id ); /* 6.0.4 */
 	}
 	
 	public static function update_subscription( $subscription_id, $user, $product, $card, $quantity ){
 		$sql = "UPDATE ec_subscription SET title = %s, email = %s, first_name = %s, last_name = %s, product_id = %d, model_number = %s, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->email, $user->billing->first_name, $user->billing->last_name, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
+		self::forget_subscription_cache( $subscription_id ); /* 6.0.4 */
 	}
 	
 	public static function get_webhook( $webhook_id ){
@@ -5030,6 +5150,7 @@ class ec_db{
 	public static function insert_stripe_order( $subscription, $webhook_data, $user ){
 		if ( $subscription->subscription_id != 0 ) {
 			self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_subscription SET num_failed_payment = 0 WHERE subscription_id = %d", $subscription->subscription_id ) );
+			self::forget_subscription_cache( $subscription->subscription_id ); /* 6.0.4 */
 		}
 		$discount = 0;
 		if ( isset( $webhook_data->discount ) && isset( $webhook_data->discount->coupon ) && isset( $webhook_data->discount->coupon->amount_off ) ) {
@@ -5079,6 +5200,9 @@ class ec_db{
 			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
 			}
+			if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+				wp_easycart_stripe_mode::order_inserted( $order_id ); /* 6.0.4: a Stripe test-mode payment says so, and refunds in test mode */
+			}
 		
 			self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 			$order_log_id = self::$mysqli->insert_id;
@@ -5127,6 +5251,9 @@ class ec_db{
 			}
 			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
+			}
+			if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+				wp_easycart_stripe_mode::order_inserted( $order_id ); /* 6.0.4: a Stripe test-mode payment says so, and refunds in test mode */
 			}
 		
 			self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
@@ -5270,6 +5397,7 @@ class ec_db{
 		
 		if( $subscription->subscription_id != 0 )
 			self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_subscription SET num_failed_payment = (num_failed_payment + 1) WHERE subscription_id = %d", $subscription->subscription_id ) );
+			self::forget_subscription_cache( $subscription->subscription_id ); /* 6.0.4 */
 		
 		$first_name = $user->first_name;
 		if( $user->billing_first_name != "" )
@@ -5375,6 +5503,7 @@ class ec_db{
 			$period_end = ( $line && isset( $line->period->end ) ) ? $line->period->end : $subscription->next_payment_date;
 
 			self::$mysqli->query( self::$mysqli->prepare( $sql, $title, $price, $interval_count, $period, $period_start, $period_end, $subscription_id ) );
+			self::forget_subscription_cache( $subscription_id, 'stripe_subscription_id' ); /* 6.0.4 */
 
 		}
 	}
@@ -5382,6 +5511,7 @@ class ec_db{
 	public static function update_stripe_subscription_failed( $subscription_id, $webhook_data ){
 		$sql = "UPDATE ec_subscription SET subscription_status = 'Failed' WHERE subscription_id = %d";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $subscription_id ) );
+		self::forget_subscription_cache( $subscription_id ); /* 6.0.4 */
 	}
 	
 	public static function get_stripe_user( $stripe_customer_id ){
@@ -5476,6 +5606,7 @@ class ec_db{
 	public static function cancel_subscription( $subscription_id ){
 		$sql = "UPDATE ec_subscription SET ec_subscription.subscription_status = 'Canceled' WHERE ec_subscription.subscription_id = %d";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $subscription_id ) );
+		self::forget_subscription_cache( $subscription_id ); /* 6.0.4 */
 	}
 	
 	public static function has_membership_product_ids( $product_id_list ){
@@ -5565,6 +5696,7 @@ class ec_db{
 		
 		$sql = "UPDATE ec_subscription SET subscription_status = 'Canceled' WHERE stripe_subscription_id = %s";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $stripe_subscription_id ) );
+		self::forget_subscription_cache( $stripe_subscription_id, 'stripe_subscription_id' ); /* 6.0.4 */
 		
 	}
 	
@@ -5604,7 +5736,8 @@ class ec_db{
 		}else{
 			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_pageoption( post_id, option_type, option_value ) VALUES( %d, %s, %s )", $post_id, $key, $value ) );
 		}
-		wp_cache_flush();
+		/* 6.0.4: this page's options only ( a whole-cache flush before ). */
+		wp_cache_delete( 'wpeasycart-get-page-options-' . (int) $post_id, 'wpeasycart-page-options' );
 	}
 	
 	public static function update_product_options( $model_number, $product_options ){
@@ -5720,10 +5853,12 @@ class ec_db{
 	}
 	
 	public static function get_category_values( $product_id ) {
-		$categories = wp_cache_get( 'wpeasycart-product-categories-'.$product_id, 'wpeasycart-categories' );
+		/* 6.0.4: under the category cache generation, so a category switched off leaves the product's list ( and its tax rules ). */
+		$cache_key  = self::category_cache_key( 'wpeasycart-product-categories-' . (int) $product_id );
+		$categories = wp_cache_get( $cache_key, 'wpeasycart-categories' );
 		if ( ! $categories ) {
 			$categories = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT DISTINCT ec_category.category_id, ec_category.category_name, ec_category.post_id FROM ec_categoryitem, ec_category WHERE ec_categoryitem.product_id = %d AND ec_category.category_id = ec_categoryitem.category_id AND ec_category.is_active = 1", $product_id ) );
-			wp_cache_set( 'wpeasycart-product-categories-'.$product_id, $categories, 'wpeasycart-categories' );
+			wp_cache_set( $cache_key, $categories, 'wpeasycart-categories', DAY_IN_SECONDS );
 		}
 		return $categories;
 	}
@@ -6382,22 +6517,107 @@ class ec_db{
 		return false;
 	}
 
-	public static function get_download_list( $user_id ){
+	/**
+	 * A customer's downloads on paid orders ( My Account's dashboard, "Your Downloads" ): ec_download rows, newest order first,
+	 * each with the order line it belongs to ( title, orderdetail_id, is_download, maximum_downloads_allowed ), is_approved,
+	 * date_created_timestamp and download_expires ( UNIX time a time limit ends, 0 = none ).
+	 *
+	 * 6.0.4: a download is matched to its own line ( the line's download_key, else the option that added the file, else a line
+	 * of the same product ). Before, every line of the order was joined and one picked, so an order with other lines could show
+	 * another line's title with a link that downloaded nothing, and the line's limits never reached the page. A download the
+	 * store would refuse ( an option of its line switches downloads off, wp_easycart_storefront_access::download_allowed() )
+	 * is left out, as the order details page leaves out its link. The time limit goes out as download_expires, never as
+	 * download_timelimit_seconds: theme copies of ec_account_dashboard.php read that one off the account page ( $this ).
+	 *
+	 * @param int $user_id ec_user id.
+	 * @return array
+	 */
+	public static function get_download_list( $user_id ) {
 		/* 6.0.2: no customer, no downloads ( user 0 listed every guest order's downloads on a visitor's account page ). */
 		if ( (int) $user_id <= 0 ) {
 			return array();
 		}
-		return self::$mysqli->get_results( self::$mysqli->prepare( "SELECT
-				ec_download.*, ec_orderdetail.title, ec_orderdetail.orderdetail_id, ec_orderdetail.is_download, ec_orderstatus.is_approved
-			FROM 
-				ec_download, ec_order 
-				LEFT JOIN ec_orderdetail ON ec_orderdetail.order_id = ec_order.order_id 
-                LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
-			WHERE 
-				ec_order.user_id = %d AND 
-				ec_download.order_id = ec_order.order_id
-			GROUP BY ec_download.download_id
-            HAVING is_approved = 1", $user_id ) );
+		$sql       = 'SELECT ec_download.*, UNIX_TIMESTAMP( ec_download.date_created ) AS date_created_timestamp, ec_orderstatus.is_approved
+			FROM ec_download
+				INNER JOIN ec_order ON ec_order.order_id = ec_download.order_id
+				INNER JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id
+			WHERE ec_order.user_id = %d AND ec_orderstatus.is_approved = 1
+			ORDER BY ec_download.order_id DESC, ec_download.date_created ASC, ec_download.download_id ASC';
+		$downloads = self::$mysqli->get_results( self::$mysqli->prepare( $sql, (int) $user_id ) );
+		if ( empty( $downloads ) ) {
+			return array();
+		}
+
+		$order_ids = array();
+		foreach ( $downloads as $download ) {
+			$order_ids[ (int) $download->order_id ] = (int) $download->order_id;
+		}
+		$order_ids = array_values( $order_ids );
+		$lines     = self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id IN ( ' . implode( ', ', array_fill( 0, count( $order_ids ), '%d' ) ) . ' ) ORDER BY orderdetail_id ASC', $order_ids ) );
+
+		$by_id    = array();
+		$by_key   = array();
+		$by_order = array();
+		foreach ( (array) $lines as $line ) {
+			$by_id[ (int) $line->orderdetail_id ] = $line;
+			$by_order[ (int) $line->order_id ][]  = $line;
+			if ( '' !== (string) $line->download_key ) {
+				$by_key[ (int) $line->order_id . ':' . $line->download_key ] = $line;
+			}
+		}
+		$by_option = array();
+		$switched  = array();
+		if ( count( $by_id ) > 0 ) {
+			$line_ids = array_keys( $by_id );
+			$options  = self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT orderdetail_id, optionitem_allow_download, download_addition_file FROM ec_order_option WHERE orderdetail_id IN ( ' . implode( ', ', array_fill( 0, count( $line_ids ), '%d' ) ) . ' )', $line_ids ) );
+			foreach ( (array) $options as $option ) {
+				if ( ! (int) $option->optionitem_allow_download ) {
+					$switched[ (int) $option->orderdetail_id ] = true;
+				}
+				if ( '' !== (string) $option->download_addition_file && isset( $by_id[ (int) $option->orderdetail_id ] ) ) {
+					$by_option[ (string) $option->download_addition_file ] = $by_id[ (int) $option->orderdetail_id ];
+				}
+			}
+		}
+
+		$list = array();
+		foreach ( $downloads as $download ) {
+			$order_id = (int) $download->order_id;
+			$line     = null;
+			if ( isset( $by_key[ $order_id . ':' . $download->download_id ] ) ) {
+				$line = $by_key[ $order_id . ':' . $download->download_id ];
+			} elseif ( isset( $by_option[ (string) $download->download_id ] ) && $order_id === (int) $by_option[ (string) $download->download_id ]->order_id ) {
+				$line = $by_option[ (string) $download->download_id ];
+			} elseif ( isset( $by_order[ $order_id ] ) ) {
+				/* Older or imported orders: a download line of the same product, else any line of it, else the order's first line. */
+				foreach ( array( true, false ) as $download_lines_only ) {
+					foreach ( $by_order[ $order_id ] as $candidate ) {
+						if ( (int) $candidate->product_id === (int) $download->product_id && ( ! $download_lines_only || (int) $candidate->is_download ) ) {
+							$line = $candidate;
+							break 2;
+						}
+					}
+				}
+				if ( ! $line ) {
+					$line = $by_order[ $order_id ][0];
+				}
+			}
+			if ( ! $line ) {
+				continue; /* no line, so the order details page has nothing to download it from */
+			}
+			$allowed = ! isset( $switched[ (int) $line->orderdetail_id ] );
+			/** This filter is documented in inc/classes/core/class-wp-easycart-storefront-access.php */
+			if ( ! apply_filters( 'wp_easycart_download_allowed', $allowed, $line ) ) {
+				continue;
+			}
+			$download->title                     = $line->title;
+			$download->orderdetail_id            = $line->orderdetail_id;
+			$download->is_download               = $line->is_download;
+			$download->maximum_downloads_allowed = (int) $line->maximum_downloads_allowed;
+			$download->download_expires          = ( (int) $line->download_timelimit_seconds > 0 ) ? (int) $download->date_created_timestamp + (int) $line->download_timelimit_seconds : 0;
+			$list[]                              = $download;
+		}
+		return $list;
 	}
 	
 	public static function get_rates_by_class( $cart ){

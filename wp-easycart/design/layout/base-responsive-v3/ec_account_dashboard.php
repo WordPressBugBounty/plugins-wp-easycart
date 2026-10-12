@@ -1,42 +1,22 @@
 <?php if ( isset( $_GET['account_success'] ) && 'login_success' == $_GET['account_success'] ) {
 	do_action( 'wp_easycart_login_success_account' );
 } ?>
-<section class="ec_account_page" id="ec_account_dashboard">
-	<div class="ec_account_mobile">
-		<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_title' )?></div>
-		<?php do_action( 'wpeasycart_account_links' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_billing_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_billing_information' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_billing' ); ?>
-		<?php if( get_option( 'ec_option_use_shipping' ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_shipping_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_shipping_information' ) ); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_shipping' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_personal_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_basic_inforamtion' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_personal' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_password_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_password' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_password' ); ?>
-		<?php if( $this->using_subscriptions( ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_subscriptions_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_subscriptions' )); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_subscriptions' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_logout_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_sign_out' )); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_end' ); ?>
-	</div>
+<?php $ec_account_modern = $this->account_modern(); /* 6.0.4: the account menu beside the page ( ec_accountpage::display_account_navigation() ) and breadcrumbs; an Elementor account widget keeps the older markup */ ?>
+<section class="ec_account_page<?php echo ( $ec_account_modern ) ? ' ec_account_v2' : ''; ?>" id="ec_account_dashboard">
+	<?php if ( ! $ec_account_modern ) { ?>
+	<?php $this->display_account_navigation_legacy( 'mobile' ); ?>
+	<?php } ?>
 
-	<div class="ec_account_left">
+	<div class="ec_account_left<?php echo ( $ec_account_modern ) ? ' ec_account_main_v2' : ''; ?>">
+		<?php if ( $ec_account_modern ) {
+			$ec_dashboard_name = isset( $GLOBALS['ec_user']->first_name ) ? trim( wp_strip_all_tags( stripslashes( (string) $GLOBALS['ec_user']->first_name ) ) ) : '';
+			?>
+		<div class="ec_account_dashboard_welcome"><?php echo esc_html( ( '' !== $ec_dashboard_name ) ? str_replace( '[name]', $ec_dashboard_name, ec_accountpage::account_phrase( 'account_dashboard', 'account_dashboard_welcome', 'Welcome back, [name]' ) ) : ec_accountpage::account_phrase( 'account_dashboard', 'account_dashboard_welcome_no_name', 'Welcome back' ) ); ?></div>
+		<?php } ?>
 		<?php do_action( 'wpeasycart_dashboard_top' ); ?>
+
+		<?php /* 6.0.4: recent orders and downloads, and the account details below, each in their own wrapper so a theme or plugin can place, hide or tab them. */ ?>
+		<div class="ec_account_dashboard_orders" id="ec_account_dashboard_orders">
 
 		<div class="ec_cart_header ec_top ec_cart_header_no_border"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_recent_orders_title' )?></div>
 
@@ -50,6 +30,9 @@
 				$order_details = $this->mysqli->get_order_details( $order->order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
 		?>
 
+		<?php if ( $ec_account_modern ) { /* 6.0.4: each recent order is one card */ ?>
+		<div class="ec_account_dashboard_order_v2 is-<?php echo esc_attr( $order->account_tone() ); ?>">
+		<?php } ?>
 		<div class="ec_account_order_header_row<?php if( !$is_first_order ){?> ec_account_order_header_row_not_first <?php } $is_first_order = false; ?>">
 			<div class="ec_account_order_header_column_left ec_account_order_header_column_left_div1">
 				<span><?php $order->display_order_status( ); //wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_placed' )?></span>
@@ -205,6 +188,9 @@
 			</div>
 		</div>
 		<?php } ?>
+		<?php if ( $ec_account_modern ) { ?>
+		</div>
+		<?php } ?>
 		<?php } ?>
 
 		<div class="ec_account_dashboard_row_divider">
@@ -212,31 +198,32 @@
 		</div>
 
 		<?php }else{ echo wp_easycart_language( )->get_text( "account_dashboard", "account_dashboard_recent_orders_none" ); }?>
-		<?php if( count( $this->downloads ) > 0 ){ ?>
-		<div class="ec_cart_header">Your Downloads</div>
-		<?php 
+		<?php if( count( $this->downloads ) > 0 ){
+			// 6.0.4: the heading is a phrase ( it was English on every store ); the link counts against its own download ( it passed
+			// $order_item, the last line drawn above, so another line's counter moved, or a warning when no order was drawn ).
+			$wpeasycart_downloads_title = wp_easycart_language()->get_text( 'account_dashboard', 'account_dashboard_downloads_title' );
+			?>
+		<?php if ( $ec_account_modern ) { ?>
+		<div class="ec_account_dashboard_downloads_v2">
+		<?php } ?>
+		<?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- language phrase, escaped by get_text(). ?>
+		<div class="ec_cart_header"><?php echo ( null !== $wpeasycart_downloads_title && '' !== $wpeasycart_downloads_title ) ? $wpeasycart_downloads_title : 'Your Downloads'; ?></div>
+		<?php
 		global $wpdb;
 		foreach ( $this->downloads as $download ) {
 		?>
 		<div class="ec_account_download_line">
 			<div class="ec_account_download_line_title">
-				<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $download->order_id, 'orderdetail_id' => (int) $download->orderdetail_id, 'download_id' => esc_attr( $download->download_id ) ) ) ); ?>" target="_blank" onclick="update_download_count( '<?php echo esc_attr( $order_item->orderdetail_id ); ?>' );"><?php echo esc_attr( $download->title ); ?></a>
+				<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $download->order_id, 'orderdetail_id' => (int) $download->orderdetail_id, 'download_id' => esc_attr( $download->download_id ) ) ) ); ?>" target="_blank" onclick="update_download_count( '<?php echo esc_attr( $download->orderdetail_id ); ?>' );"><?php echo esc_attr( $download->title ); ?></a>
 			</div>
 			<?php if( isset( $download->maximum_downloads_allowed ) && $download->maximum_downloads_allowed > 0 ){ ?>
 			<div class="ec_account_download_line_limit">
 				<?php echo "<span id=\"ec_download_count_" . esc_attr( $download->orderdetail_id ) . "\">" . esc_attr( $download->download_count ) . "</span>" . "/" . "<span id=\"ec_download_count_max_" . esc_attr( $download->orderdetail_id ) . "\">" . esc_attr( $download->maximum_downloads_allowed ) . "</span> " . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_downloads_used' ); ?>
 			</div>
 			<?php }?>
-			<?php if( isset( $download->download_timelimit_seconds ) && $download->download_timelimit_seconds > 0 ){
-				$date = new DateTime();
-				$seconds_remaining = $this->download_timelimit_seconds - $this->timecheck;
-				if ( $seconds_remaining < 0 ) {
-					$seconds_remaining = ( $seconds_remaining * -1 );
-					$date->sub( new DateInterval('PT' . $seconds_remaining . 'S' ) );
-				} else {
-					$date->add( new DateInterval('PT' . $seconds_remaining . 'S' ) );
-				}
-				$date_format = $date->format( "d M Y" );
+			<?php /* 6.0.4: ec_db::get_download_list() gives the end of a time limit ( it read the account page's own properties ). */ ?>
+			<?php if ( ! empty( $download->download_expires ) ) {
+				$date_format = gmdate( 'd M Y', (int) $download->download_expires );
 			?>
 			<div class="ec_account_download_line_time_limit">
 				<?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_downloads_expire_time' ) . " " . esc_attr( $date_format ); ?>
@@ -245,8 +232,15 @@
 
 		</div>
 		<?php } ?>
+		<?php if ( $ec_account_modern ) { ?>
+		</div>
+		<?php } ?>
 		<?php } ?>
 
+		</div>
+
+		<div class="ec_account_dashboard_details" id="ec_account_dashboard_details">
+		<?php echo ( $ec_account_modern ) ? '<div class="ec_account_dashboard_card_v2">' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
 		<div class="ec_cart_header"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_email_title' )?></div>
 
 		<div class="ec_cart_input_row"><?php $GLOBALS['ec_user']->display_email(); ?></div>
@@ -254,6 +248,8 @@
 		<div class="ec_cart_input_row">
 			<?php $this->display_personal_information_link( wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_email_edit_link' ) ); ?>
 			<?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_email_note' )?></div>
+		<?php echo ( $ec_account_modern ) ? '</div>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
+		<?php echo ( $ec_account_modern ) ? '<div class="ec_account_dashboard_card_v2">' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
 		<div class="ec_cart_header"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_billing_title' )?></div>
 
 		<?php if( $GLOBALS['ec_user']->billing->first_name || $GLOBALS['ec_user']->billing->last_name ){ ?>
@@ -308,8 +304,10 @@
 		<div class="ec_cart_input_row">
 			<?php $this->display_billing_information_link( wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_billing_link' ) ); ?>
 		</div>
+		<?php echo ( $ec_account_modern ) ? '</div>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
 
 		<?php if( get_option( 'ec_option_use_shipping' ) ){ ?>
+		<?php echo ( $ec_account_modern ) ? '<div class="ec_account_dashboard_card_v2">' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
 		<div class="ec_cart_header"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_shipping_title' )?></div>
 
 		<?php if( $GLOBALS['ec_user']->shipping->first_name || $GLOBALS['ec_user']->shipping->last_name ){ ?>
@@ -358,41 +356,18 @@
 		<div class="ec_cart_input_row">
 			<?php $this->display_shipping_information_link( wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_shipping_link' )); ?>
 		</div>
+		<?php echo ( $ec_account_modern ) ? '</div>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup. ?>
 		<?php }?>
+		</div>
+
+		<?php do_action( 'wpeasycart_dashboard_bottom' ); /* 6.0.4 */ ?>
 	</div>
 
-	<div class="ec_account_right">
-		<div class="ec_cart_header ec_top"><?php echo wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_title' )?></div>
-		<?php do_action( 'wpeasycart_account_links' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_billing_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_billing_information' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_billing' ); ?>
-		<?php if( get_option( 'ec_option_use_shipping' ) ){ ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_shipping_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_shipping_information' ) ); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_shipping' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_personal_information_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_basic_inforamtion' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_personal' ); ?>
-		<div class="ec_cart_input_row">
-			<?php $this->display_password_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_password' ) ); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_after_password' ); ?>
-		<?php if( $this->using_subscriptions( ) ){ ?>
-		<div class="ec_cart_input_row">
-		<?php $this->display_subscriptions_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_subscriptions' )); ?>
-		</div>
-		<?php }?>
-		<?php do_action( 'wpeasycart_account_links_after_subscriptions' ); ?>
-		<div class="ec_cart_input_row">
-		<?php $this->display_logout_link( wp_easycart_language( )->get_text( 'account_navigation', 'account_navigation_sign_out' )); ?>
-		</div>
-		<?php do_action( 'wpeasycart_account_links_end' ); ?>
-	</div>
+	<?php if ( $ec_account_modern ) { ?>
+	<?php $this->display_account_navigation( 'dashboard' ); ?>
+	<?php } else { ?>
+	<?php $this->display_account_navigation_legacy( 'right' ); ?>
+	<?php } ?>
 	<div style="clear:both;"></div>
 	<div id="ec_current_media_size"></div>
 </section>

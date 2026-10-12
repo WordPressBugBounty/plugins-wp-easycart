@@ -2,6 +2,11 @@
 if ( ! isset( $cartpage ) ) {
 	$cartpage = $this;
 }
+/* 6.0.4: a one-page checkout phrase, or the English until the store's wording has it ( phrases added in 6.0.4 ). */
+$wpec_cart_text = function( $key, $fallback ) {
+	$text = wp_easycart_language()->get_text( 'cart_onepage', $key );
+	return ( is_string( $text ) && '' !== trim( $text ) ) ? $text : $fallback;
+};
 ?>
 
 <?php if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) { ?>
@@ -65,7 +70,8 @@ if ( ! isset( $cartpage ) ) {
 				<div class="ec_cart_table_image">
 					<img src="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_image_url( ) ); ?>" alt="<?php echo esc_attr( str_replace( '"', '&quot;', $cartpage->cart->cart[$cartitem_index]->title ) ); ?>" />
 				</div>
-				<div class="ec_cart_table_details_content">
+				<?php /* 6.0.4: the id the cart's scripts write a line's discount notes into ( ec_update_cart(), the Offers fragments ). */ ?>
+				<div class="ec_cart_table_details_content" id="ec_cartitem_details_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>">
 					<a href="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_title_link( ) ); ?>" class="ec_cartitem_title"><?php $cartpage->cart->cart[$cartitem_index]->display_title( ); ?></a>
 					<div class="ec_cart_table_mobile_price" id="ec_cartitem_price_mobile_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cartpage->cart->cart[$cartitem_index]->get_unit_price( ) ); ?></div>
 					<?php if( 
@@ -191,11 +197,17 @@ if ( ! isset( $cartpage ) ) {
 				<?php }else if( $cartpage->cart->cart[$cartitem_index]->is_deconetwork ){ ?>
 					<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->quantity ); ?>
 				<?php }else{ ?>
-				<div class="ec_cartitem_updating" id="ec_cartitem_updating_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"></div>
 				<?php if ( wp_easycart_offers_active() && ( $cartpage->cart->cart[ $cartitem_index ]->free_gift_offer_id > 0 || '' != $cartpage->cart->cart[ $cartitem_index ]->bundle_group_key ) ) { ?>
+				<div class="ec_cartitem_updating" id="ec_cartitem_updating_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"></div>
 				<span class="ec_offer_locked_quantity"><?php echo esc_attr( $cartpage->cart->cart[ $cartitem_index ]->quantity ); ?></span>
 				<?php } else { ?>
-				<input type="number" value="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity ec_table_quantity_box" onchange="ec_cartitem_update_v2( '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-cart-item-' . (int) $cartpage->cart->cart[$cartitem_index]->cartitem_id ) ); ?>' );" />
+				<?php /* 6.0.4: a stepper ( − quantity + ); the buttons change the box, whose change event saves it as before. */ ?>
+				<div class="ec_cart_table_qty">
+					<button type="button" class="ec_cart_table_qty_step ec_cart_table_qty_minus" data-step="-1" aria-label="<?php echo esc_attr( wp_strip_all_tags( $wpec_cart_text( 'quantity_decrease', __( 'Decrease quantity', 'wp-easycart' ) ) ) ); ?>">&minus;</button>
+					<input type="number" value="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->max_quantity ); ?>"<?php echo ( class_exists( 'wp_easycart_cart_quantity' ) ) ? wp_easycart_cart_quantity::note_attributes( $cartpage->cart->cart[$cartitem_index] ) : ''; ?> class="ec_quantity ec_table_quantity_box" aria-label="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language( )->get_text( 'cart', 'cart_header_column4' ) ) ); ?>" onchange="ec_cartitem_update_v2( '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-cart-item-' . (int) $cartpage->cart->cart[$cartitem_index]->cartitem_id ) ); ?>' );" />
+					<button type="button" class="ec_cart_table_qty_step ec_cart_table_qty_plus" data-step="1" aria-label="<?php echo esc_attr( wp_strip_all_tags( $wpec_cart_text( 'quantity_increase', __( 'Increase quantity', 'wp-easycart' ) ) ) ); ?>">+</button>
+					<div class="ec_cartitem_updating" id="ec_cartitem_updating_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"></div>
+				</div>
 				<?php } ?>
 				<?php }?>
 				<div class="ec_cartitem_delete<?php if ( wp_easycart_offers_active() && $cartpage->cart->cart[ $cartitem_index ]->free_gift_offer_id > 0 ) { ?> ec_offer_locked_control<?php } ?>" id="ec_cartitem_delete_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>" onclick="ec_cartitem_delete( '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->model_number ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-delete-cart-item-' . (int) $cartpage->cart->cart[$cartitem_index]->cartitem_id ) ); ?>' );<?php
@@ -211,49 +223,63 @@ if ( ! isset( $cartpage ) ) {
 	</div>
 </div>
 
+
+<?php
+/* 6.0.4: Stripe's pay later message only for the methods switched on ( Affirm, Klarna, Afterpay ). With none, the empty list made
+   Stripe throw an IntegrationError, which stopped the cart's scripts: the subtotal kept its old amount after a quantity change and
+   Edit Cart's loader never closed. */
+$wpec_paylater_types   = array();
+$wpec_paylater_minimum = (int) get_option( 'ec_option_stripe_pay_later_minimum' );
+if ( 'stripe' == get_option( 'ec_option_payment_process_method' ) || 'stripe_connect' == get_option( 'ec_option_payment_process_method' ) ) {
+	if ( get_option( 'ec_option_stripe_affirm' ) ) {
+		$wpec_paylater_types[] = 'affirm';
+	}
+	if ( get_option( 'ec_option_stripe_klarna' ) ) {
+		$wpec_paylater_types[] = 'klarna';
+	}
+	if ( get_option( 'ec_option_stripe_afterpay' ) ) {
+		$wpec_paylater_types[] = 'afterpay_clearpay';
+	}
+}
+$wpec_paylater_min_notice = ( count( $wpec_paylater_types ) > 0 && $wpec_paylater_minimum > 50 );
+/* 6.0.4: what the discounts take off before checkout, and the subtotal after them ( ec_cartpage::cart_screen_totals() ). */
+$wpec_cart_totals = ( method_exists( $cartpage, 'cart_screen_totals' ) ) ? $cartpage->cart_screen_totals() : null;
+?>
 <div class="ec_cart_table_subtotal_row">
-	<?php if ( 'stripe' == get_option( 'ec_option_payment_process_method' ) || 'stripe_connect' == get_option( 'ec_option_payment_process_method' ) ) { ?>
+	<?php if ( count( $wpec_paylater_types ) > 0 ) { ?>
 	<div class="ec_cart_table_split_payments">
-		<?php
-		if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-			$pkey = get_option( 'ec_option_stripe_public_api_key' );
-		} else if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) ) {
-			$pkey = get_option( 'ec_option_stripe_connect_sandbox_publishable_key' );
-		} else {
-			$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
-		}
-		$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
-		?>
-		<?php if ( ( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_afterpay' ) || get_option( 'ec_option_stripe_klarna' ) ) && ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) ) { ?>
-		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $cartpage->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo esc_html( $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ) ); ?></div>
+		<?php if ( $wpec_paylater_min_notice ) { ?>
+		<div class="paylater_message_v2" data-min-price="<?php echo (int) $wpec_paylater_minimum; ?>" <?php if ( $cartpage->order_totals->sub_total >= $wpec_paylater_minimum ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo esc_html( $GLOBALS['currency']->get_currency_display( $wpec_paylater_minimum ) ); ?></div>
 		<?php } ?>
-		<div id="wpec-payment-method-messaging-element" data-theme="<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>" data-currency="<?php echo esc_attr( $GLOBALS['currency']->get_currency_code() ); ?>" data-types="<?php
-		$payment_types = array();
-		if ( get_option( 'ec_option_stripe_affirm' ) ) {
-			$payment_types[] = 'affirm';
-		}
-		if ( get_option( 'ec_option_stripe_klarna' ) ) {
-			$payment_types[] = 'klarna';
-		}
-		if ( get_option( 'ec_option_stripe_afterpay' ) ) {
-			$payment_types[] = 'afterpay_clearpay';
-		}
-		echo esc_attr( implode( ',', $payment_types ) ); ?>" data-country="<?php echo esc_attr( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_country ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_country : get_option( 'ec_option_stripe_company_country' ) ); ?>"<?php if ( 
-			( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_afterpay' ) || get_option( 'ec_option_stripe_klarna' ) ) && 
-			( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) && 
-			$cartpage->order_totals->sub_total < (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; }?>></div>
+		<div id="wpec-payment-method-messaging-element" data-theme="<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>" data-currency="<?php echo esc_attr( $GLOBALS['currency']->get_currency_code() ); ?>" data-types="<?php echo esc_attr( implode( ',', $wpec_paylater_types ) ); ?>" data-country="<?php echo esc_attr( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_country ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_country : get_option( 'ec_option_stripe_company_country' ) ); ?>"<?php if ( $wpec_paylater_min_notice && $cartpage->order_totals->sub_total < $wpec_paylater_minimum ) { echo ' style="display:none;"'; } ?>></div>
 		<script>
 		jQuery( document ).ready( function() {
 			ec_cart_stripe_paylater_messaging_v2( <?php echo esc_attr( (int) ( $cartpage->order_totals->sub_total * 100 ) ); ?> );
 		} );
 		</script>
 	</div>
-	<?php }?>
-	
+	<?php } ?>
+
 	<div class="ec_cart_table_subtotal">
-		<div>
-			<span class="ec_cart_table_subtotal_label"><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_subtotal' )?></span>
-			<span class="ec_cart_table_subtotal_amount"><?php echo esc_attr( $cartpage->get_subtotal( ) ); ?></span>
+		<div class="ec_cart_table_summary_rows">
+			<div class="ec_cart_table_summary_row ec_cart_table_summary_subtotal">
+				<span class="ec_cart_table_subtotal_label"><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_subtotal' )?></span>
+				<span class="ec_cart_table_subtotal_amount"><?php echo esc_attr( $cartpage->get_subtotal( ) ); ?></span>
+			</div>
+			<?php /* 6.0.4: each offer's row, as the cart totals and the checkout show them ( WP EasyCart PRO's Offers redraws them after a change ). */ ?>
+			<?php if ( wp_easycart_offers_active() ) { ?>
+			<?php wp_easycart_offers_template( 'ec_offer_totals_rows.php', array( 'offer_result' => ( isset( $cartpage->offer_result ) ) ? $cartpage->offer_result : null ) ); ?>
+			<?php } ?>
+			<?php if ( is_array( $wpec_cart_totals ) ) { ?>
+			<div class="ec_cart_table_summary_row ec_cart_table_discount_row ec_cart_price_row_discount_total"<?php if ( ! $wpec_cart_totals['discount_show'] ) { ?> style="display:none;"<?php } ?>>
+				<span class="ec_cart_table_summary_label ec_cart_price_row_label"><?php echo wp_kses_post( wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_discounts' ) ); ?></span>
+				<span class="ec_cart_table_discount_amount"><?php echo esc_html( $wpec_cart_totals['discount_display'] ); ?></span>
+			</div>
+			<div class="ec_cart_table_summary_row ec_cart_table_estimate_row"<?php if ( ! $wpec_cart_totals['estimate_show'] ) { ?> style="display:none;"<?php } ?>>
+				<span class="ec_cart_table_summary_label"><?php echo wp_kses_post( $wpec_cart_text( 'estimated_total', __( 'Estimated total', 'wp-easycart' ) ) ); ?></span>
+				<span class="ec_cart_table_estimate_amount"><?php echo esc_html( $wpec_cart_totals['estimate_display'] ); ?></span>
+			</div>
+			<?php } ?>
 		</div>
 
 		<div class="ec_cart_table_message"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'checkout_note' ) ); ?></div>
@@ -281,5 +307,3 @@ if ( ! isset( $cartpage ) ) {
 		</div>
 	</div>
 </div>
-
-

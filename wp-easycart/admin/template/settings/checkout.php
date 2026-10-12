@@ -208,10 +208,17 @@ for ( $wp_easycart_checkout_minute = 5; $wp_easycart_checkout_minute <= 90; $wp_
 	$wp_easycart_checkout_prep_times[ (string) $wp_easycart_checkout_minute ] = sprintf( __( '%d minutes', 'wp-easycart' ), $wp_easycart_checkout_minute );
 }
 
+/* 6.0.4: the migration map's entry for the withdrawal button's rows ( new, no classic setting before them ). */
+$ecst_withdrawal_legacy = array(
+	'page'    => 'checkout',
+	'section' => 'Withdrawal button',
+	'label'   => 'New in 6.0.4',
+);
+
 return array(
 	'slug'        => 'checkout',
 	'title'       => __( 'Checkout', 'wp-easycart' ),
-	'description' => __( 'What shoppers see in the cart, what the checkout form asks for, order numbers and statuses, stock alerts and pickup scheduling.', 'wp-easycart' ),
+	'description' => __( 'What shoppers see in the cart, what the checkout form asks for, order numbers and statuses, the EU withdrawal button, stock alerts and pickup scheduling.', 'wp-easycart' ),
 	'group'       => 'cart-checkout',
 	'order'       => 10,
 	'icon'        => 'cart',
@@ -428,13 +435,13 @@ return array(
 				),
 				'ec_option_onepage_checkout_quantity_adjust_on' => array(
 					'type'      => 'toggle',
-					'label'     => __( 'Quantities can be changed on the one-page checkout', 'wp-easycart' ),
-					'desc'      => __( 'Shoppers can adjust item quantities on the checkout page itself instead of going back to the cart.', 'wp-easycart' ),
+					'label'     => __( 'Items can be changed on the one-page checkout', 'wp-easycart' ),
+					'desc'      => __( 'Shoppers can change quantities and remove items in the order summary instead of going back to the cart.', 'wp-easycart' ),
 					'default'   => 0,
 					'advanced'  => true,
 					'pro'       => true,
 					'parent'    => 'ec_option_onepage_checkout',
-					'keywords'  => array( 'quantity', 'adjust', 'edit cart' ),
+					'keywords'  => array( 'quantity', 'adjust', 'edit cart', 'remove', 'order summary' ),
 					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout: Quantity Adjust on Checkout', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
 				),
 			),
@@ -791,6 +798,145 @@ return array(
 				</div>
 				<?php
 			},
+		),
+
+		/* 6.0.4: the EU withdrawal button ( Article 11a of the Consumer Rights Directive, applied from 19 June 2026 ). The rules,
+		 * the storefront and the emails are wp_easycart_withdrawals; the page picker, the Create page action, the sentence for the
+		 * store's terms and the statements that matched no order are wp_easycart_admin_withdrawals. */
+		'withdrawal' => array(
+			'title'   => __( 'Withdrawal button ( EU )', 'wp-easycart' ),
+			'hint'    => __( 'Since 19 June 2026, EU shoppers must be able to withdraw from an order online: a “Withdraw from contract here” button, a short form, a separate confirm step and a receipt by email', 'wp-easycart' ),
+			'icon'    => 'scale',
+			'fields'  => array(
+				'ec_option_withdrawal_enabled'       => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Withdrawal button', 'wp-easycart' ),
+					'desc'     => __( 'Shoppers can withdraw from an order online while its withdrawal period is open. Nothing on the order changes by itself: you get an email and the order is flagged for you.', 'wp-easycart' ),
+					'default'  => 0,
+					'current'  => array( 'wp_easycart_admin_withdrawals', 'current_enabled' ),
+					'on_save'  => array( 'wp_easycart_admin_withdrawals', 'enabled_saved' ),
+					'keywords' => array( 'withdrawal', 'withdraw from contract', 'right of withdrawal', 'cancel order', 'cancellation', 'returns', 'eu', 'eea', 'consumer rights', 'directive', 'widerruf', 'widerrufsbutton', 'rétractation', 'desistimiento', 'recesso', 'fortrydelse', 'herroeping', '14 days', 'cooling off' ),
+					'legacy'   => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_scope'         => array(
+					'type'      => 'select',
+					'label'     => __( 'Offer it on', 'wp-easycart' ),
+					'desc'      => __( 'The law covers consumers in the EU and the EEA. Orders are matched by their billing or shipping country; an order with no country gets the button.', 'wp-easycart' ),
+					'default'   => 'eu',
+					'options'   => array(
+						'eu'  => __( 'Orders to the EU and the EEA', 'wp-easycart' ),
+						'all' => __( 'Every order', 'wp-easycart' ),
+					),
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_days'          => array(
+					'type'      => 'number',
+					'label'     => __( 'Days to withdraw', 'wp-easycart' ),
+					'desc'      => __( 'At least 14, as the law sets. You can give more.', 'wp-easycart' ),
+					'default'   => 14,
+					'min'       => 14,
+					'max'       => 365,
+					'step'      => 1,
+					'unit'      => __( 'days', 'wp-easycart' ),
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'sanitize'  => function ( $raw ) {
+						return (string) max( 14, min( 365, (int) $raw ) );
+					},
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_start'         => array(
+					'type'      => 'select',
+					'label'     => __( 'The days start', 'wp-easycart' ),
+					'desc'      => __( 'For items that ship. Downloads, services and gift cards always count from the order date, as the law sets.', 'wp-easycart' ),
+					'default'   => 'delivered',
+					'options'   => array(
+						'delivered' => __( 'When the order is delivered ( the law for goods )', 'wp-easycart' ),
+						'shipped'   => __( 'When the order ships', 'wp-easycart' ),
+						'ordered'   => __( 'On the order date', 'wp-easycart' ),
+					),
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_delivery_days' => array(
+					'type'      => 'number',
+					'label'     => __( 'Days allowed for delivery', 'wp-easycart' ),
+					'desc'      => __( 'When an order shipped but no delivery was recorded ( a Delivered status or carrier tracking ), its days start this long after it shipped.', 'wp-easycart' ),
+					'default'   => 7,
+					'min'       => 0,
+					'max'       => 60,
+					'step'      => 1,
+					'unit'      => __( 'days', 'wp-easycart' ),
+					'advanced'  => true,
+					'parent'    => 'ec_option_withdrawal_start',
+					'show_when' => 'delivered',
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_page'          => array(
+					'type'      => 'select',
+					'label'     => __( 'Withdrawal page', 'wp-easycart' ),
+					'desc'      => __( 'The page with the [ec_withdrawal] shortcode. Without one, your account page shows the form. “Create the page” below makes one for you.', 'wp-easycart' ),
+					'default'   => '0',
+					'options'   => array( 'wp_easycart_admin_withdrawals', 'page_options' ),
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_footer'        => array(
+					'type'      => 'toggle',
+					'label'     => __( 'Show the button at the foot of every page', 'wp-easycart' ),
+					'desc'      => __( 'The law asks for the button to be easy to find. Switch this off once it is in your own footer or menu ( the WP EasyCart block’s Withdrawal button, or [ec_withdrawal_button] ).', 'wp-easycart' ),
+					'default'   => 1,
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'legacy'    => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_recipients'    => array(
+					'type'        => 'text',
+					'label'       => __( 'Send the store’s copy to', 'wp-easycart' ),
+					'desc'        => __( 'Email addresses, separated by commas. Leave it empty to use your order notification addresses ( else the site’s admin email ).', 'wp-easycart' ),
+					'default'     => '',
+					'placeholder' => __( 'Your order notification addresses', 'wp-easycart' ),
+					'parent'      => 'ec_option_withdrawal_enabled',
+					'show_when'   => '1',
+					'sanitize'    => array( 'wp_easycart_admin_withdrawals', 'sanitize_emails' ),
+					'legacy'      => $ecst_withdrawal_legacy,
+				),
+				'ec_option_withdrawal_next_steps'    => array(
+					'type'        => 'textarea',
+					'label'       => __( 'What happens next', 'wp-easycart' ),
+					'desc'        => __( 'Optional. Shown on the confirmation page and in the shopper’s receipt: where to send the items back, and how the refund works.', 'wp-easycart' ),
+					'default'     => '',
+					'rows'        => 4,
+					'placeholder' => __( 'Please send the items back within 14 days to …', 'wp-easycart' ),
+					'parent'      => 'ec_option_withdrawal_enabled',
+					'show_when'   => '1',
+					'legacy'      => $ecst_withdrawal_legacy,
+				),
+				'ecst_withdrawal_terms'              => array(
+					'type'      => 'html',
+					'parent'    => 'ec_option_withdrawal_enabled',
+					'show_when' => '1',
+					'render'    => array( 'wp_easycart_admin_withdrawals', 'render_terms' ),
+				),
+				'ecst_withdrawal_unmatched'          => array(
+					'type'   => 'html',
+					'render' => array( 'wp_easycart_admin_withdrawals', 'render_unmatched' ),
+				),
+			),
+			'actions' => array(
+				array(
+					'id'       => 'withdrawal_page',
+					'label'    => __( 'Withdrawal page', 'wp-easycart' ),
+					'desc'     => __( 'Make a published page with the withdrawal form, titled with the button’s words ( also its menu label ), and choose it above.', 'wp-easycart' ),
+					'button'   => __( 'Create the page', 'wp-easycart' ),
+					'callback' => array( 'wp_easycart_admin_withdrawals', 'create_page' ),
+				),
+			),
+			'enqueue' => array( 'wp_easycart_admin_withdrawals', 'enqueue' ),
 		),
 
 		'stock-alerts' => array(

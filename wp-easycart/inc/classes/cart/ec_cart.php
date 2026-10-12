@@ -41,6 +41,10 @@ class ec_cart{
 		}
 
 		$this->cart = $this->mysqli->get_temp_cart( $session_id );
+		/* 6.0.4: a line's most counts the same product on the cart's other lines ( the steppers stop where the store would ). */
+		if ( class_exists( 'wp_easycart_cart_quantity' ) ) {
+			wp_easycart_cart_quantity::share_stock( $this->cart );
+		}
 		$this->user =& $GLOBALS['ec_user'];
 		$this->make_vat_adjustments( );
 		$this->update_cart_values();
@@ -143,7 +147,9 @@ class ec_cart{
 			$is_claimed = isset( $this->claimed_lines[ $i ] );
 			$this->subtotal = $this->subtotal + $this->cart[$i]->total_price;
 
-			if ( $this->cart[$i]->exclude_shippable_calculation ) {
+			/* 6.0.4: only a product that ships counts here ( it ships free, so checkout still asks where to ). One with Enable Shipping
+			 * off brought up the shipping section with $0 rates when Exclude from Shipping Calculation was also ticked. */
+			if ( $this->cart[$i]->is_shippable && $this->cart[$i]->exclude_shippable_calculation ) {
 				$this->excluded_shippable_total_items = $this->excluded_shippable_total_items + $this->cart[$i]->quantity;
 			}
 			if ( $this->cart[$i]->is_taxable ) {

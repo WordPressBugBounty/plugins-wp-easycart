@@ -1413,6 +1413,26 @@
 					"title":"Min Quantity Required Error",
 					"value":"La quantité minimum requis"
 				},
+				"cartitem_stock_limit":{
+					"title":"Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+					"value":"Seulement [stock] en stock."
+				},
+				"cartitem_stock_limit_cart":{
+					"title":"Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+					"value":"Seulement [stock] en stock, dont [other] déjà ailleurs dans votre panier."
+				},
+				"cartitem_stock_limit_hidden":{
+					"title":"Cart, Quantity Limited by Stock ( stock counts not shown )",
+					"value":"C'est tout ce que nous avons en stock."
+				},
+				"cartitem_max_limit":{
+					"title":"Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+					"value":"Vous pouvez acheter jusqu'à [max] unités de cet article."
+				},
+				"cartitem_min_limit":{
+					"title":"Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+					"value":"Le minimum pour cet article est de [min]."
+				},
 				"cart_please_wait":{
 					"title":"Cart Please Wait",
 					"value":"S'il vous plaît, attendez"
@@ -1675,6 +1695,30 @@
 				"cart_invalid_giftcard":{
 					"title":"Cart, Invalid Gift Card",
 					"value":"Numéro de carte-cadeau non valide"
+				},
+				"cart_giftcard_used":{
+					"title":"Cart, Gift Card Used Up",
+					"value":"Cette carte cadeau a déjà été entièrement utilisée."
+				},
+				"cart_giftcard_failed":{
+					"title":"Cart, Gift Card Could Not Be Used ( nothing was charged )",
+					"value":"Votre carte cadeau n'a pas pu être utilisée pour cette commande, aucun montant n'a donc été débité. Vérifiez la carte et réessayez, ou retirez-la."
+				},
+				"cart_square_giftcard_balance":{
+					"title":"Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+					"value":"Carte cadeau Square se terminant par [last4] : [balance] disponible"
+				},
+				"cart_square_giftcard_label":{
+					"title":"Order, Square Gift Card Name ( [last4] = last four digits )",
+					"value":"Square •••• [last4]"
+				},
+				"cart_square_giftcard_square_only":{
+					"title":"Checkout, Square Gift Card Needs a Card Payment",
+					"value":"Une carte cadeau Square ne peut être combinée qu'avec un paiement par carte. Choisissez de payer par carte ou retirez la carte cadeau."
+				},
+				"cart_square_giftcard_balance_changed":{
+					"title":"Checkout, Square Gift Card Balance Changed",
+					"value":"Le solde de votre carte cadeau a changé. Vérifiez votre nouveau total, puis passez à nouveau votre commande."
 				},
 				"cart_enter_coupon":{
 					"title":"Cart, Enter Coupon Hint",
@@ -2083,7 +2127,7 @@
 				},
 				"cart_guest_message":{
 					"title":"Cart, Login, Guest Checkout Message",
-					"value":"Pas de compte? Continuez comme un invite. Vous pourrez creer un compte plus tard."
+					"value":"Pas de compte ? Continuez en tant qu'invité.<br/>Vous pourrez créer un compte plus tard."
 				},
 				"cart_guest_button":{
 					"title":"Cart, Login, Guest Checkout Button",
@@ -3478,6 +3522,26 @@
 				"account_navigation_shipping_information":{
 					"title":"Account, Navigation, Shipping Link",
 					"value":"informations d'expédition"
+				},
+				"account_navigation_home":{
+					"title":"Breadcrumbs: My Account",
+					"value":"Mon compte"
+				},
+				"account_navigation_breadcrumb":{
+					"title":"Breadcrumbs: Label for Screen Readers",
+					"value":"Fil d'Ariane"
+				},
+				"account_navigation_orders_short":{
+					"title":"Breadcrumbs: Orders",
+					"value":"Commandes"
+				},
+				"account_navigation_subscriptions_short":{
+					"title":"Breadcrumbs: Subscriptions",
+					"value":"Abonnements"
+				},
+				"account_navigation_order_number":{
+					"title":"Breadcrumbs: Order Number",
+					"value":"Commande n° [order_id]"
 				}
 			}
 		},
@@ -3520,6 +3584,10 @@
 					"title":"Account, Dashboard, Buy Item Again",
 					"value":"article rachat"
 				},
+				"account_dashboard_downloads_title":{
+					"title":"Account, Dashboard, Downloads Title",
+					"value":"Vos téléchargements"
+				},
 				"account_dashboard_preference_title":{
 					"title":"Account, Dashboard, Preference Title",
 					"value":"Preferences de compte"
@@ -3551,6 +3619,14 @@
 				"account_dashboard_shipping_link":{
 					"title":"Account, Dashboard, Shipping Edit Link",
 					"value":"modifier adresse d expedition"
+				},
+				"account_dashboard_welcome":{
+					"title":"Dashboard: Welcome with Name",
+					"value":"Bon retour, [name]"
+				},
+				"account_dashboard_welcome_no_name":{
+					"title":"Dashboard: Welcome without Name",
+					"value":"Bon retour"
 				}
 			}
 		},	
@@ -3776,6 +3852,18 @@
 				"account_orders_view_order_button":{
 					"title":"Account, Orders, View Order Button",
 					"value":"VOIR COMMANDE"
+				},
+				"account_orders_item_one":{
+					"title":"Order Card: One Item",
+					"value":"1 article"
+				},
+				"account_orders_item_many":{
+					"title":"Order Card: Several Items",
+					"value":"[count] articles"
+				},
+				"account_orders_and_more":{
+					"title":"Order Card: And More Items",
+					"value":"et [count] de plus"
 				}
 			}
 		},
@@ -4560,6 +4648,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Votre paiement est toujours en cours de traitement et n'a pas encore été approuvé."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"Le code postal saisi pour la carte doit correspondre à votre adresse de facturation ([zip]). Modifiez l'un des deux pour qu'ils correspondent."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5636,6 +5728,18 @@
 					"title":"Cart: Calculated at Checkout Note",
 					"value":"La livraison, les taxes et les codes de réduction sont calculés lors du paiement."
 				},
+				"estimated_total":{
+					"title":"Cart: Estimated Total ( after discounts, before shipping and tax )",
+					"value":"Total estimé"
+				},
+				"quantity_decrease":{
+					"title":"Cart: Decrease Quantity Button ( read by screen readers )",
+					"value":"Diminuer la quantité"
+				},
+				"quantity_increase":{
+					"title":"Cart: Increase Quantity Button ( read by screen readers )",
+					"value":"Augmenter la quantité"
+				},
 				"card_minimum":{
 					"title":"Card Payment Minimum ( %s is the amount )",
 					"value":"Un total de commande d’au moins %s est requis pour payer par carte."
@@ -5671,6 +5775,46 @@
 				"placing_hint":{
 					"title":"Place Order: Working, Keep the Page Open",
 					"value":"Veuillez garder cette page ouverte."
+				},
+				"loading":{
+					"title":"Checkout: Loading ( Changing Screens )",
+					"value":"Chargement…"
+				},
+				"loading_cart":{
+					"title":"Cart: Loading the Cart",
+					"value":"Chargement de votre panier…"
+				},
+				"loading_checkout":{
+					"title":"Checkout: Loading the Checkout",
+					"value":"Chargement de la page de paiement…"
+				},
+				"loading_order":{
+					"title":"Order Confirmation: Loading the Order",
+					"value":"Chargement de votre commande…"
+				},
+				"signing_in":{
+					"title":"Checkout: Signing In",
+					"value":"Connexion en cours…"
+				},
+				"signing_out":{
+					"title":"Checkout: Signing Out",
+					"value":"Déconnexion en cours…"
+				},
+				"loading_account":{
+					"title":"Account: Loading the Account",
+					"value":"Chargement de votre compte…"
+				},
+				"creating_account":{
+					"title":"Account: Creating the Account",
+					"value":"Création de votre compte…"
+				},
+				"saving":{
+					"title":"Account: Saving",
+					"value":"Enregistrement…"
+				},
+				"sending":{
+					"title":"Account: Sending",
+					"value":"Envoi en cours…"
 				}
 			}
 		},
@@ -5720,6 +5864,255 @@
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
 					"value":"[label] - [service]"
+				}
+			}
+		},
+		"withdrawal":{
+			"label":"Withdrawal Button and Order Lookup",
+			"options":{
+				"withdraw_button":{
+					"title":"Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+					"value":"Renoncer au contrat ici"
+				},
+				"confirm_button":{
+					"title":"Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+					"value":"Confirmer la rétractation"
+				},
+				"page_title":{
+					"title":"Withdrawal page heading ( 6.0.4 )",
+					"value":"Se rétracter d'un contrat"
+				},
+				"page_intro":{
+					"title":"Withdrawal page introduction ( 6.0.4 )",
+					"value":"Vous pouvez vous rétracter d'une commande sans donner de motif tant que son délai de rétractation n'est pas écoulé. Indiquez-nous quelle commande, vérifiez ce que vous envoyez, puis confirmez. Nous vous envoyons immédiatement un accusé de réception par e-mail."
+				},
+				"your_orders":{
+					"title":"Signed-in customer: heading above their orders ( 6.0.4 )",
+					"value":"Vos commandes"
+				},
+				"your_orders_none":{
+					"title":"Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+					"value":"Aucune de vos commandes ne peut faire l'objet d'une rétractation en ligne pour le moment."
+				},
+				"order_title":{
+					"title":"Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+					"value":"Se rétracter de la commande [order_id]"
+				},
+				"order_until":{
+					"title":"Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+					"value":"Vous pouvez vous rétracter de cette commande jusqu'au [date]."
+				},
+				"order_pending":{
+					"title":"Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+					"value":"Votre délai de rétractation de [days] jours commence à la réception de votre commande. Vous pouvez aussi vous rétracter avant."
+				},
+				"other_title":{
+					"title":"Form without a link: heading ( 6.0.4 )",
+					"value":"Se rétracter d'une commande"
+				},
+				"other_intro":{
+					"title":"Form without a link: introduction ( 6.0.4 )",
+					"value":"Saisissez le numéro de commande et l'adresse e-mail utilisée pour la commande."
+				},
+				"order_number_label":{
+					"title":"Order number label ( 6.0.4 )",
+					"value":"Numéro de commande"
+				},
+				"order_email_label":{
+					"title":"Email used for the order label ( 6.0.4 )",
+					"value":"Adresse e-mail utilisée pour la commande"
+				},
+				"name_label":{
+					"title":"Name label ( 6.0.4 )",
+					"value":"Votre nom"
+				},
+				"email_label":{
+					"title":"Email for the receipt label ( 6.0.4 )",
+					"value":"E-mail pour votre accusé de réception"
+				},
+				"items_label":{
+					"title":"Items label ( 6.0.4 )",
+					"value":"Articles dont vous vous rétractez"
+				},
+				"item_exempt":{
+					"title":"Item without a right of withdrawal ( 6.0.4 )",
+					"value":"Pas de droit de rétractation"
+				},
+				"item_withdrawn":{
+					"title":"Item already withdrawn from ( 6.0.4 )",
+					"value":"Rétractation déjà effectuée"
+				},
+				"item_closed":{
+					"title":"Item whose period ended ( [date] ) ( 6.0.4 )",
+					"value":"Délai de rétractation terminé le [date]"
+				},
+				"item_refunded":{
+					"title":"Item already refunded ( 6.0.4 )",
+					"value":"Déjà remboursé"
+				},
+				"note_label":{
+					"title":"Form without a link: only some items ( optional ) ( 6.0.4 )",
+					"value":"Seulement certains articles ? Dites-nous lesquels (facultatif)"
+				},
+				"reason_label":{
+					"title":"Reason label ( optional ) ( 6.0.4 )",
+					"value":"Motif (facultatif)"
+				},
+				"continue_button":{
+					"title":"Continue button ( 6.0.4 )",
+					"value":"Continuer"
+				},
+				"review_title":{
+					"title":"Review step heading ( 6.0.4 )",
+					"value":"Vérifiez votre rétractation"
+				},
+				"review_intro":{
+					"title":"Review step introduction ( 6.0.4 )",
+					"value":"Voici ce que nous recevrons. Rien n'est envoyé tant que vous n'avez pas confirmé."
+				},
+				"review_order":{
+					"title":"Summary: order ( 6.0.4 )",
+					"value":"Commande"
+				},
+				"review_items":{
+					"title":"Summary: items ( 6.0.4 )",
+					"value":"Articles"
+				},
+				"review_whole":{
+					"title":"Summary: the whole order ( 6.0.4 )",
+					"value":"Toute la commande"
+				},
+				"review_name":{
+					"title":"Summary: name ( 6.0.4 )",
+					"value":"Nom"
+				},
+				"review_email":{
+					"title":"Summary: email ( 6.0.4 )",
+					"value":"E-mail"
+				},
+				"review_reason":{
+					"title":"Summary: reason ( 6.0.4 )",
+					"value":"Motif"
+				},
+				"review_note":{
+					"title":"Summary: note ( 6.0.4 )",
+					"value":"Remarque"
+				},
+				"review_received":{
+					"title":"Summary: date and time received ( 6.0.4 )",
+					"value":"Reçue"
+				},
+				"change_button":{
+					"title":"Review step: go back button ( 6.0.4 )",
+					"value":"Modifier quelque chose"
+				},
+				"received_title":{
+					"title":"Received page heading ( 6.0.4 )",
+					"value":"Rétractation reçue"
+				},
+				"received_text":{
+					"title":"Received page text ( [datetime], [email] ) ( 6.0.4 )",
+					"value":"Nous avons reçu votre rétractation le [datetime]. Une copie est en cours d'envoi à [email]."
+				},
+				"received_next":{
+					"title":"Received page: what happens next heading ( 6.0.4 )",
+					"value":"Que se passe-t-il ensuite ?"
+				},
+				"already_text":{
+					"title":"The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+					"value":"Nous avons reçu votre rétractation de cette commande le [datetime]."
+				},
+				"closed_text":{
+					"title":"The order cannot be withdrawn from online ( 6.0.4 )",
+					"value":"Il n'est plus possible de se rétracter de cette commande en ligne. Si vous pensez qu'il s'agit d'une erreur, veuillez nous contacter."
+				},
+				"link_invalid":{
+					"title":"A withdrawal link that no longer works ( 6.0.4 )",
+					"value":"Ce lien ne fonctionne plus. Saisissez plutôt ci-dessous votre numéro de commande et votre e-mail."
+				},
+				"error_fields":{
+					"title":"Error: a required field is empty ( 6.0.4 )",
+					"value":"Veuillez remplir tous les champs marqués d'un *."
+				},
+				"error_email":{
+					"title":"Error: not an email address ( 6.0.4 )",
+					"value":"Veuillez saisir une adresse e-mail valide."
+				},
+				"error_items":{
+					"title":"Error: no item chosen ( 6.0.4 )",
+					"value":"Veuillez choisir au moins un article."
+				},
+				"error_limit":{
+					"title":"Error: too many tries ( 6.0.4 )",
+					"value":"Trop de tentatives. Veuillez patienter quelques minutes, puis réessayer."
+				},
+				"error_check":{
+					"title":"Error: the robot check is needed ( 6.0.4 )",
+					"value":"Veuillez confirmer que vous n'êtes pas un robot, puis réessayer."
+				},
+				"error_save":{
+					"title":"Error: the statement could not be saved ( 6.0.4 )",
+					"value":"Votre rétractation n'a pas pu être enregistrée. Veuillez réessayer ou nous contacter."
+				},
+				"lookup_title":{
+					"title":"Order lookup: heading ( 6.0.4 )",
+					"value":"Retrouver votre commande"
+				},
+				"lookup_intro":{
+					"title":"Order lookup: introduction ( 6.0.4 )",
+					"value":"Vous avez commandé sans compte ? Saisissez votre numéro de commande et l'adresse e-mail utilisée, et nous vous enverrons par e-mail un lien vers votre commande."
+				},
+				"lookup_button":{
+					"title":"Order lookup: button ( 6.0.4 )",
+					"value":"M'envoyer un lien par e-mail"
+				},
+				"lookup_sent":{
+					"title":"Order lookup: answer ( 6.0.4 )",
+					"value":"Si ces informations correspondent à une commande, nous vous avons envoyé un lien par e-mail. Son arrivée peut prendre quelques minutes."
+				},
+				"lookup_prompt":{
+					"title":"Withdrawal page: want to choose items ( 6.0.4 )",
+					"value":"Vous souhaitez d'abord choisir des articles ?"
+				},
+				"login_lookup":{
+					"title":"Sign-in page: link to the order lookup ( 6.0.4 )",
+					"value":"Vous avez commandé sans compte ? Retrouvez votre commande"
+				},
+				"email_row_until":{
+					"title":"Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+					"value":"Vous avez changé d'avis ? Vous pouvez vous rétracter de cette commande en ligne jusqu'au [date], sans donner de motif."
+				},
+				"email_row_open":{
+					"title":"Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+					"value":"Vous avez changé d'avis ? Vous pouvez vous rétracter de cette commande en ligne sans donner de motif. Le délai de [days] jours commence à la réception de votre commande."
+				},
+				"ack_subject":{
+					"title":"Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"Nous avons reçu votre rétractation (commande [order_id])"
+				},
+				"ack_intro":{
+					"title":"Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+					"value":"Bonjour [name], nous avons reçu votre rétractation de la commande [order_id]. Nous allons l'examiner et vous contacter au sujet du retour des articles et de votre remboursement."
+				},
+				"ack_footer":{
+					"title":"Receipt email: receipt only ( 6.0.4 )",
+					"value":"Cet e-mail confirme que nous avons reçu votre rétractation. Il ne confirme pas encore que la rétractation est valable : nous allons l'examiner et vous répondre."
+				},
+				"lookup_email_subject":{
+					"title":"Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"Le lien vers votre commande [order_id]"
+				},
+				"lookup_email_intro":{
+					"title":"Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+					"value":"Voici le lien vers la commande [order_id]. Vous pouvez consulter la commande, imprimer votre reçu et, tant que son délai de rétractation n'est pas écoulé, vous en rétracter."
+				},
+				"lookup_email_button":{
+					"title":"Order lookup email: button ( 6.0.4 )",
+					"value":"Consulter votre commande"
+				},
+				"lookup_email_ignore":{
+					"title":"Order lookup email: not asked for ( 6.0.4 )",
+					"value":"Si vous n'avez pas demandé ce lien, vous pouvez ignorer cet e-mail."
 				}
 			}
 		},

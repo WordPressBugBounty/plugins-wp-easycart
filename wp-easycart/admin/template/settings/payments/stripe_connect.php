@@ -588,6 +588,12 @@ $ec_stripe_onepage = function_exists( 'wp_easycart_onepage_active' ) ? wp_easyca
 					<input type="text" name="ec_option_stripe_connect_webhook_secret" id="ec_option_stripe_connect_webhook_secret" value="<?php echo esc_attr( get_option( 'ec_option_stripe_connect_webhook_secret' ) ); ?>" placeholder="whsec_..." autocomplete="off" spellcheck="false" />
 					<small><?php esc_html_e( 'From the webhook\'s page in Stripe. Once it is saved, a notification without Stripe\'s signature is refused.', 'wp-easycart' ); ?></small>
 				</div>
+				<?php /* 6.0.4: Stripe sends test notifications ( Stripe test-mode customers, test mode ) only to a webhook added in test mode. */ ?>
+				<div class="ecsq-field">
+					<label for="ec_option_stripe_sandbox_webhook_secret"><?php esc_html_e( 'Test mode signing secret', 'wp-easycart' ); ?></label>
+					<input type="text" name="ec_option_stripe_sandbox_webhook_secret" id="ec_option_stripe_sandbox_webhook_secret" value="<?php echo esc_attr( get_option( 'ec_option_stripe_sandbox_webhook_secret' ) ); ?>" placeholder="whsec_..." autocomplete="off" spellcheck="false" />
+					<small><?php esc_html_e( 'From the webhook you add in Stripe\'s test mode. Left empty, test notifications are read back from Stripe instead.', 'wp-easycart' ); ?></small>
+				</div>
 				<?php /* The drawer's Save button runs this ( one ec_admin_save_ button = footer save ); hidden by the drawer. */ ?>
 				<input type="button" onclick="ec_admin_save_stripe_connect_options();" class="ecsq-save" value="<?php esc_attr_e( 'Save', 'wp-easycart' ); ?>" />
 			</div>

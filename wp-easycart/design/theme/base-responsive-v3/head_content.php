@@ -244,6 +244,7 @@ if( get_option( 'ec_option_no_rounded_corners' ) ){
 // Remove corners
 ////////////////////////////////////////////////////////////////////////
 ?>
+:root{ --wpec-radius-card:0px; --wpec-radius-control:0px; } /* 6.0.4: the order confirmation page and My Account's cards, buttons and fields */
 .ec_product_type1, .ec_product_type2, .ec_product_type3, .ec_product_type4, .ec_product_type5, .ec_product_type6, 
 .ec_product_type1 > .ec_image_container_none, .ec_product_type1 > .ec_image_container_border, .ec_product_type1 > .ec_image_container_shadow, 
 .ec_product_type1 .ec_product_addtocart a, .ec_product_type1 .ec_product_addtocart a:hover, .ec_product_type1 .ec_product_addtocart a:focus,

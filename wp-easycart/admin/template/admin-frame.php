@@ -20,6 +20,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 wp_easycart_shell_output_root_css();
 
 $ecsh_status = wp_easycart_shell_store_status();
+
+/**
+ * 6.0.4: a screen that wants room for its content can fold the EasyCart menu to icons ( the product editor does ). The
+ * answer is false, or folded ( bool, how the menu starts ), action ( the AJAX action the fold button posts menu = mini |
+ * full to, with nonce ) and nonce.
+ *
+ * @since 6.0.4
+ * @param array|false $fold false: the menu does not fold on this screen.
+ */
+$ecsh_fold = apply_filters( 'wp_easycart_admin_frame_fold', false );
+$ecsh_fold = ( is_array( $ecsh_fold ) && ! empty( $ecsh_fold['action'] ) ) ? $ecsh_fold : false;
 ?>
 
 <?php do_action( 'wp_easycart_admin_upsell_popup' ); ?>
@@ -58,7 +69,7 @@ if ( $ecsh_renewal_m && 'ok' !== $ecsh_renewal_m['tone'] ) :
 		<p class="ecsh-renewal-keep"><span class="dashicons dashicons-yes-alt"></span> <?php esc_html_e( 'Nothing has been deleted. Renewing reopens everything within a few minutes; switching to free keeps your products, orders and settings.', 'wp-easycart' ); ?></p>
 		<?php endif; ?>
 		<div class="ecsh-renewal-actions">
-			<a class="ecv2-btn ecv2-btn-primary" href="<?php echo esc_url( $ecsh_renewal_m['url'] ); ?>" target="_blank"><?php echo $ecsh_lapsed ? esc_html__( 'Renew & reopen', 'wp-easycart' ) : esc_html__( 'Renew now', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
+			<a class="ecv2-btn ecv2-btn-primary" href="<?php echo esc_url( $ecsh_renewal_m['url'] ); ?>" target="_blank"><?php echo ! empty( $ecsh_renewal_m['auto_renew'] ) ? esc_html__( 'Update payment', 'wp-easycart' ) : ( $ecsh_lapsed ? esc_html__( 'Renew & reopen', 'wp-easycart' ) : esc_html__( 'Renew now', 'wp-easycart' ) ); /* 6.0.4: AutoPay */ ?> <span class="dashicons dashicons-external"></span></a>
 			<a class="ecv2-btn" href="<?php echo esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration' ) ); ?>"><?php esc_html_e( 'License details', 'wp-easycart' ); ?></a>
 			<?php if ( $ecsh_lapsed ) : ?>
 			<button type="button" class="ecv2-btn ecv2-btn-ghost ecsh-renewal-later" onclick="ecsh_renewal_snooze();"><?php esc_html_e( 'Remind me tomorrow', 'wp-easycart' ); ?></button>
@@ -107,7 +118,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 <div class="ecsh-scrim"></div>
 
-<div class="ecsh-app">
+<div class="ecsh-app<?php echo $ecsh_fold ? ' ecsh-sb-foldable' . ( ! empty( $ecsh_fold['folded'] ) ? ' ecsh-sb-mini' : '' ) : ''; ?>">
 
 	<!-- ================= SIDEBAR (also the mobile drawer) ================= -->
 	<aside class="ecsh-sidebar">
@@ -153,6 +164,12 @@ document.addEventListener( 'DOMContentLoaded', function() {
 		</nav>
 
 		<div class="ecsh-sb-foot">
+			<?php if ( $ecsh_fold ) { ?>
+			<button type="button" class="ecsh-sb-fold" aria-pressed="<?php echo ! empty( $ecsh_fold['folded'] ) ? 'true' : 'false'; ?>" data-fold-action="<?php echo esc_attr( $ecsh_fold['action'] ); ?>" data-fold-nonce="<?php echo esc_attr( $ecsh_fold['nonce'] ); ?>" data-label-fold="<?php esc_attr_e( 'Fold the menu to icons', 'wp-easycart' ); ?>" data-label-open="<?php esc_attr_e( 'Show the full menu', 'wp-easycart' ); ?>" title="<?php echo ! empty( $ecsh_fold['folded'] ) ? esc_attr__( 'Show the full menu', 'wp-easycart' ) : esc_attr__( 'Fold the menu to icons', 'wp-easycart' ); ?>">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+				<span class="ecsh-sb-fold-text"><?php echo ! empty( $ecsh_fold['folded'] ) ? esc_html__( 'Show the full menu', 'wp-easycart' ) : esc_html__( 'Fold the menu to icons', 'wp-easycart' ); ?></span>
+			</button>
+			<?php } ?>
 			<?php if ( $ecsh_status['has_license'] && $ecsh_status['is_trial'] ) { ?>
 			<div class="ecsh-sb-trial">
 				<strong><?php esc_attr_e( 'Pro trial', 'wp-easycart' ); ?> &middot; <?php echo esc_attr( $ecsh_status['days_left'] ); ?> <?php esc_attr_e( 'days left', 'wp-easycart' ); ?></strong>

@@ -370,6 +370,7 @@ if ( ! class_exists( 'wp_easycart_subscription_reminders' ) ) :
 			if ( 'moved' === $check['state'] ) {
 				/* Stripe's date wins: keep it, and remind now only when the new date is due too. */
 				$wpdb->update( 'ec_subscription', array( 'next_payment_date' => (string) (int) $check['at'] ), array( 'subscription_id' => (int) $row->subscription_id ) );
+				wp_easycart_cache::forget_subscription( $row->subscription_id ); /* 6.0.4: My Account shows the date */
 				$row->next_payment_date = (string) (int) $check['at'];
 				$again                  = self::due_item( $row, $settings, time() );
 				if ( ! $again || $again['kind'] !== $item['kind'] ) {

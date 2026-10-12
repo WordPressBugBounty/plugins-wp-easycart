@@ -5,7 +5,10 @@ class ec_categories {
 
 	function __construct() {
 		global $wpdb;
-		$this->all_categories = wp_cache_get( 'wpeasycart-all-categories', 'wpeasycart-categories' );
+		/* 6.0.4: under the category cache generation ( ec_db::category_cache_changed() ): nothing forgot the tree when a category
+		 * changed, so with a persistent object cache the store kept showing a category switched off. */
+		$cache_key            = ec_db::category_cache_key( 'wpeasycart-all-categories' );
+		$this->all_categories = wp_cache_get( $cache_key, 'wpeasycart-categories' );
 		if ( ! $this->all_categories ) {
 			$this->all_categories = $wpdb->get_results( "SELECT ec_category.*, " . $wpdb->prefix . "posts.guid
 				FROM ec_category
@@ -16,7 +19,7 @@ class ec_categories {
 				ec_category.priority DESC,
 				ec_category.category_name ASC"
 			);
-			wp_cache_set( 'wpeasycart-all-categories', $this->all_categories, 'wpeasycart-categories' );
+			wp_cache_set( $cache_key, $this->all_categories, 'wpeasycart-categories', DAY_IN_SECONDS );
 		}
 
 		$this->categories = array();

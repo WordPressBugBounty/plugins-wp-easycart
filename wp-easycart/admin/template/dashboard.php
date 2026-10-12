@@ -23,6 +23,7 @@ $ecv2_rp_license     = false;
 $ecv2_rp_days_left   = 0;
 $ecv2_rp_is_premium  = false;
 $ecv2_rp_is_trial    = false;
+$ecv2_rp_is_auto     = false;
 $ecv2_rp_key         = '';
 $ecv2_rp_renew_url   = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 $ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
@@ -32,13 +33,15 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 	$ecv2_rp_key          = ( is_array( $ecv2_rp_license_info ) && isset( $ecv2_rp_license_info['transaction_key'] ) ) ? $ecv2_rp_license_info['transaction_key'] : '';
 	if ( $ecv2_rp_license && isset( $ecv2_rp_license->support_end_date ) ) {
 		$ecv2_rp_days_left  = max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( strtotime( $ecv2_rp_license->support_end_date ) ) : (int) round( ( strtotime( $ecv2_rp_license->support_end_date ) - time() ) / DAY_IN_SECONDS ) );
-		$ecv2_rp_is_premium = ( 'ec410' === strtolower( trim( (string) $ecv2_rp_license->model_number ) ) );
+		/* 6.0.4: Premium and Elite AutoPay keys are Premium too; an AutoPay license renews itself. */
+		$ecv2_rp_is_premium = wp_easycart_admin_edition::is_premium_model( isset( $ecv2_rp_license->model_number ) ? $ecv2_rp_license->model_number : '' );
 		$ecv2_rp_is_trial   = ! empty( $ecv2_rp_license->is_trial );
+		$ecv2_rp_is_auto    = ( ! $ecv2_rp_is_trial && ! empty( $ecv2_rp_license->is_auto_renew ) );
 		if ( $ecv2_rp_is_trial ) {
 			$ecv2_rp_renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key;
 			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key . '&license_type=Premium';
 		} else {
-			$ecv2_rp_renew_url   = ( ! $ecv2_rp_is_premium ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $ecv2_rp_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $ecv2_rp_key;
+			$ecv2_rp_renew_url   = wp_easycart_admin_edition::renew_url();
 			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $ecv2_rp_key;
 		}
 	}
@@ -76,11 +79,11 @@ if ( ! $ecv2_rp_license ) {
 	$ecv2_rp_strip = array(
 		'tone' => 'expired',
 		'icon' => 'dashicons-warning',
-		'text' => __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ),
-		'cta'  => array( $ecv2_rp_renew_url, __( 'Renew', 'wp-easycart' ) ),
+		'text' => $ecv2_rp_is_auto ? __( 'Your last automatic license payment did not go through. Update your card to keep updates and support.', 'wp-easycart' ) : __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ),
+		'cta'  => array( $ecv2_rp_renew_url, $ecv2_rp_is_auto ? __( 'Update payment', 'wp-easycart' ) : __( 'Renew', 'wp-easycart' ) ),
 		'more' => false,
 	);
-} elseif ( $ecv2_rp_days_left < 100 ) {
+} elseif ( $ecv2_rp_days_left < 100 && ! $ecv2_rp_is_auto ) {
 	$ecv2_rp_strip = array(
 		'tone' => 'trial',
 		'icon' => 'dashicons-clock',

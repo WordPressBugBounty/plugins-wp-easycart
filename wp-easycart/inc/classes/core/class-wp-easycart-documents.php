@@ -54,6 +54,15 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 		private static $stored = null;
 
 		/**
+		 * The switches of the document being drawn, by type ( open_args() keeps them ), for code that prints into a template
+		 * through a hook that does not pass them ( current_fields() ).
+		 *
+		 * @since 6.0.4
+		 * @var array
+		 */
+		private static $current = array();
+
+		/**
 		 * Does this store get more than one profile per document ( WP EasyCart PRO, licensed )?
 		 *
 		 * @return bool
@@ -185,6 +194,8 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				'checkout_fields' => array( 'group' => 'text', 'label' => __( 'Checkout field answers', 'wp-easycart' ), 'desc' => __( 'Answers to your own checkout questions, where each field shows them ( Settings › Checkout fields ).', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
 				/* 6.0.2: wp_easycart_order_gift::print_email_section() */
 				'gift'            => array( 'group' => 'text', 'label' => __( 'Gift details', 'wp-easycart' ), 'desc' => __( 'On gift orders: that it is a gift, the gift message and who gets the gift receipt.', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+				/* 6.0.4: wp_easycart_withdrawals::email_row(), while the order can still be withdrawn from ( EU ). */
+				'withdrawal'      => array( 'group' => 'order', 'label' => __( 'Withdrawal button ( EU )', 'wp-easycart' ), 'desc' => __( 'While the customer can still withdraw from the order: the “Withdraw from contract here” button ( Settings › Checkout › Withdrawal button ).', 'wp-easycart' ), 'default' => 1, 'edit' => array( 'page' => 'checkout', 'option' => 'ec_option_withdrawal_enabled' ) ),
 			);
 			$fields = array();
 			if ( 'receipt' === $type ) {
@@ -984,6 +995,9 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 		 */
 		public static function open_args( $type, $fields, $args = array() ) {
 			$args = is_array( $args ) ? $args : array();
+			if ( is_string( $type ) && '' !== $type ) {
+				self::$current[ $type ] = is_array( $fields ) ? $fields : null; /* 6.0.4: current_fields() */
+			}
 			if ( ! self::show( $fields, 'logo', $type ) ) {
 				$args['header'] = false;
 				return $args;
@@ -1002,6 +1016,19 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				}
 			}
 			return $args;
+		}
+
+		/**
+		 * The switches of the document of this type being drawn now ( the profile and the send's own changes, as the template
+		 * resolved them; open_args() keeps them ), or null when none is being drawn. For a hook inside a template that does not
+		 * pass them, such as wp_easycart_document_email_links.
+		 *
+		 * @since 6.0.4
+		 * @param string $type Document type.
+		 * @return array|null
+		 */
+		public static function current_fields( $type ) {
+			return ( isset( self::$current[ $type ] ) && is_array( self::$current[ $type ] ) ) ? self::$current[ $type ] : null;
 		}
 
 		/**

@@ -631,6 +631,208 @@ class ec_accountpage {
 	public function display_logout_link( $link_text ) {
 		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'logout' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
+
+	/**
+	 * Whether the account templates draw the 6.0.4 look: one account menu beside every signed-in page, breadcrumbs, the orders as
+	 * cards. An Elementor account widget draws the markup its saved settings style ( it passes a WP_EasyCart_Elementor_Account_Page ),
+	 * so there the templates print what they printed before.
+	 *
+	 * @since 6.0.4
+	 * @return bool
+	 */
+	public function account_modern() {
+		$modern = ! ( class_exists( 'WP_EasyCart_Elementor_Account_Page' ) && $this instanceof WP_EasyCart_Elementor_Account_Page );
+		/**
+		 * Whether the account pages draw the 6.0.4 layout ( menu, breadcrumbs, order cards ).
+		 *
+		 * @since 6.0.4
+		 * @param bool           $modern True outside the Elementor account widgets.
+		 * @param ec_accountpage $page   The account page.
+		 */
+		return (bool) apply_filters( 'wp_easycart_account_modern_layout', $modern, $this );
+	}
+
+	/**
+	 * Whether a customer is signed in ( a guest's order link shows the order without the account menu ).
+	 *
+	 * @since 6.0.4
+	 * @return bool
+	 */
+	public function account_signed_in() {
+		return isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) && '' != $GLOBALS['ec_cart_data']->cart_data->user_id;
+	}
+
+	/**
+	 * A phrase as plain text, else the English.
+	 *
+	 * @since 6.0.4
+	 * @param string $section  Language section.
+	 * @param string $key      Phrase.
+	 * @param string $fallback English.
+	 * @return string
+	 */
+	public static function account_phrase( $section, $key, $fallback ) {
+		$text = function_exists( 'wp_easycart_language' ) ? trim( html_entity_decode( wp_strip_all_tags( (string) wp_easycart_language()->get_text( $section, $key ) ), ENT_QUOTES, 'UTF-8' ) ) : '';
+		return ( '' !== $text ) ? $text : $fallback;
+	}
+
+	/**
+	 * One item of the account menu.
+	 *
+	 * @param string $key     dashboard | orders | subscriptions | billing_information | shipping_information | personal_information | password | logout.
+	 * @param string $label   Text.
+	 * @param string $url     Address.
+	 * @param string $current The page shown.
+	 */
+	private function print_account_navigation_item( $key, $label, $url, $current ) {
+		$is_current = ( $key === $current );
+		echo '<div class="ec_cart_input_row ec_account_nav_item ec_account_nav_item_' . esc_attr( $key ) . ( $is_current ? ' is-current' : '' ) . '">';
+		echo '<a class="ec_account_dashboard_link" href="' . esc_url( $url ) . '"' . ( $is_current ? ' aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
+		echo '</div>';
+	}
+
+	/**
+	 * The account menu of the 6.0.4 look: one menu beside the page ( a row of links across the top on a phone ), with the dashboard and
+	 * the orders first and the page shown marked. It fires every action the older menu columns fired, once, each after the item it
+	 * followed before ( the Elementor account menu puts them at the same places ), so other plugins' links still join it. ec-store.css
+	 * draws each item's icon from its class ( .ec_account_nav_item_<key> ) and a generic one for other plugins' links. An order's and a
+	 * subscription's page leave the menu out ( their breadcrumbs lead back ).
+	 *
+	 * @since 6.0.4
+	 * @param string $current dashboard | orders | subscriptions | billing_information | shipping_information | personal_information | password.
+	 */
+	public function display_account_navigation( $current = '' ) {
+		$current = (string) $current;
+		$title   = self::account_phrase( 'account_navigation', 'account_navigation_title', 'Account Navigation' );
+		echo '<div class="ec_account_right ec_account_nav_v2" data-wpec-account-nav>';
+		echo '<nav class="ec_account_nav" aria-label="' . esc_attr( $title ) . '">';
+		echo '<div class="ec_cart_header ec_top ec_account_nav_title">' . esc_html( $title ) . '</div>';
+		echo '<div class="ec_account_nav_items">';
+		$this->print_account_navigation_item( 'dashboard', self::account_phrase( 'account_navigation', 'account_navigation_dashboard', 'Account dashboard' ), wpeasycart_links()->get_account_page(), $current );
+		do_action( 'wpeasycart_account_links' );
+		$this->print_account_navigation_item( 'orders', self::account_phrase( 'account_navigation', 'account_navigation_orders', 'View orders' ), wpeasycart_links()->get_account_page( 'orders' ), $current );
+		if ( $this->using_subscriptions() ) {
+			$this->print_account_navigation_item( 'subscriptions', self::account_phrase( 'account_navigation', 'account_navigation_subscriptions', 'Manage subscriptions' ), wpeasycart_links()->get_account_page( 'subscriptions' ), $current );
+		}
+		do_action( 'wpeasycart_account_links_after_subscriptions' );
+		echo '<div class="ec_account_nav_divider" aria-hidden="true"></div>';
+		$this->print_account_navigation_item( 'billing_information', self::account_phrase( 'account_navigation', 'account_navigation_billing_information', 'Billing information' ), wpeasycart_links()->get_account_page( 'billing_information' ), $current );
+		do_action( 'wpeasycart_account_links_after_billing' );
+		if ( get_option( 'ec_option_use_shipping' ) ) {
+			$this->print_account_navigation_item( 'shipping_information', self::account_phrase( 'account_navigation', 'account_navigation_shipping_information', 'Shipping information' ), wpeasycart_links()->get_account_page( 'shipping_information' ), $current );
+		}
+		do_action( 'wpeasycart_account_links_after_shipping' );
+		$this->print_account_navigation_item( 'personal_information', self::account_phrase( 'account_navigation', 'account_navigation_basic_inforamtion', 'Basic information' ), wpeasycart_links()->get_account_page( 'personal_information' ), $current );
+		do_action( 'wpeasycart_account_links_after_personal' );
+		$this->print_account_navigation_item( 'password', self::account_phrase( 'account_navigation', 'account_navigation_password', 'Change password' ), wpeasycart_links()->get_account_page( 'password' ), $current );
+		do_action( 'wpeasycart_account_links_after_password' );
+		echo '<div class="ec_account_nav_divider" aria-hidden="true"></div>';
+		$this->print_account_navigation_item( 'logout', self::account_phrase( 'account_navigation', 'account_navigation_sign_out', 'Sign out' ), wpeasycart_links()->get_account_page( 'logout' ), $current );
+		do_action( 'wpeasycart_account_links_end' );
+		echo '</div></nav></div>';
+	}
+
+	/**
+	 * The older menu column ( the Elementor account widgets take it out of the markup, or keep the right one when the dashboard widget
+	 * shows the store's menu ), exactly as the templates printed it before 6.0.4.
+	 *
+	 * @since 6.0.4
+	 * @param string $where mobile ( above the page on small screens ) | right.
+	 */
+	public function display_account_navigation_legacy( $where = 'right' ) {
+		echo '<div class="' . ( ( 'mobile' === $where ) ? 'ec_account_mobile' : 'ec_account_right' ) . '">';
+		echo '<div class="ec_cart_header ec_top">' . wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_title' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the store's phrase, escaped by get_text().
+		do_action( 'wpeasycart_account_links' );
+		echo '<div class="ec_cart_input_row">';
+		$this->display_billing_information_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_billing_information' ) );
+		echo '</div>';
+		do_action( 'wpeasycart_account_links_after_billing' );
+		if ( get_option( 'ec_option_use_shipping' ) ) {
+			echo '<div class="ec_cart_input_row">';
+			$this->display_shipping_information_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_shipping_information' ) );
+			echo '</div>';
+		}
+		do_action( 'wpeasycart_account_links_after_shipping' );
+		echo '<div class="ec_cart_input_row">';
+		$this->display_personal_information_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_basic_inforamtion' ) );
+		echo '</div>';
+		do_action( 'wpeasycart_account_links_after_personal' );
+		echo '<div class="ec_cart_input_row">';
+		$this->display_password_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_password' ) );
+		echo '</div>';
+		do_action( 'wpeasycart_account_links_after_password' );
+		if ( $this->using_subscriptions() ) {
+			echo '<div class="ec_cart_input_row">';
+			$this->display_subscriptions_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_subscriptions' ) );
+			echo '</div>';
+		}
+		do_action( 'wpeasycart_account_links_after_subscriptions' );
+		echo '<div class="ec_cart_input_row">';
+		$this->display_logout_link( wp_easycart_language()->get_text( 'account_navigation', 'account_navigation_sign_out' ) );
+		echo '</div>';
+		do_action( 'wpeasycart_account_links_end' );
+		echo '</div>';
+	}
+
+	/**
+	 * The breadcrumbs above a signed-in page of the 6.0.4 look: My account, the pages above this one, then this page. On a phone only
+	 * the page above shows, as a link back.
+	 *
+	 * @since 6.0.4
+	 * @param array $trail Each array( text, address ) from the account down; the last one is this page ( its address is not used ).
+	 */
+	public function display_account_crumbs( $trail ) {
+		$trail = array_values( array_filter( (array) $trail, 'is_array' ) );
+		array_unshift( $trail, array( self::account_phrase( 'account_navigation', 'account_navigation_home', 'My account' ), wpeasycart_links()->get_account_page() ) );
+		$last = count( $trail ) - 1;
+		echo '<nav class="ec_account_crumbs_v2" aria-label="' . esc_attr( self::account_phrase( 'account_navigation', 'account_navigation_breadcrumb', 'Breadcrumb' ) ) . '">';
+		foreach ( $trail as $index => $crumb ) {
+			$text = isset( $crumb[0] ) ? (string) $crumb[0] : '';
+			if ( $index === $last ) {
+				echo '<span class="ec_account_crumb ec_account_crumb_current" aria-current="page">' . esc_html( $text ) . '</span>';
+				break;
+			}
+			echo '<a class="ec_account_crumb' . ( ( $index === $last - 1 ) ? ' ec_account_crumb_parent' : '' ) . '" href="' . esc_url( isset( $crumb[1] ) ? (string) $crumb[1] : '' ) . '">' . esc_html( $text ) . '</a>';
+			echo '<span class="ec_account_crumb_sep" aria-hidden="true">/</span>';
+		}
+		echo '</nav>';
+	}
+
+	/**
+	 * Breadcrumb trails for the pages that have one.
+	 *
+	 * @since 6.0.4
+	 * @param string $page   orders | order_details | subscriptions | subscription_details | billing_information | shipping_information |
+	 *                       personal_information | password.
+	 * @param string $detail The order number or the subscription's title, for a details page.
+	 * @return array
+	 */
+	public function account_crumb_trail( $page, $detail = '' ) {
+		$orders        = array( self::account_phrase( 'account_navigation', 'account_navigation_orders_short', 'Orders' ), wpeasycart_links()->get_account_page( 'orders' ) );
+		$subscriptions = array( self::account_phrase( 'account_navigation', 'account_navigation_subscriptions_short', 'Subscriptions' ), wpeasycart_links()->get_account_page( 'subscriptions' ) );
+		$pages         = array(
+			'billing_information'  => array( 'account_navigation_billing_information', 'Billing information' ),
+			'shipping_information' => array( 'account_navigation_shipping_information', 'Shipping information' ),
+			'personal_information' => array( 'account_navigation_basic_inforamtion', 'Basic information' ),
+			'password'             => array( 'account_navigation_password', 'Change password' ),
+		);
+		if ( 'orders' === $page ) {
+			return array( $orders );
+		}
+		if ( 'order_details' === $page ) {
+			return array( $orders, array( str_replace( '[order_id]', (string) $detail, self::account_phrase( 'account_navigation', 'account_navigation_order_number', 'Order #[order_id]' ) ), '' ) );
+		}
+		if ( 'subscriptions' === $page ) {
+			return array( $subscriptions );
+		}
+		if ( 'subscription_details' === $page ) {
+			return array( $subscriptions, array( (string) $detail, '' ) );
+		}
+		if ( isset( $pages[ $page ] ) ) {
+			return array( array( self::account_phrase( 'account_navigation', $pages[ $page ][0], $pages[ $page ][1] ), '' ) );
+		}
+		return array();
+	}
 	/* END DASHBOARD FUNCTIONS */
 
 	/* START ORDERS FUNCTIONS */
@@ -1408,7 +1610,7 @@ class ec_accountpage {
 				// WordPress User Sync 1.x: sign in to the linked WordPress user ( 2.0 does it on wpeasycart_login_success ).
 				wp_easycart_wordpress_users::legacy_store_login( $user, $email, $password );
 
-				wp_cache_flush();
+				wp_easycart_cache::shopper_changed();
 				do_action( 'wpeasycart_login_success', $email );
 
 				if ( isset( $_POST['ec_goto_page'] ) && $_POST['ec_goto_page'] == "store" ) {
@@ -1522,20 +1724,21 @@ class ec_accountpage {
 			}
 
 			if ( $recaptcha_valid ) {
+				/* 6.0.4: WordPress slashes $_POST, so names and addresses are unslashed ( "O'Neil" was saved as "O\'Neil" ). */
 				$first_name = "";
 				if ( isset( $_POST['ec_account_register_first_name'] ) ) {
-					$first_name = sanitize_text_field( $_POST['ec_account_register_first_name'] );
+					$first_name = sanitize_text_field( wp_unslash( $_POST['ec_account_register_first_name'] ) );
 				}
 				$last_name = "";
 				if ( isset( $_POST['ec_account_register_last_name'] ) ) {
-					$last_name = sanitize_text_field( $_POST['ec_account_register_last_name'] );
+					$last_name = sanitize_text_field( wp_unslash( $_POST['ec_account_register_last_name'] ) );
 				}
-				$email = sanitize_email( $_POST['ec_account_register_email'] );
+				$email = sanitize_email( wp_unslash( $_POST['ec_account_register_email'] ) );
 				$password = wp_easycart_hash_password( $_POST['ec_account_register_password'] ); // XSS OK, Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, sanitize_text_field( $_POST['ec_account_register_password'] ) );
 
 				// Check if account already exists
-				if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['ec_account_register_email'] ) ) ) {
+				if ( wp_easycart_wordpress_users::email_taken( $email ) ) {
 					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_email_error' ) ) ) );
 					die();
 				}
@@ -1551,12 +1754,12 @@ class ec_accountpage {
 				// Insert billing address if enabled
 				if ( get_option( 'ec_option_require_account_address' ) ) {
 					$billing = array(
-						"first_name" => sanitize_text_field( $_POST['ec_account_billing_information_first_name'] ),
-						"last_name" => sanitize_text_field( $_POST['ec_account_billing_information_last_name'] ),
-						"address" => sanitize_text_field( $_POST['ec_account_billing_information_address'] ),
-						"city" => sanitize_text_field( $_POST['ec_account_billing_information_city'] ),
-						"zip_code" => sanitize_text_field( $_POST['ec_account_billing_information_zip'] ),
-						"country" => sanitize_text_field( $_POST['ec_account_billing_information_country'] ),
+						"first_name" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_first_name'] ) ),
+						"last_name" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_last_name'] ) ),
+						"address" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_address'] ) ),
+						"city" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_city'] ) ),
+						"zip_code" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_zip'] ) ),
+						"country" => sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_country'] ) ),
 					);
 
 					if ( isset( $_POST[ 'ec_account_billing_information_state_' . $billing['country'] ] ) ) {
@@ -1817,9 +2020,10 @@ class ec_accountpage {
 		$this->require_signed_in();
 		$old_email = $GLOBALS['ec_cart_data']->cart_data->email;
 		$user_id = $GLOBALS['ec_cart_data']->cart_data->user_id;
-		$first_name = sanitize_text_field( $_POST['ec_account_personal_information_first_name'] );
-		$last_name = sanitize_text_field( $_POST['ec_account_personal_information_last_name'] );
-		$email = sanitize_email( $_POST['ec_account_personal_information_email'] );
+		/* 6.0.4: unslashed, as WordPress slashes $_POST ( "O'Neil" was saved as "O\'Neil" ). */
+		$first_name = sanitize_text_field( wp_unslash( $_POST['ec_account_personal_information_first_name'] ) );
+		$last_name = sanitize_text_field( wp_unslash( $_POST['ec_account_personal_information_last_name'] ) );
+		$email = sanitize_email( wp_unslash( $_POST['ec_account_personal_information_email'] ) );
 		/* 6.0.2: a form without the extra email or VAT field ( a setting turned off, or an Elementor account form ) keeps the saved value; it erased it. */
 		if ( isset( $_POST['ec_account_personal_information_email_other'] ) ) {
 			$email_other = sanitize_email( wp_unslash( $_POST['ec_account_personal_information_email_other'] ) );
@@ -1827,7 +2031,7 @@ class ec_accountpage {
 			$email_other = (string) $GLOBALS['ec_user']->email_other;
 		}
 		if ( isset( $_POST['ec_account_personal_information_vat_registration_number'] ) ) {
-			$vat_registration_number = sanitize_text_field( $_POST['ec_account_personal_information_vat_registration_number'] );
+			$vat_registration_number = sanitize_text_field( wp_unslash( $_POST['ec_account_personal_information_vat_registration_number'] ) );
 		} else {
 			$vat_registration_number = (string) $GLOBALS['ec_user']->vat_registration_number;
 		}
@@ -2106,7 +2310,7 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = "";
 		$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = "";
 		$GLOBALS['ec_cart_data']->save_session_to_db();
-		wp_cache_flush();
+		wp_easycart_cache::shopper_changed();
 		wp_easycart_wordpress_users::store_logout(); /* 6.0.2: ends a Login as Customer, else signs out of WordPress for User Sync 1.x */
 		header( "location: " . esc_url_raw( $account_logout_url ) );
 	}

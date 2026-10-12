@@ -303,7 +303,7 @@ foreach ( $ec_invoice_items as $ec_invoice_item ) {
 		} else {
 			$permalink_divider = '?';
 		}
-		if ( ! empty( $ec_invoice_item->is_giftcard ) && $this->is_approved ) {
+		if ( ! empty( $ec_invoice_item->is_giftcard ) && '' !== trim( (string) $ec_invoice_item->giftcard_id ) && $this->is_approved ) { /* 6.0.4: no number yet = a Square gift card still being made */
 			$ed::detail( '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $ec_invoice_item->orderdetail_id . '&giftcard_id=' . $ec_invoice_item->giftcard_id . ( ( '' != $this->guest_key ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . wp_kses_post( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_print_online' ) ) . '</a>', array( 'style' => 'padding-top:4px;' ) ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- link code kept as is.
 		} elseif ( ! empty( $ec_invoice_item->is_download ) ) {
 			$ed::detail( '<a href="' . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . wp_kses_post( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_download' ) ) . '</a>', array( 'style' => 'padding-top:4px;' ) );

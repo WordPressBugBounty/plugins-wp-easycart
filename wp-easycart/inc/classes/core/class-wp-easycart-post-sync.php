@@ -118,7 +118,7 @@ class WP_EasyCart_Post_Sync {
 	}
 
 	/* ---------------------------------------------------------------------
-	 * Public API — the only four methods call sites should ever use.
+	 * Public API — insert, update, set_status, delete; own_post_id() ( 6.0.4 ) for single-field writes.
 	 * ------------------------------------------------------------------- */
 
 	/**
@@ -228,9 +228,14 @@ class WP_EasyCart_Post_Sync {
 	 * Delete an entity's post. Only deletes on proven ownership; otherwise
 	 * unlinks the row and leaves the post alone. Returns true if a post was
 	 * deleted, false if the delete was skipped (row is unlinked either way).
+	 * $adopt ( 6.0.4 ): an unproven store post of the item's kind that no other
+	 * item links to counts as the item's own, as for own_post_id().
 	 */
-	public function delete( $type, $entity_id, $post_id ) {
+	public function delete( $type, $entity_id, $post_id, $adopt = false ) {
 		$verify = $this->verify( $type, $entity_id, $post_id );
+		if ( $adopt && self::UNPROVEN === $verify && $this->adoptable( $type, $entity_id, $post_id ) ) {
+			$verify = self::VALID;
+		}
 
 		// Unlink first so no code path can act on the stale pointer again.
 		$this->write_forward_link( $type, $entity_id, 0 );
@@ -243,6 +248,116 @@ class WP_EasyCart_Post_Sync {
 
 		if ( self::MISSING !== $verify && self::INVALID_ID !== $verify ) {
 			$this->log( 'delete_blocked', $type, $entity_id, $post_id, $verify );
+		}
+		return false;
+	}
+
+	/**
+	 * The entity's own post, or 0: for writes that belong only on the entity's own page ( status, title, content,
+	 * excerpt, featured image ). A link to anything else is never written to: a post of another type ( a 6.0.3 CSV
+	 * import gave new products a category's number as post_id, which was a menu item, a page or an image on some
+	 * stores ), a store post tagged as another item's, or one another item links to.
+	 *
+	 * With $adopt, a store post of the entity's kind that proves nothing ( no tag, its shortcode names another number,
+	 * e.g. a model number changed before the post was tagged ) but that no other item links to counts as the entity's
+	 * own and is tagged for it, as the editors always treated it ( adoptable() ).
+	 *
+	 * @since 6.0.4
+	 *
+	 * @param string $type      Registry type ( product, category … ).
+	 * @param int    $entity_id The item's id.
+	 * @param int    $post_id   The post id the item's row holds.
+	 * @param bool   $adopt     Accept an unproven store post of its kind that no other item links to.
+	 * @return int The post id, or 0.
+	 */
+	public function own_post_id( $type, $entity_id, $post_id, $adopt = false ) {
+		$verify = $this->verify( $type, $entity_id, $post_id );
+		if ( self::VALID === $verify || self::VALID_LEGACY === $verify ) {
+			return (int) $post_id;
+		}
+		if ( $adopt && self::UNPROVEN === $verify && $this->adoptable( $type, $entity_id, $post_id ) ) {
+			$this->write_backlink_meta( (int) $post_id, $type, (int) $entity_id );
+			$this->log( 'link_adopted', $type, $entity_id, $post_id, 'unproven post linked only from this item' );
+			return (int) $post_id;
+		}
+		return 0;
+	}
+
+	/**
+	 * The entity's own post, mending a link that points elsewhere: own_post_id(), else its post found again by tag or
+	 * shortcode ( resolve(), which writes the link ), else an unproven store post of its kind that only this item
+	 * links to ( own_post_id() with $adopt ). Never inserts: 0 = the caller makes a new post.
+	 *
+	 * @since 6.0.4
+	 *
+	 * @param string $type      Registry type.
+	 * @param int    $entity_id The item's id.
+	 * @param int    $post_id   The post id the item's row holds.
+	 * @return int
+	 */
+	public function find_own_post( $type, $entity_id, $post_id ) {
+		$own = $this->own_post_id( $type, $entity_id, $post_id );
+		if ( ! $own ) {
+			$own = (int) $this->resolve( $type, $entity_id, $post_id );
+		}
+		if ( ! $own ) {
+			$own = $this->own_post_id( $type, $entity_id, $post_id, true );
+		}
+		return $own;
+	}
+
+	/**
+	 * An unproven store post may be taken as the entity's own: its shortcode is of the entity's kind ( a product page
+	 * names a modelnumber, never a groupid ) and no other item links to it.
+	 *
+	 * @since 6.0.4
+	 *
+	 * @param string $type      Registry type.
+	 * @param int    $entity_id The item's id.
+	 * @param int    $post_id   Post id.
+	 * @return bool
+	 */
+	private function adoptable( $type, $entity_id, $post_id ) {
+		$reg  = $this->entity( $type );
+		$post = ( (int) $post_id > 0 ) ? get_post( (int) $post_id ) : null;
+		if ( ! $reg || ! $post || 'ec_store' !== $post->post_type ) {
+			return false;
+		}
+		$attrs = array();
+		foreach ( $reg['shortcode_attrs'] as $attr ) {
+			$attrs[] = preg_quote( $attr, '/' );
+		}
+		if ( ! preg_match( '/\[ec_store\b[^\]]*\b(?:' . implode( '|', $attrs ) . ')\s*=/i', (string) $post->post_content ) ) {
+			return false;
+		}
+		return ! $this->claimed_by_other( $post_id, $type, $entity_id );
+	}
+
+	/**
+	 * Another item's row links to this post ( any registry table; the item itself excluded ).
+	 *
+	 * @since 6.0.4
+	 *
+	 * @param int    $post_id   Post id.
+	 * @param string $type      The item's registry type.
+	 * @param int    $entity_id The item's id.
+	 * @return bool
+	 */
+	public function claimed_by_other( $post_id, $type, $entity_id ) {
+		global $wpdb;
+		$post_id = (int) $post_id;
+		if ( $post_id <= 0 ) {
+			return false;
+		}
+		foreach ( $this->registry() as $other_type => $reg ) {
+			if ( $other_type === $type ) {
+				$other = $wpdb->get_var( $wpdb->prepare( "SELECT {$reg['pk']} FROM {$reg['table']} WHERE post_id = %d AND {$reg['pk']} <> %d LIMIT 1", $post_id, (int) $entity_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and key from the registry.
+			} else {
+				$other = $wpdb->get_var( $wpdb->prepare( "SELECT {$reg['pk']} FROM {$reg['table']} WHERE post_id = %d LIMIT 1", $post_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and key from the registry.
+			}
+			if ( $other ) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -544,7 +659,11 @@ class WP_EasyCart_Post_Sync {
 			"UPDATE {$reg['table']} SET post_id = %d WHERE {$reg['pk']} = %d",
 			(int) $post_id, (int) $entity_id
 		) );
-		return false !== $result && $wpdb->rows_affected >= 0 && $this->row_exists( $reg, $entity_id );
+		$linked = false !== $result && $wpdb->rows_affected >= 0 && $this->row_exists( $reg, $entity_id );
+		if ( 'category' === $type && $result && class_exists( 'wp_easycart_cache' ) ) {
+			wp_easycart_cache::categories_changed(); /* 6.0.4: the cached category rows carry the page their links go to */
+		}
+		return $linked;
 	}
 
 	private function row_exists( $reg, $entity_id ) {

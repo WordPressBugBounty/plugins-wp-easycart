@@ -868,7 +868,7 @@ $wpec_screen_data = array(
 								}
 							}
 							if ( '' !== trim( (string) $this->order->giftcard_id ) ) {
-								$wpec_discount_bits[] = array( 'kind' => 'giftcard', 'label' => __( 'Gift card', 'wp-easycart' ), 'code' => (string) $this->order->giftcard_id, 'amount' => ( isset( $this->order->giftcard_total ) && null !== $this->order->giftcard_total ) ? (float) $this->order->giftcard_total : 0, 'link' => '', 'deleted' => false );
+								$wpec_discount_bits[] = array( 'kind' => 'giftcard', 'label' => __( 'Gift card', 'wp-easycart' ), 'code' => function_exists( 'wp_easycart_giftcard_label' ) ? wp_easycart_giftcard_label( (string) $this->order->giftcard_id ) : (string) $this->order->giftcard_id, /* 6.0.4 */ 'amount' => ( isset( $this->order->giftcard_total ) && null !== $this->order->giftcard_total ) ? (float) $this->order->giftcard_total : 0, 'link' => '', 'deleted' => false );
 							}
 							?>
 							<div class="ecodv2-trow">

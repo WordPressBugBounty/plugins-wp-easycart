@@ -1628,7 +1628,7 @@ function ec_admin_update_stripe_connect_option( this_ele ) {
 function ec_admin_stripe_connect_fields( data ){
 	var ids = [
 		'ec_option_stripe_currency', 'ec_option_stripe_company_country', 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout',
-		'ec_option_stripe_subscription_notices', 'ec_option_stripe_address_autocomplete', 'ec_option_stripe_connect_webhook_secret',
+		'ec_option_stripe_subscription_notices', 'ec_option_stripe_address_autocomplete', 'ec_option_stripe_connect_webhook_secret', 'ec_option_stripe_sandbox_webhook_secret',
 		'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_pay_later_minimum',
 		'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_disable_wallet_first', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay',
 		'ec_option_stripe_wechat', 'ec_option_stripe_link', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps',
@@ -1680,7 +1680,140 @@ function ec_admin_save_stripe_connect_options( with_method ) {
 	return false;
 }
 
+/* 6.0.4: WP EasyCart PRO 6.0.4's Stripe ( API keys ) panel keeps live and test keys apart ( wp_easycart_stripe_mode ). A key in the
+   other pair, half a pair, or keys chosen but not entered stop the save; the panel words each case ( data-msg-* ). '' = fine. */
+function ec_admin_stripe_v1_key_problem( ){
+	var $error = jQuery( document.getElementById( 'ec_stripe_keys_error' ) );
+	if ( ! $error.length || ! jQuery( document.getElementById( 'ec_option_stripe_sandbox_public_api_key' ) ).length ) {
+		return '';
+	}
+	var val = function( id ) {
+		var $field = jQuery( document.getElementById( id ) );
+		return $field.length ? String( $field.val( ) || '' ).trim( ) : '';
+	};
+	var msg = function( name ) {
+		return String( $error.attr( 'data-msg-' + name ) || name );
+	};
+	var live_pk = val( 'ec_option_stripe_public_api_key' ), live_sk = val( 'ec_option_stripe_api_key' );
+	var test_pk = val( 'ec_option_stripe_sandbox_public_api_key' ), test_sk = val( 'ec_option_stripe_sandbox_api_key' );
+	var is_test = /^[a-z]{2}_test_/, is_live = /^[a-z]{2}_live_/;
+	if ( is_test.test( live_pk ) || is_test.test( live_sk ) ) {
+		return msg( 'live' );
+	}
+	if ( is_live.test( test_pk ) || is_live.test( test_sk ) ) {
+		return msg( 'test' );
+	}
+	if ( ( '' === live_pk ) !== ( '' === live_sk ) || ( '' === test_pk ) !== ( '' === test_sk ) ) {
+		return msg( 'pair' );
+	}
+	var mode = val( 'ec_option_stripe_use_sandbox' );
+	if ( '1' === mode && '' === test_pk && '' !== live_pk ) {
+		return msg( 'mode-test' );
+	}
+	if ( '0' === mode && '' === live_pk && '' !== test_pk ) {
+		return msg( 'mode-live' );
+	}
+	return '';
+}
+
+/* 6.0.4: the Stripe ( API keys ) panel's status notes ( #ec_stripe_keys_notes, WP EasyCart PRO 6.0.4 ) follow "Take payments with"
+   and the keys as they change, before they are saved: the same rules as wp_easycart_stripe_mode::store_mode() ( the chosen keys
+   when they are entered, else the keys that are there ), with the panel's wording ( data-msg-* ). A change not saved yet says so. */
+var ec_admin_stripe_v1_fields = [ 'ec_option_stripe_use_sandbox', 'ec_option_stripe_public_api_key', 'ec_option_stripe_api_key', 'ec_option_stripe_sandbox_public_api_key', 'ec_option_stripe_sandbox_api_key' ];
+function ec_admin_stripe_v1_notes( ){
+	var $box = jQuery( document.getElementById( 'ec_stripe_keys_notes' ) );
+	if ( ! $box.length ) {
+		return;
+	}
+	var val = function( id ) {
+		var $field = jQuery( document.getElementById( id ) );
+		return $field.length ? String( $field.val( ) || '' ).trim( ) : '';
+	};
+	var msg = function( name ) {
+		return String( $box.attr( 'data-msg-' + name ) || '' );
+	};
+	var live = '' !== val( 'ec_option_stripe_public_api_key' ) && '' !== val( 'ec_option_stripe_api_key' );
+	var test = '' !== val( 'ec_option_stripe_sandbox_public_api_key' ) && '' !== val( 'ec_option_stripe_sandbox_api_key' );
+	var chosen = ( '1' === val( 'ec_option_stripe_use_sandbox' ) ) ? 'test' : 'live';
+	var mode = chosen;
+	if ( ! ( 'test' === chosen ? test : live ) ) {
+		mode = live ? 'live' : ( test ? 'test' : chosen );
+	}
+	var notes = [];
+	if ( ! live && ! test ) {
+		notes.push( [ 'warn', msg( 'none' ) ] );
+	} else {
+		notes.push( [ 'on', msg( mode ) ] );
+		if ( 'test' === chosen && 'live' === mode ) {
+			notes.push( [ 'warn', msg( 'chosen-test' ) ] );
+		} else if ( 'live' === chosen && 'test' === mode ) {
+			notes.push( [ 'warn', msg( 'chosen-live' ) ] );
+		}
+		if ( parseInt( $box.attr( 'data-customers' ) || '0', 10 ) > 0 && 'live' === mode ) {
+			notes.push( test ? [ 'on', msg( 'customers-ready' ) ] : [ 'warn', msg( 'customers-none' ) ] );
+		}
+	}
+	var changed = false;
+	jQuery.each( ec_admin_stripe_v1_fields, function( i, id ) {
+		var field = document.getElementById( id );
+		if ( ! field ) {
+			return;
+		}
+		if ( 'SELECT' === field.tagName ) {
+			jQuery.each( field.options, function( j, option ) {
+				if ( option.selected !== option.defaultSelected ) {
+					changed = true;
+				}
+			} );
+		} else if ( field.value !== field.defaultValue ) {
+			changed = true;
+		}
+	} );
+	if ( changed && '' !== msg( 'unsaved' ) ) {
+		notes.push( [ '', msg( 'unsaved' ), 'unsaved' ] );
+	}
+	$box.empty( );
+	jQuery.each( notes, function( i, note ) {
+		if ( '' === note[1] ) {
+			return;
+		}
+		var $note = jQuery( '<div class="ec_admin_toggle_note ecsq-status"><span class="ecsq-dot" aria-hidden="true"></span><span></span></div>' );
+		$note.toggleClass( 'is-warn', 'warn' === note[0] ).attr( 'data-note', note[2] || null );
+		$note.find( '.ecsq-dot' ).toggleClass( 'is-on', 'on' === note[0] );
+		$note.find( 'span' ).last( ).text( note[1] );
+		$box.append( $note );
+	} );
+}
+/* Saved: what the fields hold now is what is saved. */
+function ec_admin_stripe_v1_saved( ){
+	jQuery.each( ec_admin_stripe_v1_fields, function( i, id ) {
+		var field = document.getElementById( id );
+		if ( ! field ) {
+			return;
+		}
+		if ( 'SELECT' === field.tagName ) {
+			jQuery.each( field.options, function( j, option ) {
+				option.defaultSelected = option.selected;
+			} );
+		} else {
+			field.defaultValue = field.value;
+		}
+	} );
+	ec_admin_stripe_v1_notes( );
+}
+jQuery( document ).on( 'change input', '#' + ec_admin_stripe_v1_fields.join( ', #' ), ec_admin_stripe_v1_notes );
+
 function ec_admin_save_stripe_options( ){
+	var key_problem = ec_admin_stripe_v1_key_problem( );
+	var $key_error = jQuery( document.getElementById( 'ec_stripe_keys_error' ) );
+	if ( $key_error.length ) {
+		$key_error.find( '.ec_stripe_keys_error_text' ).text( key_problem );
+		$key_error.toggle( '' !== key_problem );
+	}
+	if ( '' !== key_problem ) {
+		jQuery( document ).trigger( 'ecpay:legacy-refused' ); /* the Payments drawer stops waiting for this save */
+		return false;
+	}
 	jQuery( document.getElementById( "ec_admin_live_gateway_display_loader" ) ).fadeIn( 'fast' );
 
 	var public_api_key = jQuery( document.getElementById( 'ec_option_stripe_public_api_key' ) ).val( );	
@@ -1723,7 +1856,8 @@ function ec_admin_save_stripe_options( ){
 	/* 6.0.2: WP EasyCart PRO 6.0.2's panel also shows the payment form's look, the subscription emails and the webhook signing
 	   secret, and saves them here ( its handler keeps what is not posted ). Its older panel saved them through
 	   ec_admin_save_stripe_connect_options(). */
-	var extra = [ 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret' ];
+	/* 6.0.4: WP EasyCart PRO 6.0.4's panel adds the test keys, the keys to take payments with and the test webhook's signing secret. */
+	var extra = [ 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret', 'ec_option_stripe_sandbox_public_api_key', 'ec_option_stripe_sandbox_api_key', 'ec_option_stripe_use_sandbox', 'ec_option_stripe_sandbox_webhook_secret' ];
 	for ( var i = 0; i < extra.length; i++ ) {
 		if ( jQuery( document.getElementById( extra[ i ] ) ).length ) {
 			data[ extra[ i ] ] = jQuery( document.getElementById( extra[ i ] ) ).val( );
@@ -1732,6 +1866,7 @@ function ec_admin_save_stripe_options( ){
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_live_gateway_display_loader' );
+		ec_admin_stripe_v1_saved( );
 	} } );
 
 	return false;
@@ -1880,7 +2015,8 @@ function ec_admin_paypal_webhooks_secure( button ){
 /* 6.0.1: the Square settings fields that are on the page, as posted values ( a switch posts 1 or 0, a select or text
    field its value ). Fields the partial does not show are left out, so the handler keeps what is stored. */
 function ec_admin_square_fields( data ){
-	var ids = [ 'ec_option_square_location_id', 'ec_option_square_digital_wallet', 'ec_option_square_sync_block_active_change', 'ec_option_square_merchant_name' ];
+	/* 6.0.4: and WP EasyCart PRO's Square gift cards switches ( its Square panel's Gift cards group ). */
+	var ids = [ 'ec_option_square_location_id', 'ec_option_square_digital_wallet', 'ec_option_square_sync_block_active_change', 'ec_option_square_merchant_name', 'ec_option_square_giftcards_redeem', 'ec_option_square_giftcards_sell' ];
 	for ( var i = 0; i < ids.length; i++ ) {
 		var $field = jQuery( document.getElementById( ids[ i ] ) );
 		if ( ! $field.length ) {

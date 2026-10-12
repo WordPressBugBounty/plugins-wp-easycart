@@ -458,6 +458,29 @@ ob_start();
 		<?php } ?>
 
 		<?php
+		/* 6.0.4: products linked to something other than their own store page ( a products CSV import in 6.0.3 gave new
+		   products their first category's number as their page, which could be a menu item, a page or an image ). */
+		if ( method_exists( $status, 'product_page_problems' ) ) {
+			$ecds_product_pages = $status->product_page_problems();
+			if ( $ecds_product_pages['count'] ) { ?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><strong><?php echo esc_html( sprintf( /* translators: %s: number of products. */ _n( '%s product is not linked to its own product page.', '%s products are not linked to their own product page.', $ecds_product_pages['count'], 'wp-easycart' ), number_format_i18n( $ecds_product_pages['count'] ) ) ); ?></strong>
+			<?php esc_html_e( 'A products CSV import in WP EasyCart 6.0.3 could link new products to a menu item, a page or an image instead of their own page. The fix links each product to its own page again and makes a new one where none is left. Your other pages, menu items and images are not changed.', 'wp-easycart' ); ?>
+			<ul>
+				<?php foreach ( $ecds_product_pages['rows'] as $ecds_product_page ) { ?>
+				<li><?php echo esc_html( $status->product_page_text( $ecds_product_page ) ); ?></li>
+				<?php } ?>
+				<?php if ( $ecds_product_pages['count'] > count( $ecds_product_pages['rows'] ) ) { ?>
+				<li><?php echo esc_html( sprintf( /* translators: %s: number of products not listed. */ _n( 'and %s more', 'and %s more', $ecds_product_pages['count'] - count( $ecds_product_pages['rows'] ), 'wp-easycart' ), number_format_i18n( $ecds_product_pages['count'] - count( $ecds_product_pages['rows'] ) ) ) ); ?></li>
+				<?php } ?>
+			</ul>
+			<a class="ecds-job" data-job="fix-product-pages" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-product-pages&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-product-pages' ) ); ?>"><?php esc_html_e( 'Link products to their own pages', 'wp-easycart' ); ?></a></span></div>
+			<?php } else { ?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Every product is linked to its own product page', 'wp-easycart' ); ?></span></div>
+			<?php }
+		}
+		?>
+
+		<?php
 		///////////////////////////////////////////////
 		// Shipping Status Section
 		///////////////////////////////////////////////
@@ -716,6 +739,16 @@ ob_start();
 		<div class="ec_status_warning"><div class="dashicons-before dashicons-warning"></div><span class="ec_status_label"><?php echo esc_html( sprintf( /* translators: %s: payment gateway name. */ __( '%s is in sandbox ( test ) mode, so its payments are not real charges. Switch it to live before you take real orders.', 'wp-easycart' ), $wpec_test_gateway ) ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ); ?>"><?php esc_html_e( 'Open Settings › Payments', 'wp-easycart' ); ?></a></span></div>
 				<?php
 			}
+		}
+
+		/* 6.0.4: Stripe test-mode customers, and a test mode chosen without test keys. */
+		if ( class_exists( 'wp_easycart_stripe_mode' ) ) {
+			wp_easycart_stripe_mode::store_status_rows();
+		}
+
+		/* 6.0.4: the EU withdrawal button ( Settings › Checkout › Withdrawal button ). */
+		if ( class_exists( 'wp_easycart_admin_withdrawals' ) ) {
+			wp_easycart_admin_withdrawals::store_status_rows();
 		}
 
 		/* 6.0.2: checkout protection ( card testing ). */

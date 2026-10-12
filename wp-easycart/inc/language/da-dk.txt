@@ -1397,6 +1397,26 @@
                     "title": "Min Quantity Required Error",
                     "value": "Antal er mindre end det minimale krævede"
                 },
+                "cartitem_stock_limit": {
+                    "title": "Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+                    "value": "Kun [stock] på lager."
+                },
+                "cartitem_stock_limit_cart": {
+                    "title": "Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+                    "value": "Kun [stock] på lager, heraf [other] et andet sted i din kurv."
+                },
+                "cartitem_stock_limit_hidden": {
+                    "title": "Cart, Quantity Limited by Stock ( stock counts not shown )",
+                    "value": "Det er alt, vi har på lager."
+                },
+                "cartitem_max_limit": {
+                    "title": "Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+                    "value": "Du kan højst købe [max] af denne vare."
+                },
+                "cartitem_min_limit": {
+                    "title": "Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+                    "value": "Minimum for denne vare er [min]."
+                },
                 "cart_please_wait": {
                     "title": "Cart Please Wait",
                     "value": "Vent venligst"
@@ -1659,6 +1679,30 @@
                 "cart_invalid_giftcard": {
                     "title": "Cart, Invalid Gift Card",
                     "value": "Ikke et gyldigt gavekort nummer"
+                },
+                "cart_giftcard_used": {
+                    "title": "Cart, Gift Card Used Up",
+                    "value": "Dette gavekort er allerede brugt op."
+                },
+                "cart_giftcard_failed": {
+                    "title": "Cart, Gift Card Could Not Be Used ( nothing was charged )",
+                    "value": "Dit gavekort kunne ikke bruges til denne ordre, så der er ikke trukket noget. Tjek kortet og prøv igen, eller fjern det."
+                },
+                "cart_square_giftcard_balance": {
+                    "title": "Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+                    "value": "Square-gavekort, der slutter på [last4]: [balance] til rådighed"
+                },
+                "cart_square_giftcard_label": {
+                    "title": "Order, Square Gift Card Name ( [last4] = last four digits )",
+                    "value": "Square •••• [last4]"
+                },
+                "cart_square_giftcard_square_only": {
+                    "title": "Checkout, Square Gift Card Needs a Card Payment",
+                    "value": "Et Square-gavekort kan kun kombineres med kortbetaling. Vælg at betale med kort, eller fjern gavekortet."
+                },
+                "cart_square_giftcard_balance_changed": {
+                    "title": "Checkout, Square Gift Card Balance Changed",
+                    "value": "Saldoen på dit gavekort er ændret. Tjek din nye total, og afgiv derefter din ordre igen."
                 },
                 "cart_enter_coupon": {
                     "title": "Cart, Enter Coupon Hint",
@@ -3462,6 +3506,26 @@
                 "account_navigation_shipping_information": {
                     "title": "Account, Navigation, Shipping Link",
                     "value": "forsendelses information"
+                },
+                "account_navigation_home": {
+                    "title": "Breadcrumbs: My Account",
+                    "value": "Min konto"
+                },
+                "account_navigation_breadcrumb": {
+                    "title": "Breadcrumbs: Label for Screen Readers",
+                    "value": "Brødkrummesti"
+                },
+                "account_navigation_orders_short": {
+                    "title": "Breadcrumbs: Orders",
+                    "value": "Ordrer"
+                },
+                "account_navigation_subscriptions_short": {
+                    "title": "Breadcrumbs: Subscriptions",
+                    "value": "Abonnementer"
+                },
+                "account_navigation_order_number": {
+                    "title": "Breadcrumbs: Order Number",
+                    "value": "Ordre nr. [order_id]"
                 }
             }
         },
@@ -3504,6 +3568,10 @@
                     "title": "Account, Dashboard, Buy Item Again",
                     "value": "Køb vare igen"
                 },
+                "account_dashboard_downloads_title": {
+                    "title": "Account, Dashboard, Downloads Title",
+                    "value": "Dine downloads"
+                },
                 "account_dashboard_preference_title": {
                     "title": "Account, Dashboard, Preference Title",
                     "value": "Konto præferencer"
@@ -3535,6 +3603,14 @@
                 "account_dashboard_shipping_link": {
                     "title": "Account, Dashboard, Shipping Edit Link",
                     "value": "Ret forsendelses adresse"
+                },
+                "account_dashboard_welcome": {
+                    "title": "Dashboard: Welcome with Name",
+                    "value": "Velkommen tilbage, [name]"
+                },
+                "account_dashboard_welcome_no_name": {
+                    "title": "Dashboard: Welcome without Name",
+                    "value": "Velkommen tilbage"
                 }
             }
         },
@@ -3760,6 +3836,18 @@
                 "account_orders_view_order_button": {
                     "title": "Account, Orders, View Order Button",
                     "value": "VIS ORDRE"
+                },
+                "account_orders_item_one": {
+                    "title": "Order Card: One Item",
+                    "value": "1 vare"
+                },
+                "account_orders_item_many": {
+                    "title": "Order Card: Several Items",
+                    "value": "[count] varer"
+                },
+                "account_orders_and_more": {
+                    "title": "Order Card: And More Items",
+                    "value": "og [count] mere"
                 }
             }
         },
@@ -4540,6 +4628,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Din betaling behandles stadig og er endnu ikke blevet godkendt."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"Postnummeret i kortformularen skal stemme overens med din faktureringsadresse ([zip]). Ret et af dem, så de stemmer overens."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5616,6 +5708,18 @@
                     "title": "Cart: Calculated at Checkout Note",
                     "value": "Levering, moms og rabatkoder beregnes ved kassen."
                 },
+                "estimated_total": {
+                    "title": "Cart: Estimated Total ( after discounts, before shipping and tax )",
+                    "value": "Anslået total"
+                },
+                "quantity_decrease": {
+                    "title": "Cart: Decrease Quantity Button ( read by screen readers )",
+                    "value": "Formindsk antal"
+                },
+                "quantity_increase": {
+                    "title": "Cart: Increase Quantity Button ( read by screen readers )",
+                    "value": "Forøg antal"
+                },
                 "card_minimum": {
                     "title": "Card Payment Minimum ( %s is the amount )",
                     "value": "Ordren skal være på mindst %s for at betale med kort."
@@ -5651,6 +5755,46 @@
                 "placing_hint": {
                     "title": "Place Order: Working, Keep the Page Open",
                     "value": "Hold venligst denne side åben."
+                },
+                "loading": {
+                    "title": "Checkout: Loading ( Changing Screens )",
+                    "value": "Indlæser…"
+                },
+                "loading_cart": {
+                    "title": "Cart: Loading the Cart",
+                    "value": "Indlæser din kurv…"
+                },
+                "loading_checkout": {
+                    "title": "Checkout: Loading the Checkout",
+                    "value": "Indlæser kassen…"
+                },
+                "loading_order": {
+                    "title": "Order Confirmation: Loading the Order",
+                    "value": "Indlæser din ordre…"
+                },
+                "signing_in": {
+                    "title": "Checkout: Signing In",
+                    "value": "Logger dig ind…"
+                },
+                "signing_out": {
+                    "title": "Checkout: Signing Out",
+                    "value": "Logger dig ud…"
+                },
+                "loading_account": {
+                    "title": "Account: Loading the Account",
+                    "value": "Indlæser din konto…"
+                },
+                "creating_account": {
+                    "title": "Account: Creating the Account",
+                    "value": "Opretter din konto…"
+                },
+                "saving": {
+                    "title": "Account: Saving",
+                    "value": "Gemmer…"
+                },
+                "sending": {
+                    "title": "Account: Sending",
+                    "value": "Sender…"
                 }
             }
         },
@@ -5700,6 +5844,255 @@
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",
                     "value": "[label] - [service]"
+                }
+            }
+        },
+        "withdrawal": {
+            "label": "Withdrawal Button and Order Lookup",
+            "options": {
+                "withdraw_button": {
+                    "title": "Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+                    "value": "Fortryd aftale"
+                },
+                "confirm_button": {
+                    "title": "Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+                    "value": "Bekræft fortrydelse"
+                },
+                "page_title": {
+                    "title": "Withdrawal page heading ( 6.0.4 )",
+                    "value": "Fortryd en aftale"
+                },
+                "page_intro": {
+                    "title": "Withdrawal page introduction ( 6.0.4 )",
+                    "value": "Du kan fortryde en ordre uden at angive en grund, så længe dens fortrydelsesfrist løber. Fortæl os, hvilken ordre det gælder, kontrollér, hvad du sender, og bekræft derefter. Vi sender dig en kvittering for modtagelse på e-mail med det samme."
+                },
+                "your_orders": {
+                    "title": "Signed-in customer: heading above their orders ( 6.0.4 )",
+                    "value": "Dine ordrer"
+                },
+                "your_orders_none": {
+                    "title": "Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+                    "value": "Ingen af dine ordrer kan fortrydes online lige nu."
+                },
+                "order_title": {
+                    "title": "Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+                    "value": "Fortryd ordre [order_id]"
+                },
+                "order_until": {
+                    "title": "Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+                    "value": "Du kan fortryde denne ordre indtil [date]."
+                },
+                "order_pending": {
+                    "title": "Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+                    "value": "Din [days] dages fortrydelsesfrist begynder, når du modtager din ordre. Du kan også fortryde inden da."
+                },
+                "other_title": {
+                    "title": "Form without a link: heading ( 6.0.4 )",
+                    "value": "Fortryd en ordre"
+                },
+                "other_intro": {
+                    "title": "Form without a link: introduction ( 6.0.4 )",
+                    "value": "Indtast ordrenummeret og den e-mailadresse, du brugte til ordren."
+                },
+                "order_number_label": {
+                    "title": "Order number label ( 6.0.4 )",
+                    "value": "Ordrenummer"
+                },
+                "order_email_label": {
+                    "title": "Email used for the order label ( 6.0.4 )",
+                    "value": "E-mailadresse brugt til ordren"
+                },
+                "name_label": {
+                    "title": "Name label ( 6.0.4 )",
+                    "value": "Dit navn"
+                },
+                "email_label": {
+                    "title": "Email for the receipt label ( 6.0.4 )",
+                    "value": "E-mail til din kvittering"
+                },
+                "items_label": {
+                    "title": "Items label ( 6.0.4 )",
+                    "value": "Varer, du fortryder"
+                },
+                "item_exempt": {
+                    "title": "Item without a right of withdrawal ( 6.0.4 )",
+                    "value": "Ingen fortrydelsesret"
+                },
+                "item_withdrawn": {
+                    "title": "Item already withdrawn from ( 6.0.4 )",
+                    "value": "Allerede fortrudt"
+                },
+                "item_closed": {
+                    "title": "Item whose period ended ( [date] ) ( 6.0.4 )",
+                    "value": "Fortrydelsesfristen udløb den [date]"
+                },
+                "item_refunded": {
+                    "title": "Item already refunded ( 6.0.4 )",
+                    "value": "Allerede refunderet"
+                },
+                "note_label": {
+                    "title": "Form without a link: only some items ( optional ) ( 6.0.4 )",
+                    "value": "Kun nogle varer? Fortæl os hvilke (valgfrit)"
+                },
+                "reason_label": {
+                    "title": "Reason label ( optional ) ( 6.0.4 )",
+                    "value": "Årsag (valgfrit)"
+                },
+                "continue_button": {
+                    "title": "Continue button ( 6.0.4 )",
+                    "value": "Fortsæt"
+                },
+                "review_title": {
+                    "title": "Review step heading ( 6.0.4 )",
+                    "value": "Kontrollér din fortrydelse"
+                },
+                "review_intro": {
+                    "title": "Review step introduction ( 6.0.4 )",
+                    "value": "Det er det, vi modtager. Intet bliver sendt, før du bekræfter."
+                },
+                "review_order": {
+                    "title": "Summary: order ( 6.0.4 )",
+                    "value": "Ordre"
+                },
+                "review_items": {
+                    "title": "Summary: items ( 6.0.4 )",
+                    "value": "Varer"
+                },
+                "review_whole": {
+                    "title": "Summary: the whole order ( 6.0.4 )",
+                    "value": "Hele ordren"
+                },
+                "review_name": {
+                    "title": "Summary: name ( 6.0.4 )",
+                    "value": "Navn"
+                },
+                "review_email": {
+                    "title": "Summary: email ( 6.0.4 )",
+                    "value": "E-mail"
+                },
+                "review_reason": {
+                    "title": "Summary: reason ( 6.0.4 )",
+                    "value": "Årsag"
+                },
+                "review_note": {
+                    "title": "Summary: note ( 6.0.4 )",
+                    "value": "Bemærkning"
+                },
+                "review_received": {
+                    "title": "Summary: date and time received ( 6.0.4 )",
+                    "value": "Modtaget"
+                },
+                "change_button": {
+                    "title": "Review step: go back button ( 6.0.4 )",
+                    "value": "Ændr noget"
+                },
+                "received_title": {
+                    "title": "Received page heading ( 6.0.4 )",
+                    "value": "Fortrydelse modtaget"
+                },
+                "received_text": {
+                    "title": "Received page text ( [datetime], [email] ) ( 6.0.4 )",
+                    "value": "Vi modtog din fortrydelse den [datetime]. En kopi er på vej til [email]."
+                },
+                "received_next": {
+                    "title": "Received page: what happens next heading ( 6.0.4 )",
+                    "value": "Hvad sker der nu"
+                },
+                "already_text": {
+                    "title": "The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+                    "value": "Vi modtog din fortrydelse af denne ordre den [datetime]."
+                },
+                "closed_text": {
+                    "title": "The order cannot be withdrawn from online ( 6.0.4 )",
+                    "value": "Denne ordre kan ikke længere fortrydes online. Hvis du mener, at det er forkert, bedes du kontakte os."
+                },
+                "link_invalid": {
+                    "title": "A withdrawal link that no longer works ( 6.0.4 )",
+                    "value": "Det link virker ikke længere. Indtast i stedet dit ordrenummer og din e-mail herunder."
+                },
+                "error_fields": {
+                    "title": "Error: a required field is empty ( 6.0.4 )",
+                    "value": "Udfyld alle felter, der er markeret med *."
+                },
+                "error_email": {
+                    "title": "Error: not an email address ( 6.0.4 )",
+                    "value": "Indtast en gyldig e-mailadresse."
+                },
+                "error_items": {
+                    "title": "Error: no item chosen ( 6.0.4 )",
+                    "value": "Vælg mindst én vare."
+                },
+                "error_limit": {
+                    "title": "Error: too many tries ( 6.0.4 )",
+                    "value": "For mange forsøg. Vent et par minutter, og prøv igen."
+                },
+                "error_check": {
+                    "title": "Error: the robot check is needed ( 6.0.4 )",
+                    "value": "Bekræft, at du ikke er en robot, og prøv igen."
+                },
+                "error_save": {
+                    "title": "Error: the statement could not be saved ( 6.0.4 )",
+                    "value": "Din fortrydelse kunne ikke gemmes. Prøv igen, eller kontakt os."
+                },
+                "lookup_title": {
+                    "title": "Order lookup: heading ( 6.0.4 )",
+                    "value": "Find din ordre"
+                },
+                "lookup_intro": {
+                    "title": "Order lookup: introduction ( 6.0.4 )",
+                    "value": "Bestilt uden en konto? Indtast dit ordrenummer og den e-mailadresse, du brugte, så sender vi dig et link til din ordre på e-mail."
+                },
+                "lookup_button": {
+                    "title": "Order lookup: button ( 6.0.4 )",
+                    "value": "Send mig et link på e-mail"
+                },
+                "lookup_sent": {
+                    "title": "Order lookup: answer ( 6.0.4 )",
+                    "value": "Hvis det passer til en ordre, har vi sendt et link til den på e-mail. Det kan tage et par minutter, før den når frem."
+                },
+                "lookup_prompt": {
+                    "title": "Withdrawal page: want to choose items ( 6.0.4 )",
+                    "value": "Vil du vælge varer først?"
+                },
+                "login_lookup": {
+                    "title": "Sign-in page: link to the order lookup ( 6.0.4 )",
+                    "value": "Bestilt uden konto? Find din ordre"
+                },
+                "email_row_until": {
+                    "title": "Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+                    "value": "Skiftet mening? Du kan fortryde denne ordre online indtil [date] uden at angive en grund."
+                },
+                "email_row_open": {
+                    "title": "Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+                    "value": "Skiftet mening? Du kan fortryde denne ordre online uden at angive en grund. Fortrydelsesfristen på [days] dage begynder, når du modtager din ordre."
+                },
+                "ack_subject": {
+                    "title": "Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "Vi har modtaget din fortrydelse (ordre [order_id])"
+                },
+                "ack_intro": {
+                    "title": "Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+                    "value": "Hej [name], vi har modtaget din fortrydelse af ordre [order_id]. Vi gennemgår den og kontakter dig om returnering af eventuelle varer og din refusion."
+                },
+                "ack_footer": {
+                    "title": "Receipt email: receipt only ( 6.0.4 )",
+                    "value": "Denne e-mail bekræfter, at vi har modtaget din fortrydelse. Den bekræfter endnu ikke, at fortrydelsen er gyldig: Vi gennemgår den og svarer dig."
+                },
+                "lookup_email_subject": {
+                    "title": "Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+                    "value": "Linket til din ordre [order_id]"
+                },
+                "lookup_email_intro": {
+                    "title": "Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+                    "value": "Her er linket til ordre [order_id]. Du kan se ordren, udskrive din kvittering og, så længe dens fortrydelsesfrist løber, fortryde den."
+                },
+                "lookup_email_button": {
+                    "title": "Order lookup email: button ( 6.0.4 )",
+                    "value": "Se din ordre"
+                },
+                "lookup_email_ignore": {
+                    "title": "Order lookup email: not asked for ( 6.0.4 )",
+                    "value": "Hvis du ikke har bedt om dette link, kan du ignorere denne e-mail."
                 }
             }
         },

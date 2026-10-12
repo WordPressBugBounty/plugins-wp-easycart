@@ -1284,6 +1284,9 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 				update_option( 'ec_guest_list_cache_ver', time(), false ); /* guest checkouts taken back by the account */
 				do_action( 'wpeasycart_account_restored', (int) $snap['record_id'] );
 			}
+			if ( 'category' === $snap['type'] ) {
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lists show it again */
+			}
 			return array(
 				/* translators: %s: record name */
 				'message' => sprintf( __( 'Restored “%s”.', 'wp-easycart' ), $snap['name'] ),

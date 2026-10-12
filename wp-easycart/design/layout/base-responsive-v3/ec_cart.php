@@ -217,7 +217,7 @@
 								<tr>
 									<td class="ec_minus_column">
 										<input type="button" value="-" class="ec_minus" onclick="ec_minus_quantity( '<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>' );" /></td>
-									<td class="ec_quantity_column"><input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity" /></td>
+									<td class="ec_quantity_column"><input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>"<?php echo ( class_exists( 'wp_easycart_cart_quantity' ) ) ? wp_easycart_cart_quantity::note_attributes( $this->cart->cart[$cartitem_index] ) : ''; ?> class="ec_quantity" /></td>
 									<td class="ec_plus_column"><input type="button" value="+" class="ec_plus" onclick="ec_plus_quantity( '<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $this->cart->cart[$cartitem_index]->show_stock_quantity ); ?>', '<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>' );" /></td>
 								</tr>
 								<tr>

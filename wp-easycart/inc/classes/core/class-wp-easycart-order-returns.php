@@ -387,11 +387,83 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 			$used = round( (float) $order->giftcard_total, 2 );
 			return array(
 				'id'         => (string) $order->giftcard_id,
+				'label'      => self::label( (string) $order->giftcard_id ), /* 6.0.4: as the store names it ( a Square gift card by its last four digits ) */
+				'source'     => self::source( (string) $order->giftcard_id, (int) $order_id ), /* 6.0.4: '' = a WP EasyCart gift card */
 				'used'       => $used,
 				'returned'   => round( max( 0, $returned ), 2 ),
 				'returnable' => round( max( 0, $used - $returned ), 2 ),
 				'by_cancel'  => round( max( 0, $by_cancel ), 2 ),
 				'moves'      => count( $moves ),
+			);
+		}
+
+		/**
+		 * Who holds the balance of the gift card an order used ( 6.0.4 ): '' = WP EasyCart ( ec_giftcard ); an outside gift card
+		 * system names itself ( WP EasyCart PRO answers 'square' for a Square gift card ) and then gives balance back and takes it again
+		 * through wp_easycart_giftcard_source_return / wp_easycart_giftcard_source_take.
+		 *
+		 * @since 6.0.4
+		 * @param string $code     Gift card on the order.
+		 * @param int    $order_id Order.
+		 * @return string
+		 */
+		private static function source( $code, $order_id ) {
+			/**
+			 * Who holds the balance of the gift card an order used.
+			 *
+			 * @since 6.0.4
+			 * @param string $source   '' ( WP EasyCart ).
+			 * @param string $code     Gift card on the order ( ec_order.giftcard_id ).
+			 * @param int    $order_id Order.
+			 */
+			return sanitize_key( (string) apply_filters( 'wp_easycart_giftcard_source', '', (string) $code, (int) $order_id ) );
+		}
+
+		/**
+		 * A gift card as the store names it ( 6.0.4, wp_easycart_giftcard_label() ).
+		 *
+		 * @param string $code Gift card.
+		 * @return string
+		 */
+		private static function label( $code ) {
+			return function_exists( 'wp_easycart_giftcard_label' ) ? wp_easycart_giftcard_label( $code ) : (string) $code;
+		}
+
+		/**
+		 * Take back a timeline entry claim() wrote when the outside gift card system then could not move the balance ( 6.0.4 ).
+		 *
+		 * @param int $order_id Order.
+		 * @param int $log_id   Log entry.
+		 */
+		private static function unclaim( $order_id, $log_id ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order_log_meta WHERE order_log_id = %d AND order_id = %d', (int) $log_id, (int) $order_id ) );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order_log WHERE order_log_id = %d AND order_id = %d', (int) $log_id, (int) $order_id ) );
+		}
+
+		/**
+		 * Set one meta value on a timeline entry claim() wrote ( 6.0.4: what an outside gift card system actually moved ).
+		 *
+		 * @param int    $order_id Order.
+		 * @param int    $log_id   Log entry.
+		 * @param string $key      Meta key.
+		 * @param string $value    Value.
+		 */
+		private static function set_meta( $order_id, $log_id, $key, $value ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order_log_meta WHERE order_log_id = %d AND order_id = %d AND order_log_meta_key = %s', (int) $log_id, (int) $order_id, (string) $key ) );
+			if ( '' === (string) $value ) {
+				return;
+			}
+			$wpdb->insert(
+				'ec_order_log_meta',
+				array(
+					'order_log_id'         => (int) $log_id,
+					'order_id'             => (int) $order_id,
+					'order_log_meta_key'   => (string) $key,
+					'order_log_meta_value' => (string) $value,
+				),
+				array( '%d', '%d', '%s', '%s' )
 			);
 		}
 
@@ -463,12 +535,12 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 				return 0.0;
 			}
 			$via = ( isset( $args['via'] ) && in_array( $args['via'], array( 'cancelled', 'refund' ), true ) ) ? $args['via'] : 'refund';
-			if ( null === $wpdb->get_var( $wpdb->prepare( 'SELECT giftcard_id FROM ec_giftcard WHERE giftcard_id = %s', $card['id'] ) ) ) {
+			if ( '' === $card['source'] && null === $wpdb->get_var( $wpdb->prepare( 'SELECT giftcard_id FROM ec_giftcard WHERE giftcard_id = %s', $card['id'] ) ) ) {
 				if ( function_exists( 'wp_easycart_order_note' ) ) {
 					wp_easycart_order_note(
 						$order_id,
 						/* translators: 1: gift card code, 2: amount. */
-						sprintf( __( 'Gift card %1$s no longer exists, so %2$s could not be put back on it.', 'wp-easycart' ), $card['id'], self::money( $amount ) ),
+						sprintf( __( 'Gift card %1$s no longer exists, so %2$s could not be put back on it.', 'wp-easycart' ), $card['label'], self::money( $amount ) ),
 						'WP EasyCart'
 					);
 				}
@@ -482,10 +554,57 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 				),
 				( isset( $args['meta'] ) && is_array( $args['meta'] ) ) ? $args['meta'] : array()
 			);
-			if ( ! self::claim( $order_id, self::GIFTCARD_RETURNED, $card['moves'], $meta ) ) {
+			$log_id = self::claim( $order_id, self::GIFTCARD_RETURNED, $card['moves'], $meta );
+			if ( ! $log_id ) {
 				return 0.0;
 			}
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_giftcard SET amount = amount + %s WHERE giftcard_id = %s', (string) $amount, $card['id'] ) );
+			if ( '' === $card['source'] ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_giftcard SET amount = amount + %s WHERE giftcard_id = %s', (string) $amount, $card['id'] ) );
+			} else {
+				/*
+				 * 6.0.4: an outside gift card system holds the balance: it puts the amount back ( after the claim, so two requests never
+				 * both do ). Nothing back takes the timeline entry away again; less than asked is what the entry then says.
+				 */
+				/**
+				 * Give an amount an order used back to a gift card an outside system holds ( WP EasyCart PRO refunds the Square gift
+				 * card payment ).
+				 *
+				 * @since 6.0.4
+				 * @param float|WP_Error|null $put      Null: nothing answered.
+				 * @param string              $source   wp_easycart_giftcard_source's answer ( 'square' ).
+				 * @param int                 $order_id Order.
+				 * @param string              $code     Gift card on the order.
+				 * @param float               $amount   Amount to put back.
+				 * @param string              $via      cancelled | refund.
+				 * @return float|WP_Error The amount put back, or why nothing was.
+				 */
+				$done = apply_filters( 'wp_easycart_giftcard_source_return', null, $card['source'], $order_id, $card['id'], (float) $amount, $via );
+				$put  = ( is_wp_error( $done ) || null === $done ) ? 0.0 : round( max( 0, min( (float) $done, $amount ) ), 2 );
+				if ( $put < 0.005 ) {
+					self::unclaim( $order_id, $log_id );
+					if ( function_exists( 'wp_easycart_order_note' ) ) {
+						wp_easycart_order_note(
+							$order_id,
+							/* translators: 1: amount, 2: gift card, 3: the reason. */
+							sprintf( __( '%1$s could not be put back on gift card %2$s ( %3$s ).', 'wp-easycart' ), self::money( $amount ), $card['label'], is_wp_error( $done ) ? $done->get_error_message() : __( 'nothing answered for this gift card', 'wp-easycart' ) ),
+							'WP EasyCart'
+						);
+					}
+					return 0.0;
+				}
+				if ( $put < $amount - 0.004 ) {
+					self::set_meta( $order_id, $log_id, 'amount', (string) $put );
+					if ( function_exists( 'wp_easycart_order_note' ) ) {
+						wp_easycart_order_note(
+							$order_id,
+							/* translators: 1: amount put back, 2: amount asked, 3: gift card. */
+							sprintf( __( 'Only %1$s of %2$s could be put back on gift card %3$s.', 'wp-easycart' ), self::money( $put ), self::money( $amount ), $card['label'] ),
+							'WP EasyCart'
+						);
+					}
+					$amount = $put;
+				}
+			}
 			/**
 			 * Gift card balance an order used went back onto the card.
 			 *
@@ -513,13 +632,16 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 			if ( ! $card || $card['by_cancel'] < 0.005 ) {
 				return 0.0;
 			}
-			$balance = $wpdb->get_var( $wpdb->prepare( 'SELECT amount FROM ec_giftcard WHERE giftcard_id = %s', $card['id'] ) );
-			if ( null === $balance ) {
-				return 0.0;
-			}
 			$amount = $card['by_cancel'];
-			$short  = round( max( 0, $amount - (float) $balance ), 2 );
-			if ( ! self::claim(
+			$short  = 0.0;
+			if ( '' === $card['source'] ) {
+				$balance = $wpdb->get_var( $wpdb->prepare( 'SELECT amount FROM ec_giftcard WHERE giftcard_id = %s', $card['id'] ) );
+				if ( null === $balance ) {
+					return 0.0;
+				}
+				$short = round( max( 0, $amount - (float) $balance ), 2 );
+			}
+			$log_id = self::claim(
 				$order_id,
 				self::GIFTCARD_TAKEN,
 				$card['moves'],
@@ -529,15 +651,48 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 					'via'         => 'reopened',
 					'short'       => ( $short >= 0.005 ) ? (string) $short : '',
 				)
-			) ) {
+			);
+			if ( ! $log_id ) {
 				return 0.0;
 			}
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_giftcard SET amount = GREATEST( amount - %s, 0 ) WHERE giftcard_id = %s', (string) $amount, $card['id'] ) );
+			if ( '' === $card['source'] ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_giftcard SET amount = GREATEST( amount - %s, 0 ) WHERE giftcard_id = %s', (string) $amount, $card['id'] ) );
+			} else {
+				/**
+				 * Take an amount a cancel gave back from a gift card an outside system holds, again ( WP EasyCart PRO charges the
+				 * Square gift card again, up to its balance ).
+				 *
+				 * @since 6.0.4
+				 * @param float|WP_Error|null $taken    Null: nothing answered.
+				 * @param string              $source   wp_easycart_giftcard_source's answer ( 'square' ).
+				 * @param int                 $order_id Order.
+				 * @param string              $code     Gift card on the order.
+				 * @param float               $amount   Amount to take.
+				 * @return float|WP_Error The amount taken ( less when the card holds less ), or why nothing was.
+				 */
+				$done = apply_filters( 'wp_easycart_giftcard_source_take', null, $card['source'], $order_id, $card['id'], (float) $amount );
+				if ( is_wp_error( $done ) || null === $done ) {
+					self::unclaim( $order_id, $log_id );
+					if ( function_exists( 'wp_easycart_order_note' ) ) {
+						wp_easycart_order_note(
+							$order_id,
+							/* translators: 1: amount, 2: gift card, 3: the reason. */
+							sprintf( __( '%1$s could not be taken from gift card %2$s again ( %3$s ).', 'wp-easycart' ), self::money( $amount ), $card['label'], is_wp_error( $done ) ? $done->get_error_message() : __( 'nothing answered for this gift card', 'wp-easycart' ) ),
+							'WP EasyCart'
+						);
+					}
+					return 0.0;
+				}
+				$short = round( max( 0, $amount - max( 0, (float) $done ) ), 2 );
+				if ( $short >= 0.005 ) {
+					self::set_meta( $order_id, $log_id, 'short', (string) $short );
+				}
+			}
 			if ( $short >= 0.005 && function_exists( 'wp_easycart_order_note' ) ) {
 				wp_easycart_order_note(
 					$order_id,
 					/* translators: 1: gift card code, 2: amount the card was short. */
-					sprintf( __( 'Gift card %1$s had been spent since the order was cancelled: it is now empty, %2$s short of what the order used.', 'wp-easycart' ), $card['id'], self::money( $short ) ),
+					sprintf( __( 'Gift card %1$s had been spent since the order was cancelled: it is now empty, %2$s short of what the order used.', 'wp-easycart' ), $card['label'], self::money( $short ) ),
 					'WP EasyCart'
 				);
 			}
@@ -582,7 +737,7 @@ if ( ! class_exists( 'wp_easycart_order_returns' ) ) :
 				return $entry;
 			}
 			$meta   = is_array( $meta ) ? $meta : array();
-			$code   = isset( $meta['giftcard_id'] ) ? (string) $meta['giftcard_id'] : '';
+			$code   = self::label( isset( $meta['giftcard_id'] ) ? (string) $meta['giftcard_id'] : '' ); /* 6.0.4: as the store names it */
 			$amount = self::money( isset( $meta['amount'] ) ? (float) $meta['amount'] : 0 );
 			$via    = isset( $meta['via'] ) ? (string) $meta['via'] : '';
 			$parts  = array();

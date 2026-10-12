@@ -263,8 +263,10 @@ function ecv2_role_save() {
 	$label = isset( $d['name'] ) ? sanitize_text_field( $d['name'] ) : $role->role_label;
 	if ( '' === $label ) { wp_send_json_error( array( 'message' => __( 'A role name is required.', 'wp-easycart' ) ) ); }
 	if ( ecv2_role_is_master( $id ) ) { $label = $role->role_label; }
+	$renamed_from = '';
 	if ( $label !== $role->role_label ) {
 		if ( $wpdb->get_var( $wpdb->prepare( 'SELECT role_id FROM ec_role WHERE role_label = %s AND role_id != %d', $label, $id ) ) ) { wp_send_json_error( array( 'message' => __( 'A role with that name already exists.', 'wp-easycart' ) ) ); }
+		$renamed_from = $role->role_label;
 		/* user_level stores the label — cascade */
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET user_level = %s WHERE user_level = %s', $label, $role->role_label ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_roleprice SET role_label = %s WHERE role_label = %s', $label, $role->role_label ) );
@@ -279,6 +281,19 @@ function ecv2_role_save() {
 		if ( $access ) { foreach ( $panels as $p ) { $wpdb->insert( 'ec_roleaccess', array( 'role_label' => $label, 'admin_panel' => $p ) ); } }
 	}
 	$wpdb->update( 'ec_role', array( 'role_label' => $label, 'admin_access' => $access ), array( 'role_id' => $id ) );
+	if ( '' !== $renamed_from ) {
+		/**
+		 * A role was renamed, after its users, role prices and admin access moved to the new name. Anything else that saved
+		 * the role's name follows it here ( WP EasyCart PRO's Customer role offer conditions ).
+		 *
+		 * @since 6.0.4
+		 *
+		 * @param int    $id           ec_role.role_id.
+		 * @param string $label        The new name ( ec_role.role_label, ec_user.user_level ).
+		 * @param string $renamed_from The old name.
+		 */
+		do_action( 'wpeasycart_user_role_renamed', $id, $label, $renamed_from );
+	}
 	do_action( 'wpeasycart_user_role_updated', $id );
 	$ed = new wp_easycart_admin_user_role_editor_v2(); $ed->load( $id );
 	wp_send_json_success( array( 'message' => __( 'Saved', 'wp-easycart' ), 'health' => $ed->health(), 'label' => $label ) );
@@ -290,7 +305,7 @@ function ecv2_role_price_search() {
 	$role = ecv2_role_row( isset( $_POST['role_id'] ) ? (int) $_POST['role_id'] : 0 ); if ( ! $role ) { wp_send_json_error( array( 'message' => __( 'Role not found.', 'wp-easycart' ) ) ); }
 	$q = isset( $_POST['q'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
 	$like = '%' . $wpdb->esc_like( $q ) . '%';
-	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT p.product_id, p.title, p.model_number, p.price, ' . wp_easycart_admin_catalog_v2_thumb_select( 'p' ) . ', ( SELECT role_price FROM ec_roleprice rp WHERE rp.product_id = p.product_id AND rp.role_label = %s LIMIT 1 ) AS existing FROM ec_product p WHERE ( p.title LIKE %s OR p.model_number LIKE %s ) ORDER BY p.title LIMIT 15', $role->role_label, $like, $like ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_admin_catalog_v2_thumb_select() returns static column SQL for a literal alias.
+	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT p.product_id, p.title, p.model_number, p.price, ' . wp_easycart_admin_catalog_v2_thumb_select( 'p' ) . ', ( SELECT role_price FROM ec_roleprice rp WHERE rp.product_id = p.product_id AND rp.role_label = %s LIMIT 1 ) AS existing FROM ec_product p WHERE ( p.title LIKE %s OR p.model_number LIKE %s )' . wp_easycart_product_draft_sql( 'p' ) . ' ORDER BY p.title LIMIT 15', $role->role_label, $like, $like ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_admin_catalog_v2_thumb_select() returns static column SQL for a literal alias.
 	$out = array();
 	foreach ( $rows as $r ) { $out[] = array( 'id' => (int) $r->product_id, 'title' => wp_unslash( $r->title ), 'sku' => $r->model_number, 'price' => (float) $r->price, 'price_display' => $GLOBALS['currency']->get_currency_display( $r->price ), 'image' => wp_easycart_admin_catalog_v2_product_thumb( $r ), 'existing' => null === $r->existing ? null : (float) $r->existing ); }
 	wp_send_json_success( array( 'items' => $out ) );

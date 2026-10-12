@@ -137,9 +137,20 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 			if ( '' === $app ) {
 				$app = get_option( 'ec_option_square_is_sandbox' ) ? 'sandbox-sq0idb-khAAob2bNi889KPQSVsF6Q' : 'sq0idp-H8Mnz1zzbv1mOyeWyKpF6Q';
 			}
+			/* 6.0.4: never '0' ( the Square panel's "Your default Square location" ), and the account's location when none is
+			   saved, as the checkout does ( '0' went to Square's card form and the charge ). Square is asked once a request. */
+			static $asked = null;
+			$location = class_exists( 'ec_square' ) ? ec_square::saved_location_id() : '';
+			if ( '' === $location && null !== $asked ) {
+				$location = $asked;
+			} elseif ( '' === $location && class_exists( 'ec_square' ) && '' !== (string) get_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_access_token' : 'ec_option_square_access_token' ) ) {
+				$square   = new ec_square();
+				$location = $square->payment_location_id();
+				$asked    = $location;
+			}
 			return array(
 				'app'      => $app,
-				'location' => (string) ( get_option( 'ec_option_square_is_sandbox' ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' ) ),
+				'location' => $location,
 			);
 		}
 

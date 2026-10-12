@@ -81,8 +81,26 @@ window.ecdv2_cart_links = ( function( $ ) {
 		else { window.alert( msg ); }
 	}
 
-	function toggle_form() {
-		$( '#ecdv2_cl_quick' ).slideToggle( 140 );
+	/* 6.0.4: the form opens under the empty state or the list; the buttons that open it say whether it is open. */
+	function toggle_form( open ) {
+		var $form = $( '#ecdv2_cl_quick' );
+		open = ( true === open || false === open ) ? open : ! $form.is( ':visible' );
+		if ( open ) {
+			$form.slideDown( 140, function() {
+				$( '#ecdv2_cl_quick_label' ).trigger( 'focus' );
+			} );
+		} else {
+			$form.slideUp( 140 );
+		}
+		$( '#ecdv2_cl_quick_toggle, #ecdv2_cl_add_another' ).attr( 'aria-expanded', open ? 'true' : 'false' );
+	}
+
+	/* 6.0.4: no links = the empty state and its button; links = the list and Create another cart link. */
+	function paint_state() {
+		var any = $( '#ecdv2_cl_existing .ecdv2-cl-existing-row' ).length > 0;
+		$( '#ecdv2_cl_existing' ).toggle( any );
+		$( '#ecdv2_cl_empty' ).prop( 'hidden', any );
+		$( '#ecdv2_cl_add_another' ).prop( 'hidden', ! any );
 	}
 
 	function create() {
@@ -128,6 +146,7 @@ window.ecdv2_cart_links = ( function( $ ) {
 			}
 			add_row( response.data, $( '#ecdv2_cl_quick_label' ).val() );
 			reset_form();
+			toggle_form( false );
 			toast( 'Cart link created — copy it from the list above.', 'success' );
 		} ).fail( function() {
 			$btn.prop( 'disabled', false );
@@ -174,6 +193,7 @@ window.ecdv2_cart_links = ( function( $ ) {
 		html += '</div></div>';
 		var $new_row = $( html ).hide();
 		$( '#ecdv2_cl_existing' ).show().append( $new_row );
+		paint_state();
 		$new_row.fadeIn( 160 );
 	}
 
@@ -206,9 +226,7 @@ window.ecdv2_cart_links = ( function( $ ) {
 				var $row = $( el ).closest( '.ecdv2-cl-existing-row' );
 				$row.fadeOut( 140, function() {
 					$row.remove();
-					if ( ! $( '#ecdv2_cl_existing .ecdv2-cl-existing-row' ).length ) {
-						$( '#ecdv2_cl_existing' ).hide();
-					}
+					paint_state();
 				} );
 				toast( 'Cart link deleted.', 'success' );
 			} ).fail( function() { toast( 'Could not delete the link.', 'error' ); } );
@@ -384,6 +402,10 @@ window.ecdv2 = ( function( $ ) {
 	 * ( the split general_options cards ) are deduped at save time.      */
 	var endpoint_map = {
 		'basic'                        : 'basic',
+		/* 6.0.4 ( editor plan Phase 2 ): these used to save the moment they changed; they wait for Save now. */
+		'categories'                   : 'categories',
+		'price_rules'                  : 'price_rules',
+		'reviews'                      : 'general_options',
 		'short_description'            : 'short_description',
 		'specifications'               : 'specifications',
 		'images'                       : 'images',
@@ -439,8 +461,13 @@ window.ecdv2 = ( function( $ ) {
 		return $( node ).val() ? $( node ).val() : 0;
 	}
 
-	function ed( id ) { /* wp_editor content: tinymce when in visual mode */
-		if ( typeof tinymce !== 'undefined' && tinymce.editors && tinymce.editors[ id ] && ! $( el( id ) ).is( ':visible' ) ) {
+	function ed( id ) { /* wp_editor content: tinymce in visual mode, the textarea in text ( Code ) mode */
+		/* 6.0.4: the mode is read from wp_editor's wrapper ( html-active = Code ). Whether the textarea shows says nothing
+		 * while its tab or section is hidden, and text typed in Code mode was then read from the visual editor's old copy. */
+		/* Until TinyMCE has started, the textarea holds the text ( an editor not yet started answers '' ). */
+		var wrap = document.getElementById( 'wp-' + id + '-wrap' );
+		var visual = wrap ? ! $( wrap ).hasClass( 'html-active' ) : ! $( el( id ) ).is( ':visible' );
+		if ( visual && typeof tinymce !== 'undefined' && tinymce.editors && tinymce.editors[ id ] && tinymce.editors[ id ].initialized ) {
 			return tinymce.editors[ id ].getContent();
 		}
 		return el( id ) ? $( el( id ) ).val() : '';
@@ -459,6 +486,43 @@ window.ecdv2 = ( function( $ ) {
 	/* ------------------------------------------------------------------ */
 
 	var payloads = {
+
+		/* 6.0.4: the categories as the chips show them ( sorted, so adding back a removed one is no change ). Nothing without
+		 * the chips: the server then refuses rather than empty the product's categories. */
+		categories: function() {
+			if ( ! el( 'ecdv2_cat_tokens' ) ) {
+				return {};
+			}
+			var ids = [];
+			$( '#ecdv2_cat_tokens .ecdv2-cat-token' ).each( function() {
+				var id = parseInt( $( this ).attr( 'data-category-id' ), 10 );
+				if ( id ) {
+					ids.push( id );
+				}
+			} );
+			ids.sort( function( a, b ) { return a - b; } );
+			return { categories_sent: 1, category_ids: ids };
+		},
+
+		/* 6.0.4: volume pricing and role prices as their rows show them; a list on the page is sent even when empty. */
+		price_rules: function() {
+			var tiers = [];
+			var roles = [];
+			$( '#price_tiers_holder > .ec_admin_price_tier_row' ).each( function() {
+				var $in = $( this ).find( 'input[type=number]' );
+				tiers.push( { quantity: $in.eq( 0 ).val(), price: $in.eq( 1 ).val() } );
+			} );
+			$( '#role_prices_holder > .ec_admin_role_price_row' ).each( function() {
+				roles.push( { role: $( this ).attr( 'data-role' ) || '', price: $( this ).attr( 'data-price' ) || '' } );
+			} );
+			return {
+				price_rules_sent : 1,
+				tiers_shown      : el( 'price_tiers_holder' ) ? 1 : 0,
+				roles_shown      : el( 'role_prices_holder' ) ? 1 : 0,
+				tiers            : tiers,
+				roles            : roles
+			};
+		},
 
 		basic: function() {
 			var data = {
@@ -564,6 +628,7 @@ window.ecdv2 = ( function( $ ) {
 				role_id              : v( 'role_id' ),
 				sort_position        : v( 'sort_position' )
 			};
+			maybe( data, 'no_withdrawal', c( 'no_withdrawal' ) ); /* 6.0.4: No right of withdrawal ( EU ) */
 			maybe( data, 'mailerlite_group_name', v( 'mailerlite_group_name' ) );
 			maybe( data, 'activecampaign_group_name', v( 'activecampaign_group_name' ) );
 			return data;
@@ -780,12 +845,93 @@ window.ecdv2 = ( function( $ ) {
 	/* Dirty tracking                                                       */
 	/* ------------------------------------------------------------------ */
 
+	/*
+	 * 6.0.4 ( editor plan Phase 2 ): a section counts as changed only while what it would save differs from what was saved.
+	 * Each save endpoint's payload is kept as it was when the page loaded ( and after each save ); a change that brings it
+	 * back ( typed and undone, or an editor tidying its own content as it starts ) leaves the section unchanged.
+	 */
+	var snapshots = {};
+
+	function payload_json( endpoint ) {
+		if ( ! payloads[ endpoint ] ) {
+			return null;
+		}
+		try {
+			return JSON.stringify( payloads[ endpoint ]() );
+		} catch ( e ) {
+			return null;
+		}
+	}
+
+	function take_snapshot( endpoint ) {
+		snapshots[ endpoint ] = payload_json( endpoint );
+	}
+
+	function take_snapshots() {
+		var endpoint;
+		for ( endpoint in payloads ) {
+			if ( payloads.hasOwnProperty( endpoint ) ) {
+				take_snapshot( endpoint );
+			}
+		}
+	}
+
+	/* A saved value changed by something other than the section's save ( the Active switch ) is the saved value now. */
+	function snapshot_set( endpoint, key, value ) {
+		if ( ! snapshots[ endpoint ] ) {
+			return;
+		}
+		try {
+			var data = JSON.parse( snapshots[ endpoint ] );
+			if ( data && data.hasOwnProperty( key ) ) {
+				data[ key ] = value;
+				snapshots[ endpoint ] = JSON.stringify( data );
+			}
+		} catch ( e ) {
+			snapshots[ endpoint ] = null;
+		}
+	}
+
+	function section_unchanged( section ) {
+		var endpoint = endpoint_map[ section ];
+		return !! endpoint && 'string' === typeof snapshots[ endpoint ] && payload_json( endpoint ) === snapshots[ endpoint ];
+	}
+
+	/* The page's unsaved marks from dirty: the pill, Discard, each card and its section in the rail. */
+	function paint_dirty() {
+		var any = has_dirty();
+		$( '#ecdv2_dirty_pill' ).toggleClass( 'is-visible', any );
+		$( '#ecdv2_discard_btn' ).prop( 'hidden', ! any );
+		$( '.ecdv2-card.is-dirty' ).each( function() {
+			if ( ! dirty[ $( this ).attr( 'data-ecdv2-section' ) ] ) {
+				$( this ).removeClass( 'is-dirty' );
+			}
+		} );
+		$( '.ecdv2-tab[data-ecdv2-tab]' ).each( function() {
+			$( this ).toggleClass( 'has-dirty', panel( $( this ).attr( 'data-ecdv2-tab' ) ).find( '.ecdv2-card.is-dirty' ).length > 0 );
+		} );
+		paint_tabsets();
+	}
+
 	function mark_dirty( section ) {
 		if ( ! section || saving ) {
 			return;
 		}
+		if ( section_unchanged( section ) ) {
+			/* Back to what was saved: every section saving through the same endpoint is unchanged too. */
+			var endpoint = endpoint_map[ section ];
+			var key;
+			for ( key in dirty ) {
+				if ( dirty.hasOwnProperty( key ) && endpoint_map[ key ] === endpoint ) {
+					delete dirty[ key ];
+				}
+			}
+			paint_dirty();
+			return;
+		}
 		dirty[ section ] = true;
 		$( '#ecdv2_dirty_pill' ).addClass( 'is-visible' );
+		$( '#ecdv2_discard_btn' ).prop( 'hidden', false );
 		var card = $( '.ecdv2-card[data-ecdv2-section="' + section + '"]' );
 		card.addClass( 'is-dirty' );
 		var panel = card.closest( '.ecdv2-panel' );
@@ -796,6 +942,7 @@ window.ecdv2 = ( function( $ ) {
 		if ( label.length && ! $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) ) {
 			label.text( _t( 'save', 'Save' ) );
 		}
+		paint_tabsets();
 	}
 
 	/**
@@ -831,14 +978,23 @@ window.ecdv2 = ( function( $ ) {
 		}
 		endpoint_map[ key ] = endpoint;
 		payloads[ endpoint ] = payload_fn;
+		/* 6.0.4: its saved state, once the card that registered it has drawn. */
+		setTimeout( function() {
+			if ( ! dirty[ key ] ) {
+				take_snapshot( endpoint );
+			}
+		}, 0 );
 		return true;
 	}
 
 	function clear_dirty() {
 		dirty = {};
 		$( '#ecdv2_dirty_pill' ).removeClass( 'is-visible' );
+		$( '#ecdv2_discard_btn' ).prop( 'hidden', true );
 		$( '.ecdv2-card.is-dirty' ).removeClass( 'is-dirty' );
 		$( '.ecdv2-tab.has-dirty' ).removeClass( 'has-dirty' );
+		$( '.ecdv2-tabset-pane[data-ecdv2-touched]' ).removeAttr( 'data-ecdv2-touched' );
+		paint_tabsets();
 	}
 
 	function has_dirty() {
@@ -857,6 +1013,20 @@ window.ecdv2 = ( function( $ ) {
 			return;
 		}
 		editor.__ecdv2_dirty_bound = true;
+		/* 6.0.4: the section's saved state is what the editor holds once it has started ( it can tidy the stored HTML ). */
+		var snap = function() {
+			var section = $( '[data-ecdv2-wpeditor="' + editor.id + '"]' ).attr( 'data-ecdv2-sec-editor' );
+			if ( section && endpoint_map[ section ] && ! dirty[ section ] ) {
+				take_snapshot( endpoint_map[ section ] );
+			}
+		};
+		if ( editor.initialized ) {
+			snap();
+		} else if ( editor.on ) {
+			editor.on( 'init', function() {
+				setTimeout( snap, 0 );
+			} );
+		}
 		editor.on( 'change keyup input paste cut', function() {
 			var wrap = $( '[data-ecdv2-wpeditor="' + editor.id + '"]' );
 			if ( wrap.length ) {
@@ -885,6 +1055,13 @@ window.ecdv2 = ( function( $ ) {
 			mark_dirty( $( this ).attr( 'data-ecdv2-sec' ) );
 		} );
 
+		/* 6.0.4: typing in a field takes its error message away ( the SKU is checked again when it changes ). */
+		$( document ).on( 'input', '.ecdv2-field.has-error input, .ecdv2-field.has-error textarea', function() {
+			if ( this.id ) {
+				field_ok( this.id );
+			}
+		} );
+
 		/* Catch-all: any form control inside a save-mapped section card that
 		 * lacks the data-ecdv2-sec stamp ( legacy PRO markup, dynamically
 		 * injected inputs ) still flips its section dirty. Cards without an
@@ -904,6 +1081,9 @@ window.ecdv2 = ( function( $ ) {
 			}
 			if ( 'manufacturer_name' === this.id || 'ec_notify_new_email' === this.id ) {
 				return; /* instant-save helpers with their own buttons */
+			}
+			if ( node.closest( '[data-ecdv2-nodirty]' ).length ) {
+				return; /* 6.0.4: a row being typed before Add ( a tier, a role price ) or the category search */
 			}
 			var section = node.closest( '.ecdv2-card[data-ecdv2-section]' ).attr( 'data-ecdv2-section' );
 			if ( endpoint_map[ section ] ) {
@@ -954,14 +1134,157 @@ window.ecdv2 = ( function( $ ) {
 		};
 	}
 
-	function validate_basic() {
-		if ( '' === $.trim( v( 'title' ) ) ) {
-			toast( _t( 'title_required', 'Please enter a product title before saving.' ), 'error' );
-			go_tab( 'general' );
-			$( el( 'title' ) ).focus();
+	/* 6.0.4: the message under a field ( its .ecdv2-field-msg, shown while the field has .has-error; nothing set it before, so
+	 * the SKU check's messages never showed ). A message the template printed for the code ( a child with
+	 * data-ecdv2-error="<code>" ) shows as it is, else the text given. Returns false when the field is not on the page. */
+	function field_error( name, code, message ) {
+		var node = el( name );
+		if ( ! node ) {
 			return false;
 		}
+		var $field = $( node ).closest( '.ecdv2-field' );
+		if ( ! $field.length ) {
+			return false;
+		}
+		var $msg = $field.children( '.ecdv2-field-msg' ).first();
+		if ( ! $msg.length ) {
+			$msg = $( '<span class="ecdv2-field-msg"></span>' ).appendTo( $field );
+		}
+		if ( ! $msg.attr( 'id' ) ) {
+			$msg.attr( 'id', node.id + '_ecdv2_msg' );
+		}
+		var $printed = code ? $msg.children( '[data-ecdv2-error="' + code + '"]' ) : $();
+		$msg.children().hide();
+		if ( $printed.length ) {
+			$printed.show();
+		} else {
+			var $text = $msg.children( '.ecdv2-field-msg-text' );
+			if ( ! $text.length ) {
+				$text = $( '<span class="ecdv2-field-msg-text"></span>' ).appendTo( $msg );
+			}
+			$text.text( message || '' ).show();
+		}
+		$field.addClass( 'has-error' );
+		$( node ).addClass( 'ecdv2-invalid' ).attr( { 'aria-invalid': 'true', 'aria-describedby': $msg.attr( 'id' ) } );
 		return true;
+	}
+
+	function field_ok( name ) {
+		var node = el( name );
+		if ( ! node ) {
+			return;
+		}
+		$( node ).removeClass( 'ecdv2-invalid' ).removeAttr( 'aria-invalid' ).closest( '.ecdv2-field' ).removeClass( 'has-error' );
+	}
+
+	/* 6.0.4: a refusal that names a field ( data.field, data.code, data.message; the General save's SKU ) shows on that field,
+	 * on its tab. */
+	function show_field_refusal( response ) {
+		if ( 'string' === typeof response ) {
+			try {
+				response = JSON.parse( response );
+			} catch ( err ) {
+				return;
+			}
+		}
+		var data = ( response && response.data && 'object' === typeof response.data ) ? response.data : null;
+		if ( ! data || 'string' !== typeof data.field || ! field_error( data.field, data.code || '', data.message || '' ) ) {
+			return '';
+		}
+		/* 6.0.4: the field goes in the list of what was not saved, which takes the merchant there. */
+		return data.field;
+	}
+
+	function validate_basic() {
+		var items = [];
+		if ( '' === $.trim( v( 'title' ) ) ) {
+			field_error( 'title', 'required', '' ); /* the field's own message ( "Your product must have a title" ) */
+			items.push( { text: _t( 'title_required', 'Please enter a product title before saving.' ), field: 'title' } );
+		}
+		/* 6.0.4: every product needs a SKU ( its page's shortcode names it ); the server refuses an empty one too. */
+		if ( el( 'model_number' ) && '' === $.trim( v( 'model_number' ) ) ) {
+			field_error( 'model_number', 'required', _t( 'sku_required', 'A SKU is required.' ) );
+			items.push( { text: _t( 'sku_required', 'A SKU is required.' ), field: 'model_number' } );
+		}
+		if ( ! items.length ) {
+			return true;
+		}
+		toast( items[0].text, 'error' );
+		errors_show( items );
+		errors_go( items[0] );
+		return false;
+	}
+
+	/* ---------- What kept a Save from finishing ( 6.0.4, editor plan Phase 2 ) ---------- */
+
+	/* @param {Array} items text, and field ( an input id ) or card ( a selector ) to go to. */
+	function errors_show( items ) {
+		var $box = $( '#ecdv2_errors' );
+		if ( ! $box.length || ! items.length ) {
+			return false;
+		}
+		var $list = $( '#ecdv2_errors_list' ).empty();
+		$.each( items, function( i, item ) {
+			var $li = $( '<li class="ecdv2-errors-item"></li>' );
+			$( '<span class="ecdv2-errors-text"></span>' ).text( item.text ).appendTo( $li );
+			if ( item.field || item.card ) {
+				$( '<button type="button" class="ecdv2-errors-go"></button>' ).text( vt( 'errors_go', 'Show me' ) ).on( 'click', function() {
+					errors_go( item );
+				} ).appendTo( $li );
+			}
+			$list.append( $li );
+		} );
+		$box.prop( 'hidden', false );
+		return true;
+	}
+
+	function errors_hide() {
+		$( '#ecdv2_errors' ).prop( 'hidden', true );
+		$( '#ecdv2_errors_list' ).empty();
+	}
+
+	function errors_go( item ) {
+		var node = item.field ? el( item.field ) : null;
+		if ( ! node ) {
+			if ( item.card ) {
+				go_card( item.card );
+			}
+			return;
+		}
+		var key = $( node ).closest( '.ecdv2-panel' ).attr( 'data-ecdv2-panel' );
+		if ( key ) {
+			go_tab( key, { no_scroll: true } );
+		}
+		show_pane_of( node );
+		var $box = $( '[data-ecdv2-wpeditor="' + item.field + '"]' );
+		$box = $box.length ? $box : $( node ).closest( '.ecdv2-field, .ecdv2-toggle-row' );
+		$box = $box.length ? $box : $( node );
+		spy_hold_until = Date.now() + 900;
+		if ( $box.get( 0 ) && $box.get( 0 ).scrollIntoView ) {
+			$box.get( 0 ).scrollIntoView( { block: 'center', behavior: reduce_motion ? 'auto' : 'smooth' } );
+		}
+		flash( $box );
+		try { node.focus( { preventScroll: true } ); } catch ( e ) { node.focus(); }
+	}
+
+	/* Puts every field back as it was saved: the page again, without the leave-page question. */
+	function discard() {
+		if ( ! has_dirty() ) {
+			return;
+		}
+		window.ecdv2_confirm( {
+			title: vt( 'discard_title', 'Discard your changes?' ),
+			message: vt( 'discard_body', 'Everything you changed since the last save goes back to how it was saved. Pictures you uploaded and categories you made stay.' ),
+			confirm_label: vt( 'discard', 'Discard' ),
+			cancel_label: vt( 'keep_editing', 'Keep editing' )
+		} ).then( function( ok ) {
+			if ( ! ok ) {
+				return;
+			}
+			clear_dirty();
+			saving = true; /* no leave-page question */
+			window.location.reload();
+		} );
 	}
 
 	/* A save the server refused ( wp_send_json_error(): { success: false, data: { message } }, e.g. a product whose options
@@ -993,10 +1316,16 @@ window.ecdv2 = ( function( $ ) {
 				var refused = refusal_message( response );
 				if ( null !== refused ) {
 					cards.removeClass( 'is-saving' ); /* still unsaved */
-					d.reject( endpoint, refused );
+					d.reject( endpoint, refused, show_field_refusal( response ) );
 					return;
 				}
 				cards.removeClass( 'is-saving is-dirty' );
+				take_snapshot( endpoint ); /* 6.0.4: what is saved now */
+				if ( 'basic' === endpoint ) {
+					/* 6.0.4: the SKU saved is the product's own now ( the SKU check compares with it ). */
+					field_ok( 'model_number' );
+					$( el( 'model_number_orig' ) ).val( v( 'model_number' ) );
+				}
 				/* 6.0.2: a saved Track Quantity change redraws WP EasyCart PRO's variation table ( its stock
 				 * column ), as the legacy instant save did. */
 				if ( 'quantities' === endpoint && typeof window.wp_easycart_pro_get_updated_options === 'function' ) {
@@ -1012,7 +1341,13 @@ window.ecdv2 = ( function( $ ) {
 		return d.promise();
 	}
 
-	function save_all() {
+	/**
+	 * Save every changed section.
+	 *
+	 * @param {Object} opts 6.0.4, optional: then = called once everything saved ( Save and next ).
+	 */
+	function save_all( opts ) {
+		opts = ( opts && 'object' === typeof opts && ! opts.target ) ? opts : {};
 		if ( saving ) {
 			return false;
 		}
@@ -1044,14 +1379,27 @@ window.ecdv2 = ( function( $ ) {
 					$( '#ecdv2_save_btn' ).removeClass( 'is-saving' );
 					toast( _t( 'create_failed', 'Could not create the product. Check the SKU is unique and try again.' ), 'error' );
 				}
-			} ).fail( function( endpoint_key, message ) {
+			} ).fail( function( endpoint_key, message, field ) {
 				saving = false;
 				$( '#ecdv2_save_btn' ).removeClass( 'is-saving' );
 				toast( message || _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
+				if ( field ) {
+					errors_show( [ { text: message, field: field } ] );
+					errors_go( { field: field } );
+				}
 			} );
 			return false;
 		}
 
+		/* 6.0.4 ( editor plan Phase 2 ): a new product's draft is created by its first Save, which always includes Basics
+		 * ( a title, and a SKU from the title when none was typed ). */
+		var draft = !! ( vcfg && vcfg.draft );
+		if ( draft ) {
+			if ( el( 'model_number' ) && '' === $.trim( v( 'model_number' ) ) && '' !== $.trim( v( 'title' ) ) ) {
+				$( el( 'model_number' ) ).val( slugify( v( 'title' ) ) );
+			}
+			dirty.basic = true;
+		}
 		if ( ! has_dirty() ) {
 			toast( _t( 'nothing_to_save', 'No changes to save.' ), 'info' );
 			return false;
@@ -1084,11 +1432,16 @@ window.ecdv2 = ( function( $ ) {
 			clear_dirty();
 			return false;
 		}
+		if ( draft && queue[0] !== 'basic' && -1 !== $.inArray( 'basic', queue ) ) {
+			queue.splice( $.inArray( 'basic', queue ), 1 );
+			queue.unshift( 'basic' );
+		}
 
 		saving = true;
 		$( '#ecdv2_save_btn' ).addClass( 'is-saving' );
 		var failed = [];
 		var refusals = []; /* the server's own reasons for a refused save, shown as they are */
+		var problems = []; /* 6.0.4: the list at the top, each with a way to its field or card */
 
 		( function run( i ) {
 			if ( i >= queue.length ) {
@@ -1100,26 +1453,67 @@ window.ecdv2 = ( function( $ ) {
 						notes.push( _t( 'partial_save', 'Some sections failed to save:' ) + ' ' + failed.join( ', ' ) );
 					}
 					toast( notes.join( ' ' ), 'error' );
+					/* 6.0.4: the sections that saved are saved; the list says what is left. */
+					var key;
+					for ( key in dirty ) {
+						if ( dirty.hasOwnProperty( key ) && section_unchanged( key ) ) {
+							delete dirty[ key ];
+						}
+					}
+					paint_dirty();
+					errors_show( problems );
+					/* The first field to fix comes into view ( the list stays at the top ). */
+					var to_field = $.grep( problems, function( p ) { return !! p.field; } );
+					if ( to_field.length ) {
+						errors_go( to_field[0] );
+					}
+				} else if ( draft ) {
+					/* The product exists now: open it as one ( its page, View, Duplicate ). */
+					clear_dirty();
+					saving = true;
+					window.location.href = ( vcfg.edit_url || 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=edit&product_id=' ) + parseInt( v( 'product_id' ), 10 ) + '&ecdv2_created=1';
+					return;
 				} else {
+					errors_hide();
 					clear_dirty();
 					toast( _t( 'saved', 'Product saved.' ), 'success' );
 					update_header_meta();
+					if ( 'function' === typeof opts.then ) {
+						opts.then();
+					}
 				}
 				refresh_feeds( queue );
 				return;
 			}
 			/* fail before always: the last section's result must be counted before run() reports. */
 			save_endpoint( queue[ i ], seen[ queue[ i ] ] )
-				.fail( function( endpoint_key, message ) {
+				.fail( function( endpoint_key, message, field ) {
+					var $card = seen[ endpoint_key ] ? seen[ endpoint_key ].first() : $();
+					var section_key = $card.attr( 'data-ecdv2-section' ) || '';
+					var name = $.trim( $card.find( '.ecdv2-card-title' ).first().text() ) || endpoint_key;
+					var go = section_key ? '.ecdv2-card[data-ecdv2-section="' + section_key + '"]' : '';
 					if ( message ) {
 						if ( -1 === $.inArray( message, refusals ) ) {
 							refusals.push( message );
+							problems.push( { text: name + ': ' + message, field: field || '', card: go } );
 						}
 					} else {
 						failed.push( endpoint_key );
+						problems.push( { text: vt( 'errors_section', '%s was not saved. Try Save again.' ).replace( '%s', name ), card: go } );
+					}
+				} )
+				.done( function() {
+					if ( draft && 'basic' === queue[ i ] ) {
+						vcfg.draft = false; /* created: the rest saves onto a product */
 					}
 				} )
 				.always( function() {
+					/* 6.0.4: a draft whose Basics did not save is not a product yet; nothing else is saved onto it. */
+					if ( draft && 'basic' === queue[ i ] && vcfg.draft ) {
+						problems.push( { text: vt( 'draft_basics', 'Give the product a title first: it is created when you save.' ), field: 'title' } );
+						run( queue.length );
+						return;
+					}
 					run( i + 1 );
 				} );
 		} )( 0 );
@@ -1182,30 +1576,43 @@ window.ecdv2 = ( function( $ ) {
 		$wrap.show();
 	}
 
-	/* Header status toggle: instant save of the basic section. */
+	/* Header status toggle. 6.0.4 ( editor plan Phase 2 ): it saves only itself, at once ( it sent the whole General section,
+	 * pending title, price and description edits with it ); everything else still waits for Save. */
 	function quick_activate( node ) {
 		if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) ) {
 			return; /* nothing to persist yet */
 		}
 		var pill = $( '#ecdv2_status_pill' );
-		pill.toggleClass( 'is-active', node.checked )
-			.text( node.checked ? _t( 'active', 'Active' ) : _t( 'draft', 'Draft' ) );
-		var data = $.extend( base_data( 'basic' ), payloads.basic() );
+		var paint = function( on ) {
+			node.checked = on;
+			pill.toggleClass( 'is-active', on ).text( on ? _t( 'active', 'Active' ) : _t( 'draft', 'Draft' ) );
+			paint_side();
+		};
+		var on = !! node.checked;
+		paint( on );
+		if ( vcfg && vcfg.draft ) {
+			return; /* 6.0.4: a new product's draft: the switch is saved with its first Save */
+		}
 		$.ajax( {
 			url     : wpeasycart_admin_ajax_object.ajax_url,
 			type    : 'post',
-			data    : data,
-			success : function() {
-				delete dirty.basic;
-				$( '.ecdv2-card[data-ecdv2-section="basic"]' ).removeClass( 'is-dirty' );
-				if ( ! has_dirty() ) {
-					$( '#ecdv2_dirty_pill' ).removeClass( 'is-visible' );
+			data    : {
+				action            : 'ecv2_product_toggle_status',
+				product_id        : v( 'product_id' ),
+				status            : on ? 1 : 0,
+				wp_easycart_nonce : $( node ).attr( 'data-nonce' ) || ''
+			},
+			success : function( response ) {
+				if ( ! response || ! response.success ) {
+					paint( ! on );
+					toast( ( response && response.data && response.data.message ) || _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
+					return;
 				}
-				toast( node.checked ? _t( 'activated', 'Product is now live in your store.' ) : _t( 'deactivated', 'Product hidden from your store.' ), 'success' );
+				snapshot_set( 'basic', 'activate_in_store', on ? 1 : 0 );
+				toast( on ? _t( 'activated', 'Product is now live in your store.' ) : _t( 'deactivated', 'Product hidden from your store.' ), 'success' );
 			},
 			error   : function() {
-				node.checked = ! node.checked;
-				pill.toggleClass( 'is-active', node.checked );
+				paint( ! on );
 				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
 			}
 		} );
@@ -1226,13 +1633,13 @@ window.ecdv2 = ( function( $ ) {
 		'seo'                : 'seo',
 		'menus'              : 'organize',
 		'categories'         : 'organize',
-		'tags'               : 'organize',
+		'tags'               : 'design',
 		'subscription'       : 'behavior',
 		'downloads'          : 'behavior',
 		'deconetwork'        : 'behavior',
-		'shipping'           : 'inventory',
-		'packaging'          : 'inventory',
-		'customs'            : 'inventory',
+		'shipping'           : 'shipping',
+		'packaging'          : 'shipping',
+		'customs'            : 'shipping',
 		'tax'                : 'pricing'
 	};
 
@@ -1316,19 +1723,439 @@ window.ecdv2 = ( function( $ ) {
 		clearTimeout( media_pro_timer );
 		media_pro_timer = setTimeout( function() { refresh_media_pro( true ); }, 150 );
 	} );
-	function go_tab( key ) {
+	/* ------------------------------------------------------------------ */
+	/* 6.0.4: views. Page = every section on one page, the rail a map of   */
+	/* them; Focus = one section at a time. Edit / Insights picks which     */
+	/* sections ( Activity, Offers, Reviews are Insights ). A panel carries */
+	/* is-active while it is on screen ( PRO's Offers waits for that ).     */
+	/* ------------------------------------------------------------------ */
+
+	var vcfg = ( window.wpeasycart_ecdv2_view && 'object' === typeof window.wpeasycart_ecdv2_view ) ? window.wpeasycart_ecdv2_view : null;
+	var view = ( vcfg && 'page' === vcfg.view ) ? 'page' : 'focus';
+	var mode = 'edit';
+	var spy_hold_until = 0;
+	var reduce_motion = !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+
+	function vt( key, fallback ) {
+		return ( vcfg && vcfg.text && vcfg.text[ key ] ) ? vcfg.text[ key ] : fallback;
+	}
+
+	function panel( key ) {
+		return $( '.ecdv2-panel[data-ecdv2-panel="' + key + '"]' );
+	}
+
+	function panel_mode( key ) {
+		return 'insights' === panel( key ).attr( 'data-ecdv2-mode' ) ? 'insights' : 'edit';
+	}
+
+	/* The sections of one mode, in the rail's order. */
+	/* @param {boolean} all 6.0.4: also the sections the product type does not use ( they are left out otherwise ). */
+	function mode_keys( which, all ) {
+		var keys = [];
+		$( '.ecdv2-tab[data-ecdv2-tab]' ).each( function() {
+			var key = $( this ).attr( 'data-ecdv2-tab' );
+			if ( ( 'insights' === $( this ).attr( 'data-ecdv2-mode' ) ? 'insights' : 'edit' ) === which && panel( key ).length && ( all || ! panel( key ).hasClass( 'is-unused' ) ) ) {
+				keys.push( key );
+			}
+		} );
+		return keys;
+	}
+
+	function current_key() {
+		var key = $( '.ecdv2-tab.is-active' ).attr( 'data-ecdv2-tab' );
+		return ( key && panel_mode( key ) === mode ) ? key : ( mode_keys( mode )[0] || 'general' );
+	}
+
+	function set_rail_active( key ) {
+		$( '.ecdv2-tab' ).each( function() {
+			var on = $( this ).attr( 'data-ecdv2-tab' ) === key;
+			$( this ).toggleClass( 'is-active', on );
+			if ( 'page' === view && vcfg ) {
+				this.removeAttribute( 'aria-selected' );
+				if ( on ) { this.setAttribute( 'aria-current', 'true' ); } else { this.removeAttribute( 'aria-current' ); }
+			} else {
+				this.setAttribute( 'aria-selected', on ? 'true' : 'false' );
+				this.removeAttribute( 'aria-current' );
+			}
+		} );
+		/* 6.0.4: the rail's list scrolls when the window is short ( both modes' sections are in it ): keep the current one in view. */
+		var list = el( 'ecdv2_tabs' );
+		var node = $( '.ecdv2-tab.is-active' ).get( 0 );
+		if ( list && node && list.scrollHeight > list.clientHeight + 1 && 'auto' === window.getComputedStyle( list ).overflowY ) {
+			var lr = list.getBoundingClientRect();
+			var nr = node.getBoundingClientRect();
+			if ( nr.top < lr.top ) {
+				list.scrollTop -= ( lr.top - nr.top ) + 6;
+			} else if ( nr.bottom > lr.bottom ) {
+				list.scrollTop += ( nr.bottom - lr.bottom ) + 6;
+			}
+		}
+	}
+
+	/* Which panels are on screen: every panel of the mode in the page view, the one section in the focus view. */
+	function show_panels( key ) {
+		$( '.ecdv2-panel' ).each( function() {
+			var $p = $( this );
+			var on = ( 'page' === view && vcfg ) ? ( panel_mode( $p.attr( 'data-ecdv2-panel' ) ) === mode ) : ( $p.attr( 'data-ecdv2-panel' ) === key );
+			$p.toggleClass( 'is-active', on );
+		} );
+	}
+
+	/* Where the sticky header ends once it sticks ( its sticky top + its height ): what a section scrolls to sit under. Read
+	   from the header's place on screen it would be too low before the page has scrolled far enough for the header to stick. */
+	function scroll_offset() {
+		var header = $( '#ecdv2_wrap .ecdv2-header' ).get( 0 );
+		if ( ! header ) {
+			return 12;
+		}
+		var stuck = parseFloat( window.getComputedStyle( header ).top );
+		if ( isNaN( stuck ) || 'sticky' !== window.getComputedStyle( header ).position ) {
+			return Math.max( 0, header.getBoundingClientRect().bottom ) + 12;
+		}
+		return stuck + header.offsetHeight + 12;
+	}
+
+	function scroll_to_node( node, instant ) {
+		if ( ! node ) {
+			return;
+		}
+		show_pane_of( node );
+		var top = node.getBoundingClientRect().top + window.pageYOffset - scroll_offset();
+		spy_hold_until = Date.now() + ( instant || reduce_motion ? 80 : 1200 );
+		try {
+			window.scrollTo( { top: Math.max( 0, top ), behavior: ( instant || reduce_motion ) ? 'auto' : 'smooth' } );
+		} catch ( e ) {
+			window.scrollTo( 0, Math.max( 0, top ) );
+		}
+	}
+
+	function flash( $node ) {
+		$node.addClass( 'ecdv2-flash' );
+		setTimeout( function() {
+			$node.removeClass( 'ecdv2-flash' );
+		}, 1800 );
+	}
+
+	/* ---------- 6.0.4: cards with tabs ( the product page's text, the notes for buyers; tabset_open() ) ---------- */
+
+	/* Shows one pane of a tab group. @param {boolean} focus Moves focus to its tab ( the arrow keys ). */
+	function tabset_show( $set, key, focus ) {
+		var $tab = $set.find( '.ecdv2-tabset-tab[data-ecdv2-pane="' + key + '"]' );
+		if ( ! $tab.length ) {
+			return;
+		}
+		$set.find( '.ecdv2-tabset-tab' ).each( function() {
+			var on = this === $tab.get( 0 );
+			$( this ).toggleClass( 'is-active', on ).attr( { 'aria-selected': on ? 'true' : 'false', tabindex: on ? '0' : '-1' } );
+		} );
+		$set.children( '.ecdv2-tabset-pane' ).each( function() {
+			var on = $( this ).attr( 'data-ecdv2-pane' ) === key;
+			$( this ).toggleClass( 'is-active', on ).prop( 'hidden', ! on );
+		} );
+		if ( focus ) {
+			$tab.get( 0 ).focus();
+		}
+		$( document ).trigger( 'ecdv2:pane-shown', [ $set.attr( 'data-ecdv2-tabset' ), key ] );
+	}
+
+	/* The tab holding a field or card the editor takes the merchant to opens first. */
+	function show_pane_of( node ) {
+		/* 6.0.4: and a closed disclosure ( the Shipping box's Customs ). */
+		$( node ).closest( 'details:not([open])' ).attr( 'open', 'open' );
+		var $pane = $( node ).closest( '.ecdv2-tabset-pane' );
+		if ( $pane.length && $pane.prop( 'hidden' ) ) {
+			tabset_show( $pane.closest( '.ecdv2-tabset' ), $pane.attr( 'data-ecdv2-pane' ), false );
+		}
+	}
+
+	/* The words in a field ( a text box or a wp_editor ), or null when it is not on the page. */
+	function pane_text( id ) {
+		if ( ! el( id ) ) {
+			return null;
+		}
+		var html = $( el( id ) ).closest( '[data-ecdv2-wpeditor]' ).length ? ed( id ) : $( el( id ) ).val();
+		return $.trim( String( html || '' ).replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;|&#160;/g, ' ' ) );
+	}
+
+	/* Each tab says Empty while its field has no words, and carries the unsaved mark of a change made in it ( the
+	   description pane shares the basic section with Product details, so the section alone cannot say which ). */
+	function paint_tabsets() {
+		$( '.ecdv2-tabset-tab' ).each( function() {
+			var $tab = $( this );
+			var check = $tab.attr( 'data-ecdv2-pane-check' );
+			if ( check ) {
+				var text = pane_text( check );
+				if ( null !== text ) {
+					$tab.find( '.ecdv2-tabset-empty' ).prop( 'hidden', '' !== text );
+				}
+			}
+			var $pane = $tab.closest( '.ecdv2-tabset' ).children( '.ecdv2-tabset-pane[data-ecdv2-pane="' + $tab.attr( 'data-ecdv2-pane' ) + '"]' );
+			var changed = $pane.find( '.ecdv2-card.is-dirty' ).length > 0;
+			if ( ! changed ) {
+				$pane.removeAttr( 'data-ecdv2-touched' );
+			}
+			$tab.toggleClass( 'has-dirty', changed && !! $pane.attr( 'data-ecdv2-touched' ) );
+		} );
+	}
+
+	function bind_tabsets() {
+		if ( ! $( '.ecdv2-tabset' ).length ) {
+			return;
+		}
+		$( document ).on( 'click', '.ecdv2-tabset-tab', function() {
+			tabset_show( $( this ).closest( '.ecdv2-tabset' ), $( this ).attr( 'data-ecdv2-pane' ), false );
+		} );
+		$( document ).on( 'keydown', '.ecdv2-tabset-tab', function( e ) {
+			var $tabs = $( this ).closest( '.ecdv2-tabset-tabs' ).children( '.ecdv2-tabset-tab' );
+			var at = $tabs.index( this );
+			var to = -1;
+			if ( 'ArrowRight' === e.key ) {
+				to = ( at + 1 ) % $tabs.length;
+			} else if ( 'ArrowLeft' === e.key ) {
+				to = ( at - 1 + $tabs.length ) % $tabs.length;
+			} else if ( 'Home' === e.key ) {
+				to = 0;
+			} else if ( 'End' === e.key ) {
+				to = $tabs.length - 1;
+			}
+			if ( -1 === to ) {
+				return;
+			}
+			e.preventDefault();
+			tabset_show( $( this ).closest( '.ecdv2-tabset' ), $tabs.eq( to ).attr( 'data-ecdv2-pane' ), true );
+		} );
+		var timer = 0;
+		var touch = function( node ) {
+			$( node ).closest( '.ecdv2-tabset-pane' ).attr( 'data-ecdv2-touched', '1' );
+			clearTimeout( timer );
+			timer = setTimeout( paint_tabsets, 120 );
+		};
+		$( document ).on( 'change input', '.ecdv2-tabset-pane input, .ecdv2-tabset-pane select, .ecdv2-tabset-pane textarea', function() {
+			touch( this );
+		} );
+		var bind_editor = function( editor ) {
+			if ( ! editor || editor.__ecdv2_pane_bound || ! editor.on ) {
+				return;
+			}
+			var $wrap = $( '[data-ecdv2-wpeditor="' + editor.id + '"]' );
+			if ( ! $wrap.closest( '.ecdv2-tabset-pane' ).length ) {
+				return;
+			}
+			editor.__ecdv2_pane_bound = true;
+			editor.on( 'change input paste cut undo redo', function() {
+				touch( $wrap );
+			} );
+			editor.on( 'keyup', function( evt ) {
+				if ( evt && evt.key && 1 === evt.key.length || ( evt && ( 'Backspace' === evt.key || 'Delete' === evt.key || 'Enter' === evt.key ) ) ) {
+					touch( $wrap );
+				}
+			} );
+		};
+		var bind_editors = function() {
+			if ( typeof tinymce === 'undefined' || ! tinymce.editors ) {
+				return;
+			}
+			var i;
+			for ( i = 0; i < tinymce.editors.length; i++ ) {
+				bind_editor( tinymce.editors[ i ] );
+			}
+		};
+		bind_editors();
+		if ( typeof tinymce !== 'undefined' && tinymce.on ) {
+			tinymce.on( 'AddEditor', function( evt ) {
+				bind_editor( evt.editor );
+			} );
+		}
+		$( window ).on( 'load', function() {
+			bind_editors();
+			paint_tabsets();
+		} );
+		paint_tabsets();
+	}
+
+	/* A new manufacturer: the name box opens under the picker ( and closes again once it is made ). */
+	function manufacturer_new( open ) {
+		var $box = $( '#ecdv2_manufacturer_new' );
+		$box.prop( 'hidden', ! open );
+		$( '#ecdv2_manufacturer_new_toggle' ).prop( 'hidden', !! open ).attr( 'aria-expanded', open ? 'true' : 'false' );
+		if ( open ) {
+			$( el( 'manufacturer_name' ) ).trigger( 'focus' );
+		} else {
+			$( el( 'manufacturer_name' ) ).val( '' );
+			$( '#ecdv2_manufacturer_new_toggle' ).trigger( 'focus' );
+		}
+	}
+
+	/* Store menus: the next menu location waiting behind Add another menu location. */
+	function menu_location_add( btn ) {
+		var $wrap = $( btn ).closest( '.ecdv2-menu-locations' );
+		var $next = $wrap.children( '.ecdv2-menu-location[hidden]' ).first();
+		if ( ! $next.length ) {
+			return;
+		}
+		$next.prop( 'hidden', false );
+		flash( $next );
+		$next.find( 'select' ).first().trigger( 'focus' );
+		if ( ! $wrap.children( '.ecdv2-menu-location[hidden]' ).length ) {
+			$( btn ).remove();
+		}
+	}
+
+	/* 6.0.4: one card of a section ( the price context chips ): its section opens, then the card scrolls into view. */
+	function go_card( selector ) {
+		var $card = $( selector ).first();
+		if ( ! $card.length ) {
+			return;
+		}
+		var key = $card.closest( '.ecdv2-panel' ).attr( 'data-ecdv2-panel' );
+		if ( key ) {
+			go_tab( key, { no_scroll: true } );
+		}
+		scroll_to_node( $card.get( 0 ) );
+		flash( $card );
+	}
+
+	/**
+	 * 6.0.4: one field, wherever it is ( a section's card or the summary column ): its section opens ( a field of the summary
+	 * column stays where it is ), the field comes into view, flashes and takes the focus. Used by the quick links under the
+	 * title and every [data-ecdv2-go][data-ecdv2-field] button.
+	 *
+	 * @param {string} id  The field's id.
+	 * @param {string} key The section to open when the field is not on the page.
+	 */
+	function go_field( id, key ) {
+		var field = el( id );
+		if ( ! field ) {
+			if ( key ) {
+				go_tab( key );
+			}
+			return;
+		}
+		var in_side = $( field ).closest( '#ecdv2_side' ).length > 0;
+		if ( in_side ) {
+			if ( 'edit' !== mode ) {
+				set_mode( 'edit', { silent: true } );
+			}
+		} else {
+			key = $( field ).closest( '.ecdv2-panel' ).attr( 'data-ecdv2-panel' ) || key;
+			if ( key ) {
+				go_tab( key, { no_scroll: true } );
+			}
+		}
+		show_pane_of( field );
+		var $box = $( '[data-ecdv2-wpeditor="' + id + '"]' );
+		$box = $box.length ? $box : $( field ).closest( '.ecdv2-field, .ecdv2-toggle-row' );
+		$box = $box.length ? $box : $( field );
+		var node = $box.get( 0 );
+		if ( in_side && side_is_drawer() ) {
+			/* 6.0.4: the summary drawer opens on the field. */
+			side_drawer( true, { no_focus: true } );
+			side_scroll_to( node );
+		} else {
+			var rect = node.getBoundingClientRect();
+			if ( ! in_side || rect.top < scroll_offset() || rect.bottom > window.innerHeight ) {
+				spy_hold_until = Date.now() + 900;
+				node.scrollIntoView( { block: 'center', behavior: reduce_motion ? 'auto' : 'smooth' } );
+			}
+		}
+		flash( $box );
+		setTimeout( function() {
+			/* A select2 list takes the focus on the box it draws. */
+			var target = $( field ).hasClass( 'select2-hidden-accessible' ) ? ( $( field ).next( '.select2' ).find( '.select2-selection' ).get( 0 ) || field ) : field;
+			try { target.focus( { preventScroll: true } ); } catch ( e ) { target.focus(); }
+		}, 120 );
+	}
+
+	/* 6.0.4: a node of the summary drawer into its view ( the drawer scrolls by itself; the page stays put ). */
+	function side_scroll_to( node ) {
+		var side = el( 'ecdv2_side' );
+		if ( ! side || ! node ) {
+			return;
+		}
+		var head = el( 'ecdv2_side_head' );
+		var top = 0;
+		var n = node;
+		while ( n && n !== side ) {
+			top += n.offsetTop;
+			n = n.offsetParent;
+		}
+		side.scrollTop = Math.max( 0, top - ( head ? head.offsetHeight : 0 ) - 12 );
+	}
+
+	/* The summary column's cards ( Categories lives there since 6.0.4 ). */
+	function go_side( key, opts ) {
+		var $card = 'categories' === key ? $( '.ecdv2-card[data-ecdv2-section="categories"]' ) : ( 'health' === key ? $( '#ecdv2_health' ) : ( 'status' === key ? $( '#ecdv2_side_visibility' ) : $( '#ecdv2_side' ) ) );
+		if ( ! $card.length ) {
+			return;
+		}
+		if ( 'edit' !== mode ) {
+			set_mode( 'edit', { silent: true } );
+		}
+		if ( side_is_drawer() ) {
+			/* 6.0.4: the column is a drawer: it opens on that card. */
+			side_drawer( true, { no_focus: true } );
+			side_scroll_to( $card.get( 0 ) );
+		} else {
+			var rect = $card.get( 0 ).getBoundingClientRect();
+			if ( rect.top < scroll_offset() || rect.bottom > window.innerHeight ) {
+				scroll_to_node( $card.get( 0 ), opts && opts.instant );
+			}
+		}
+		flash( $card );
+		if ( 'status' === key && ! ( opts && opts.no_focus ) && el( 'activate_in_store' ) ) {
+			try { el( 'activate_in_store' ).focus( { preventScroll: true } ); } catch ( e ) { el( 'activate_in_store' ).focus(); }
+		}
+		if ( 'categories' === key && ! ( opts && opts.no_focus ) ) {
+			setTimeout( function() {
+				var input = el( 'ecdv2_cat_input' );
+				if ( input ) {
+					try { input.focus( { preventScroll: true } ); } catch ( e ) { input.focus(); }
+				}
+			}, 60 );
+		}
+	}
+
+	/**
+	 * Open a section. In the page view it scrolls there ( opening it if folded ); in the focus view it is the only one on
+	 * screen. Insights sections switch to Insights.
+	 *
+	 * @param {string} key  A section key ( a rail entry ), or categories / health for the summary column.
+	 * @param {Object} opts no_scroll ( the caller scrolls to a field itself ), instant, keep_hash.
+	 */
+	function go_tab( key, opts ) {
+		opts = opts || {};
 		if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) && 'general' !== key ) {
 			return;
+		}
+		if ( 'categories' === key || 'health' === key || 'side' === key || 'status' === key ) {
+			go_side( key, opts );
+			return;
+		}
+		/* 6.0.4: a section of the fields ( a link inside the summary drawer, the rail ): the drawer gets out of the way. */
+		if ( side_is_open() ) {
+			side_drawer( false, { no_focus: true } );
 		}
 		var tab = $( '.ecdv2-tab[data-ecdv2-tab="' + key + '"]' );
 		if ( ! tab.length ) {
 			return;
 		}
-		$( '.ecdv2-tab' ).removeClass( 'is-active' );
-		tab.addClass( 'is-active' );
-		$( '.ecdv2-panel' ).removeClass( 'is-active' );
-		$( '.ecdv2-panel[data-ecdv2-panel="' + key + '"]' ).addClass( 'is-active' );
-		if ( history.replaceState ) {
+		if ( panel( key ).hasClass( 'is-unused' ) ) {
+			show_unused( key );
+		}
+		if ( vcfg && panel_mode( key ) !== mode ) {
+			set_mode( panel_mode( key ), { silent: true, key: key } );
+		}
+		set_rail_active( key );
+		show_panels( key );
+		if ( 'page' === view && vcfg ) {
+			fold( key, false, { quiet: true } );
+			if ( ! opts.no_scroll ) {
+				scroll_to_node( panel( key ).get( 0 ), opts.instant );
+			}
+		} else if ( ! opts.no_scroll ) {
+			window.scrollTo( { top: 0 } );
+		}
+		if ( history.replaceState && ! opts.keep_hash ) {
 			history.replaceState( null, '', '#' + key );
 		}
 		if ( 'activity' === key && ! activity_loaded ) {
@@ -1339,22 +2166,1364 @@ window.ecdv2 = ( function( $ ) {
 		}
 		load_panel_feeds( key );
 		/* mobile pill bar: keep active pill in view */
-		if ( tab[ 0 ].scrollIntoView && window.innerWidth <= 782 ) {
+		if ( tab[ 0 ].scrollIntoView && window.innerWidth <= 782 && $( 'body' ).hasClass( 'ecdv2-rail-static' ) ) {
 			tab[ 0 ].scrollIntoView( { block: 'nearest', inline: 'center', behavior: 'smooth' } );
 		}
-		window.scrollTo( { top: 0 } );
 	}
 
-	function route_initial() {
-		var hash = window.location.hash.replace( '#', '' );
-		if ( ! hash ) {
+	/* Edit / Insights. */
+	var last_edit_key = '';
+	function set_mode( which, opts ) {
+		opts = opts || {};
+		if ( ! vcfg ) {
 			return;
 		}
-		if ( legacy_anchor_map[ hash ] ) {
-			hash = legacy_anchor_map[ hash ];
+		/* 6.0.4: Back to editing returns to the section that was open. */
+		if ( 'edit' === mode && 'insights' === which ) {
+			last_edit_key = current_key();
 		}
-		if ( $( '.ecdv2-tab[data-ecdv2-tab="' + hash + '"]' ).length ) {
-			go_tab( hash );
+		if ( 'edit' === which && ! opts.key && last_edit_key && panel( last_edit_key ).length && ! panel( last_edit_key ).hasClass( 'is-unused' ) ) {
+			opts.key = last_edit_key;
+		}
+		/* 6.0.4: Open Insights in the summary drawer. */
+		if ( side_is_open() && ! opts.silent ) {
+			side_drawer( false, { no_focus: true } );
+		}
+		mode = 'insights' === which ? 'insights' : 'edit';
+		$( '#ecdv2_wrap' ).attr( 'data-mode', mode ).toggleClass( 'ecdv2-mode-insights', 'insights' === mode ).toggleClass( 'ecdv2-mode-edit', 'edit' === mode );
+		/* The rail carries it too: on a phone it is moved out of the editor into <body> ( admin-frame-v2.js ). */
+		$( '.ecdv2-rail[data-mode]' ).attr( 'data-mode', mode );
+		$( '[data-ecdv2-mode-set]' ).filter( '.ecdv2-seg-btn' ).each( function() {
+			this.setAttribute( 'aria-pressed', $( this ).attr( 'data-ecdv2-mode-set' ) === mode ? 'true' : 'false' );
+		} );
+		var key = opts.key || mode_keys( mode )[0];
+		set_rail_active( key );
+		show_panels( key );
+		if ( 'insights' === mode ) {
+			if ( ! activity_loaded ) {
+				load_activity();
+			}
+			$( '.ecdv2-panel.is-active' ).each( function() {
+				load_panel_feeds( $( this ).attr( 'data-ecdv2-panel' ) );
+			} );
+		}
+		if ( ! opts.silent ) {
+			if ( history.replaceState ) {
+				history.replaceState( null, '', '#' + key );
+			}
+			if ( 'edit' === mode && 'page' === view && key !== mode_keys( 'edit' )[0] ) {
+				fold( key, false, { quiet: true } );
+				scroll_to_node( panel( key ).get( 0 ), true );
+			} else {
+				window.scrollTo( { top: 0 } );
+			}
+		}
+		paint_next();
+		$( document ).trigger( 'ecdv2:mode-changed', [ mode ] );
+	}
+
+	/* Page / Focus, remembered for this person. */
+	function set_view( which, opts ) {
+		opts = opts || {};
+		if ( ! vcfg ) {
+			return;
+		}
+		var key = current_key();
+		view = 'focus' === which ? 'focus' : 'page';
+		$( '#ecdv2_wrap' ).attr( 'data-view', view ).toggleClass( 'ecdv2-view-page', 'page' === view ).toggleClass( 'ecdv2-view-focus', 'focus' === view );
+		$( '[data-ecdv2-view-set]' ).each( function() {
+			this.setAttribute( 'aria-pressed', $( this ).attr( 'data-ecdv2-view-set' ) === view ? 'true' : 'false' );
+		} );
+		$( '.ecdv2-panel' ).attr( 'role', 'page' === view ? 'region' : 'tabpanel' );
+		$( '.ecdv2-rail[data-view]' ).attr( 'data-view', view );
+		$( '.ecdv2-tab' ).each( function() {
+			if ( 'page' === view ) { this.removeAttribute( 'role' ); } else { this.setAttribute( 'role', 'tab' ); }
+		} );
+		set_rail_active( key );
+		show_panels( key );
+		if ( 'page' === view ) {
+			fold( key, false, { quiet: true } );
+			scroll_to_node( panel( key ).get( 0 ), true );
+			watch_feeds();
+		} else {
+			window.scrollTo( { top: 0 } );
+			load_panel_feeds( key );
+		}
+		paint_next();
+		paint_summaries();
+		if ( ! opts.silent ) {
+			save_pref( { view: view } );
+			dismiss_tip();
+		}
+		$( document ).trigger( 'ecdv2:view-changed', [ view ] );
+	}
+
+	function save_pref( data ) {
+		if ( ! vcfg || ! vcfg.action || ! window.wpeasycart_admin_ajax_object ) {
+			return;
+		}
+		$.post( wpeasycart_admin_ajax_object.ajax_url, $.extend( { action: vcfg.action, nonce: vcfg.nonce }, data ) );
+	}
+
+	/* Fold or open a section in the page view ( quiet: not remembered, e.g. opening one to show a field ). */
+	function fold( key, folded, opts ) {
+		opts = opts || {};
+		var $p = panel( key );
+		/* 6.0.4: Insights sections fold too ( any section with a fold button ). */
+		if ( ! $p.length || ! $p.find( '> .ecdv2-panel-head .ecdv2-panel-toggle' ).length ) {
+			return;
+		}
+		if ( $p.hasClass( 'is-collapsed' ) === !! folded ) {
+			return;
+		}
+		$p.toggleClass( 'is-collapsed', !! folded );
+		$p.find( '> .ecdv2-panel-head .ecdv2-panel-toggle' ).attr( 'aria-expanded', folded ? 'false' : 'true' );
+		if ( folded ) {
+			paint_summary( key );
+		} else {
+			load_panel_feeds( key );
+			if ( 'media' === key ) {
+				refresh_media_pro();
+			}
+		}
+		if ( ! opts.quiet ) {
+			save_pref( { section: key, collapsed: folded ? '1' : '0' } );
+		}
+	}
+
+	/* Focus view: a "Next: Media" button at the foot of each section. */
+	function paint_next() {
+		var keys = mode_keys( mode );
+		$( '.ecdv2-panel' ).each( function() {
+			var $p = $( this );
+			var key = $p.attr( 'data-ecdv2-panel' );
+			var at = $.inArray( key, keys );
+			var $box = $p.children( '.ecdv2-panel-next' );
+			if ( -1 === at ) {
+				$box.remove();
+				return;
+			}
+			if ( ! $box.length ) {
+				$box = $( '<div class="ecdv2-panel-next"></div>' ).appendTo( $p );
+			}
+			$box.empty();
+			var next = keys[ at + 1 ];
+			if ( next ) {
+				var label = $.trim( $( '.ecdv2-tab[data-ecdv2-tab="' + next + '"] span' ).eq( 1 ).text() );
+				$( '<button type="button" class="ecv2-btn ecdv2-panel-next-btn"></button>' )
+					.text( vt( 'next', 'Next: %s' ).replace( '%s', label ) )
+					.append( '<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>' )
+					.attr( 'data-ecdv2-next', next )
+					.appendTo( $box );
+			} else if ( 'edit' === mode ) {
+				$( '<span class="ecdv2-panel-next-last"></span>' ).text( vt( 'last', 'That was the last section. Save when you are ready.' ) ).appendTo( $box );
+			}
+		} );
+	}
+
+	/* Page view: the rail follows the section being read: the one that reaches a third of the way down the window ( where a
+	   field shown from the rail, the search or listing health sits ), never above the header. */
+	function spy() {
+		if ( 'page' !== view || ! vcfg || Date.now() < spy_hold_until ) {
+			return;
+		}
+		var line = Math.max( scroll_offset() + 24, Math.round( window.innerHeight / 3 ) );
+		var best = null;
+		var best_top = -Infinity;
+		var first = null;
+		var first_top = Infinity;
+		$( '.ecdv2-panel.is-active' ).each( function() {
+			var top = this.getBoundingClientRect().top;
+			if ( top <= line && top > best_top ) {
+				best_top = top;
+				best = this;
+			}
+			if ( top < first_top ) {
+				first_top = top;
+				first = this;
+			}
+		} );
+		/* At the very bottom the last short sections can never reach the line: take the lowest one in view. */
+		if ( window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 4 ) {
+			var low = null;
+			var low_top = -Infinity;
+			$( '.ecdv2-panel.is-active' ).each( function() {
+				var top = this.getBoundingClientRect().top;
+				if ( top < window.innerHeight - 40 && top > low_top ) {
+					low_top = top;
+					low = this;
+				}
+			} );
+			best = low || best;
+		}
+		var node = best || first;
+		if ( node ) {
+			var key = $( node ).attr( 'data-ecdv2-panel' );
+			if ( key !== $( '.ecdv2-tab.is-active' ).attr( 'data-ecdv2-tab' ) ) {
+				set_rail_active( key );
+			}
+		}
+	}
+
+	/* Page view: feeds and the PRO media panel load as their section comes into view. */
+	var feed_observer = null;
+	function watch_feeds() {
+		if ( 'function' !== typeof window.IntersectionObserver ) {
+			$( '.ecdv2-panel.is-active' ).each( function() {
+				load_panel_feeds( $( this ).attr( 'data-ecdv2-panel' ) );
+			} );
+			return;
+		}
+		if ( ! feed_observer ) {
+			feed_observer = new window.IntersectionObserver( function( entries ) {
+				$.each( entries, function( i, entry ) {
+					if ( ! entry.isIntersecting ) {
+						return;
+					}
+					var $p = $( entry.target );
+					if ( $p.hasClass( 'is-active' ) && ! $p.hasClass( 'is-collapsed' ) ) {
+						load_panel_feeds( $p.attr( 'data-ecdv2-panel' ) );
+						if ( 'media' === $p.attr( 'data-ecdv2-panel' ) ) {
+							refresh_media_pro();
+						}
+					}
+				} );
+			}, { rootMargin: '200px 0px' } );
+		}
+		$( '.ecdv2-panel' ).each( function() {
+			feed_observer.observe( this );
+		} );
+	}
+
+	/* ---------- Folded sections say what is set ---------- */
+
+	function count_pictures() {
+		var seen = {};
+		var n = 0;
+		$( '#ecdv2_media_pro_wrap .ec_admin_product_image, #ecdv2_legacy_pro_media .ec_admin_product_image' ).each( function() {
+			var id = $( this ).attr( 'data-attachment_id' ) || String( n );
+			if ( ! seen[ id ] ) {
+				seen[ id ] = true;
+				n++;
+			}
+		} );
+		if ( ! n ) {
+			$.each( [ 'image1', 'image2', 'image3', 'image4', 'image5' ], function( i, id ) {
+				if ( el( id ) && $.trim( v( id ) ) && -1 === $.inArray( $.trim( v( id ) ), [ 'image1', 'image2', 'image3', 'image4', 'image5' ] ) ) {
+					n++;
+				}
+			} );
+		}
+		return n;
+	}
+
+	function counted( one_key, many_key, n, one_fb, many_fb ) {
+		return 1 === n ? vt( one_key, one_fb ) : vt( many_key, many_fb ).replace( '%d', n );
+	}
+
+	function type_text() {
+		var names = [];
+		if ( vcfg && vcfg.type_flags ) {
+			$.each( vcfg.type_flags, function( flag, label ) {
+				if ( el( flag ) && 1 === parseInt( c( flag ), 10 ) ) {
+					names.push( label );
+				}
+			} );
+		}
+		return names.length ? names.join( ' + ' ) : vt( 'standard', 'Standard product' );
+	}
+
+	function option_set_names() {
+		var names = [];
+		$( '#wp-easycart-pro-basic-options .wp-easycart-pro-option-table-row-sortable' ).not( '.wp-easycart-pro-option-modifer-row' ).each( function() {
+			var name = $.trim( $( this ).find( '.wp-easycart-pro-option-table-column-bold' ).first().text() );
+			if ( name ) {
+				names.push( name );
+			}
+		} );
+		if ( ! names.length ) {
+			$( '#ecdv2_opt_slots select' ).each( function() {
+				if ( parseInt( $( this ).val(), 10 ) > 0 ) {
+					names.push( $.trim( $( this ).find( 'option:selected' ).text() ) );
+				}
+			} );
+		}
+		return names;
+	}
+
+	var summaries = {
+		general: function() {
+			return [ $.trim( v( 'title' ) ) || vt( 'no_title', 'No title yet' ), $.trim( v( 'model_number' ) ) || vt( 'no_sku', 'no SKU' ) ].join( ' · ' );
+		},
+		media: function() {
+			var n = count_pictures();
+			return n ? counted( 'picture_one', 'pictures', n, '1 picture', '%d pictures' ) : vt( 'no_pictures', 'No pictures yet' );
+		},
+		pricing: function() {
+			return [ money( v( 'price' ) ), 1 === parseInt( c( 'is_taxable' ), 10 ) ? vt( 'taxed', 'Taxed' ) : vt( 'not_taxed', 'Not taxed' ) ].join( ' · ' );
+		},
+		inventory: function() {
+			var type = String( v( 'stock_quantity_type' ) );
+			return '0' === type ? vt( 'not_tracked', 'Stock not tracked' ) : ( '2' === type ? vt( 'per_variant', 'Stock per variant' ) : vt( 'in_stock', '%d in stock' ).replace( '%d', parseInt( v( 'stock_quantity' ), 10 ) || 0 ) );
+		},
+		shipping: function() {
+			if ( ! ships() ) {
+				return vt( 'no_ship', 'Doesn’t ship' );
+			}
+			var u = ship_units();
+			var weight = with_unit( v( 'weight' ), u.weight );
+			var size = ship_size();
+			return [ 1 === parseInt( c( 'exclude_shippable_calculation' ), 10 ) ? vt( 'ships_free', 'Ships free' ) : vt( 'ships', 'Ships to the customer' ), weight || vt( 'no_weight', 'no weight yet' ) ].concat( size ? [ size ] : [] ).join( ' · ' );
+		},
+		options: function() {
+			var names = option_set_names();
+			return names.length ? names.join( ' × ' ) : vt( 'no_options', 'No options: sold as one item' );
+		},
+		organize: function() {
+			var menus = 0;
+			var related = 0;
+			$.each( [ 1, 2, 3 ], function( i, n ) {
+				if ( parseInt( v( 'menulevel1_id_' + n ), 10 ) > 0 ) {
+					menus++;
+				}
+			} );
+			$.each( [ 1, 2, 3, 4 ], function( i, n ) {
+				var val = v( 'featured_product_id_' + n );
+				if ( val && '0' !== String( val ) ) {
+					related++;
+				}
+			} );
+			return [ counted( 'menu_one', 'menus', menus, '1 menu', '%d menus' ), counted( 'related_one', 'related', related, '1 related product', '%d related products' ) ].join( ' · ' );
+		},
+		behavior: function() {
+			return type_text();
+		},
+		/* 6.0.4: the badge and the picture's hover effect. */
+		design: function() {
+			var badge = '0' !== String( v( 'tag_type' ) || '0' ) && $.trim( v( 'tag_text' ) );
+			var parts = [ badge ? vt( 'badge', 'Badge: %s' ).replace( '%s', badge ) : vt( 'no_badge', 'No badge' ) ];
+			var hover = el( 'image_hover_type' );
+			if ( hover && $( hover ).find( 'option:selected' ).length ) {
+				parts.push( $.trim( $( hover ).find( 'option:selected' ).text() ) );
+			}
+			return parts.join( ' · ' );
+		},
+		seo: function() {
+			if ( ! el( 'seo_description' ) ) {
+				return '';
+			}
+			return $.trim( v( 'seo_description' ) ) ? vt( 'seo_set', 'Search description written' ) : vt( 'seo_missing', 'No search description yet' );
+		},
+		notes: function() {
+			var ids = [ 'order_completed_note', 'order_completed_email_note', 'order_completed_details_note' ];
+			var written = 0;
+			$.each( ids, function( i, id ) {
+				if ( $.trim( String( ed( id ) || '' ).replace( /<[^>]*>/g, '' ) ) ) {
+					written++;
+				}
+			} );
+			return vt( 'notes', '%1$d of %2$d order notes written' ).replace( '%1$d', written ).replace( '%2$d', ids.length );
+		}
+	};
+
+	function paint_summary( key ) {
+		var $sum = panel( key ).find( '> .ecdv2-panel-head [data-ecdv2-sum]' );
+		if ( ! $sum.length ) {
+			return;
+		}
+		var text = '';
+		if ( summaries[ key ] ) {
+			try {
+				text = summaries[ key ]();
+			} catch ( e ) {
+				text = '';
+			}
+		}
+		$sum.text( text );
+	}
+
+	function paint_summaries() {
+		$( '.ecdv2-panel.is-collapsed' ).each( function() {
+			paint_summary( $( this ).attr( 'data-ecdv2-panel' ) );
+		} );
+	}
+
+	/* ---------- The summary column ---------- */
+
+	/* Listing health, re-checked as fields change. Keys this script cannot work out keep their state from the page load. */
+	var health_rules = {
+		image             : { tab: 'media', test: function() { return count_pictures() > 0 || !! $( '#ecdv2_header_thumb img' ).length; } },
+		description       : { tab: 'general', field: 'description', test: function() { return $.trim( String( ed( 'description' ) || '' ).replace( /<[^>]*>/g, '' ) ).length > 20; } },
+		short_description : { tab: 'general', field: 'short_description', test: function() { return '' !== $.trim( v( 'short_description' ) ); } },
+		price             : { tab: 'pricing', field: 'price', test: function() { return parseFloat( v( 'price' ) ) > 0 || 1 === parseInt( c( 'is_donation' ), 10 ) || 1 === parseInt( c( 'inquiry_mode' ), 10 ); } },
+		category          : { tab: 'categories', test: function() { return $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length > 0; } },
+		seo               : { tab: 'seo', field: 'seo_description', test: function() { return el( 'seo_description' ) ? '' !== $.trim( v( 'seo_description' ) ) : null; } },
+		weight            : { tab: 'shipping', field: 'weight', test: function() { return 1 !== parseInt( c( 'is_shippable' ), 10 ) || parseFloat( v( 'weight' ) ) > 0; } },
+		stock             : { tab: 'inventory', field: 'stock_quantity_type', test: function() { return '1' !== String( v( 'stock_quantity_type' ) ) || ( parseInt( v( 'stock_quantity' ), 10 ) || 0 ) > 0; } },
+		active            : { tab: 'general', field: 'activate_in_store', test: function() { return 1 === parseInt( c( 'activate_in_store' ), 10 ); } }
+	};
+
+	function paint_health() {
+		var $list = $( '#ecdv2_health_list' );
+		if ( ! $list.length ) {
+			return;
+		}
+		var done = 0;
+		var total = 0;
+		var todo_tabs = {};
+		$list.children( '.ecdv2-side-health-item' ).each( function() {
+			var $item = $( this );
+			var rule = health_rules[ $item.attr( 'data-ecdv2-check' ) ];
+			var ok = $item.hasClass( 'is-done' );
+			if ( rule ) {
+				var answer = rule.test();
+				if ( null !== answer ) {
+					ok = !! answer;
+				}
+			}
+			$item.toggleClass( 'is-done', ok ).toggleClass( 'is-todo', ! ok );
+			total++;
+			if ( ok ) {
+				done++;
+			} else {
+				todo_tabs[ rule ? rule.tab : $item.attr( 'data-ecdv2-tab' ) ] = true;
+			}
+		} );
+		/* Unfinished first. */
+		$list.append( $list.children( '.is-done' ) );
+		$( '#ecdv2_health_count' ).text( vt( 'health_count', '%1$d of %2$d' ).replace( '%1$d', done ).replace( '%2$d', total ) );
+		/* 6.0.4: the header's Summary button counts what is left ( the drawer hides the list ). */
+		$( '#ecdv2_side_toggle_num' ).text( total - done );
+		$( '#ecdv2_side_toggle_count' ).prop( 'hidden', total - done < 1 );
+		$( '#ecdv2_health_fill' ).css( 'width', ( total ? Math.round( done / total * 100 ) : 0 ) + '%' );
+		$( '.ecdv2-tab[data-ecdv2-tab]' ).each( function() {
+			$( this ).toggleClass( 'has-todo', !! todo_tabs[ $( this ).attr( 'data-ecdv2-tab' ) ] );
+		} );
+	}
+
+	function go_check( key, tab ) {
+		var rule = health_rules[ key ];
+		var target = rule ? rule.tab : tab;
+		if ( ! target ) {
+			return;
+		}
+		if ( 'categories' === target ) {
+			go_tab( 'categories' );
+			return;
+		}
+		var field = rule && rule.field ? el( rule.field ) : null;
+		if ( 'activate_in_store' === ( rule && rule.field ) && field ) {
+			field.focus();
+			flash( $( field ).closest( '.ecdv2-status-toggle' ) );
+			return;
+		}
+		if ( ! field ) {
+			go_tab( target );
+			return;
+		}
+		go_tab( target, { no_scroll: true } );
+		show_pane_of( field );
+		var $box = $( '[data-ecdv2-wpeditor="' + rule.field + '"]' );
+		$box = $box.length ? $box : $( field ).closest( '.ecdv2-field, .ecdv2-toggle-row' );
+		$box = $box.length ? $box : $( field );
+		if ( $box.get( 0 ) && $box.get( 0 ).scrollIntoView ) {
+			spy_hold_until = Date.now() + 900;
+			$box.get( 0 ).scrollIntoView( { block: 'center', behavior: reduce_motion ? 'auto' : 'smooth' } );
+		}
+		flash( $box );
+		setTimeout( function() {
+			if ( 'description' === rule.field && typeof tinymce !== 'undefined' && tinymce.get( 'description' ) && ! $( field ).is( ':visible' ) ) {
+				tinymce.get( 'description' ).focus();
+				return;
+			}
+			try { field.focus( { preventScroll: true } ); } catch ( e ) { field.focus(); }
+		}, 120 );
+	}
+
+	function paint_side() {
+		if ( ! $( '#ecdv2_side' ).length ) {
+			return;
+		}
+		var active = 1 === parseInt( c( 'activate_in_store' ), 10 );
+		$( '#ecdv2_side_status_title' ).text( active ? vt( 'active_title', 'Active' ) : vt( 'draft_title', 'Draft' ) );
+		$( '#ecdv2_side_status' ).text( active ? vt( 'active', 'Shoppers can find and buy it' ) : vt( 'draft', 'Hidden from your store until you switch it on' ) );
+		$( '#ecdv2_side_type' ).text( type_text() );
+		paint_ship_state();
+		paint_ship_card();
+		paint_tax_card();
+		paint_quick_links();
+		/* The product card. */
+		var price = parseFloat( v( 'price' ) ) || 0;
+		var list = parseFloat( v( 'list_price' ) ) || 0;
+		$( '#ecdv2_pv_title' ).text( $.trim( v( 'title' ) ) || vt( 'no_title', 'No title yet' ) );
+		$( '#ecdv2_pv_price' ).text( money( price ) );
+		$( '#ecdv2_pv_was' ).text( money( list ) ).prop( 'hidden', ! ( list > price ) );
+		var badge_type = String( v( 'tag_type' ) || '0' );
+		var badge_text = $.trim( v( 'tag_text' ) );
+		var $badge = $( '#ecdv2_pv_badge' );
+		if ( '0' !== badge_type && '' !== badge_type && badge_text ) {
+			$badge.text( badge_text ).css( { background: v( 'tag_bg_color' ) || '', color: v( 'tag_text_color' ) || '' } ).prop( 'hidden', false );
+		} else {
+			$badge.prop( 'hidden', true );
+		}
+		var out = '1' === String( v( 'stock_quantity_type' ) ) && ( parseInt( v( 'stock_quantity' ), 10 ) || 0 ) <= 0;
+		$( '#ecdv2_pv_stock' ).text( vt( 'out_of_stock', 'Out of stock' ) ).prop( 'hidden', ! out );
+		paint_health();
+	}
+
+	/* ---------- 6.0.4: Shipping ( one box ) and its card in the summary column ---------- */
+
+	function ships() {
+		return ! el( 'is_shippable' ) || 1 === parseInt( c( 'is_shippable' ), 10 );
+	}
+
+	/* A number as it reads in the store's unit ( 0.400 → 0.4 lb ). */
+	function with_unit( number, unit ) {
+		var n = parseFloat( number );
+		if ( ! ( n > 0 ) ) {
+			return '';
+		}
+		return vt( 'with_unit', '%1$s %2$s' ).replace( '%1$s', String( Math.round( n * 1000 ) / 1000 ) ).replace( '%2$s', unit || '' );
+	}
+
+	function ship_units() {
+		var $card = $( '#ecdv2_side_shipping' );
+		return { weight: $card.attr( 'data-weight-unit' ) || 'lb', dim: $card.attr( 'data-dim-unit' ) || 'in' };
+	}
+
+	/* L × W × H, or '' while any side is missing. */
+	function ship_size() {
+		var u = ship_units();
+		var l = parseFloat( v( 'length' ) );
+		var w = parseFloat( v( 'width' ) );
+		var h = parseFloat( v( 'height' ) );
+		if ( ! ( l > 0 && w > 0 && h > 0 ) ) {
+			return '';
+		}
+		var r = function( n ) {
+			return String( Math.round( n * 100 ) / 100 );
+		};
+		return r( l ) + ' × ' + r( w ) + ' × ' + r( h ) + ' ' + u.dim;
+	}
+
+	/* The section: everything after the switch folds away behind a note while the product does not ship. */
+	function paint_ship_state() {
+		var $p = panel( 'shipping' );
+		if ( ! $p.length || ! el( 'is_shippable' ) ) {
+			return;
+		}
+		$p.toggleClass( 'is-noship', ! ships() );
+		var parts = [];
+		var hs = $.trim( v( 'hs_code' ) );
+		if ( hs ) {
+			parts.push( 'HS ' + hs );
+		}
+		var origin = el( 'country_of_origin' );
+		if ( origin && $( origin ).val() ) {
+			parts.push( $.trim( $( origin ).find( 'option:selected' ).text() ) );
+		}
+		var $sum = $( '#ecdv2_customs_sum' );
+		if ( $sum.length ) {
+			if ( ! $sum.attr( 'data-base' ) ) {
+				$sum.attr( 'data-base', $sum.text() );
+			}
+			$sum.text( [ $sum.attr( 'data-base' ) ].concat( parts ).join( ' · ' ) );
+		}
+	}
+
+	/* The summary column's card under Product type. */
+	function paint_ship_card() {
+		var $card = $( '#ecdv2_side_shipping' );
+		if ( ! $card.length ) {
+			return;
+		}
+		var on = ships();
+		var u = ship_units();
+		var weight = with_unit( v( 'weight' ), u.weight );
+		var free = 1 === parseInt( c( 'exclude_shippable_calculation' ), 10 );
+		var warn = on && '1' === $card.attr( 'data-needs-weight' ) && ! weight && ! free;
+		$card.toggleClass( 'is-noship', ! on ).toggleClass( 'is-warn', warn );
+		$( '#ecdv2_side_ship_title' ).text( on ? ( free ? vt( 'ships_free', 'Ships free' ) : vt( 'ships', 'Ships to the customer' ) ) : vt( 'no_ship', 'Doesn’t ship' ) );
+		$( '#ecdv2_side_ship_facts' ).prop( 'hidden', ! on );
+		$( '#ecdv2_side_ship_warn' ).prop( 'hidden', ! warn );
+		$( '#ecdv2_side_ship_weight' ).text( weight || vt( 'not_set', 'Not set' ) );
+		$( '#ecdv2_side_ship_size' ).text( ship_size() || vt( 'not_set', 'Not set' ) );
+		var packs = el( 'packs_in' );
+		var packs_text = '';
+		if ( packs ) {
+			var pv = String( $( packs ).val() );
+			packs_text = '0' === pv || '' === pv ? vt( 'packs_auto', 'Best box, automatic' ) : ( '-1' === pv ? vt( 'packs_own', 'Its own box' ) : $.trim( $( packs ).find( 'option:selected' ).text() ) );
+		}
+		$( '#ecdv2_side_ship_packs' ).text( packs_text || vt( 'packs_auto', 'Best box, automatic' ) ).closest( 'dd' ).prev( 'dt' ).addBack().toggle( !! packs );
+		var charges = [];
+		if ( free ) {
+			charges.push( vt( 'left_out', 'Left out of your rates' ) );
+		}
+		var per_order = parseFloat( v( 'handling_price' ) ) || 0;
+		var per_item = parseFloat( v( 'handling_price_each' ) ) || 0;
+		if ( per_order > 0 ) {
+			charges.push( vt( 'handling_order', '%s handling per order' ).replace( '%s', money( per_order ) ) );
+		}
+		if ( per_item > 0 ) {
+			charges.push( vt( 'handling_item', '%s per item' ).replace( '%s', money( per_item ) ) );
+		}
+		if ( 1 === parseInt( c( 'ship_to_billing' ), 10 ) ) {
+			charges.push( vt( 'billing_address', 'Ships to the billing address' ) );
+		}
+		$( '#ecdv2_side_ship_charges' ).text( charges.length ? charges.join( '; ' ) : vt( 'no_handling', 'Your shipping rates' ) );
+		var key = type_key();
+		$( '#ecdv2_side_ship_off' ).prop( 'hidden', on ).text( 'download' === key ? vt( 'off_download', '' ) : ( 'service' === key ? vt( 'off_service', '' ) : vt( 'off_other', 'Checkout asks no shipping address and adds no shipping for it.' ) ) || vt( 'off_other', '' ) );
+	}
+
+	/* 6.0.4: the summary column's Tax card, under Shipping. */
+	function paint_tax_card() {
+		var $card = $( '#ecdv2_side_tax' );
+		if ( ! $card.length || ! el( 'is_taxable' ) ) {
+			return;
+		}
+		var tax = 1 === parseInt( c( 'is_taxable' ), 10 );
+		var vat = el( 'vat_rate' ) ? 1 === parseInt( c( 'vat_rate' ), 10 ) : false;
+		$card.toggleClass( 'is-off', ! tax && ! vat );
+		$( '#ecdv2_side_tax_title' ).text( tax || vat ? vt( 'taxable', 'Taxable' ) : vt( 'not_taxable', 'Not taxable' ) );
+		$( '#ecdv2_side_tax_sub' ).text( tax && vat ? vt( 'tax_sales_vat', 'Sales tax and VAT' ) : ( tax ? vt( 'tax_sales', 'Sales tax' ) : ( vat ? vt( 'tax_vat', 'VAT' ) : vt( 'tax_none', 'No sales tax or VAT' ) ) ) );
+	}
+
+	/* 6.0.4: the quick links under Basics' title and SKU ( the price and the manufacturer, set elsewhere ). */
+	function paint_quick_links() {
+		if ( ! $( '#ecdv2_quick_links' ).length ) {
+			return;
+		}
+		if ( el( 'price' ) ) {
+			$( '#ecdv2_quick_price' ).text( money( parseFloat( v( 'price' ) ) || 0 ) );
+		}
+		var maker = el( 'manufacturer_id' );
+		if ( maker ) {
+			var id = String( $( maker ).val() || '' );
+			$( '#ecdv2_quick_manufacturer' ).text( '' !== id && '0' !== id ? $.trim( $( maker ).find( 'option:selected' ).text() ) : vt( 'no_manufacturer', 'None' ) );
+		}
+	}
+
+	/* A new first picture ( the PRO media panel redrawn ) shows on the card. */
+	function paint_card_image() {
+		var src = $( '#ecdv2_media_pro_wrap .ec_admin_product_image img, #ecdv2_legacy_pro_media .ec_admin_product_image img' ).first().attr( 'src' );
+		if ( ! src ) {
+			return;
+		}
+		var $img = $( '#ecdv2_pv_img img' );
+		if ( ! $img.length ) {
+			$( '#ecdv2_pv_img .dashicons' ).remove();
+			$img = $( '<img alt="" />' ).prependTo( '#ecdv2_pv_img' );
+		}
+		$img.attr( 'src', src );
+	}
+
+	/* The column stays in view: under the header while it fits the window, else it scrolls until its foot ( listing health,
+	   the card, sales ) reaches the bottom of the window and stays there. */
+	function fit_side() {
+		var side = el( 'ecdv2_side' );
+		var header = $( '#ecdv2_wrap .ecdv2-header' ).get( 0 );
+		/* Under the header as it really is ( it wraps to two lines on a narrower screen ). */
+		var top = header ? Math.round( parseFloat( window.getComputedStyle( header ).top ) || 0 ) + header.offsetHeight + 14 : 96;
+		if ( window.innerWidth > 782 ) {
+			$( '#ecdv2_wrap .ecdv2-rail' ).css( 'top', top + 'px' );
+		}
+		if ( ! side ) {
+			return;
+		}
+		/* 6.0.4: a drawer is placed by side_drawer(), not stuck under the header. */
+		if ( side_is_drawer() ) {
+			$( side ).css( 'top', '' ).removeClass( 'is-sticky' );
+			if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-side-open' ) ) {
+				place_side_drawer();
+			}
+			return;
+		}
+		var fits = side.offsetHeight + top + 16 <= window.innerHeight;
+		$( side ).css( 'top', ( fits ? top : Math.min( top, window.innerHeight - side.offsetHeight - 16 ) ) + 'px' ).addClass( 'is-sticky' );
+	}
+
+	/* The editor's width decides its columns ( the WordPress and EasyCart menus can be folded, so the window's width can't ). */
+	function fit_columns() {
+		var wrap = el( 'ecdv2_wrap' );
+		if ( ! wrap || ! $( wrap ).hasClass( 'ecdv2-product' ) ) {
+			return;
+		}
+		var w = wrap.getBoundingClientRect().width;
+		$( wrap ).toggleClass( 'ecdv2-w3', w >= 960 ).toggleClass( 'ecdv2-w2', w >= 760 && w < 960 ).toggleClass( 'ecdv2-w1', w < 760 ).toggleClass( 'ecdv2-roomy', w >= 1240 );
+		/* 6.0.4: narrower than the three columns, the summary column is a drawer ( it went above or below the fields ). */
+		var drawer = w < 960 && !! el( 'ecdv2_side' );
+		if ( drawer !== side_is_drawer() ) {
+			if ( ! drawer ) {
+				side_drawer( false, { no_focus: true } );
+			}
+			$( wrap ).toggleClass( 'ecdv2-side-drawer', drawer );
+		}
+		side_roles();
+		fit_side();
+	}
+
+	/* ---------- 6.0.4: the summary column as a drawer ( the editor narrower than 960px ) ---------- */
+
+	function side_is_drawer() {
+		return $( '#ecdv2_wrap' ).hasClass( 'ecdv2-side-drawer' );
+	}
+
+	function side_is_open() {
+		return $( '#ecdv2_wrap' ).hasClass( 'ecdv2-side-open' );
+	}
+
+	/* A drawer is a dialog; beside the fields the column is the page's summary. */
+	function side_roles() {
+		var side = el( 'ecdv2_side' );
+		if ( ! side ) {
+			return;
+		}
+		if ( side_is_drawer() ) {
+			side.setAttribute( 'role', 'dialog' );
+			side.setAttribute( 'aria-modal', 'true' );
+			side.setAttribute( 'aria-labelledby', 'ecdv2_side_title' );
+		} else {
+			side.removeAttribute( 'role' );
+			side.removeAttribute( 'aria-modal' );
+			side.removeAttribute( 'aria-labelledby' );
+		}
+	}
+
+	/* The drawer starts under the editor's sticky header, so Save and the Summary button stay in reach. */
+	function place_side_drawer() {
+		var wrap = el( 'ecdv2_wrap' );
+		var header = $( '#ecdv2_wrap .ecdv2-header' ).get( 0 );
+		if ( ! wrap || ! header ) {
+			return;
+		}
+		wrap.style.setProperty( '--ecdv2-drawer-top', Math.max( 0, Math.round( header.getBoundingClientRect().bottom ) + 8 ) + 'px' );
+	}
+
+	var side_return_focus = null;
+	var side_scroll_back = null;
+
+	/* At once, whatever the page's scroll-behavior ( the drawer measures the header right after ). */
+	function side_scroll_now( y ) {
+		try {
+			window.scrollTo( { top: y, left: 0, behavior: 'instant' } );
+		} catch ( e ) {
+			window.scrollTo( 0, y );
+		}
+	}
+
+	/**
+	 * Opens or closes the summary drawer ( only while the column is one ).
+	 *
+	 * @param {boolean} open      true, false, or undefined to toggle.
+	 * @param {Object}  opts      no_focus: leave the focus where it is ( a link inside the drawer takes it to a field ).
+	 */
+	function side_drawer( open, opts ) {
+		opts = opts || {};
+		if ( true !== open && false !== open ) {
+			open = ! side_is_open();
+		}
+		if ( open && ! side_is_drawer() ) {
+			return;
+		}
+		if ( open === side_is_open() ) {
+			if ( open ) {
+				place_side_drawer();
+			}
+			return;
+		}
+		if ( open ) {
+			side_return_focus = document.activeElement;
+			/* At the top of the page the header has not stuck yet, so the drawer would start halfway down: the page moves the
+			   header to its place first ( and back when the drawer closes ). */
+			side_scroll_back = null;
+			var header = $( '#ecdv2_wrap .ecdv2-header' ).get( 0 );
+			if ( header ) {
+				var stuck = parseFloat( window.getComputedStyle( header ).top ) || 0;
+				var gap = header.getBoundingClientRect().top - stuck;
+				if ( gap > 1 ) {
+					side_scroll_back = window.pageYOffset;
+					side_scroll_now( window.pageYOffset + gap );
+				}
+			}
+			place_side_drawer();
+		}
+		$( '#ecdv2_wrap' ).toggleClass( 'ecdv2-side-open', open );
+		$( 'html' ).toggleClass( 'ecdv2-side-locked', open );
+		if ( ! open && null !== side_scroll_back ) {
+			/* Closed by its button, Escape or the backdrop: back where the page was. A link to a section scrolls there itself. */
+			if ( ! opts.no_focus ) {
+				side_scroll_now( side_scroll_back );
+			}
+			side_scroll_back = null;
+		}
+		$( '#ecdv2_side_toggle' ).attr( 'aria-expanded', open ? 'true' : 'false' );
+		if ( open && ! opts.no_focus ) {
+			setTimeout( function() {
+				var close = el( 'ecdv2_side_close' );
+				if ( close ) {
+					try { close.focus( { preventScroll: true } ); } catch ( e ) { close.focus(); }
+				}
+			}, 60 );
+		}
+		if ( ! open ) {
+			var back = side_return_focus;
+			side_return_focus = null;
+			if ( ! opts.no_focus && back && document.contains( back ) && ! $( back ).closest( '#ecdv2_side' ).length ) {
+				try { back.focus( { preventScroll: true } ); } catch ( e ) { back.focus(); }
+			}
+		}
+		$( document ).trigger( 'ecdv2:side-drawer', [ open ] );
+	}
+
+	/* Escape closes it ( unless a list inside is open ); Tab stays inside it. */
+	function side_keydown( e ) {
+		if ( ! side_is_open() ) {
+			return;
+		}
+		if ( 'Escape' === e.key || 'Esc' === e.key ) {
+			if ( $( '.select2-container--open' ).length || e.defaultPrevented ) {
+				return;
+			}
+			e.preventDefault();
+			side_drawer( false );
+			return;
+		}
+		if ( 'Tab' !== e.key ) {
+			return;
+		}
+		var $items = $( '#ecdv2_side' ).find( 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])' ).filter( function() {
+			return ! this.disabled && 'hidden' !== this.type && this.offsetParent !== null && ! $( this ).closest( '[hidden], .select2-hidden-accessible' ).length;
+		} );
+		if ( ! $items.length ) {
+			return;
+		}
+		var first = $items.get( 0 );
+		var last = $items.get( $items.length - 1 );
+		if ( ! $( document.activeElement ).closest( '#ecdv2_side' ).length ) {
+			e.preventDefault();
+			first.focus();
+		} else if ( e.shiftKey && document.activeElement === first ) {
+			e.preventDefault();
+			last.focus();
+		} else if ( ! e.shiftKey && document.activeElement === last ) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
+
+	/* ---------- Previous / next product ( the list the merchant came from ) ---------- */
+
+	var nav = null;
+
+	function nav_init() {
+		if ( ! vcfg || ! vcfg.product_id ) {
+			return;
+		}
+		var data = null;
+		try {
+			data = JSON.parse( window.sessionStorage.getItem( 'wpec_product_nav' ) || 'null' );
+		} catch ( e ) {
+			data = null;
+		}
+		if ( ! data || ! data.ids || ! data.ids.length || ( Date.now() - ( parseInt( data.t, 10 ) || 0 ) ) > 43200000 ) {
+			return;
+		}
+		var ids = $.map( data.ids, function( x ) { return parseInt( x, 10 ) || null; } );
+		var at = $.inArray( parseInt( vcfg.product_id, 10 ), ids );
+		if ( -1 === at || ids.length < 2 ) {
+			return;
+		}
+		nav = { prev: ids[ at - 1 ] || 0, next: ids[ at + 1 ] || 0, titles: data.titles || {} };
+		var set = function( which, id ) {
+			var $a = $( '#ecdv2_nav_' + which );
+			if ( id ) {
+				$a.attr( 'href', vcfg.edit_url + id ).removeClass( 'is-disabled' ).removeAttr( 'aria-disabled' );
+				if ( nav.titles[ id ] ) {
+					$a.attr( 'title', String( nav.titles[ id ] ) + ( 'next' === which ? ' ( J )' : ' ( K )' ) );
+				}
+			} else {
+				$a.removeAttr( 'href' ).addClass( 'is-disabled' ).attr( 'aria-disabled', 'true' );
+			}
+		};
+		set( 'prev', nav.prev );
+		set( 'next', nav.next );
+		$( '#ecdv2_nav_pos' ).text( vt( 'nav_position', '%1$d of %2$d' ).replace( '%1$d', at + 1 ).replace( '%2$d', ids.length ) );
+		$( '#ecdv2_nav' ).prop( 'hidden', false );
+		$( '#ecdv2_menu_save_next' ).prop( 'hidden', ! nav.next );
+		/* Back returns to the list as it was ( filters, search, page ). */
+		if ( 'string' === typeof data.back && 0 === data.back.indexOf( window.location.origin ) && -1 !== data.back.indexOf( 'page=wp-easycart-products' ) ) {
+			$( '#ecdv2_wrap .ecdv2-header-back' ).attr( 'href', data.back );
+		}
+	}
+
+	function nav_open( id ) {
+		if ( ! id ) {
+			return;
+		}
+		saving = true; /* leaving on purpose: no "unsaved changes" prompt for a saved page */
+		window.location.href = vcfg.edit_url + id;
+	}
+
+	/* Move to the previous / next product; with unsaved changes, offer to save them first. */
+	function nav_go( which ) {
+		var id = nav ? nav[ which ] : 0;
+		if ( ! id ) {
+			if ( 'next' === which ) {
+				toast( vt( 'no_next', 'This is the last product in the list you came from.' ), 'info' );
+			}
+			return;
+		}
+		if ( ! has_dirty() ) {
+			nav_open( id );
+			return;
+		}
+		var name = nav.titles[ id ] ? String( nav.titles[ id ] ) : vt( 'next_product', 'the next product' );
+		window.ecdv2_confirm( {
+			title: vt( 'save_first', 'Save your changes first?' ),
+			message: vt( 'save_first_body', 'This product has changes that are not saved yet. Save them and open %s?' ).replace( '%s', name ),
+			confirm_label: vt( 'save_and_open', 'Save and open' ),
+			cancel_label: vt( 'stay', 'Stay here' )
+		} ).then( function( ok ) {
+			if ( ok ) {
+				save_then( function() { nav_open( id ); } );
+			}
+		} );
+	}
+
+	function save_then( then ) {
+		if ( ! has_dirty() ) {
+			then();
+			return;
+		}
+		/* Through window.ecdv2.save_all so the free edition's warnings about data only Pro keeps still ask first. */
+		window.ecdv2.save_all( { then: then } );
+		if ( ! saving && ! has_dirty() ) {
+			then();
+		}
+	}
+
+	function save_next() {
+		if ( ! nav || ! nav.next ) {
+			toast( vt( 'no_next', 'This is the last product in the list you came from.' ), 'info' );
+			return;
+		}
+		save_then( function() { nav_open( nav.next ); } );
+	}
+
+	/* ---------- Wiring ---------- */
+
+	function dismiss_tip() {
+		var $tip = $( '#ecdv2_view_tip' );
+		if ( $tip.length ) {
+			$tip.remove();
+			save_pref( { tip: 1 } );
+		}
+	}
+
+	function typing_target( node ) {
+		return !! ( node && ( /^(INPUT|TEXTAREA|SELECT)$/.test( node.tagName ) || node.isContentEditable ) );
+	}
+
+	/* ---------- Product type ( 6.0.4, editor plan Phase 2 ) ---------- */
+
+	/* The type choice writes the Type settings switches ( vcfg.types: key => label, flag, ships, help ); the switches stay the
+	 * truth, so a product is whatever type its switches say. A section the type does not use leaves the page and waits in the
+	 * rail's "Not used for this type" group, unless it holds something ( stock tracking, option sets ) or was opened. */
+	var type_custom = false;
+	var type_forced = {};
+	var rail_nodes = null;
+
+	function type_list() {
+		return ( vcfg && vcfg.types && 'object' === typeof vcfg.types ) ? vcfg.types : {};
+	}
+
+	function type_key() {
+		var on = [];
+		$.each( type_list(), function( key, type ) {
+			if ( type.flag && el( type.flag ) && 1 === parseInt( c( type.flag ), 10 ) ) {
+				on.push( key );
+			}
+		} );
+		if ( on.length > 1 ) {
+			return 'custom';
+		}
+		if ( 1 === on.length ) {
+			return on[0];
+		}
+		return ( el( 'is_shippable' ) && 1 !== parseInt( c( 'is_shippable' ), 10 ) ) ? 'service' : 'physical';
+	}
+
+	function set_switch( name, on ) {
+		var node = el( name );
+		if ( ! node || node.disabled || 'checkbox' !== node.type || !! node.checked === on ) {
+			return;
+		}
+		$( node ).prop( 'checked', on ).trigger( 'change' );
+	}
+
+	function set_type( key ) {
+		var types = type_list();
+		if ( 'custom' === key ) {
+			type_custom = true;
+			paint_type( true );
+			return;
+		}
+		if ( ! types[ key ] ) {
+			return;
+		}
+		type_custom = false;
+		$.each( types, function( k, type ) {
+			if ( type.flag ) {
+				set_switch( type.flag, k === key );
+			}
+		} );
+		if ( null !== types[ key ].ships && 'undefined' !== typeof types[ key ].ships ) {
+			set_switch( 'is_shippable', 1 === parseInt( types[ key ].ships, 10 ) );
+		}
+		paint_type( true );
+		paint_side();
+	}
+
+	/* Sections this type has no use for, while they hold nothing. */
+	function type_unused( key ) {
+		var out = {}; /* 6.0.4: never Shipping: a product that does not ship says so there */
+		if ( ( 'download' === key || 'giftcard' === key || 'donation' === key ) && el( 'stock_quantity_type' ) && '0' === String( v( 'stock_quantity_type' ) ) ) {
+			out.inventory = true;
+		}
+		if ( ( 'giftcard' === key || 'donation' === key ) && ! option_set_names().length ) {
+			out.options = true;
+		}
+		return out;
+	}
+
+	/* The rail in its printed order, the unused sections last under their own label ( before Insights ). */
+	function paint_rail_unused() {
+		var $tabs = $( '#ecdv2_tabs' );
+		if ( ! $tabs.length ) {
+			return;
+		}
+		if ( ! rail_nodes ) {
+			rail_nodes = $tabs.children().toArray();
+		}
+		var $label = $( '#ecdv2_unused_label' );
+		if ( ! $label.length ) {
+			$label = $( '<div class="ecdv2-rail-group ecdv2-rail-unused" id="ecdv2_unused_label" data-ecdv2-mode="edit"></div>' ).text( vt( 'type_unused', 'Not used for this type' ) );
+		}
+		var unused = [];
+		var before = null;
+		$.each( rail_nodes, function( i, node ) {
+			if ( $( node ).hasClass( 'ecdv2-tab' ) && panel( $( node ).attr( 'data-ecdv2-tab' ) ).hasClass( 'is-unused' ) ) {
+				unused.push( node );
+				$( node ).addClass( 'is-unused' );
+				return;
+			}
+			$( node ).removeClass( 'is-unused' );
+			if ( ! before && 'insights' === $( node ).attr( 'data-ecdv2-mode' ) ) {
+				before = node;
+			}
+			$tabs.append( node );
+		} );
+		$label.detach();
+		if ( unused.length ) {
+			var $group = $( [ $label.get( 0 ) ].concat( unused ) );
+			if ( before ) {
+				$group.insertBefore( before );
+			} else {
+				$tabs.append( $group );
+			}
+		}
+		/* A group whose sections all moved out keeps no label. */
+		$tabs.children( '.ecdv2-rail-group' ).not( $label ).each( function() {
+			$( this ).toggleClass( 'is-empty', ! $( this ).nextUntil( '.ecdv2-rail-group' ).filter( '.ecdv2-tab' ).length );
+		} );
+	}
+
+	/* @param {boolean} hide Also hide sections that stopped being used ( a type was chosen, or the page loaded ). Other
+	 * changes only bring sections back, so a section never disappears under the person working in it. */
+	function paint_type( hide ) {
+		var $sel = $( '#ecdv2_type' );
+		if ( ! $sel.length ) {
+			return;
+		}
+		var types = type_list();
+		var key = type_key();
+		if ( 'custom' !== key && type_custom ) {
+			key = 'custom';
+		}
+		$( '#ecdv2_wrap' ).attr( 'data-ecdv2-type', key );
+		$sel.val( key );
+		$( '#ecdv2_type_help' ).text( 'custom' === key ? vt( 'type_custom', '' ) : ( types[ key ] ? types[ key ].help : '' ) );
+		/* A service that manages the product ( Square, a print partner, a plan group ) owns its type switches. */
+		var locked = false;
+		$.each( types, function( k, type ) {
+			if ( type.flag && el( type.flag ) && el( type.flag ).disabled ) {
+				locked = true;
+			}
+		} );
+		$sel.prop( 'disabled', locked );
+		var unused = type_unused( 'custom' === key ? '' : key );
+		$.each( mode_keys( 'edit', true ), function( i, k ) {
+			var $p = panel( k );
+			if ( unused[ k ] && ! type_forced[ k ] ) {
+				if ( hide ) {
+					$p.addClass( 'is-unused' );
+				}
+			} else {
+				$p.removeClass( 'is-unused' );
+			}
+		} );
+		paint_rail_unused();
+	}
+
+	/* Opening a section the type does not use shows it for this visit. */
+	function show_unused( key ) {
+		type_forced[ key ] = true;
+		panel( key ).removeClass( 'is-unused' );
+		paint_rail_unused();
+	}
+
+	function bind_type() {
+		if ( ! $( '#ecdv2_type' ).length ) {
+			return;
+		}
+		$( document ).on( 'change', '#ecdv2_type', function() {
+			set_type( $( this ).val() );
+		} );
+		var watched = [ '#is_shippable', '#stock_quantity_type' ];
+		$.each( type_list(), function( key, type ) {
+			if ( type.flag ) {
+				watched.push( '#' + type.flag );
+			}
+		} );
+		$( document ).on( 'change', watched.join( ', ' ), function() {
+			paint_type( false );
+		} );
+		/* A product that mixes types stays Custom until a type is chosen, so its switches never vanish while it is edited. */
+		type_custom = 'custom' === type_key();
+		paint_type( true );
+	}
+
+	function bind_views() {
+		if ( ! vcfg || ! $( '#ecdv2_wrap' ).hasClass( 'ecdv2-product' ) ) {
+			return;
+		}
+		$( document ).on( 'click', '[data-ecdv2-view-set]', function() {
+			set_view( $( this ).attr( 'data-ecdv2-view-set' ) );
+		} );
+		$( document ).on( 'click', '[data-ecdv2-mode-set]', function() {
+			set_mode( $( this ).attr( 'data-ecdv2-mode-set' ) );
+		} );
+		$( document ).on( 'click', '.ecdv2-panel-toggle', function( e ) {
+			e.stopPropagation();
+			var key = $( this ).attr( 'data-ecdv2-fold' );
+			fold( key, ! panel( key ).hasClass( 'is-collapsed' ) );
+		} );
+		/* 6.0.4: the whole heading row folds and opens a section ( a folded one only opened from it, so an open one did not read
+		   as foldable ). */
+		$( document ).on( 'click', '.ecdv2-view-page .ecdv2-panel > .ecdv2-panel-head', function( e ) {
+			if ( $( e.target ).closest( 'a, input, select, textarea, label' ).length ) {
+				return;
+			}
+			var key = $( this ).parent().attr( 'data-ecdv2-panel' );
+			if ( ! $( this ).find( '.ecdv2-panel-toggle' ).length ) {
+				return;
+			}
+			fold( key, ! panel( key ).hasClass( 'is-collapsed' ) );
+		} );
+		/* The Shipping box follows its switch at once ( the summary column repaints a moment later ). */
+		$( document ).on( 'change', '#is_shippable', function() {
+			paint_ship_state();
+			paint_ship_card();
+		} );
+		$( document ).on( 'click', '[data-ecdv2-next]', function() {
+			go_tab( $( this ).attr( 'data-ecdv2-next' ) );
+		} );
+		/* Open all / Fold all ( the page view's editing sections ), remembered in one request. */
+		$( document ).on( 'click', '[data-ecdv2-fold-all]', function() {
+			var folded = '1' === $( this ).attr( 'data-ecdv2-fold-all' );
+			var keys = mode_keys( mode ); /* 6.0.4: the sections on show ( editing or Insights ) */
+			$.each( keys, function( i, key ) {
+				fold( key, folded, { quiet: true } );
+			} );
+			save_pref( { sections: keys, collapsed: folded ? '1' : '0' } );
+			set_rail_active( keys[0] );
+			spy_hold_until = Date.now() + 400;
+			window.scrollTo( { top: 0 } );
+		} );
+		$( document ).on( 'click', '[data-ecdv2-go]', function() {
+			var field = $( this ).attr( 'data-ecdv2-field' );
+			var section = $( this ).attr( 'data-ecdv2-go-section' );
+			if ( field && el( field ) ) {
+				go_field( field, $( this ).attr( 'data-ecdv2-go' ) );
+				return;
+			}
+			/* 6.0.4: one card of a section ( the summary column's Tax card goes to the Tax card in Pricing ). */
+			if ( section && $( '.ecdv2-panel .ecdv2-card[data-ecdv2-section="' + section + '"]' ).length ) {
+				go_card( '.ecdv2-panel .ecdv2-card[data-ecdv2-section="' + section + '"]' );
+				return;
+			}
+			go_tab( $( this ).attr( 'data-ecdv2-go' ) );
+		} );
+		/* 6.0.4: the quick links under the title and the Tax card follow their fields. */
+		$( document ).on( 'input change', '#price', paint_quick_links );
+		$( document ).on( 'change', '#manufacturer_id', paint_quick_links );
+		$( document ).on( 'change', '#is_taxable, #vat_rate', paint_tax_card );
+		$( document ).on( 'click', '.ecdv2-side-health-go', function() {
+			var $item = $( this ).closest( '.ecdv2-side-health-item' );
+			go_check( $item.attr( 'data-ecdv2-check' ), $item.attr( 'data-ecdv2-tab' ) );
+		} );
+		$( document ).on( 'click', '#ecdv2_view_tip_ok', dismiss_tip );
+		$( document ).on( 'click', '#ecdv2_nav_prev, #ecdv2_nav_next', function( e ) {
+			e.preventDefault();
+			nav_go( 'ecdv2_nav_next' === this.id ? 'next' : 'prev' );
+		} );
+		document.addEventListener( 'keydown', function( e ) {
+			if ( e.metaKey || e.ctrlKey || e.altKey || typing_target( e.target ) || $( '.ecv2-modal-overlay:visible, .ecdv2-menu.is-open' ).length ) {
+				return;
+			}
+			if ( 'j' === e.key || 'k' === e.key ) {
+				if ( nav ) {
+					e.preventDefault();
+					nav_go( 'j' === e.key ? 'next' : 'prev' );
+				}
+			}
+		} );
+
+		/* The summary column and folded sections follow the fields. */
+		var side_timer = 0;
+		var repaint = function() {
+			clearTimeout( side_timer );
+			side_timer = setTimeout( function() {
+				paint_side();
+				paint_summaries();
+			}, 200 );
+		};
+		$( document ).on( 'change input', '#ecdv2_wrap input, #ecdv2_wrap select, #ecdv2_wrap textarea', repaint );
+		if ( typeof tinymce !== 'undefined' && tinymce.on ) {
+			tinymce.on( 'AddEditor', function( evt ) {
+				if ( evt.editor && evt.editor.on ) {
+					evt.editor.on( 'change keyup', repaint );
+				}
+			} );
+			$.each( tinymce.editors || [], function( i, editor ) {
+				if ( editor && editor.on ) {
+					editor.on( 'change keyup', repaint );
+				}
+			} );
+		}
+		$( document ).on( 'ecdv2:media-refreshed ecdv2:options-changed', function() {
+			paint_card_image();
+			repaint();
+		} );
+		/* Categories save as they change ( their own requests ): watch the chips. */
+		if ( 'function' === typeof window.MutationObserver && el( 'ecdv2_cat_tokens' ) ) {
+			new window.MutationObserver( repaint ).observe( el( 'ecdv2_cat_tokens' ), { childList: true } );
+		}
+
+		var ticking = false;
+		$( window ).on( 'scroll.ecdv2view', function() {
+			if ( ticking ) {
+				return;
+			}
+			ticking = true;
+			( window.requestAnimationFrame || function( fn ) { setTimeout( fn, 16 ); } )( function() {
+				ticking = false;
+				spy();
+			} );
+		} );
+		if ( 'function' === typeof window.ResizeObserver ) {
+			var ro = new window.ResizeObserver( function() {
+				fit_columns();
+			} );
+			ro.observe( el( 'ecdv2_wrap' ) );
+			if ( el( 'ecdv2_side' ) ) {
+				ro.observe( el( 'ecdv2_side' ) );
+			}
+		}
+		$( window ).on( 'resize.ecdv2view', fit_columns );
+		/* 6.0.4: the summary drawer: the header's Summary button, its close button and the backdrop, Escape and Tab. */
+		$( document ).on( 'click', '#ecdv2_side_toggle', function() {
+			side_drawer();
+		} );
+		$( document ).on( 'click', '#ecdv2_side_close, #ecdv2_side_backdrop', function() {
+			side_drawer( false );
+		} );
+		$( document ).on( 'keydown.ecdv2side', side_keydown );
+		/* The page under the backdrop does not scroll; if it scrolls anyway ( a key, the header ), the drawer follows the header. */
+		var backdrop = el( 'ecdv2_side_backdrop' );
+		if ( backdrop && backdrop.addEventListener ) {
+			backdrop.addEventListener( 'wheel', function( e ) { e.preventDefault(); }, { passive: false } );
+			backdrop.addEventListener( 'touchmove', function( e ) { e.preventDefault(); }, { passive: false } );
+		}
+		$( window ).on( 'scroll.ecdv2side', function() {
+			if ( side_is_open() ) {
+				place_side_drawer();
+			}
+		} );
+		$( document ).on( 'ecsh:menu-fold', function() {
+			setTimeout( fit_columns, 260 );
+		} );
+
+		paint_next();
+		paint_side();
+		paint_summaries();
+		fit_columns();
+		nav_init();
+		if ( 'page' === view ) {
+			watch_feeds();
+		}
+		if ( $( '#ecdv2_view_tip' ).length && 'page' === view ) {
+			$( '#ecdv2_view_tip' ).prop( 'hidden', false );
+		}
+		/* Sales for the summary column, a moment after the page is ready. */
+		if ( $( '#ecdv2_side_insights' ).length ) {
+			setTimeout( function() {
+				activity_request().done( function( data ) {
+					paint_kpis( data );
+				} );
+			}, 700 );
+		}
+	}
+
+	function paint_kpis( data ) {
+		if ( ! data ) {
+			return;
+		}
+		$( '[data-ecdv2-kpi]' ).each( function() {
+			var key = $( this ).attr( 'data-ecdv2-kpi' );
+			if ( undefined === data[ key ] ) {
+				return;
+			}
+			$( this ).text( 'revenue' === key ? money( data[ key ] ) : String( parseInt( data[ key ], 10 ) || 0 ) );
+		} );
+	}
+
+	/* Deep links: &section=pricing ( or the Quick add panel's &tab= ), or a #pricing hash; #insights opens Insights. */
+	function route_initial() {
+		var key = '';
+		var match = /[?&](?:section|tab)=([a-z_\-]+)/i.exec( window.location.search );
+		if ( match ) {
+			key = match[1].toLowerCase();
+		}
+		if ( ! key ) {
+			key = window.location.hash.replace( '#', '' );
+		}
+		if ( ! key ) {
+			return;
+		}
+		if ( 'insights' === key && vcfg ) {
+			set_mode( 'insights', { silent: true } );
+			return;
+		}
+		if ( 'categories' === key && vcfg ) {
+			go_tab( 'categories', { instant: true, no_focus: true } );
+			return;
+		}
+		if ( legacy_anchor_map[ key ] ) {
+			key = legacy_anchor_map[ key ];
+		}
+		if ( $( '.ecdv2-tab[data-ecdv2-tab="' + key + '"]' ).length ) {
+			go_tab( key, { instant: true } );
 		}
 	}
 
@@ -1370,9 +3539,9 @@ window.ecdv2 = ( function( $ ) {
 		'upc'       : [ 'gtin', 'model number' ],
 		'photo'     : [ 'image', 'media' ],
 		'picture'   : [ 'image', 'media' ],
-		'sale'      : [ 'previous price', 'list price', 'volume pricing' ],
-		'discount'  : [ 'previous price', 'volume pricing', 'offers' ],
-		'stock'     : [ 'inventory', 'quantity' ],
+		'sale'      : [ 'compare-at price', 'previous price', 'list price', 'volume pricing' ],
+		'discount'  : [ 'compare-at price', 'volume pricing', 'offers' ],
+		'stock'     : [ 'inventory', 'quantity', 'track stock', 'units in stock' ],
 		'variant'   : [ 'option', 'variation' ],
 		'seo'       : [ 'search engine', 'meta', 'yoast' ],
 		'yoast'     : [ 'yoast seo', 'meta description', 'keyphrase' ],
@@ -1437,6 +3606,38 @@ window.ecdv2 = ( function( $ ) {
 				}
 			} );
 		} );
+
+		/* 6.0.4: the summary column's cards ( Categories, listing health ) are findable too. */
+		$( '#ecdv2_side .ecdv2-card' ).each( function() {
+			var $title = $( this ).find( '.ecdv2-card-title' ).first();
+			var text = $title.length ? search_entry_text( $title ) : '';
+			if ( text.length > 1 ) {
+				search_index.push( {
+					label     : text,
+					lower     : text.toLowerCase(),
+					extra     : $.trim( $( this ).find( '.ecdv2-card-hint' ).first().text() || '' ).toLowerCase(),
+					tab       : 'categories' === $( this ).attr( 'data-ecdv2-section' ) ? 'categories' : 'side',
+					tab_label : $.trim( $( '#ecdv2_side' ).attr( 'aria-label' ) || '' ),
+					node      : this,
+					is_card   : true
+				} );
+			}
+		} );
+		/* 6.0.4: and the fields there ( Who can see it, Page address, Manufacturer, Show on the store page ). */
+		$( '#ecdv2_side' ).find( '.ecdv2-side-label, .ecdv2-side-part .ecdv2-label, .ecdv2-side-part .ecdv2-toggle-label, .ecdv2-side-part .ecdv2-gate-label' ).each( function() {
+			var text = search_entry_text( this );
+			if ( text.length > 1 ) {
+				search_index.push( {
+					label     : text,
+					lower     : text.toLowerCase(),
+					extra     : '',
+					tab       : $( this ).hasClass( 'ecdv2-side-label' ) ? 'categories' : 'side',
+					tab_label : $.trim( $( '#ecdv2_side' ).attr( 'aria-label' ) || '' ),
+					node      : $( this ).closest( '.ecdv2-field, .ecdv2-toggle-row, .ecdv2-gate' ).get( 0 ) || this,
+					is_card   : false
+				} );
+			}
+		} );
 	}
 
 	/* Lower score = better: 0 label starts with query, 1 a word starts with
@@ -1499,7 +3700,22 @@ window.ecdv2 = ( function( $ ) {
 					row.append( $( '<span class="ecdv2-search-result-label"/>' ).text( match.label ) );
 					row.append( $( '<span class="ecdv2-search-result-tab"/>' ).text( match.tab_label ) );
 					row.on( 'click', function() {
-						go_tab( match.tab );
+						if ( 'side' === match.tab || 'categories' === match.tab ) {
+							results.removeClass( 'is-open' ).empty();
+							input.val( '' );
+							if ( 'categories' === match.tab ) {
+								go_tab( 'categories', { no_focus: true } );
+							} else {
+								if ( 'edit' !== mode ) {
+									set_mode( 'edit', { silent: true } );
+								}
+								scroll_to_node( match.node );
+								flash( $( match.node ) );
+							}
+							return;
+						}
+						go_tab( match.tab, { no_scroll: true } );
+						show_pane_of( match.node );
 						results.removeClass( 'is-open' ).empty();
 						input.val( '' );
 						var field = match.is_card
@@ -1508,7 +3724,12 @@ window.ecdv2 = ( function( $ ) {
 						if ( ! field.length ) {
 							field = $( match.node );
 						}
-						field[ 0 ].scrollIntoView( { block: 'center', behavior: 'smooth' } );
+						/* 6.0.4: a field another choice hides ( e.g. the stock count while stock is not tracked ): show its card. */
+						if ( ! field.is( ':visible' ) && field.closest( '.ecdv2-card' ).length ) {
+							field = field.closest( '.ecdv2-card' );
+						}
+						spy_hold_until = Date.now() + 900;
+						field[ 0 ].scrollIntoView( { block: 'center', behavior: reduce_motion ? 'auto' : 'smooth' } );
 						field.addClass( 'ecdv2-flash' );
 						setTimeout( function() {
 							field.removeClass( 'ecdv2-flash' );
@@ -1652,6 +3873,24 @@ window.ecdv2 = ( function( $ ) {
 			.replace( /[^a-z0-9\-]/g, '' )
 			.replace( /\-+/g, '-' )
 			.replace( /^\-+|\-+$/g, '' );
+	}
+
+	/* 6.0.4: on a new product's draft the SKU follows the title ( as Quick add's does ) until the merchant types one. */
+	function bind_draft_sku() {
+		if ( ! vcfg || ! vcfg.draft || ! el( 'title' ) || ! el( 'model_number' ) ) {
+			return;
+		}
+		var touched = false;
+		$( el( 'model_number' ) ).on( 'input', function() {
+			touched = '' !== this.value;
+		} );
+		$( el( 'title' ) ).on( 'input', function() {
+			if ( ! touched ) {
+				$( el( 'model_number' ) ).val( slugify( this.value ) );
+				field_ok( 'model_number' );
+			}
+			$( '#ecdv2_header_title' ).text( $.trim( this.value ) || vt( 'new_product', 'New Product' ) );
+		} );
 	}
 
 	function bind_slug() {
@@ -1835,29 +4074,15 @@ window.ecdv2 = ( function( $ ) {
 		$( '#ecdv2_cat_tokens' ).append( token );
 	}
 
+	/* 6.0.4 ( editor plan Phase 2 ): the chips are what Save gives the product; adding or removing one changes nothing yet. */
 	function category_add( category_id, label ) {
 		category_id = parseInt( category_id, 10 );
 		if ( ! category_id ) {
 			return false;
 		}
-		$.ajax( {
-			url     : wpeasycart_admin_ajax_object.ajax_url,
-			type    : 'post',
-			data    : {
-				action            : 'ec_admin_ajax_product_details_add_category',
-				product_id        : v( 'product_id' ),
-				category_id       : category_id,
-				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
-			},
-			success : function() {
-				category_token( category_id, label );
-				cat_combo_reset();
-				toast( _t( 'category_added', 'Category added.' ), 'success' );
-			},
-			error   : function() {
-				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
-			}
-		} );
+		category_token( category_id, label );
+		cat_combo_reset();
+		mark_dirty( 'categories' );
 		return false;
 	}
 
@@ -1873,6 +4098,7 @@ window.ecdv2 = ( function( $ ) {
 				action            : 'ec_admin_ajax_product_details_create_category',
 				product_id        : v( 'product_id' ),
 				category_name     : name,
+				assign            : 0, /* 6.0.4: the category is made now; the product gets it with Save */
 				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
 			},
 			success : function( response ) {
@@ -1882,7 +4108,10 @@ window.ecdv2 = ( function( $ ) {
 				}
 				category_token( parseInt( response.data.category_id, 10 ), response.data.category_name );
 				cat_combo_reset();
-				toast( response.data.existed ? _t( 'category_added', 'Category added.' ) : _t( 'category_created', 'Category created and added.' ), 'success' );
+				mark_dirty( 'categories' );
+				if ( ! response.data.existed ) {
+					toast( vt( 'category_created', 'Category created. Save to add this product to it.' ), 'success' );
+				}
 			},
 			error   : function() {
 				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
@@ -1962,7 +4191,8 @@ window.ecdv2 = ( function( $ ) {
 
 		var html = '', first_pickable = true;
 		cat_results.forEach( function( entry ) {
-			var is_assigned = !! entry.assigned || $( '.ecdv2-cat-token[data-category-id="' + entry.id + '"]' ).length > 0;
+			/* 6.0.4: the chips, saved or not, decide ( entry.assigned is the saved state ). */
+			var is_assigned = $( '.ecdv2-cat-token[data-category-id="' + entry.id + '"]' ).length > 0;
 			if ( is_assigned ) {
 				html += '<div class="ecdv2-cat-menu-none">' + $( '<i>' ).text( entry.name ).html() + ' · ' + _t( 'category_assigned', 'Already assigned.' ) + '</div>';
 				return;
@@ -2024,26 +4254,11 @@ window.ecdv2 = ( function( $ ) {
 	$( bind_cat_combo );
 
 	function category_remove( category_id ) {
-		$.ajax( {
-			url     : wpeasycart_admin_ajax_object.ajax_url,
-			type    : 'post',
-			data    : {
-				action            : 'ec_admin_ajax_product_details_delete_category',
-				product_id        : v( 'product_id' ),
-				category_id       : category_id,
-				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
-			},
-			success : function() {
-				$( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' ).remove();
-				if ( ! $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length ) {
-					$( '#ecdv2_cat_tokens' ).append( '<span class="ecdv2-cat-empty" id="ecdv2_cat_empty">' + _t( 'no_categories', 'No categories assigned yet.' ) + '</span>' );
-				}
-				toast( _t( 'category_removed', 'Category removed.' ), 'success' );
-			},
-			error   : function() {
-				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
-			}
-		} );
+		$( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' ).remove();
+		if ( ! $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length ) {
+			$( '#ecdv2_cat_tokens' ).append( $( '<span class="ecdv2-cat-empty" id="ecdv2_cat_empty"></span>' ).text( _t( 'no_categories', 'No categories assigned yet.' ) ) );
+		}
+		mark_dirty( 'categories' );
 		return false;
 	}
 
@@ -2090,9 +4305,14 @@ window.ecdv2 = ( function( $ ) {
 		return ( negative ? '-' : '' ) + ( left ? symbol + number : number + symbol );
 	}
 
-	function load_activity() {
-		activity_loaded = true;
-		var holder = $( '#ecdv2_activity_content' );
+	/* 6.0.4: one request feeds both the Activity section and the summary column's sales. */
+	var activity_promise = null;
+	function activity_request() {
+		if ( activity_promise ) {
+			return activity_promise;
+		}
+		var d = $.Deferred();
+		activity_promise = d.promise();
 		$.ajax( {
 			url     : wpeasycart_admin_ajax_object.ajax_url,
 			type    : 'post',
@@ -2103,15 +4323,29 @@ window.ecdv2 = ( function( $ ) {
 			},
 			success : function( response ) {
 				if ( ! response || ! response.success ) {
-					holder.html( '<div class="ecdv2-activity-empty">' + esc_html( _t( 'activity_failed', 'Could not load activity.' ) ) + '</div>' );
+					d.reject( false );
 					return;
 				}
-				render_activity( holder, response.data );
+				d.resolve( response.data );
 			},
 			error   : function() {
-				activity_loaded = false;
-				holder.html( '<div class="ecdv2-activity-empty">' + esc_html( _t( 'activity_failed', 'Could not load activity.' ) ) + '</div>' );
+				activity_promise = null; /* a network failure can be tried again */
+				d.reject( true );
 			}
+		} );
+		return activity_promise;
+	}
+
+	function load_activity() {
+		activity_loaded = true;
+		var holder = $( '#ecdv2_activity_content' );
+		activity_request().done( function( data ) {
+			render_activity( holder, data );
+		} ).fail( function( retry ) {
+			if ( retry ) {
+				activity_loaded = false;
+			}
+			holder.html( '<div class="ecdv2-activity-empty">' + esc_html( _t( 'activity_failed', 'Could not load activity.' ) ) + '</div>' );
 		} );
 	}
 
@@ -2394,6 +4628,29 @@ window.ecdv2 = ( function( $ ) {
 
 	function menu_toggle() {
 		$( '#ecdv2_header_menu' ).toggleClass( 'is-open' );
+		place_menu();
+	}
+
+	/* 6.0.4: the ⋯ menu opens toward the side with room: under the button to the left when the header's actions are at its right,
+	   to the right when they wrapped to the left ( it opened off the screen, or under the EasyCart menu ). */
+	function place_menu() {
+		var $menu = $( '#ecdv2_header_menu' );
+		if ( ! $menu.hasClass( 'is-open' ) ) {
+			return;
+		}
+		$menu.removeClass( 'is-left' ).css( 'max-width', '' );
+		var wrap = el( 'ecdv2_wrap' );
+		var bounds = wrap ? wrap.getBoundingClientRect() : { left: 0, right: window.innerWidth };
+		var min = Math.max( 8, bounds.left + 4 );
+		var max = Math.min( window.innerWidth - 8, bounds.right - 4 );
+		var rect = $menu.get( 0 ).getBoundingClientRect();
+		if ( rect.left < min ) {
+			$menu.addClass( 'is-left' );
+			rect = $menu.get( 0 ).getBoundingClientRect();
+		}
+		if ( rect.right > max ) {
+			$menu.css( 'max-width', Math.max( 180, Math.floor( max - rect.left ) ) + 'px' );
+		}
 	}
 
 	function menu_close() {
@@ -2472,7 +4729,7 @@ window.ecdv2 = ( function( $ ) {
 	}
 
 	function role_row_html( id, role, price ) {
-		return '<div class="ec_admin_role_price_row" id="ec_admin_product_details_role_price_row_' + id + '" data-role="' + role_attr( role ) + '">' +
+		return '<div class="ec_admin_role_price_row" id="ec_admin_product_details_role_price_row_' + id + '" data-role="' + role_attr( role ) + '" data-price="' + role_attr( price ) + '">' +
 			'<span class="ecdv2-role-label">' + esc_html( role ) + '</span>' +
 			'<span class="ecdv2-role-price">' + esc_html( money( price ) ) + '</span>' +
 			'<span class="ecdv2-role-actions"><a href="" class="ecdv2-row-del" onclick="return ec_admin_product_details_delete_role_price( \'' + id + '\' );" title="' + role_attr( _t( 'delete', 'Delete' ) ) + '">' + ECDV2_X_SVG + '</a></span>' +
@@ -2530,38 +4787,84 @@ window.ecdv2 = ( function( $ ) {
 			toast( _t( 'role_dup', 'That role already has a price — edit or remove it first.' ), 'error' );
 			return false;
 		}
-		var data = {
-			action                  : 'ec_admin_ajax_product_details_add_role_price',
-			product_id              : v( 'product_id' ),
-			add_new_role_price_role : role,
-			ec_admin_new_role_price : price,
-			wp_easycart_nonce       : v( 'wp_easycart_product_details_nonce' )
-		};
-		$.ajax( {
-			url     : wpeasycart_admin_ajax_object.ajax_url,
-			type    : 'post',
-			data    : data,
-			success : function( resp ) {
-				/* 6.0.2: the server says why it refused ( Pro, no role chosen, an unknown role, a second price for it ). */
-				var refused = refusal_message( resp );
-				if ( null !== refused ) {
-					toast( refused || _t( 'role_add_failed', 'Could not add the role price.' ), 'error' );
-					return;
-				}
-				$( '#ec_admin_no_role_prices' ).remove();
-				var id = '';
-				var m = String( resp ).match( /role_price_row_(\d+)/ );
-				if ( m ) {
-					id = m[1];
-				}
-				$( '#role_prices_holder' ).append( role_row_html( id, role, price ) );
-				$( '#ec_admin_new_role_price' ).val( '' );
-				toast( _t( 'role_added', 'Role price added.' ), 'success' );
-			},
-			error   : function() {
-				toast( _t( 'role_add_failed', 'Could not add the role price.' ), 'error' );
+		/* 6.0.4 ( editor plan Phase 2 ): a row on the page; Save sends the list ( the server checks the role again ). */
+		$( '#ec_admin_no_role_prices' ).remove();
+		$( '#role_prices_holder' ).append( role_row_html( 'new' + ( ++price_rule_seq ), role, String( parseFloat( price ) ) ) );
+		$( '#ec_admin_new_role_price' ).val( '' );
+		mark_dirty( 'price_rules' );
+		return false;
+	}
+
+	var price_rule_seq = 0;
+
+	/* 6.0.4: volume pricing rows, added, changed and removed on the page until Save. These replace products.js's instant
+	 * versions of the same names, which the rows' inline handlers call. */
+	function tier_add() {
+		var qty = parseInt( v( 'ec_admin_new_price_tier_quantity' ), 10 );
+		var price = v( 'ec_admin_new_price_tier_price' );
+		if ( ! qty || qty < 1 ) {
+			toast( vt( 'tier_qty', 'Enter how many a shopper buys, 1 or more.' ), 'error' );
+			return false;
+		}
+		if ( '' === price || isNaN( parseFloat( price ) ) || parseFloat( price ) < 0 ) {
+			toast( _t( 'role_price_invalid', 'Enter a valid price.' ), 'error' );
+			return false;
+		}
+		var taken = false;
+		$( '#price_tiers_holder > .ec_admin_price_tier_row' ).each( function() {
+			if ( parseInt( $( this ).find( 'input[type=number]' ).eq( 0 ).val(), 10 ) === qty ) {
+				taken = true;
 			}
 		} );
+		if ( taken ) {
+			toast( vt( 'tier_dup', 'There is already a price break for that quantity.' ), 'error' );
+			return false;
+		}
+		var id = 'new' + ( ++price_rule_seq );
+		var rid = 'ec_admin_product_details_price_tier_row_' + id;
+		var change = 'ec_admin_product_details_edit_price_tier( \'' + id + '\' );';
+		var $row = $( '<div class="ec_admin_price_tier_row"></div>' ).attr( 'id', rid );
+		$( '<span></span>' ).append( $( '<input type="number" min="1" step="1" />' ).attr( { id: rid + '_quantity', onchange: change } ).val( qty ) ).appendTo( $row );
+		$( '<span></span>' ).append( $( '<input type="number" min="0" step=".001" />' ).attr( { id: rid + '_price', onchange: change } ).val( parseFloat( price ).toFixed( 2 ) ) ).appendTo( $row );
+		$( '<span class="ecdv2-row-actions"></span>' ).html( '<a href="" class="ecdv2-row-del" onclick="return ec_admin_product_details_delete_price_tier( \'' + id + '\' );" title="' + role_attr( _t( 'delete', 'Delete' ) ) + '">' + ECDV2_X_SVG + '</a>' ).appendTo( $row );
+		$( '#ec_admin_no_price_tiers' ).remove();
+		/* In quantity order, as the saved list reads. */
+		var $after = null;
+		$( '#price_tiers_holder > .ec_admin_price_tier_row' ).each( function() {
+			if ( parseInt( $( this ).find( 'input[type=number]' ).eq( 0 ).val(), 10 ) < qty ) {
+				$after = $( this );
+			}
+		} );
+		if ( $after ) {
+			$row.insertAfter( $after );
+		} else {
+			$( '#price_tiers_holder' ).prepend( $row );
+		}
+		$( '#ec_admin_new_price_tier_quantity, #ec_admin_new_price_tier_price' ).val( '' );
+		mark_dirty( 'price_rules' );
+		return false;
+	}
+
+	function tier_edit() {
+		mark_dirty( 'price_rules' );
+		return false;
+	}
+
+	function tier_remove( id ) {
+		$( document.getElementById( 'ec_admin_product_details_price_tier_row_' + id ) ).remove();
+		if ( ! $( '#price_tiers_holder > .ec_admin_price_tier_row' ).length ) {
+			$( '#price_tiers_holder' ).append( $( '<div id="ec_admin_no_price_tiers" class="ecdv2-advblock-empty"></div>' ).text( vt( 'no_tiers', 'No volume pricing tiers yet. Add your first price break above.' ) ) );
+		}
+		mark_dirty( 'price_rules' );
+		return false;
+	}
+
+	function role_price_remove( id ) {
+		$( document.getElementById( 'ec_admin_product_details_role_price_row_' + id ) ).remove();
+		if ( ! $( '#role_prices_holder > .ec_admin_role_price_row' ).length ) {
+			$( '#role_prices_holder' ).append( $( '<div id="ec_admin_no_role_prices" class="ecdv2-advblock-empty"></div>' ).text( vt( 'no_role_prices', 'No B2B role pricing yet. Add a role price above.' ) ) );
+		}
+		mark_dirty( 'price_rules' );
 		return false;
 	}
 
@@ -2777,33 +5080,14 @@ window.ecdv2 = ( function( $ ) {
 		update();
 	}
 
-	/*
-	 * Pricing & Tax tab: the "Base price" card mirrors Price / Previous Price
-	 * from General ( read-only, live ) so merchants on this tab can see what
-	 * they are adjusting, and edit_base_price() jumps back to the field.
-	 */
-	function bind_base_price() {
-		var now = $( '#ecdv2_base_price_now' );
-		var was = $( '#ecdv2_base_price_was' );
-		if ( ! now.length ) {
-			return;
-		}
-		function update() {
-			var price = parseFloat( v( 'price' ) ) || 0;
-			var list  = parseFloat( v( 'list_price' ) ) || 0;
-			now.text( money( price ) );
-			was.text( money( list ) ).prop( 'hidden', ! ( list > 0 && list > price ) );
-		}
-		$( document ).on( 'input change', '#price, #list_price', update );
-		update();
-	}
-
+	/* The price field, wherever it is ( Pricing's Price card since 6.0.4, a new product's Basics ). Kept for callers of
+	 * ecdv2.edit_base_price(). */
 	function edit_base_price() {
-		go_tab( 'general' );
 		var input = $( '#price' );
 		if ( ! input.length ) {
 			return;
 		}
+		go_tab( input.closest( '.ecdv2-panel' ).attr( 'data-ecdv2-panel' ) || 'pricing', { no_scroll: true } );
 		var field = input.closest( '.ecdv2-field' );
 		if ( ! field.length ) {
 			field = input;
@@ -3186,6 +5470,9 @@ window.ecdv2 = ( function( $ ) {
 				 * the General section dirty so the assignment gets saved. */
 				$select.val( String( data.manufacturer_id ) ).trigger( 'change' );
 				$( el( 'manufacturer_name' ) ).val( '' );
+				if ( $( '#ecdv2_manufacturer_new' ).length ) {
+					manufacturer_new( false );
+				}
 				toast( _t( 'manufacturer_created', 'Manufacturer created and selected. Save to assign it to this product.' ), 'success' );
 			},
 			error   : function() {
@@ -3227,6 +5514,7 @@ window.ecdv2 = ( function( $ ) {
 
 	$( function() {
 		bind_dirty_tracking();
+		bind_tabsets();
 		bind_dependencies();
 		bind_search();
 		bind_slug();
@@ -3241,7 +5529,6 @@ window.ecdv2 = ( function( $ ) {
 		bind_sale_preview();
 		bind_variant_stock_note();
 		bind_price_context();
-		bind_base_price();
 		bind_featured_products();
 		bind_feeds();
 		bind_yoast_preview();
@@ -3250,6 +5537,13 @@ window.ecdv2 = ( function( $ ) {
 		/* Override the legacy handler from products.js ( ready runs after
 		 * every script has parsed, so this assignment always wins ). */
 		window.ec_admin_product_details_add_new_manufacturer = create_manufacturer;
+		/* 6.0.4 ( editor plan Phase 2 ): volume pricing and role prices wait for Save. */
+		if ( $( '.ecdv2-card[data-ecdv2-section="price_rules"]' ).length ) {
+			window.ec_admin_product_details_add_price_tier = tier_add;
+			window.ec_admin_product_details_edit_price_tier = tier_edit;
+			window.ec_admin_product_details_delete_price_tier = tier_remove;
+			window.ec_admin_product_details_delete_role_price = role_price_remove;
+		}
 
 		$( document ).on( 'change input', '#tag_text, #tag_type, #tag_bg_color, #tag_text_color', update_badge_preview );
 		update_badge_preview();
@@ -3360,10 +5654,35 @@ window.ecdv2 = ( function( $ ) {
 			} );
 		}
 
+		/* 6.0.4: Page / Focus, Edit / Insights, the summary column, previous / next. The settings are printed by the template,
+		   after this file ( which loads in the head ), so they are read here. */
+		vcfg = ( window.wpeasycart_ecdv2_view && 'object' === typeof window.wpeasycart_ecdv2_view ) ? window.wpeasycart_ecdv2_view : null;
+		view = ( vcfg && 'page' === vcfg.view ) ? 'page' : 'focus';
+		if ( vcfg && $( '#ecdv2_wrap' ).hasClass( 'ecdv2-product' ) ) {
+			set_rail_active( current_key() );
+			bind_views();
+			bind_type();
+			bind_draft_sku();
+		}
+
 		route_initial();
 
+		/* 6.0.4: what each section holds as saved, now that every card has drawn ( editors that start later take theirs
+		 * then, bind_editor_dirty ). Anything marked unsaved while the page was still drawing is checked against it. */
+		take_snapshots();
+		var key;
+		for ( key in dirty ) {
+			if ( dirty.hasOwnProperty( key ) && section_unchanged( key ) ) {
+				delete dirty[ key ];
+			}
+		}
+		paint_dirty();
+
 		if ( -1 !== window.location.search.indexOf( 'ecdv2_created=1' ) ) {
-			toast( _t( 'created', 'Product created. All sections are now unlocked.' ), 'success' );
+			toast( vt( 'created', 'Product created.' ), 'success' );
+			if ( window.history && history.replaceState ) {
+				history.replaceState( null, '', window.location.href.replace( /&ecdv2_created=1/, '' ) );
+			}
 		}
 	} );
 
@@ -3372,6 +5691,7 @@ window.ecdv2 = ( function( $ ) {
 		download_qr: download_qr,
 		go_tab           : go_tab,
 		edit_base_price  : edit_base_price,
+		go_card          : go_card,
 		save_all         : save_all,
 		quick_activate   : quick_activate,
 		mark_dirty       : mark_dirty,
@@ -3388,11 +5708,24 @@ window.ecdv2 = ( function( $ ) {
 		load_activity    : load_activity,
 		feed_reload      : feed_reload,
 		add_role_price   : add_role_price,
-		toast            : toast
+		field_error      : field_error,
+		field_ok         : field_ok,
+		toast            : toast,
+		/* 6.0.4 */
+		discard          : discard,
+		errors_hide      : errors_hide,
+		set_view         : set_view,
+		set_mode         : set_mode,
+		fold             : fold,
+		save_next        : save_next,
+		manufacturer_new : manufacturer_new,
+		menu_location_add: menu_location_add,
+		show_pane_of     : show_pane_of,
+		side_drawer      : side_drawer
 	};
 
 } )( window.jQuery );
-/* ---- Reviews card: allow toggle saves immediately and mirrors the hidden carrier in the general card ---- */
+/* ---- Reviews card: the allow toggle mirrors the hidden carrier in the general card ( 6.0.4: and saves with the product ) ---- */
 /* ---- 6.0.2: fields a managed product's service owns ( wp_easycart_product_lock ). A partly locked card lists them in
  * data-ecdv2-locked-ids and they are shown read-only; a card that is locked as a whole carries a cover. The server keeps
  * their stored value whatever is posted. ---- */
@@ -3438,6 +5771,8 @@ function ecdv2_reviews_toggle( cb ) {
 	jQuery( '#use_customer_reviews' ).val( on ); /* general-options save posts this too */
 	$card.toggleClass( 'is-off', ! on ); jQuery( '#ecdv2_reviews_off' ).toggle( ! on );
 	if ( cb.getAttribute( 'data-new' ) ) { return; } /* unsaved product: the value rides along with the first save */
+	/* 6.0.4 ( editor plan Phase 2 ): the card is a save section ( reviews ), so the switch waits for Save like the rest. */
+	if ( $card.attr( 'data-ecdv2-section' ) && window.ecdv2 && 'function' === typeof window.ecdv2.mark_dirty ) { return; }
 	jQuery.post( wpeasycart_admin_ajax_object.ajax_url, { action: 'ecdv2_reviews_toggle', product_id: $card.data( 'product-id' ), on: on, nonce: $card.data( 'nonce' ) }, function( r ) {
 		if ( r && r.success ) { say( r.data.message, 'success' ); }
 		else { cb.checked = ! on; jQuery( '#use_customer_reviews' ).val( on ? 0 : 1 ); $card.toggleClass( 'is-off', !! on ); jQuery( '#ecdv2_reviews_off' ).toggle( !! on ); say( ( r && r.data && r.data.message ) || 'Something went wrong.', 'error' ); }

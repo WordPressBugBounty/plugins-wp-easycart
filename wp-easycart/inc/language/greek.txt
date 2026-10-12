@@ -1413,6 +1413,26 @@
 					"title":"Min Quantity Required Error",
 					"value":"Ελάχιστη Απαιτούμενη ποσότητα"
 				},
+				"cartitem_stock_limit":{
+					"title":"Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+					"value":"Μόνο [stock] διαθέσιμα στο απόθεμα."
+				},
+				"cartitem_stock_limit_cart":{
+					"title":"Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+					"value":"Μόνο [stock] διαθέσιμα στο απόθεμα, μαζί με [other] που βρίσκονται ήδη αλλού στο καλάθι σας."
+				},
+				"cartitem_stock_limit_hidden":{
+					"title":"Cart, Quantity Limited by Stock ( stock counts not shown )",
+					"value":"Αυτό είναι όλο το απόθεμα που διαθέτουμε."
+				},
+				"cartitem_max_limit":{
+					"title":"Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+					"value":"Μπορείτε να αγοράσετε έως [max] τεμάχια από αυτό το προϊόν."
+				},
+				"cartitem_min_limit":{
+					"title":"Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+					"value":"Η ελάχιστη ποσότητα για αυτό το προϊόν είναι [min]."
+				},
 				"cart_please_wait":{
 					"title":"Cart Please Wait",
 					"value":"Παρακαλώ περιμένετε"
@@ -1675,6 +1695,30 @@
 				"cart_invalid_giftcard":{
 					"title":"Cart, Invalid Gift Card",
 					"value":"\u0394\u03b5\u03bd \u03b5\u03af\u03bd\u03b1\u03b9 \u03ad\u03b3\u03ba\u03c5\u03c1\u03bf\u03c2 \u03bf \u03b1\u03c1\u03b9\u03b8\u03bc\u03cc\u03c2 \u03ba\u03ac\u03c1\u03c4\u03b1\u03c2 \u03b4\u03ce\u03c1\u03bf\u03c5"
+				},
+				"cart_giftcard_used":{
+					"title":"Cart, Gift Card Used Up",
+					"value":"Αυτή η κάρτα δώρου έχει ήδη εξαντληθεί."
+				},
+				"cart_giftcard_failed":{
+					"title":"Cart, Gift Card Could Not Be Used ( nothing was charged )",
+					"value":"Η κάρτα δώρου σας δεν μπόρεσε να χρησιμοποιηθεί για αυτή την παραγγελία, οπότε δεν έγινε καμία χρέωση. Ελέγξτε την κάρτα και δοκιμάστε ξανά ή αφαιρέστε την."
+				},
+				"cart_square_giftcard_balance":{
+					"title":"Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+					"value":"Κάρτα δώρου Square που λήγει σε [last4]: διαθέσιμο υπόλοιπο [balance]"
+				},
+				"cart_square_giftcard_label":{
+					"title":"Order, Square Gift Card Name ( [last4] = last four digits )",
+					"value":"Square •••• [last4]"
+				},
+				"cart_square_giftcard_square_only":{
+					"title":"Checkout, Square Gift Card Needs a Card Payment",
+					"value":"Μια κάρτα δώρου Square μπορεί να συνδυαστεί μόνο με πληρωμή με κάρτα. Επιλέξτε πληρωμή με κάρτα ή αφαιρέστε την κάρτα δώρου."
+				},
+				"cart_square_giftcard_balance_changed":{
+					"title":"Checkout, Square Gift Card Balance Changed",
+					"value":"Το υπόλοιπο της κάρτας δώρου σας άλλαξε. Ελέγξτε το νέο σύνολο και υποβάλετε ξανά την παραγγελία σας."
 				},
 				"cart_enter_coupon":{
 					"title":"Cart, Enter Coupon Hint",
@@ -2083,7 +2127,7 @@
 				},
 				"cart_guest_message":{
 					"title":"Cart, Login, Guest Checkout Message",
-					"value":"\u0394\u03b5\u03bd \u03ad\u03c7\u03b5\u03c4\u03b5 \u03bb\u03bf\u03b3\u03b1\u03c1\u03b9\u03b1\u03c3\u03bc\u03cc; \u03a3\u03c5\u03bd\u03b5\u03c7\u03af\u03c3\u03c4\u03b5 \u03c9\u03c2 \u03b5\u03c0\u03b9\u03c3\u03ba\u03ad\u03c0\u03c4\u03b7\u03c2. \u0398\u03b1 \u03ad\u03c7\u03b5\u03c4\u03b5 \u03c4\u03b7\u03bd \u03b5\u03c5\u03ba\u03b1\u03b9\u03c1\u03af\u03b1 \u03bd\u03b1 \u03b4\u03b7\u03bc\u03b9\u03bf\u03c5\u03c1\u03b3\u03ae\u03c3\u03b5\u03c4\u03b5 \u03ad\u03bd\u03b1 \u03bb\u03bf\u03b3\u03b1\u03c1\u03b9\u03b1\u03c3\u03bc\u03cc \u03b1\u03c1\u03b3\u03cc\u03c4\u03b5\u03c1\u03b1."
+					"value":"Δεν έχετε λογαριασμό; Συνεχίστε ως επισκέπτης.<br/>Θα έχετε την ευκαιρία να δημιουργήσετε ένα λογαριασμό αργότερα."
 				},
 				"cart_guest_button":{
 					"title":"Cart, Login, Guest Checkout Button",
@@ -3478,6 +3522,26 @@
 				"account_navigation_shipping_information":{
 					"title":"Account, Navigation, Shipping Link",
 					"value":"πληροφορίες αποστολής"
+				},
+				"account_navigation_home":{
+					"title":"Breadcrumbs: My Account",
+					"value":"Ο λογαριασμός μου"
+				},
+				"account_navigation_breadcrumb":{
+					"title":"Breadcrumbs: Label for Screen Readers",
+					"value":"Διαδρομή πλοήγησης"
+				},
+				"account_navigation_orders_short":{
+					"title":"Breadcrumbs: Orders",
+					"value":"Παραγγελίες"
+				},
+				"account_navigation_subscriptions_short":{
+					"title":"Breadcrumbs: Subscriptions",
+					"value":"Συνδρομές"
+				},
+				"account_navigation_order_number":{
+					"title":"Breadcrumbs: Order Number",
+					"value":"Παραγγελία #[order_id]"
 				}
 			}
 		},
@@ -3520,6 +3584,10 @@
 					"title":"Account, Dashboard, Buy Item Again",
 					"value":"επαναγοράς στοιχείο"
 				},
+				"account_dashboard_downloads_title":{
+					"title":"Account, Dashboard, Downloads Title",
+					"value":"Οι λήψεις σας"
+				},
 				"account_dashboard_preference_title":{
 					"title":"Account, Dashboard, Preference Title",
 					"value":"Προτιμήσεις λογαριασμού"
@@ -3551,6 +3619,14 @@
 				"account_dashboard_shipping_link":{
 					"title":"Account, Dashboard, Shipping Edit Link",
 					"value":"Επεξεργασία διεύθυνση αποστολής"
+				},
+				"account_dashboard_welcome":{
+					"title":"Dashboard: Welcome with Name",
+					"value":"Καλώς ήρθατε ξανά, [name]"
+				},
+				"account_dashboard_welcome_no_name":{
+					"title":"Dashboard: Welcome without Name",
+					"value":"Καλώς ήρθατε ξανά"
 				}
 			}
 		},
@@ -3776,6 +3852,18 @@
 				"account_orders_view_order_button":{
 					"title":"Account, Orders, View Order Button",
 					"value":"Προβολή παραγγελίας"
+				},
+				"account_orders_item_one":{
+					"title":"Order Card: One Item",
+					"value":"1 προϊόν"
+				},
+				"account_orders_item_many":{
+					"title":"Order Card: Several Items",
+					"value":"[count] προϊόντα"
+				},
+				"account_orders_and_more":{
+					"title":"Order Card: And More Items",
+					"value":"και [count] ακόμη"
 				}
 			}
 		},
@@ -4560,6 +4648,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Η πληρωμή σας είναι ακόμα υπό επεξεργασία και δεν έχει εγκριθεί ακόμη."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"Ο ταχυδρομικός κώδικας στη φόρμα της κάρτας πρέπει να ταιριάζει με τη διεύθυνση χρέωσής σας ([zip]). Αλλάξτε έναν από τους δύο ώστε να ταιριάζουν."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5636,6 +5728,18 @@
 					"title":"Cart: Calculated at Checkout Note",
 					"value":"Τα μεταφορικά, οι φόροι και οι κωδικοί έκπτωσης υπολογίζονται στην ολοκλήρωση της αγοράς."
 				},
+				"estimated_total":{
+					"title":"Cart: Estimated Total ( after discounts, before shipping and tax )",
+					"value":"Εκτιμώμενο σύνολο"
+				},
+				"quantity_decrease":{
+					"title":"Cart: Decrease Quantity Button ( read by screen readers )",
+					"value":"Μείωση ποσότητας"
+				},
+				"quantity_increase":{
+					"title":"Cart: Increase Quantity Button ( read by screen readers )",
+					"value":"Αύξηση ποσότητας"
+				},
 				"card_minimum":{
 					"title":"Card Payment Minimum ( %s is the amount )",
 					"value":"Για πληρωμή με κάρτα απαιτείται σύνολο παραγγελίας τουλάχιστον %s."
@@ -5671,6 +5775,46 @@
 				"placing_hint":{
 					"title":"Place Order: Working, Keep the Page Open",
 					"value":"Παρακαλούμε κρατήστε αυτή τη σελίδα ανοιχτή."
+				},
+				"loading":{
+					"title":"Checkout: Loading ( Changing Screens )",
+					"value":"Φόρτωση…"
+				},
+				"loading_cart":{
+					"title":"Cart: Loading the Cart",
+					"value":"Φόρτωση του καλαθιού σας…"
+				},
+				"loading_checkout":{
+					"title":"Checkout: Loading the Checkout",
+					"value":"Φόρτωση του ταμείου…"
+				},
+				"loading_order":{
+					"title":"Order Confirmation: Loading the Order",
+					"value":"Φόρτωση της παραγγελίας σας…"
+				},
+				"signing_in":{
+					"title":"Checkout: Signing In",
+					"value":"Γίνεται σύνδεση…"
+				},
+				"signing_out":{
+					"title":"Checkout: Signing Out",
+					"value":"Γίνεται αποσύνδεση…"
+				},
+				"loading_account":{
+					"title":"Account: Loading the Account",
+					"value":"Φόρτωση του λογαριασμού σας…"
+				},
+				"creating_account":{
+					"title":"Account: Creating the Account",
+					"value":"Δημιουργία του λογαριασμού σας…"
+				},
+				"saving":{
+					"title":"Account: Saving",
+					"value":"Αποθήκευση…"
+				},
+				"sending":{
+					"title":"Account: Sending",
+					"value":"Αποστολή…"
 				}
 			}
 		},
@@ -5720,6 +5864,255 @@
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
 					"value":"[label] - [service]"
+				}
+			}
+		},
+		"withdrawal":{
+			"label":"Withdrawal Button and Order Lookup",
+			"options":{
+				"withdraw_button":{
+					"title":"Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+					"value":"Πατήστε εδώ για υπαναχώρηση"
+				},
+				"confirm_button":{
+					"title":"Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+					"value":"Επιβεβαίωση υπαναχώρησης"
+				},
+				"page_title":{
+					"title":"Withdrawal page heading ( 6.0.4 )",
+					"value":"Υπαναχώρηση από σύμβαση"
+				},
+				"page_intro":{
+					"title":"Withdrawal page introduction ( 6.0.4 )",
+					"value":"Μπορείτε να υπαναχωρήσετε από μια παραγγελία χωρίς να δώσετε αιτιολογία, όσο η προθεσμία υπαναχώρησής της είναι ανοιχτή. Πείτε μας για ποια παραγγελία πρόκειται, ελέγξτε τι στέλνετε και μετά επιβεβαιώστε. Σας στέλνουμε αμέσως βεβαίωση παραλαβής με email."
+				},
+				"your_orders":{
+					"title":"Signed-in customer: heading above their orders ( 6.0.4 )",
+					"value":"Οι παραγγελίες σας"
+				},
+				"your_orders_none":{
+					"title":"Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+					"value":"Αυτή τη στιγμή δεν είναι δυνατή η διαδικτυακή υπαναχώρηση από καμία από τις παραγγελίες σας."
+				},
+				"order_title":{
+					"title":"Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+					"value":"Υπαναχώρηση από την παραγγελία [order_id]"
+				},
+				"order_until":{
+					"title":"Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+					"value":"Μπορείτε να υπαναχωρήσετε από αυτή την παραγγελία έως τις [date]."
+				},
+				"order_pending":{
+					"title":"Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+					"value":"Η προθεσμία υπαναχώρησης των [days] ημερών ξεκινά όταν παραλάβετε την παραγγελία σας. Μπορείτε να υπαναχωρήσετε και νωρίτερα."
+				},
+				"other_title":{
+					"title":"Form without a link: heading ( 6.0.4 )",
+					"value":"Υπαναχώρηση από παραγγελία"
+				},
+				"other_intro":{
+					"title":"Form without a link: introduction ( 6.0.4 )",
+					"value":"Εισαγάγετε τον αριθμό παραγγελίας και τη διεύθυνση email που χρησιμοποιήσατε για την παραγγελία."
+				},
+				"order_number_label":{
+					"title":"Order number label ( 6.0.4 )",
+					"value":"Αριθμός παραγγελίας"
+				},
+				"order_email_label":{
+					"title":"Email used for the order label ( 6.0.4 )",
+					"value":"Διεύθυνση email που χρησιμοποιήθηκε για την παραγγελία"
+				},
+				"name_label":{
+					"title":"Name label ( 6.0.4 )",
+					"value":"Το όνομά σας"
+				},
+				"email_label":{
+					"title":"Email for the receipt label ( 6.0.4 )",
+					"value":"Email για τη βεβαίωση παραλαβής σας"
+				},
+				"items_label":{
+					"title":"Items label ( 6.0.4 )",
+					"value":"Είδη για τα οποία υπαναχωρείτε"
+				},
+				"item_exempt":{
+					"title":"Item without a right of withdrawal ( 6.0.4 )",
+					"value":"Δεν υπάρχει δικαίωμα υπαναχώρησης"
+				},
+				"item_withdrawn":{
+					"title":"Item already withdrawn from ( 6.0.4 )",
+					"value":"Έχει ήδη γίνει υπαναχώρηση"
+				},
+				"item_closed":{
+					"title":"Item whose period ended ( [date] ) ( 6.0.4 )",
+					"value":"Η προθεσμία υπαναχώρησης έληξε στις [date]"
+				},
+				"item_refunded":{
+					"title":"Item already refunded ( 6.0.4 )",
+					"value":"Έχει ήδη γίνει επιστροφή χρημάτων"
+				},
+				"note_label":{
+					"title":"Form without a link: only some items ( optional ) ( 6.0.4 )",
+					"value":"Μόνο ορισμένα είδη; Πείτε μας ποια (προαιρετικό)"
+				},
+				"reason_label":{
+					"title":"Reason label ( optional ) ( 6.0.4 )",
+					"value":"Λόγος (προαιρετικό)"
+				},
+				"continue_button":{
+					"title":"Continue button ( 6.0.4 )",
+					"value":"Συνέχεια"
+				},
+				"review_title":{
+					"title":"Review step heading ( 6.0.4 )",
+					"value":"Ελέγξτε την υπαναχώρησή σας"
+				},
+				"review_intro":{
+					"title":"Review step introduction ( 6.0.4 )",
+					"value":"Αυτά θα λάβουμε. Δεν στέλνεται τίποτα μέχρι να επιβεβαιώσετε."
+				},
+				"review_order":{
+					"title":"Summary: order ( 6.0.4 )",
+					"value":"Παραγγελία"
+				},
+				"review_items":{
+					"title":"Summary: items ( 6.0.4 )",
+					"value":"Είδη"
+				},
+				"review_whole":{
+					"title":"Summary: the whole order ( 6.0.4 )",
+					"value":"Ολόκληρη η παραγγελία"
+				},
+				"review_name":{
+					"title":"Summary: name ( 6.0.4 )",
+					"value":"Όνομα"
+				},
+				"review_email":{
+					"title":"Summary: email ( 6.0.4 )",
+					"value":"Email"
+				},
+				"review_reason":{
+					"title":"Summary: reason ( 6.0.4 )",
+					"value":"Λόγος"
+				},
+				"review_note":{
+					"title":"Summary: note ( 6.0.4 )",
+					"value":"Σημείωση"
+				},
+				"review_received":{
+					"title":"Summary: date and time received ( 6.0.4 )",
+					"value":"Παραλήφθηκε"
+				},
+				"change_button":{
+					"title":"Review step: go back button ( 6.0.4 )",
+					"value":"Αλλάξτε κάτι"
+				},
+				"received_title":{
+					"title":"Received page heading ( 6.0.4 )",
+					"value":"Η υπαναχώρηση παραλήφθηκε"
+				},
+				"received_text":{
+					"title":"Received page text ( [datetime], [email] ) ( 6.0.4 )",
+					"value":"Λάβαμε την υπαναχώρησή σας στις [datetime]. Ένα αντίγραφο στέλνεται στη διεύθυνση [email]."
+				},
+				"received_next":{
+					"title":"Received page: what happens next heading ( 6.0.4 )",
+					"value":"Τι θα γίνει στη συνέχεια"
+				},
+				"already_text":{
+					"title":"The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+					"value":"Λάβαμε την υπαναχώρησή σας από αυτή την παραγγελία στις [datetime]."
+				},
+				"closed_text":{
+					"title":"The order cannot be withdrawn from online ( 6.0.4 )",
+					"value":"Δεν είναι πλέον δυνατή η διαδικτυακή υπαναχώρηση από αυτή την παραγγελία. Αν πιστεύετε ότι αυτό είναι λάθος, επικοινωνήστε μαζί μας."
+				},
+				"link_invalid":{
+					"title":"A withdrawal link that no longer works ( 6.0.4 )",
+					"value":"Ο σύνδεσμος αυτός δεν λειτουργεί πλέον. Εισαγάγετε στη θέση του παρακάτω τον αριθμό παραγγελίας και το email σας."
+				},
+				"error_fields":{
+					"title":"Error: a required field is empty ( 6.0.4 )",
+					"value":"Συμπληρώστε όλα τα πεδία που σημειώνονται με *."
+				},
+				"error_email":{
+					"title":"Error: not an email address ( 6.0.4 )",
+					"value":"Εισαγάγετε μια έγκυρη διεύθυνση email."
+				},
+				"error_items":{
+					"title":"Error: no item chosen ( 6.0.4 )",
+					"value":"Επιλέξτε τουλάχιστον ένα είδος."
+				},
+				"error_limit":{
+					"title":"Error: too many tries ( 6.0.4 )",
+					"value":"Πάρα πολλές προσπάθειες. Περιμένετε λίγα λεπτά και δοκιμάστε ξανά."
+				},
+				"error_check":{
+					"title":"Error: the robot check is needed ( 6.0.4 )",
+					"value":"Επιβεβαιώστε ότι δεν είστε ρομπότ και δοκιμάστε ξανά."
+				},
+				"error_save":{
+					"title":"Error: the statement could not be saved ( 6.0.4 )",
+					"value":"Δεν ήταν δυνατή η αποθήκευση της υπαναχώρησής σας. Δοκιμάστε ξανά ή επικοινωνήστε μαζί μας."
+				},
+				"lookup_title":{
+					"title":"Order lookup: heading ( 6.0.4 )",
+					"value":"Βρείτε την παραγγελία σας"
+				},
+				"lookup_intro":{
+					"title":"Order lookup: introduction ( 6.0.4 )",
+					"value":"Παραγγείλατε χωρίς λογαριασμό; Εισαγάγετε τον αριθμό παραγγελίας και τη διεύθυνση email που χρησιμοποιήσατε και θα σας στείλουμε με email έναν σύνδεσμο προς την παραγγελία σας."
+				},
+				"lookup_button":{
+					"title":"Order lookup: button ( 6.0.4 )",
+					"value":"Στείλτε μου έναν σύνδεσμο με email"
+				},
+				"lookup_sent":{
+					"title":"Order lookup: answer ( 6.0.4 )",
+					"value":"Αν αντιστοιχεί σε παραγγελία, έχουμε στείλει με email έναν σύνδεσμο προς αυτήν. Μπορεί να χρειαστούν μερικά λεπτά μέχρι να φτάσει."
+				},
+				"lookup_prompt":{
+					"title":"Withdrawal page: want to choose items ( 6.0.4 )",
+					"value":"Θέλετε πρώτα να επιλέξετε είδη;"
+				},
+				"login_lookup":{
+					"title":"Sign-in page: link to the order lookup ( 6.0.4 )",
+					"value":"Παραγγείλατε χωρίς λογαριασμό; Βρείτε την παραγγελία σας"
+				},
+				"email_row_until":{
+					"title":"Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+					"value":"Αλλάξατε γνώμη; Μπορείτε να υπαναχωρήσετε από αυτή την παραγγελία διαδικτυακά έως τις [date], χωρίς να δώσετε αιτιολογία."
+				},
+				"email_row_open":{
+					"title":"Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+					"value":"Αλλάξατε γνώμη; Μπορείτε να υπαναχωρήσετε από αυτή την παραγγελία διαδικτυακά, χωρίς να δώσετε αιτιολογία. Η προθεσμία των [days] ημερών ξεκινά όταν παραλάβετε την παραγγελία σας."
+				},
+				"ack_subject":{
+					"title":"Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"Λάβαμε την υπαναχώρησή σας (παραγγελία [order_id])"
+				},
+				"ack_intro":{
+					"title":"Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+					"value":"Γεια σας [name], λάβαμε την υπαναχώρησή σας από την παραγγελία [order_id]. Θα την ελέγξουμε και θα επικοινωνήσουμε μαζί σας σχετικά με την επιστροφή των ειδών και την επιστροφή χρημάτων σας."
+				},
+				"ack_footer":{
+					"title":"Receipt email: receipt only ( 6.0.4 )",
+					"value":"Αυτό το email επιβεβαιώνει ότι λάβαμε την υπαναχώρησή σας. Δεν επιβεβαιώνει ακόμη ότι η υπαναχώρηση είναι έγκυρη: θα την ελέγξουμε και θα σας απαντήσουμε."
+				},
+				"lookup_email_subject":{
+					"title":"Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"Ο σύνδεσμος προς την παραγγελία σας [order_id]"
+				},
+				"lookup_email_intro":{
+					"title":"Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+					"value":"Ακολουθεί ο σύνδεσμος προς την παραγγελία [order_id]. Μπορείτε να δείτε την παραγγελία, να εκτυπώσετε την απόδειξή σας και, όσο η προθεσμία υπαναχώρησής της είναι ανοιχτή, να υπαναχωρήσετε από αυτήν."
+				},
+				"lookup_email_button":{
+					"title":"Order lookup email: button ( 6.0.4 )",
+					"value":"Δείτε την παραγγελία σας"
+				},
+				"lookup_email_ignore":{
+					"title":"Order lookup email: not asked for ( 6.0.4 )",
+					"value":"Αν δεν ζητήσατε εσείς αυτόν τον σύνδεσμο, μπορείτε να αγνοήσετε αυτό το email."
 				}
 			}
 		},

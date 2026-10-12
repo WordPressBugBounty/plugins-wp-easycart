@@ -96,6 +96,9 @@ if ( ! class_exists( 'wp_easycart_import_square' ) ) :
 		 * @return string
 		 */
 		private function location() {
+			if ( class_exists( 'ec_square' ) ) {
+				return ec_square::saved_location_id( $this->sandbox() ); /* 6.0.4: '0' is none ( the Square panel's default location ) */
+			}
 			return (string) get_option( $this->sandbox() ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' );
 		}
 
@@ -138,6 +141,9 @@ if ( ! class_exists( 'wp_easycart_import_square' ) ) :
 		 */
 		public static function connect_url( $sandbox = null ) {
 			$sandbox = ( null === $sandbox ) ? (bool) get_option( 'ec_option_square_is_sandbox' ) : (bool) $sandbox;
+			if ( class_exists( 'wp_easycart_square_relay' ) ) { /* 6.0.4: through admin-post to WP EasyCart Connect's /square-v3/ */
+				return wp_easycart_square_relay::connect_url( $sandbox, 'import' );
+			}
 			$state   = function_exists( 'wp_create_nonce' ) ? wp_create_nonce( 'wp-easycart-square' ) : '';
 			return 'https://connect.wpeasycart.com/' . ( $sandbox ? 'square-sandbox' : 'square-v2' ) . '/?url=' . rawurlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=handle-square&goto=import' ) . '&state=' . $state;
 		}
@@ -721,8 +727,9 @@ if ( ! class_exists( 'wp_easycart_import_square' ) ) :
 				}
 			}
 			unset( $job['state']['parents'] );
-			wp_cache_delete( 'wpeasycart-all-categories', 'wpeasycart-categories' );
-			wp_cache_delete( 'wpeasycart-all-categories' );
+			if ( class_exists( 'wp_easycart_cache' ) ) {
+				wp_easycart_cache::categories_changed(); /* 6.0.4: every cached category lookup ( keys carry a generation now ) */
+			}
 		}
 
 		/**
@@ -801,6 +808,11 @@ if ( ! class_exists( 'wp_easycart_import_square' ) ) :
 				return;
 			}
 			$notes = array();
+			if ( 'GIFT_CARD' === $type && ! ( function_exists( 'wp_easycart_square_sells_gift_cards' ) && wp_easycart_square_sells_gift_cards() ) ) {
+				/* 6.0.4: it came in as a WP EasyCart gift card product, whose codes the Square register cannot take, until the store
+				   sells Square gift cards ( WP EasyCart PRO's switch, Settings › Payments › Square ). */
+				$notes['giftcard'] = __( 'A Square gift card item: it sells WP EasyCart gift cards, which your Square register cannot take. Turn on "Gift cards you sell are Square gift cards" in Settings › Payments › Square to sell Square gift cards instead.', 'wp-easycart' );
+			}
 			foreach ( isset( $object->item_data->variations ) ? (array) $object->item_data->variations : array() as $variation ) {
 				if ( isset( $variation->item_variation_data->pricing_type ) && 'VARIABLE_PRICING' === $variation->item_variation_data->pricing_type ) {
 					$notes['price'] = __( 'A variation has a price set at the register: it came in at 0, so set its price.', 'wp-easycart' );

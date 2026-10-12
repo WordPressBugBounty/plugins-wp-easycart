@@ -1410,6 +1410,26 @@
 					"title":"Min Quantity Required Error",
 					"value":"數量未達最少購買數量要求"
 				},
+				"cartitem_stock_limit":{
+					"title":"Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+					"value":"庫存僅剩 [stock] 件。"
+				},
+				"cartitem_stock_limit_cart":{
+					"title":"Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+					"value":"庫存僅剩 [stock] 件，其中 [other] 件已在您購物車的其他項目中。"
+				},
+				"cartitem_stock_limit_hidden":{
+					"title":"Cart, Quantity Limited by Stock ( stock counts not shown )",
+					"value":"這已是我們的全部庫存。"
+				},
+				"cartitem_max_limit":{
+					"title":"Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+					"value":"此商品最多可購買 [max] 件。"
+				},
+				"cartitem_min_limit":{
+					"title":"Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+					"value":"此商品的最低購買數量為 [min] 件。"
+				},
 				"cart_please_wait":{
 					"title":"Cart Please Wait",
 					"value":"麻煩稍等"
@@ -1672,6 +1692,30 @@
 				"cart_invalid_giftcard":{
 					"title":"Cart, Invalid Gift Card",
 					"value":"不是有效的禮卷編碼"
+				},
+				"cart_giftcard_used":{
+					"title":"Cart, Gift Card Used Up",
+					"value":"此禮品卡已用完。"
+				},
+				"cart_giftcard_failed":{
+					"title":"Cart, Gift Card Could Not Be Used ( nothing was charged )",
+					"value":"無法將您的禮品卡用於此訂單，因此未收取任何費用。請檢查卡片後再試一次，或將其移除。"
+				},
+				"cart_square_giftcard_balance":{
+					"title":"Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+					"value":"末四碼 [last4] 的 Square 禮品卡：可用餘額 [balance]"
+				},
+				"cart_square_giftcard_label":{
+					"title":"Order, Square Gift Card Name ( [last4] = last four digits )",
+					"value":"Square •••• [last4]"
+				},
+				"cart_square_giftcard_square_only":{
+					"title":"Checkout, Square Gift Card Needs a Card Payment",
+					"value":"Square 禮品卡只能與卡片付款搭配使用。請選擇以卡片付款，或移除禮品卡。"
+				},
+				"cart_square_giftcard_balance_changed":{
+					"title":"Checkout, Square Gift Card Balance Changed",
+					"value":"您的禮品卡餘額已變更。請確認新的總金額，然後再次下單。"
 				},
 				"cart_enter_coupon":{
 					"title":"Cart, Enter Coupon Hint",
@@ -3475,6 +3519,26 @@
 				"account_navigation_shipping_information":{
 					"title":"Account, Navigation, Shipping Link",
 					"value":"更改送貨資料"
+				},
+				"account_navigation_home":{
+					"title":"Breadcrumbs: My Account",
+					"value":"我的帳戶"
+				},
+				"account_navigation_breadcrumb":{
+					"title":"Breadcrumbs: Label for Screen Readers",
+					"value":"導覽路徑"
+				},
+				"account_navigation_orders_short":{
+					"title":"Breadcrumbs: Orders",
+					"value":"訂單"
+				},
+				"account_navigation_subscriptions_short":{
+					"title":"Breadcrumbs: Subscriptions",
+					"value":"訂閱"
+				},
+				"account_navigation_order_number":{
+					"title":"Breadcrumbs: Order Number",
+					"value":"訂單 #[order_id]"
 				}
 			}
 		},
@@ -3517,6 +3581,10 @@
 					"title":"Account, Dashboard, Buy Item Again",
 					"value":"購買物品再"
 				},
+				"account_dashboard_downloads_title":{
+					"title":"Account, Dashboard, Downloads Title",
+					"value":"您的下載"
+				},
 				"account_dashboard_preference_title":{
 					"title":"Account, Dashboard, Preference Title",
 					"value":"賬戶喜好設定"
@@ -3548,6 +3616,14 @@
 				"account_dashboard_shipping_link":{
 					"title":"Account, Dashboard, Shipping Edit Link",
 					"value":"編輯送貨地址"
+				},
+				"account_dashboard_welcome":{
+					"title":"Dashboard: Welcome with Name",
+					"value":"歡迎回來，[name]"
+				},
+				"account_dashboard_welcome_no_name":{
+					"title":"Dashboard: Welcome without Name",
+					"value":"歡迎回來"
 				}
 			}
 		},
@@ -3773,6 +3849,18 @@
 				"account_orders_view_order_button":{
 					"title":"Account, Orders, View Order Button",
 					"value":"檢閱訂單"
+				},
+				"account_orders_item_one":{
+					"title":"Order Card: One Item",
+					"value":"1 件商品"
+				},
+				"account_orders_item_many":{
+					"title":"Order Card: Several Items",
+					"value":"[count] 件商品"
+				},
+				"account_orders_and_more":{
+					"title":"Order Card: And More Items",
+					"value":"及另外 [count] 件"
 				}
 			}
 		},
@@ -4557,6 +4645,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"您的付款仍在處理中，尚未獲得批准。"
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"卡片表單中的郵遞區號必須與您的帳單地址（[zip]）相符。請修改其中一個，使兩者一致。"
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5633,6 +5725,18 @@
 					"title":"Cart: Calculated at Checkout Note",
 					"value":"運費、稅金和折扣碼將在結帳時計算。"
 				},
+				"estimated_total":{
+					"title":"Cart: Estimated Total ( after discounts, before shipping and tax )",
+					"value":"預估總計"
+				},
+				"quantity_decrease":{
+					"title":"Cart: Decrease Quantity Button ( read by screen readers )",
+					"value":"減少數量"
+				},
+				"quantity_increase":{
+					"title":"Cart: Increase Quantity Button ( read by screen readers )",
+					"value":"增加數量"
+				},
 				"card_minimum":{
 					"title":"Card Payment Minimum ( %s is the amount )",
 					"value":"以信用卡付款的訂單總額至少須為 %s。"
@@ -5668,6 +5772,46 @@
 				"placing_hint":{
 					"title":"Place Order: Working, Keep the Page Open",
 					"value":"請保持此頁面開啟。"
+				},
+				"loading":{
+					"title":"Checkout: Loading ( Changing Screens )",
+					"value":"載入中…"
+				},
+				"loading_cart":{
+					"title":"Cart: Loading the Cart",
+					"value":"正在載入您的購物車…"
+				},
+				"loading_checkout":{
+					"title":"Checkout: Loading the Checkout",
+					"value":"正在載入結帳頁面…"
+				},
+				"loading_order":{
+					"title":"Order Confirmation: Loading the Order",
+					"value":"正在載入您的訂單…"
+				},
+				"signing_in":{
+					"title":"Checkout: Signing In",
+					"value":"正在為您登入…"
+				},
+				"signing_out":{
+					"title":"Checkout: Signing Out",
+					"value":"正在為您登出…"
+				},
+				"loading_account":{
+					"title":"Account: Loading the Account",
+					"value":"正在載入您的帳戶…"
+				},
+				"creating_account":{
+					"title":"Account: Creating the Account",
+					"value":"正在建立您的帳戶…"
+				},
+				"saving":{
+					"title":"Account: Saving",
+					"value":"儲存中…"
+				},
+				"sending":{
+					"title":"Account: Sending",
+					"value":"傳送中…"
 				}
 			}
 		},
@@ -5717,6 +5861,255 @@
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
 					"value":"[label] - [service]"
+				}
+			}
+		},
+		"withdrawal":{
+			"label":"Withdrawal Button and Order Lookup",
+			"options":{
+				"withdraw_button":{
+					"title":"Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+					"value":"在此解除契約"
+				},
+				"confirm_button":{
+					"title":"Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+					"value":"確認解除契約"
+				},
+				"page_title":{
+					"title":"Withdrawal page heading ( 6.0.4 )",
+					"value":"解除契約"
+				},
+				"page_intro":{
+					"title":"Withdrawal page introduction ( 6.0.4 )",
+					"value":"只要解除期間尚未結束，你可以無需說明理由，解除訂單的契約。請告訴我們是哪張訂單，核對你要送出的內容，然後確認。我們會立即以電郵寄給你收件確認。"
+				},
+				"your_orders":{
+					"title":"Signed-in customer: heading above their orders ( 6.0.4 )",
+					"value":"你的訂單"
+				},
+				"your_orders_none":{
+					"title":"Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+					"value":"目前你的訂單都無法在線上解除契約。"
+				},
+				"order_title":{
+					"title":"Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+					"value":"解除訂單 [order_id] 的契約"
+				},
+				"order_until":{
+					"title":"Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+					"value":"你可以在 [date] 前解除此訂單的契約。"
+				},
+				"order_pending":{
+					"title":"Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+					"value":"你的 [days] 天解除期間會在你收到訂單時開始。你也可以在此之前解除契約。"
+				},
+				"other_title":{
+					"title":"Form without a link: heading ( 6.0.4 )",
+					"value":"解除訂單契約"
+				},
+				"other_intro":{
+					"title":"Form without a link: introduction ( 6.0.4 )",
+					"value":"輸入訂單號碼，以及訂購時使用的電郵地址。"
+				},
+				"order_number_label":{
+					"title":"Order number label ( 6.0.4 )",
+					"value":"訂單號碼"
+				},
+				"order_email_label":{
+					"title":"Email used for the order label ( 6.0.4 )",
+					"value":"訂購時使用的電郵地址"
+				},
+				"name_label":{
+					"title":"Name label ( 6.0.4 )",
+					"value":"你的姓名"
+				},
+				"email_label":{
+					"title":"Email for the receipt label ( 6.0.4 )",
+					"value":"接收收件確認的電郵"
+				},
+				"items_label":{
+					"title":"Items label ( 6.0.4 )",
+					"value":"要解除契約的商品"
+				},
+				"item_exempt":{
+					"title":"Item without a right of withdrawal ( 6.0.4 )",
+					"value":"無解除契約的權利"
+				},
+				"item_withdrawn":{
+					"title":"Item already withdrawn from ( 6.0.4 )",
+					"value":"已解除契約"
+				},
+				"item_closed":{
+					"title":"Item whose period ended ( [date] ) ( 6.0.4 )",
+					"value":"解除期間已於 [date] 結束"
+				},
+				"item_refunded":{
+					"title":"Item already refunded ( 6.0.4 )",
+					"value":"已退款"
+				},
+				"note_label":{
+					"title":"Form without a link: only some items ( optional ) ( 6.0.4 )",
+					"value":"只解除部分商品？請告訴我們是哪些（選填）"
+				},
+				"reason_label":{
+					"title":"Reason label ( optional ) ( 6.0.4 )",
+					"value":"原因（選填）"
+				},
+				"continue_button":{
+					"title":"Continue button ( 6.0.4 )",
+					"value":"繼續"
+				},
+				"review_title":{
+					"title":"Review step heading ( 6.0.4 )",
+					"value":"核對你的解除契約"
+				},
+				"review_intro":{
+					"title":"Review step introduction ( 6.0.4 )",
+					"value":"這是我們將會收到的內容。在你確認之前，不會送出任何資料。"
+				},
+				"review_order":{
+					"title":"Summary: order ( 6.0.4 )",
+					"value":"訂單"
+				},
+				"review_items":{
+					"title":"Summary: items ( 6.0.4 )",
+					"value":"商品"
+				},
+				"review_whole":{
+					"title":"Summary: the whole order ( 6.0.4 )",
+					"value":"整張訂單"
+				},
+				"review_name":{
+					"title":"Summary: name ( 6.0.4 )",
+					"value":"姓名"
+				},
+				"review_email":{
+					"title":"Summary: email ( 6.0.4 )",
+					"value":"電郵"
+				},
+				"review_reason":{
+					"title":"Summary: reason ( 6.0.4 )",
+					"value":"原因"
+				},
+				"review_note":{
+					"title":"Summary: note ( 6.0.4 )",
+					"value":"備註"
+				},
+				"review_received":{
+					"title":"Summary: date and time received ( 6.0.4 )",
+					"value":"收到時間"
+				},
+				"change_button":{
+					"title":"Review step: go back button ( 6.0.4 )",
+					"value":"修改內容"
+				},
+				"received_title":{
+					"title":"Received page heading ( 6.0.4 )",
+					"value":"已收到解除契約"
+				},
+				"received_text":{
+					"title":"Received page text ( [datetime], [email] ) ( 6.0.4 )",
+					"value":"我們已於 [datetime] 收到你的解除契約。副本正寄往 [email]。"
+				},
+				"received_next":{
+					"title":"Received page: what happens next heading ( 6.0.4 )",
+					"value":"接下來的步驟"
+				},
+				"already_text":{
+					"title":"The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+					"value":"我們已於 [datetime] 收到你對此訂單的解除契約。"
+				},
+				"closed_text":{
+					"title":"The order cannot be withdrawn from online ( 6.0.4 )",
+					"value":"此訂單已無法在線上解除契約。如你認為這有誤，請聯絡我們。"
+				},
+				"link_invalid":{
+					"title":"A withdrawal link that no longer works ( 6.0.4 )",
+					"value":"該連結已失效。請改為在下方輸入訂單號碼和電郵地址。"
+				},
+				"error_fields":{
+					"title":"Error: a required field is empty ( 6.0.4 )",
+					"value":"請填寫所有標有 * 的欄位。"
+				},
+				"error_email":{
+					"title":"Error: not an email address ( 6.0.4 )",
+					"value":"請輸入有效的電郵地址。"
+				},
+				"error_items":{
+					"title":"Error: no item chosen ( 6.0.4 )",
+					"value":"請至少選取一項商品。"
+				},
+				"error_limit":{
+					"title":"Error: too many tries ( 6.0.4 )",
+					"value":"嘗試次數過多。請稍等幾分鐘後再試。"
+				},
+				"error_check":{
+					"title":"Error: the robot check is needed ( 6.0.4 )",
+					"value":"請確認你不是機器人，然後再試一次。"
+				},
+				"error_save":{
+					"title":"Error: the statement could not be saved ( 6.0.4 )",
+					"value":"無法儲存你的解除契約。請再試一次，或聯絡我們。"
+				},
+				"lookup_title":{
+					"title":"Order lookup: heading ( 6.0.4 )",
+					"value":"查詢你的訂單"
+				},
+				"lookup_intro":{
+					"title":"Order lookup: introduction ( 6.0.4 )",
+					"value":"沒有賬戶就下了訂單？輸入訂單號碼和你使用的電郵地址，我們會以電郵把訂單連結寄給你。"
+				},
+				"lookup_button":{
+					"title":"Order lookup: button ( 6.0.4 )",
+					"value":"以電郵寄給我連結"
+				},
+				"lookup_sent":{
+					"title":"Order lookup: answer ( 6.0.4 )",
+					"value":"如果與某張訂單相符，我們已將連結以電郵寄出。可能需要幾分鐘才會收到。"
+				},
+				"lookup_prompt":{
+					"title":"Withdrawal page: want to choose items ( 6.0.4 )",
+					"value":"想先選取商品嗎？"
+				},
+				"login_lookup":{
+					"title":"Sign-in page: link to the order lookup ( 6.0.4 )",
+					"value":"沒有賬戶就下了訂單？查詢你的訂單"
+				},
+				"email_row_until":{
+					"title":"Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+					"value":"改變主意了？你可以在 [date] 前於線上解除此訂單的契約，無需說明理由。"
+				},
+				"email_row_open":{
+					"title":"Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+					"value":"改變主意了？你可以在線上解除此訂單的契約，無需說明理由。[days] 天的解除期間會在你收到訂單時開始。"
+				},
+				"ack_subject":{
+					"title":"Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"我們已收到你的解除契約（訂單 [order_id]）"
+				},
+				"ack_intro":{
+					"title":"Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+					"value":"你好 [name]，我們已收到你對訂單 [order_id] 的解除契約。我們會進行核對，並就退回商品和退款事宜與你聯絡。"
+				},
+				"ack_footer":{
+					"title":"Receipt email: receipt only ( 6.0.4 )",
+					"value":"此電郵確認我們已收到你的解除契約，但尚未確認該解除契約有效：我們會先核對，再回覆你。"
+				},
+				"lookup_email_subject":{
+					"title":"Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"你的訂單 [order_id] 連結"
+				},
+				"lookup_email_intro":{
+					"title":"Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+					"value":"以下是訂單 [order_id] 的連結。你可以查看訂單、列印收據，並在解除期間內解除契約。"
+				},
+				"lookup_email_button":{
+					"title":"Order lookup email: button ( 6.0.4 )",
+					"value":"查看你的訂單"
+				},
+				"lookup_email_ignore":{
+					"title":"Order lookup email: not asked for ( 6.0.4 )",
+					"value":"如果你沒有要求此連結，可以忽略此電郵。"
 				}
 			}
 		},

@@ -2121,7 +2121,8 @@ class ec_product {
 	private function ec_get_permalink( $postid ){
 
 		if( !get_option( 'ec_option_use_old_linking_style' ) && $this->guid != "" ){
-			return get_permalink( $postid );//return $this->guid;
+			/* 6.0.4: the product's store page only; a wrong link takes the classic link. */
+			return wp_easycart_store_post_link( $postid, $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number );
 		}else{
 			return $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number;
 		}

@@ -302,3 +302,11 @@ tr.ecv2-row.ecpsv2-row-flash > td { animation:ecpsv2-flash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) {
 	.ecpsv2-toggle-track, .ecpsv2-toggle-track::after, .ecpsv2-money { transition:none; }
 }
+/* 6.0.4 ( editor plan Phase 2 ): Quick add's categories. */
+.ecpsv2-cats { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
+.ecpsv2-cats:empty { display:none; }
+.ecpsv2-cat-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 4px 3px 10px; border:1px solid var(--ecv2-g200); border-radius:999px; background:#fff; font-size:12.5px; color:var(--ecv2-g800); }
+.ecpsv2-cat-x { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin:0; padding:0; border:0; border-radius:50%; background:none; font-size:15px; line-height:1; color:var(--ecv2-g500); cursor:pointer; }
+.ecpsv2-cat-x:hover { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+.ecpsv2-combo-list .ecpsv2-combo-none { color:var(--ecv2-g400); cursor:default; font-size:12px; }
+.ecpsv2-combo-list .ecpsv2-combo-none:hover { background:none; }

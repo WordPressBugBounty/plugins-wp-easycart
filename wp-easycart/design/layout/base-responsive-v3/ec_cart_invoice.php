@@ -556,7 +556,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 			  elementId: 'sq-postal-code'
 			},<?php }else{ ?>
 			postalCode:false,<?php }?>
-			locationId: '<?php echo esc_attr( get_option( 'ec_option_square_location_id' ) ); ?>',
+			locationId: '<?php echo esc_attr( class_exists( 'ec_square' ) ? ec_square::saved_location_id() : get_option( 'ec_option_square_location_id' ) ); /* 6.0.4: the mode's location, never 0 */ ?>',
 			callbacks: {
 				cardNonceResponseReceived: function( errors, nonce, cardData ){
 					jQuery( document.getElementById( 'ec_card_number_error' ) ).hide( );

@@ -1409,6 +1409,26 @@
 					"title":"Szükséges minimum mennyiség hiba üzenet",
 					"value":"Szükséges minimum mennyiség"
 				},
+				"cartitem_stock_limit":{
+					"title":"Cart, Quantity Limited by Stock ( [stock] is the number in stock )",
+					"value":"Csak [stock] db van készleten."
+				},
+				"cartitem_stock_limit_cart":{
+					"title":"Cart, Quantity Limited by Stock Shared with Other Lines ( [stock] in stock, [other] on other lines )",
+					"value":"Csak [stock] db van készleten, ebből [other] db már máshol a kosarában van."
+				},
+				"cartitem_stock_limit_hidden":{
+					"title":"Cart, Quantity Limited by Stock ( stock counts not shown )",
+					"value":"Ennyi van készleten."
+				},
+				"cartitem_max_limit":{
+					"title":"Cart, Quantity Limited by Maximum Purchase ( [max] is the number )",
+					"value":"Ebből a termékből legfeljebb [max] db vásárolható."
+				},
+				"cartitem_min_limit":{
+					"title":"Cart, Quantity Raised to Minimum Purchase ( [min] is the number )",
+					"value":"Ebből a termékből legalább [min] db vásárolható."
+				},
 				"cart_please_wait":{
 					"title":"Kosárhoz való várási üzenet",
 					"value":"Feldolgozás, kérem várjon..."
@@ -1671,6 +1691,30 @@
 				"cart_invalid_giftcard":{
 					"title":"Kosár, Érvénytelen ajándékkártya",
 					"value":"Érvéytelen ajándékkártyakód"
+				},
+				"cart_giftcard_used":{
+					"title":"Cart, Gift Card Used Up",
+					"value":"Ez az ajándékkártya már teljesen fel lett használva."
+				},
+				"cart_giftcard_failed":{
+					"title":"Cart, Gift Card Could Not Be Used ( nothing was charged )",
+					"value":"Az ajándékkártyáját nem lehetett felhasználni ehhez a rendeléshez, így nem történt terhelés. Ellenőrizze a kártyát, és próbálja újra, vagy távolítsa el."
+				},
+				"cart_square_giftcard_balance":{
+					"title":"Cart, Square Gift Card Applied ( [last4] = last four digits, [balance] = what it holds )",
+					"value":"[last4] végű Square ajándékkártya: [balance] áll rendelkezésre"
+				},
+				"cart_square_giftcard_label":{
+					"title":"Order, Square Gift Card Name ( [last4] = last four digits )",
+					"value":"Square •••• [last4]"
+				},
+				"cart_square_giftcard_square_only":{
+					"title":"Checkout, Square Gift Card Needs a Card Payment",
+					"value":"Square ajándékkártya csak kártyás fizetéssel kombinálható. Válassza a kártyás fizetést, vagy távolítsa el az ajándékkártyát."
+				},
+				"cart_square_giftcard_balance_changed":{
+					"title":"Checkout, Square Gift Card Balance Changed",
+					"value":"Az ajándékkártya egyenlege megváltozott. Ellenőrizze az új végösszeget, majd adja le újra a rendelést."
 				},
 				"cart_enter_coupon":{
 					"title":"Kosár, Kuponkód megadás szövege",
@@ -3474,6 +3518,26 @@
 				"account_navigation_shipping_information":{
 					"title":"Fiók, Navigáció, Szállítási adatok hivatkozás",
 					"value":"Szállítási adatok"
+				},
+				"account_navigation_home":{
+					"title":"Breadcrumbs: My Account",
+					"value":"Fiókom"
+				},
+				"account_navigation_breadcrumb":{
+					"title":"Breadcrumbs: Label for Screen Readers",
+					"value":"Navigációs útvonal"
+				},
+				"account_navigation_orders_short":{
+					"title":"Breadcrumbs: Orders",
+					"value":"Rendelések"
+				},
+				"account_navigation_subscriptions_short":{
+					"title":"Breadcrumbs: Subscriptions",
+					"value":"Előfizetések"
+				},
+				"account_navigation_order_number":{
+					"title":"Breadcrumbs: Order Number",
+					"value":"Rendelés #[order_id]"
 				}
 			}
 		},
@@ -3516,6 +3580,10 @@
 					"title":"Fiók, Vezérlőpult, Ugyanaz a megrendelés mégegyszer szövege",
 					"value":"Ismételt megrendelés"
 				},
+				"account_dashboard_downloads_title":{
+					"title":"Account, Dashboard, Downloads Title",
+					"value":"Letöltései"
+				},
 				"account_dashboard_preference_title":{
 					"title":"Fiók, Vezérlőpult, Előnybe részesített adatok",
 					"value":"Előnybe részesített adatok"
@@ -3547,6 +3615,14 @@
 				"account_dashboard_shipping_link":{
 					"title":"Account, Vezérlőpult, Szállítási adatok szerkesztése",
 					"value":"szerkesztés"
+				},
+				"account_dashboard_welcome":{
+					"title":"Dashboard: Welcome with Name",
+					"value":"Üdv újra, [name]"
+				},
+				"account_dashboard_welcome_no_name":{
+					"title":"Dashboard: Welcome without Name",
+					"value":"Üdv újra"
 				}
 			}
 		},
@@ -3772,6 +3848,18 @@
 				"account_orders_view_order_button":{
 					"title":"Fiók, Megrendelés, Megtekintés gomb felirata",
 					"value":"Megtekintés"
+				},
+				"account_orders_item_one":{
+					"title":"Order Card: One Item",
+					"value":"1 tétel"
+				},
+				"account_orders_item_many":{
+					"title":"Order Card: Several Items",
+					"value":"[count] tétel"
+				},
+				"account_orders_and_more":{
+					"title":"Order Card: And More Items",
+					"value":"és még [count]"
 				}
 			}
 		},
@@ -4556,6 +4644,10 @@
 				"payment_processing":{
 					"title":"Cart, Payment is pending",
 					"value":"Befizetésének feldolgozása még folyamatban van, és még nem hagyták jóvá."
+				},
+				"card_postal_mismatch":{
+					"title":"Cart, Card postal code is not the billing address's",
+					"value":"A kártyaűrlapon megadott irányítószámnak egyeznie kell a számlázási címével ([zip]). Kérjük, módosítsa valamelyiket, hogy egyezzenek."
 				},
 				"delayed_payment_failed":{
 					"title":"Cart, Payment is failed after delayed processing",
@@ -5632,6 +5724,18 @@
 					"title":"Cart: Calculated at Checkout Note",
 					"value":"A szállítási díjat, az adókat és a kedvezménykódokat a fizetésnél számoljuk ki."
 				},
+				"estimated_total":{
+					"title":"Cart: Estimated Total ( after discounts, before shipping and tax )",
+					"value":"Becsült végösszeg"
+				},
+				"quantity_decrease":{
+					"title":"Cart: Decrease Quantity Button ( read by screen readers )",
+					"value":"Mennyiség csökkentése"
+				},
+				"quantity_increase":{
+					"title":"Cart: Increase Quantity Button ( read by screen readers )",
+					"value":"Mennyiség növelése"
+				},
 				"card_minimum":{
 					"title":"Card Payment Minimum ( %s is the amount )",
 					"value":"Kártyás fizetéshez legalább %s rendelési összeg szükséges."
@@ -5667,6 +5771,46 @@
 				"placing_hint":{
 					"title":"Place Order: Working, Keep the Page Open",
 					"value":"Kérjük, ne zárja be ezt az oldalt."
+				},
+				"loading":{
+					"title":"Checkout: Loading ( Changing Screens )",
+					"value":"Betöltés…"
+				},
+				"loading_cart":{
+					"title":"Cart: Loading the Cart",
+					"value":"Kosarának betöltése…"
+				},
+				"loading_checkout":{
+					"title":"Checkout: Loading the Checkout",
+					"value":"A pénztár betöltése…"
+				},
+				"loading_order":{
+					"title":"Order Confirmation: Loading the Order",
+					"value":"Rendelésének betöltése…"
+				},
+				"signing_in":{
+					"title":"Checkout: Signing In",
+					"value":"Bejelentkezés folyamatban…"
+				},
+				"signing_out":{
+					"title":"Checkout: Signing Out",
+					"value":"Kijelentkezés folyamatban…"
+				},
+				"loading_account":{
+					"title":"Account: Loading the Account",
+					"value":"Fiókjának betöltése…"
+				},
+				"creating_account":{
+					"title":"Account: Creating the Account",
+					"value":"Fiókjának létrehozása…"
+				},
+				"saving":{
+					"title":"Account: Saving",
+					"value":"Mentés…"
+				},
+				"sending":{
+					"title":"Account: Sending",
+					"value":"Küldés…"
 				}
 			}
 		},
@@ -5716,6 +5860,255 @@
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
 					"value":"[label] - [service]"
+				}
+			}
+		},
+		"withdrawal":{
+			"label":"Withdrawal Button and Order Lookup",
+			"options":{
+				"withdraw_button":{
+					"title":"Withdrawal button ( keep the legal wording: withdraw from contract here ) ( 6.0.4 )",
+					"value":"Elállás a szerződéstől"
+				},
+				"confirm_button":{
+					"title":"Confirm button ( keep the legal wording: confirm withdrawal ) ( 6.0.4 )",
+					"value":"Elállás megerősítése"
+				},
+				"page_title":{
+					"title":"Withdrawal page heading ( 6.0.4 )",
+					"value":"Elállás a szerződéstől"
+				},
+				"page_intro":{
+					"title":"Withdrawal page introduction ( 6.0.4 )",
+					"value":"Indokolás nélkül elállhat a megrendeléstől, amíg annak elállási határideje tart. Adja meg, melyik megrendelésről van szó, ellenőrizze, mit küld el, majd erősítse meg. Azonnal e-mailben küldünk Önnek átvételi elismervényt."
+				},
+				"your_orders":{
+					"title":"Signed-in customer: heading above their orders ( 6.0.4 )",
+					"value":"Megrendelései"
+				},
+				"your_orders_none":{
+					"title":"Signed-in customer: no order can be withdrawn from ( 6.0.4 )",
+					"value":"Jelenleg egyik megrendelésétől sem állhat el online."
+				},
+				"order_title":{
+					"title":"Form for one order: heading ( [order_id] ) ( 6.0.4 )",
+					"value":"Elállás a megrendeléstől: [order_id]"
+				},
+				"order_until":{
+					"title":"Form for one order: the deadline ( [date] ) ( 6.0.4 )",
+					"value":"Ettől a megrendeléstől eddig állhat el: [date]."
+				},
+				"order_pending":{
+					"title":"Form for one order: the period has not started ( [days] ) ( 6.0.4 )",
+					"value":"Az Ön [days] napos elállási határideje a megrendelés kézhezvételekor kezdődik. Előtte is elállhat."
+				},
+				"other_title":{
+					"title":"Form without a link: heading ( 6.0.4 )",
+					"value":"Elállás egy megrendeléstől"
+				},
+				"other_intro":{
+					"title":"Form without a link: introduction ( 6.0.4 )",
+					"value":"Adja meg a megrendelés számát és a megrendeléskor használt e-mail-címet."
+				},
+				"order_number_label":{
+					"title":"Order number label ( 6.0.4 )",
+					"value":"Megrendelés száma"
+				},
+				"order_email_label":{
+					"title":"Email used for the order label ( 6.0.4 )",
+					"value":"A megrendeléskor használt e-mail-cím"
+				},
+				"name_label":{
+					"title":"Name label ( 6.0.4 )",
+					"value":"Az Ön neve"
+				},
+				"email_label":{
+					"title":"Email for the receipt label ( 6.0.4 )",
+					"value":"E-mail-cím az elismervényhez"
+				},
+				"items_label":{
+					"title":"Items label ( 6.0.4 )",
+					"value":"Tételek, amelyektől eláll"
+				},
+				"item_exempt":{
+					"title":"Item without a right of withdrawal ( 6.0.4 )",
+					"value":"Nincs elállási jog"
+				},
+				"item_withdrawn":{
+					"title":"Item already withdrawn from ( 6.0.4 )",
+					"value":"Az elállás már megtörtént"
+				},
+				"item_closed":{
+					"title":"Item whose period ended ( [date] ) ( 6.0.4 )",
+					"value":"Az elállási határidő lejárt: [date]"
+				},
+				"item_refunded":{
+					"title":"Item already refunded ( 6.0.4 )",
+					"value":"Már visszatérítve"
+				},
+				"note_label":{
+					"title":"Form without a link: only some items ( optional ) ( 6.0.4 )",
+					"value":"Csak néhány tétel? Írja meg, melyek (nem kötelező)"
+				},
+				"reason_label":{
+					"title":"Reason label ( optional ) ( 6.0.4 )",
+					"value":"Indok (nem kötelező)"
+				},
+				"continue_button":{
+					"title":"Continue button ( 6.0.4 )",
+					"value":"Folytatás"
+				},
+				"review_title":{
+					"title":"Review step heading ( 6.0.4 )",
+					"value":"Ellenőrizze az elállását"
+				},
+				"review_intro":{
+					"title":"Review step introduction ( 6.0.4 )",
+					"value":"Ezt fogjuk megkapni. Amíg nem erősíti meg, semmit sem küldünk el."
+				},
+				"review_order":{
+					"title":"Summary: order ( 6.0.4 )",
+					"value":"Megrendelés"
+				},
+				"review_items":{
+					"title":"Summary: items ( 6.0.4 )",
+					"value":"Tételek"
+				},
+				"review_whole":{
+					"title":"Summary: the whole order ( 6.0.4 )",
+					"value":"A teljes megrendelés"
+				},
+				"review_name":{
+					"title":"Summary: name ( 6.0.4 )",
+					"value":"Név"
+				},
+				"review_email":{
+					"title":"Summary: email ( 6.0.4 )",
+					"value":"E-mail"
+				},
+				"review_reason":{
+					"title":"Summary: reason ( 6.0.4 )",
+					"value":"Indok"
+				},
+				"review_note":{
+					"title":"Summary: note ( 6.0.4 )",
+					"value":"Megjegyzés"
+				},
+				"review_received":{
+					"title":"Summary: date and time received ( 6.0.4 )",
+					"value":"Beérkezett"
+				},
+				"change_button":{
+					"title":"Review step: go back button ( 6.0.4 )",
+					"value":"Módosítás"
+				},
+				"received_title":{
+					"title":"Received page heading ( 6.0.4 )",
+					"value":"Elállás beérkezett"
+				},
+				"received_text":{
+					"title":"Received page text ( [datetime], [email] ) ( 6.0.4 )",
+					"value":"Elállását ekkor kaptuk meg: [datetime]. A másolatot ide küldjük: [email]."
+				},
+				"received_next":{
+					"title":"Received page: what happens next heading ( 6.0.4 )",
+					"value":"Mi történik ezután"
+				},
+				"already_text":{
+					"title":"The order was already withdrawn from ( [datetime] ) ( 6.0.4 )",
+					"value":"A megrendeléstől való elállását ekkor kaptuk meg: [datetime]."
+				},
+				"closed_text":{
+					"title":"The order cannot be withdrawn from online ( 6.0.4 )",
+					"value":"Ettől a megrendeléstől online már nem lehet elállni. Ha úgy gondolja, hogy ez tévedés, kérjük, vegye fel velünk a kapcsolatot."
+				},
+				"link_invalid":{
+					"title":"A withdrawal link that no longer works ( 6.0.4 )",
+					"value":"Ez a hivatkozás már nem működik. Adja meg helyette alább a megrendelés számát és az e-mail-címét."
+				},
+				"error_fields":{
+					"title":"Error: a required field is empty ( 6.0.4 )",
+					"value":"Kérjük, töltse ki az összes *-gal jelölt mezőt."
+				},
+				"error_email":{
+					"title":"Error: not an email address ( 6.0.4 )",
+					"value":"Kérjük, adjon meg érvényes e-mail-címet."
+				},
+				"error_items":{
+					"title":"Error: no item chosen ( 6.0.4 )",
+					"value":"Kérjük, válasszon ki legalább egy tételt."
+				},
+				"error_limit":{
+					"title":"Error: too many tries ( 6.0.4 )",
+					"value":"Túl sok próbálkozás. Kérjük, várjon néhány percet, majd próbálja újra."
+				},
+				"error_check":{
+					"title":"Error: the robot check is needed ( 6.0.4 )",
+					"value":"Kérjük, erősítse meg, hogy nem robot, majd próbálja újra."
+				},
+				"error_save":{
+					"title":"Error: the statement could not be saved ( 6.0.4 )",
+					"value":"Az elállását nem sikerült elmenteni. Kérjük, próbálja újra, vagy vegye fel velünk a kapcsolatot."
+				},
+				"lookup_title":{
+					"title":"Order lookup: heading ( 6.0.4 )",
+					"value":"Keresse meg a megrendelését"
+				},
+				"lookup_intro":{
+					"title":"Order lookup: introduction ( 6.0.4 )",
+					"value":"Fiók nélkül rendelt? Adja meg a megrendelés számát és a használt e-mail-címet, mi pedig e-mailben elküldjük a megrendelésére mutató hivatkozást."
+				},
+				"lookup_button":{
+					"title":"Order lookup: button ( 6.0.4 )",
+					"value":"Hivatkozás küldése e-mailben"
+				},
+				"lookup_sent":{
+					"title":"Order lookup: answer ( 6.0.4 )",
+					"value":"Ha az adatok egy megrendeléshez tartoznak, e-mailben elküldtük a hozzá tartozó hivatkozást. A megérkezése eltarthat néhány percig."
+				},
+				"lookup_prompt":{
+					"title":"Withdrawal page: want to choose items ( 6.0.4 )",
+					"value":"Előbb szeretne tételeket választani?"
+				},
+				"login_lookup":{
+					"title":"Sign-in page: link to the order lookup ( 6.0.4 )",
+					"value":"Fiók nélkül rendelt? Keresse meg a megrendelését"
+				},
+				"email_row_until":{
+					"title":"Receipt and shipped emails: with a deadline ( [date] ) ( 6.0.4 )",
+					"value":"Meggondolta magát? Ettől a megrendeléstől indokolás nélkül, online eddig állhat el: [date]."
+				},
+				"email_row_open":{
+					"title":"Receipt and shipped emails: before delivery ( [days] ) ( 6.0.4 )",
+					"value":"Meggondolta magát? Ettől a megrendeléstől indokolás nélkül, online elállhat. A határidő [days] napos, és a megrendelés kézhezvételekor kezdődik."
+				},
+				"ack_subject":{
+					"title":"Receipt email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"Megkaptuk az elállását (megrendelés: [order_id])"
+				},
+				"ack_intro":{
+					"title":"Receipt email: text ( [name], [order_id] ) ( 6.0.4 )",
+					"value":"Kedves [name]! Megkaptuk az elállását a megrendeléstől: [order_id]. Ellenőrizzük, majd felvesszük Önnel a kapcsolatot az esetleges tételek visszaküldéséről és a visszatérítésről."
+				},
+				"ack_footer":{
+					"title":"Receipt email: receipt only ( 6.0.4 )",
+					"value":"Ez az e-mail azt igazolja, hogy megkaptuk az elállását. Azt még nem igazolja, hogy az elállás érvényes: ellenőrizzük, majd válaszolunk."
+				},
+				"lookup_email_subject":{
+					"title":"Order lookup email: subject ( [order_id] ) ( 6.0.4 )",
+					"value":"A megrendelésére mutató hivatkozás: [order_id]"
+				},
+				"lookup_email_intro":{
+					"title":"Order lookup email: text ( [order_id] ) ( 6.0.4 )",
+					"value":"Itt található a megrendelés hivatkozása: [order_id]. Megtekintheti a megrendelést, kinyomtathatja a nyugtáját, és amíg az elállási határidő tart, elállhat tőle."
+				},
+				"lookup_email_button":{
+					"title":"Order lookup email: button ( 6.0.4 )",
+					"value":"Megrendelés megtekintése"
+				},
+				"lookup_email_ignore":{
+					"title":"Order lookup email: not asked for ( 6.0.4 )",
+					"value":"Ha nem Ön kérte ezt a hivatkozást, nyugodtan hagyja figyelmen kívül ezt az e-mailt."
 				}
 			}
 		},

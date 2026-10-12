@@ -81,7 +81,17 @@ if ( ! $product->use_advanced_optionset || $product->use_both_option_types ) {
 			<?php endforeach; ?>
 		</div>
 
-		<button type="button" class="ecdv2-cl-quick-toggle" id="ecdv2_cl_quick_toggle" onclick="ecdv2_cart_links.toggle_form(); return false;">+ <?php esc_html_e( 'Create cart link for this product', 'wp-easycart' ); ?></button>
+		<?php /* 6.0.4: no links yet = what a cart link is for and one clear button ( a dashed full-width row was easy to miss ); with
+		   links, a button under the list makes another. ecdv2_cart_links keeps both current as links come and go. */ ?>
+		<div class="ecdv2-cl-empty" id="ecdv2_cl_empty"<?php echo empty( $ecdv2_cl_links ) ? '' : ' hidden'; ?>>
+			<span class="ecdv2-cl-empty-icon" aria-hidden="true"><span class="dashicons dashicons-admin-links"></span></span>
+			<span class="ecdv2-cl-empty-text">
+				<strong><?php esc_html_e( 'No cart links for this product yet', 'wp-easycart' ); ?></strong>
+				<span><?php esc_html_e( 'One click puts this product in the shopper’s cart, with the quantity and options you choose. Share it in an email, a social post or a QR code.', 'wp-easycart' ); ?></span>
+			</span>
+			<button type="button" class="ecv2-btn ecv2-btn-primary ecdv2-cl-empty-btn" id="ecdv2_cl_quick_toggle" aria-controls="ecdv2_cl_quick" aria-expanded="false" onclick="ecdv2_cart_links.toggle_form(); return false;"><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span><?php esc_html_e( 'Create a cart link', 'wp-easycart' ); ?></button>
+		</div>
+		<button type="button" class="ecv2-btn ecdv2-cl-add-another" id="ecdv2_cl_add_another" aria-controls="ecdv2_cl_quick" aria-expanded="false" onclick="ecdv2_cart_links.toggle_form(); return false;"<?php echo empty( $ecdv2_cl_links ) ? ' hidden' : ''; ?>><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span><?php esc_html_e( 'Create another cart link', 'wp-easycart' ); ?></button>
 
 		<div class="ecdv2-cl-quick" id="ecdv2_cl_quick" style="display:none;">
 			<div class="ecdv2-cl-quick-grid">

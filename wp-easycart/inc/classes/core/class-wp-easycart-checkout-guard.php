@@ -82,6 +82,9 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		/** How long a checkout page visit counts as "came from the checkout". */
 		const SEEN_SECONDS = 7200;
 
+		/** 6.0.4: a session's page visit is written to the event table at most this often ( see mark_seen() ). */
+		const MARK_SECONDS = 600;
+
 		/** Window used to spot a store-wide spike. */
 		const SPIKE_SECONDS = 900;
 
@@ -133,6 +136,13 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		 * @var string|null
 		 */
 		private static $client_ip = null;
+
+		/**
+		 * Sessions whose page visit this request already wrote ( mark_seen() runs on every payment step drawn ).
+		 *
+		 * @var array
+		 */
+		private static $seen_marked = array();
 
 		// ------------------------------------------------------------------
 		// Boot.
@@ -309,6 +319,19 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		 */
 		public static function is_on() {
 			return 'off' !== self::settings()['level'] && self::ready();
+		}
+
+		/**
+		 * Whether this request is a shopper's on the storefront: not an admin screen, admin AJAX, WP-Cron or WP-CLI.
+		 *
+		 * @since 6.0.4
+		 * @return bool
+		 */
+		private static function shopper_request() {
+			if ( class_exists( 'wp_easycart_stripe_mode' ) && method_exists( 'wp_easycart_stripe_mode', 'storefront_request' ) ) {
+				return wp_easycart_stripe_mode::storefront_request();
+			}
+			return ! is_admin() || wp_doing_ajax();
 		}
 
 		/**
@@ -955,14 +978,34 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		// Page visits and passed checks ( per session ).
 		// ------------------------------------------------------------------
 
+		/*
+		 * 6.0.4: page visits and passed checks are also kept in the event table ( internal rows `seen` / `passed` with the session
+		 * key only, never listed ). On a store with a persistent object cache ( Redis, Memcached ) a transient lives only in that
+		 * cache, and the storefront's own wp_cache_flush() calls ( add to cart, the checkout's saves, the Square completion just
+		 * before the gate ) emptied it: every Square shopper was refused as never having seen the page, and reloading could not help.
+		 * The transients stay as the quick answer; tick() removes the rows once they no longer count.
+		 */
+
 		/**
 		 * Note that this session was shown a checkout payment step ( the "came from the page" signal ).
 		 */
 		public static function mark_seen() {
 			$context = self::context();
-			if ( '' !== $context['session'] ) {
-				set_transient( 'wpec_cp_seen_' . $context['session'], time(), self::SEEN_SECONDS );
+			if ( '' === $context['session'] ) {
+				return;
 			}
+			set_transient( 'wpec_cp_seen_' . $context['session'], time(), self::SEEN_SECONDS );
+			if ( isset( self::$seen_marked[ $context['session'] ] ) ) {
+				return;
+			}
+			self::$seen_marked[ $context['session'] ] = true;
+			if ( (int) get_transient( 'wpec_cp_seen_row_' . $context['session'] ) > time() - self::MARK_SECONDS ) {
+				return;
+			}
+			if ( ! self::marked( 'seen', '', $context, self::MARK_SECONDS ) ) {
+				self::mark( 'seen', $context );
+			}
+			set_transient( 'wpec_cp_seen_row_' . $context['session'], time(), self::MARK_SECONDS );
 		}
 
 		/**
@@ -972,7 +1015,13 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		 * @return bool
 		 */
 		public static function seen( $context ) {
-			return '' !== $context['session'] && false !== get_transient( 'wpec_cp_seen_' . $context['session'] );
+			if ( '' === $context['session'] ) {
+				return false;
+			}
+			if ( false !== get_transient( 'wpec_cp_seen_' . $context['session'] ) ) {
+				return true;
+			}
+			return self::marked( 'seen', 'passed', $context, self::SEEN_SECONDS );
 		}
 
 		/**
@@ -986,7 +1035,10 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 				return false;
 			}
 			$until = (int) get_transient( 'wpec_cp_pass_' . $context['session'] );
-			return $until > time();
+			if ( $until > time() ) {
+				return true;
+			}
+			return self::marked( 'passed', '', $context, self::PASS_SECONDS );
 		}
 
 		/**
@@ -998,7 +1050,51 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 			if ( '' !== $context['session'] ) {
 				set_transient( 'wpec_cp_pass_' . $context['session'], time() + self::PASS_SECONDS, self::PASS_SECONDS );
 				set_transient( 'wpec_cp_seen_' . $context['session'], time(), self::SEEN_SECONDS );
+				self::mark( 'passed', $context );
 			}
+		}
+
+		/**
+		 * Write an internal session mark ( `seen` | `passed` ): the session key only, nothing about the shopper.
+		 *
+		 * @param string $type    seen | passed.
+		 * @param array  $context Context.
+		 */
+		private static function mark( $type, $context ) {
+			self::record(
+				$type,
+				'',
+				array(),
+				array_merge(
+					$context,
+					array(
+						'ip'            => '',
+						'email'         => '',
+						'card'          => '',
+						'ip_display'    => '',
+						'email_display' => '',
+						'card_display'  => '',
+						'user_id'       => 0,
+					)
+				)
+			);
+		}
+
+		/**
+		 * Whether the session has an internal mark of either type from the last $seconds.
+		 *
+		 * @param string $type    seen | passed.
+		 * @param string $or_type A second type, or ''.
+		 * @param array  $context Context.
+		 * @param int    $seconds How far back.
+		 * @return bool
+		 */
+		private static function marked( $type, $or_type, $context, $seconds ) {
+			if ( '' === $context['session'] || ! self::ready() ) {
+				return false;
+			}
+			global $wpdb;
+			return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM ec_checkout_event WHERE session_key = %s AND event_type IN ( %s, %s ) AND created_at >= %s LIMIT 1', $context['session'], $type, ( '' !== $or_type ) ? $or_type : $type, self::gmt( 0 - (int) $seconds ) ) );
 		}
 
 		// ------------------------------------------------------------------
@@ -1310,7 +1406,8 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		 * Store one event.
 		 *
 		 * @param string     $type    decline | paid | stop | would_stop | check | check_pass | check_fail | cleared |
-		 *                            attack_start | attack_end | code_fail | code_stop.
+		 *                            attack_start | attack_end | code_fail | code_stop; 6.0.4 internal marks seen | passed
+		 *                            ( mark(), never listed ).
 		 * @param string     $reason  Short reason code or the decline code.
 		 * @param array      $args    place, gateway, amount, order_id, ref, detail.
 		 * @param array|null $context Keys ( defaults to this request's shopper ).
@@ -1422,16 +1519,20 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		/**
 		 * Action wpeasycart_order_paid: note the payment and flag a likely card test.
 		 *
+		 * 6.0.4: only a payment the shopper made on the storefront. Staff marking an order paid ( the order screen, the
+		 * orders list, an accounting app ) logged a second payment under the staff member's own IP and session, and a bank
+		 * transfer or check order, which takes no card, could be flagged as a card test.
+		 *
 		 * @param int $order_id Order.
 		 */
 		public static function on_order_paid( $order_id ) {
-			if ( ! self::is_on() || isset( $_GET['wpeasycarthook'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only tells a webhook request apart; nothing is read from it.
+			if ( ! self::is_on() || isset( $_GET['wpeasycarthook'] ) || ! self::shopper_request() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only tells a webhook request apart; nothing is read from it.
 				return;
 			}
 			global $wpdb;
 			$context = self::context();
-			$order   = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, grand_total, order_gateway FROM ec_order WHERE order_id = %d', (int) $order_id ) );
-			if ( ! $order ) {
+			$order   = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, grand_total, order_gateway, payment_method FROM ec_order WHERE order_id = %d', (int) $order_id ) );
+			if ( ! $order || 'manual_bill' === (string) $order->payment_method ) {
 				return;
 			}
 			$in_attack = self::attack_active() || self::recent_attack_ended( HOUR_IN_SECONDS );
@@ -2489,6 +2590,8 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 			update_option( 'wp_easycart_checkout_protection_pruned', time(), false );
 			global $wpdb;
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_checkout_event WHERE created_at < %s', self::gmt( -self::settings()['retention'] * DAY_IN_SECONDS ) ) );
+			/* 6.0.4: the internal session marks only count for SEEN_SECONDS. */
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_checkout_event WHERE event_type IN ( %s, %s ) AND created_at < %s', 'seen', 'passed', self::gmt( -self::SEEN_SECONDS ) ) );
 		}
 
 		/**

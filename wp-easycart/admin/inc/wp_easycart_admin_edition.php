@@ -6,8 +6,10 @@
  * both run the plugin named "WP EasyCart PRO", so the admin names the customer's own plan whenever
  * the license is known, and says "Pro/Premium" only when it is not:
  *
- *   tier()          'free' | 'trial' | 'pro' | 'premium'   ( a trial is always a Pro trial )
- *   plan_name()     'Pro/Premium' on the free edition, else 'Pro' or 'Premium'
+ *   tier()          'free' | 'trial' | 'pro' | 'premium'   ( a trial is always a Pro trial; Elite is 'premium' )
+ *   edition()       tier(), with 'elite' for Elite ( 6.0.4 )
+ *   plan_name()     'Pro/Premium' on the free edition, else 'Pro', 'Premium' or 'Elite'
+ *   is_auto_renew() the license renews itself through a subscription ( AutoPay, 6.0.4 )
  *   badge( $plan )  chip text for a locked control: a Premium-only feature is always 'Premium'
  *   included_text() / requires_text()   the sentences locked controls and refused actions use
  *
@@ -30,8 +32,23 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		/** The PRO plugin's name on the Plugins screen. It runs both Pro and Premium licenses. */
 		const PLUGIN_NAME = 'WP EasyCart PRO';
 
-		/** Premium license model number. */
+		/** The one-time Premium license's model number. Every Premium model is in PREMIUM_MODELS. */
 		const PREMIUM_MODEL = 'ec410';
+
+		/**
+		 * Every license model number that sells Premium ( 6.0.4 ). ec410 / ec415 / ec420 are the one-time Premium license, its
+		 * renewal and the Pro-to-Premium upgrade. The AutoPay subscriptions are ec6x0 ( monthly ) and ec6x5 ( yearly ), the
+		 * middle digit being the edition ( 0 Pro, 1 Premium, 2 Elite ). Turning AutoPay on for a Premium key changes its model
+		 * from ec410 to ec610 / ec615, so a test for ec410 alone treated a paying Premium customer as Pro. Keep in step with
+		 * WP EasyCart PRO's wp_easycart_pro_model_edition().
+		 */
+		const PREMIUM_MODELS = array( 'ec410', 'ec415', 'ec420', 'ec610', 'ec615' );
+
+		/** Every license model number that sells Elite ( 6.0.4 ). Elite includes everything in Premium. */
+		const ELITE_MODELS = array( 'ec620', 'ec625' );
+
+		/** Where a customer manages a license that renews itself, or fixes its payment ( 6.0.4 ). */
+		const ACCOUNT_URL = 'https://www.wpeasycart.com/my-account/';
 
 		/**
 		 * Cached license state for this request.
@@ -41,7 +58,36 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		private static $state = null;
 
 		/**
-		 * License state: tier, lapsed, end timestamp.
+		 * The edition a license model number sells: 'elite', 'premium' or 'pro' ( any other model ).
+		 *
+		 * @since 6.0.4
+		 * @param string $model License model number.
+		 * @return string
+		 */
+		public static function model_edition( $model ) {
+			$model = strtolower( trim( (string) $model ) );
+			if ( in_array( $model, self::ELITE_MODELS, true ) ) {
+				return 'elite';
+			}
+			if ( in_array( $model, self::PREMIUM_MODELS, true ) ) {
+				return 'premium';
+			}
+			return 'pro';
+		}
+
+		/**
+		 * A model number that includes every Premium feature ( Premium or Elite ).
+		 *
+		 * @since 6.0.4
+		 * @param string $model License model number.
+		 * @return bool
+		 */
+		public static function is_premium_model( $model ) {
+			return ( 'pro' !== self::model_edition( $model ) );
+		}
+
+		/**
+		 * License state: tier, edition, lapsed, end timestamp, auto_renew.
 		 *
 		 * @return array
 		 */
@@ -50,9 +96,11 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 				return self::$state;
 			}
 			$state = array(
-				'tier'   => 'free',
-				'lapsed' => false,
-				'end'    => 0,
+				'tier'       => 'free',
+				'edition'    => 'free',
+				'lapsed'     => false,
+				'end'        => 0,
+				'auto_renew' => false,
 			);
 			if ( function_exists( 'wp_easycart_admin_license' ) ) {
 				$license = wp_easycart_admin_license();
@@ -61,11 +109,13 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 					$model = isset( $data->model_number ) ? strtolower( trim( (string) $data->model_number ) ) : '';
 					if ( ! empty( $data->is_trial ) ) {
 						$state['tier'] = 'trial';
-					} elseif ( self::PREMIUM_MODEL === $model ) {
-						$state['tier'] = 'premium';
 					} else {
-						$state['tier'] = 'pro';
+						/* 6.0.4: Premium and Elite AutoPay keys are Premium too, not only ec410 ( Elite includes every Premium feature ). */
+						$state['tier'] = self::is_premium_model( $model ) ? 'premium' : 'pro';
 					}
+					$state['edition']    = ( 'trial' === $state['tier'] ) ? 'trial' : self::model_edition( $model );
+					/* 6.0.4: the licensing server says when the key renews through a subscription ( AutoPay ). */
+					$state['auto_renew'] = ! empty( $data->is_auto_renew );
 					$state['lapsed'] = (bool) $license->license_expired;
 					$state['end']    = ! empty( $data->support_end_date ) ? (int) strtotime( $data->support_end_date ) : 0;
 				}
@@ -74,7 +124,8 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 			 * Filter the license state the admin wording is based on.
 			 *
 			 * @since 6.0.0
-			 * @param array $state tier ( free|trial|pro|premium ), lapsed ( bool ), end ( timestamp ).
+			 * @param array $state tier ( free|trial|pro|premium ), edition ( tier, or elite; 6.0.4 ), lapsed ( bool ), end ( timestamp ),
+			 *                     auto_renew ( bool, 6.0.4 ).
 			 */
 			$state = apply_filters( 'wp_easycart_admin_edition_state', $state );
 			/* PRO checks its license while it loads; an answer given before every plugin has loaded is not kept. */
@@ -130,6 +181,58 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
+		 * The store's edition: 'free', 'trial', 'pro', 'premium' or 'elite'. tier() calls Elite 'premium', so every Premium
+		 * check keeps working; use this only where Elite needs its own name.
+		 *
+		 * @since 6.0.4
+		 * @return string
+		 */
+		public static function edition() {
+			$state = self::state();
+			return isset( $state['edition'] ) ? $state['edition'] : $state['tier'];
+		}
+
+		/**
+		 * Elite license ( active or lapsed ). An Elite store is also is_premium().
+		 *
+		 * @since 6.0.4
+		 * @return bool
+		 */
+		public static function is_elite() {
+			return ( 'elite' === self::edition() );
+		}
+
+		/**
+		 * A paid license that renews itself through a subscription ( AutoPay ): the admin says when it renews instead of asking
+		 * the store to renew. Read from the licensing server's is_auto_renew; false while the server does not send it.
+		 *
+		 * @since 6.0.4
+		 * @return bool
+		 */
+		public static function is_auto_renew() {
+			$state = self::state();
+			return ( in_array( $state['tier'], array( 'pro', 'premium' ), true ) && ! empty( $state['auto_renew'] ) );
+		}
+
+		/**
+		 * Where a paid license is renewed: the WP EasyCart account for one on AutoPay ( a payment that did not go through is
+		 * fixed there ), the pricing page for Elite ( sold only as a subscription ), else the Premium or Pro renewal with the key.
+		 *
+		 * @since 6.0.4
+		 * @return string
+		 */
+		public static function renew_url() {
+			if ( self::is_auto_renew() ) {
+				return self::ACCOUNT_URL;
+			}
+			if ( self::is_elite() ) {
+				return 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
+			}
+			$key = self::license_key();
+			return 'https://www.wpeasycart.com/products/' . ( self::is_premium() ? 'wp-easycart-premium-support-extensions/' : 'wp-easycart-professional-support-upgrades/' ) . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' );
+		}
+
+		/**
 		 * A Pro, Premium or trial license is registered on this site.
 		 *
 		 * @return bool
@@ -139,14 +242,14 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
-		 * The plan name to use in copy: 'Pro/Premium' when no license is known, else the customer's plan.
+		 * The plan name to use in copy: 'Pro/Premium' when no license is known, else the customer's plan ( Elite since 6.0.4 ).
 		 *
 		 * @return string
 		 */
 		public static function plan_name() {
 			switch ( self::tier() ) {
 				case 'premium':
-					return __( 'Premium', 'wp-easycart' );
+					return self::is_elite() ? __( 'Elite', 'wp-easycart' ) : __( 'Premium', 'wp-easycart' );
 				case 'pro':
 				case 'trial':
 					return __( 'Pro', 'wp-easycart' );
@@ -156,14 +259,14 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
-		 * The customer's license, named: 'Pro trial', 'Pro license', 'Premium license', or '' on the free edition.
+		 * The customer's license, named: 'Pro trial', 'Pro license', 'Premium license', 'Elite license', or '' on the free edition.
 		 *
 		 * @return string
 		 */
 		public static function license_name() {
 			switch ( self::tier() ) {
 				case 'premium':
-					return __( 'Premium license', 'wp-easycart' );
+					return self::is_elite() ? __( 'Elite license', 'wp-easycart' ) : __( 'Premium license', 'wp-easycart' );
 				case 'pro':
 					return __( 'Pro license', 'wp-easycart' );
 				case 'trial':
@@ -274,10 +377,19 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 			} elseif ( 'premium' === $tier ) {
 				$offer = array(
 					'mode'  => 'renew',
-					'url'   => $keyed,
+					'url'   => self::renew_url(), // 6.0.4: the account for AutoPay, the pricing page for Elite, else $keyed.
 					'cta'   => __( 'Renew Premium', 'wp-easycart' ),
 					'title' => __( 'Renew Premium', 'wp-easycart' ),
 					'desc'  => __( 'Renew to install, update and change your extensions. They keep running in the meantime.', 'wp-easycart' ),
+				);
+			} elseif ( 'pro' === $tier && ! $lapsed && self::is_auto_renew() ) {
+				/* 6.0.4: a Pro subscription ( AutoPay ) moves to Premium in the WP EasyCart account, as a change of plan. */
+				$offer = array(
+					'mode'  => 'upgrade',
+					'url'   => self::ACCOUNT_URL,
+					'cta'   => __( 'Upgrade to Premium', 'wp-easycart' ),
+					'title' => __( 'Upgrade to Premium', 'wp-easycart' ),
+					'desc'  => __( 'Change your plan to Premium in your WP EasyCart account. You keep everything in Pro and add every extension.', 'wp-easycart' ),
 				);
 			} elseif ( 'pro' === $tier && ! $lapsed ) {
 				$offer = array(
@@ -350,6 +462,8 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		public static function for_js() {
 			return array(
 				'tier'          => self::tier(),
+				'edition'       => self::edition(),
+				'auto_renew'    => self::is_auto_renew(),
 				'lapsed'        => self::is_lapsed(),
 				'plan'          => self::plan_name(),
 				'badge_pro'     => self::badge( 'pro' ),

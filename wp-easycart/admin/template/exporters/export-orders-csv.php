@@ -10,6 +10,10 @@
  *
  * @since 6.0.0 Rewritten to stream in chunks (order line items, options, fees
  *              and the latest gateway response are fetched per chunk).
+ * @since 6.0.4 promo_code_used lists Offers codes too, and new columns after
+ *              advanced_product_options say which automatic offers the order
+ *              used and what codes and promotions took off each line
+ *              ( wp_easycart_order_discounts ).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -215,6 +219,7 @@ $single_use_key_names = apply_filters(
 		'shipping_method',
 		'tracking_number',
 		'promo_code_used',
+		'promotions_used',
 		'order_customer_notes',
 		'agreed_to_terms',
 		'order_ip_address',
@@ -240,6 +245,15 @@ foreach ( $wpec_order_keys as $wpec_order_key ) {
 }
 
 $keys[] = 'advanced_product_options';
+
+/*
+ * 6.0.4: the order's automatic offers, and what took money off each line ( codes and promotions, classic and Offers ).
+ * promo_code_used also lists Offers codes now ( wp_easycart_order_discounts::codes() ).
+ */
+$wp_easycart_discount_keys = class_exists( 'wp_easycart_order_discounts' ) ? wp_easycart_order_discounts::export_keys() : array();
+foreach ( $wp_easycart_discount_keys as $wp_easycart_discount_key ) {
+	$keys[] = $wp_easycart_discount_key;
+}
 
 /* 6.0.2: one column per checkout field ( before the fee columns, which each row adds last ). */
 $checkout_field_columns = class_exists( 'wp_easycart_order_fields' ) ? wp_easycart_order_fields::export_columns() : array();
@@ -294,6 +308,7 @@ $order_sql = 'SELECT
 			ec_order.tracking_number,
 			ec_order.giftcard_id AS gift_card_used,
 			ec_order.promo_code AS promo_code_used,
+			ec_order.applied_offers AS order_applied_offers,
 			ec_order.order_notes,
 			ec_order.order_customer_notes,
 			ec_order.user_email,
@@ -384,7 +399,10 @@ $detail_sql = 'SELECT
 			deconetwork_color_code,
 			deconetwork_product_id,
 			deconetwork_image_link,
-			subscription_signup_fee
+			subscription_signup_fee,
+			total_discount_coupon,
+			total_discount_promotion,
+			applied_offers AS line_applied_offers
 		FROM
 			ec_orderdetail
 		WHERE
@@ -487,12 +505,24 @@ while ( true ) {
 			$order_row[ $wpec_order_key ] = ( '' !== $wpec_value && false !== strpos( "=+-@\t\r", $wpec_value[0] ) ) ? "'" . $wpec_value : $wpec_value;
 		}
 
+		/* 6.0.4: the order's codes and offers, read once per order ( the saved JSON carries each offer's snapshot ). */
+		$wp_easycart_discount_order = array(
+			'promo_code'     => isset( $order_row['promo_code_used'] ) ? (string) $order_row['promo_code_used'] : '',
+			'applied_offers' => ( $wp_easycart_discount_keys && isset( $order_row['order_applied_offers'] ) ) ? wp_easycart_order_discounts::entries( $order_row['order_applied_offers'] ) : array(),
+		);
+
 		/* An order with no line items still exports one row, as before. */
 		$lines = isset( $details_by_order[ $order_id ] ) ? $details_by_order[ $order_id ] : array( array() );
 
 		$is_new_order = true;
 		foreach ( $lines as $detail ) {
 			$row = array_merge( $order_row, $detail );
+			if ( $wp_easycart_discount_keys ) {
+				$wp_easycart_discount_line                   = $detail;
+				$wp_easycart_discount_line['applied_offers'] = isset( $detail['line_applied_offers'] ) ? $detail['line_applied_offers'] : '';
+
+				$row = array_merge( $row, wp_easycart_order_discounts::export_values( $wp_easycart_discount_order, $wp_easycart_discount_line ) );
+			}
 			$new_line = array();
 
 			foreach ( $keys as $key ) {

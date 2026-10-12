@@ -6,6 +6,22 @@ class ec_paypal extends ec_third_party{
 	/** @var string 6.0.2: why the last refund_express_charge() was refused, for the merchant ( '' = declined, or nothing said ). */
 	public $refund_error = '';
 
+	/**
+	 * The last capture_order() was not tried: another request was still capturing that PayPal order.
+	 *
+	 * @since 6.0.4
+	 * @var bool
+	 */
+	public $capture_busy = false;
+
+	/**
+	 * The order the last capture made.
+	 *
+	 * @since 6.0.4
+	 * @var int
+	 */
+	private $captured_order_id = 0;
+
 	public function get_available_url() {
 		if ( ! isset( $this->available_url ) ) {
 			$this->available_url = "https://connect.wpeasycart.com";
@@ -642,7 +658,7 @@ class ec_paypal extends ec_third_party{
 			$GLOBALS['ec_cart_data']->cart_data->shipping_method = sanitize_text_field( preg_replace( '/[^a-zA-Z0-9:_\-\.]/', '', $selected_rate['id'] ) );
 		}
 		$GLOBALS['ec_cart_data']->save_session_to_db();
-		wp_cache_flush();
+		wp_easycart_cache::cart_changed();
 		do_action( 'wpeasycart_cart_updated' );
 
 		$order_data = $this->get_transaction_data();
@@ -1387,7 +1403,58 @@ class ec_paypal extends ec_third_party{
 		}
 	}
 	
+	/**
+	 * Capture an approved PayPal order ( the Smart Buttons' onApprove ) and make the store's order for it.
+	 *
+	 * 6.0.4: one order per payment. A repeated request for the same PayPal order ( a second click after an error, a network
+	 * retry ) waits for the request that is capturing it and answers with the order that request made: PayPal refuses a second
+	 * capture, which read as a failed payment ( and a decline for checkout protection ) although the shopper had paid.
+	 *
+	 * @param string $paypal_order_id PayPal order id.
+	 * @return string|false The page to send the shopper to, or false ( $this->capture_busy says when it was not tried ).
+	 */
 	public function capture_order( $paypal_order_id ) {
+		$this->capture_busy      = false;
+		$this->captured_order_id = 0;
+
+		$key  = self::payment_key( $paypal_order_id );
+		$lock = wp_easycart_payment_key_lock( 'paypal', $key );
+		$done = wp_easycart_payment_key_order_id( 'paypal', $key );
+		if ( $done ) {
+			wp_easycart_payment_key_unlock( 'paypal', $key );
+			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $done ) ) );
+		}
+		if ( false === $lock ) {
+			$this->capture_busy = true; /* another request is still capturing it: never a second capture */
+			return false;
+		}
+		$result = $this->capture_order_once( $paypal_order_id );
+		if ( $result && $this->captured_order_id > 0 ) {
+			wp_easycart_payment_key_record( 'paypal', $key, $this->captured_order_id );
+		}
+		wp_easycart_payment_key_unlock( 'paypal', $key );
+		return $result;
+	}
+
+	/**
+	 * The PayPal order id as every checkout path names it ( one key for the Smart Buttons and the review page ).
+	 *
+	 * @since 6.0.4
+	 * @param string $paypal_order_id PayPal order or payment id.
+	 * @return string
+	 */
+	public static function payment_key( $paypal_order_id ) {
+		return strtoupper( preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id ) );
+	}
+
+	/**
+	 * The capture without capture_order()'s lock: capture with PayPal, then make the order.
+	 *
+	 * @since 6.0.4 ( was capture_order() )
+	 * @param string $paypal_order_id PayPal order id.
+	 * @return string|false
+	 */
+	private function capture_order_once( $paypal_order_id ) {
 		global $wpdb;
 		$db = new ec_db( );
 		$cartpage = new ec_cartpage();
@@ -1508,7 +1575,7 @@ class ec_paypal extends ec_third_party{
 		}
 
 		$GLOBALS['ec_cart_data']->save_session_to_db();
-		wp_cache_flush();
+		wp_easycart_cache::cart_changed();
 
 		// Redirect if Approved or Denied
 		if ( $state == 'APPROVED' || $state == 'COMPLETED' || $state == 'PENDING' ) {
@@ -1518,6 +1585,7 @@ class ec_paypal extends ec_third_party{
 				$order_status = 8;
 			}
 			$order_id = $cartpage->submit_paypal_order( $order_status );
+			$this->captured_order_id = (int) $order_id;
 			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET gateway_transaction_id = %s, order_gateway = 'paypal-express' WHERE order_id = %d", $payment_id, $order_id ) );
 
 			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id ) ) );
@@ -1708,16 +1776,19 @@ class ec_paypal extends ec_third_party{
 					'timeout' => 30
 				)
 			);
+			/* 6.0.4: the log keeps what came back, never the access token; a request that never reached PayPal ends here ( it was a fatal error ). */
 			if( is_wp_error( $response ) ){
-				$db->insert_response( 0, 1, "PayPal Express Token CURL ERROR", $response );
-				$response = (object) array( "error" => $response );
-			}else{
-				$db->insert_response( 0, 0, "PayPal Express Token Response", print_r( $response, true ) );
+				$db->insert_response( 0, 1, 'PayPal Express Token CURL ERROR', $response->get_error_message() );
+				return;
 			}
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			$db->insert_response( 0, ( $status >= 200 && $status < 300 ) ? 0 : 1, 'PayPal Express Token Response', ec_logs::token_answer( $status, wp_remote_retrieve_body( $response ) ) );
 
-			$json = json_decode( $response['body'] );
-			update_option( 'ec_option_paypal_sandbox_access_token', $json->access_token );
-			update_option( 'ec_option_paypal_sandbox_access_token_expires', time( ) + $json->expires_in - 300 );
+			$json = json_decode( wp_remote_retrieve_body( $response ) );
+			if ( is_object( $json ) && ! empty( $json->access_token ) ) {
+				update_option( 'ec_option_paypal_sandbox_access_token', $json->access_token );
+				update_option( 'ec_option_paypal_sandbox_access_token_expires', time() + ( isset( $json->expires_in ) ? (int) $json->expires_in : 3600 ) - 300 );
+			}
 
 		// Authorize Production	Personal App
 		}else if( get_option( 'ec_option_paypal_use_sandbox' ) != '1' && get_option( 'ec_option_paypal_production_merchant_id' ) == '' && 
@@ -1745,16 +1816,19 @@ class ec_paypal extends ec_third_party{
 					'timeout' => 30
 				)
 			);
+			/* 6.0.4: the log keeps what came back, never the access token; a request that never reached PayPal ends here ( it was a fatal error ). */
 			if( is_wp_error( $response ) ){
-				$db->insert_response( 0, 1, "PayPal Express Token CURL ERROR", $response );
-				$response = (object) array( "error" => $response );
-			}else{
-				$db->insert_response( 0, 0, "PayPal Express Token Response", print_r( $response, true ) );
+				$db->insert_response( 0, 1, 'PayPal Express Token CURL ERROR', $response->get_error_message() );
+				return;
 			}
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			$db->insert_response( 0, ( $status >= 200 && $status < 300 ) ? 0 : 1, 'PayPal Express Token Response', ec_logs::token_answer( $status, wp_remote_retrieve_body( $response ) ) );
 
-			$json = json_decode( $response['body'] );
-			update_option( 'ec_option_paypal_production_access_token', $json->access_token );
-			update_option( 'ec_option_paypal_production_access_token_expires', time( ) + $json->expires_in - 300 );
+			$json = json_decode( wp_remote_retrieve_body( $response ) );
+			if ( is_object( $json ) && ! empty( $json->access_token ) ) {
+				update_option( 'ec_option_paypal_production_access_token', $json->access_token );
+				update_option( 'ec_option_paypal_production_access_token_expires', time() + ( isset( $json->expires_in ) ? (int) $json->expires_in : 3600 ) - 300 );
+			}
 
 		}
 		// No token needed for EasyCart App
@@ -1894,7 +1968,10 @@ function wp_easycart_ajax_complete_paypal_express( ){
 
 	$paypal = new ec_paypal();
 	$response =  $paypal->capture_order( sanitize_text_field( $_POST['token'] ) );
-	if ( ! $response ) {
+	if ( ! $response && $paypal->capture_busy ) {
+		/* 6.0.4: an earlier request is still capturing this PayPal order: not a decline, and not paid twice. */
+		echo esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ec_cart_error' => 'payment_processing' ) ) );
+	} elseif ( ! $response ) {
 		if ( class_exists( 'wp_easycart_checkout_guard' ) ) { /* 6.0.2 checkout protection counts the failed capture */
 			wp_easycart_checkout_guard::record_decline( 'paypal', array( 'gateway' => 'paypal', 'reason' => 'capture_failed' ) );
 		}

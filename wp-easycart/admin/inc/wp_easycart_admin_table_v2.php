@@ -78,6 +78,8 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 		/* Filters */
 		protected $filters = array();
+		/** The drawer's order of the filters, as indices of $filters ( set_filter_order() ). @since 6.0.4 */
+		protected $filter_order = array();
 		protected $search_term;
 		protected $search_disabled = false;
 
@@ -324,6 +326,33 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		}
 		public function set_add_new_js( $add_new_js ) {
 			$this->add_new_js = $add_new_js;
+		}
+
+		/**
+		 * 6.0.4: the Add new button's own address ( '' = the list's add-new action ).
+		 *
+		 * @var string
+		 */
+		protected $add_new_href = '';
+
+		/**
+		 * The Add new button's own address, in place of the list's add-new action.
+		 *
+		 * @since 6.0.4
+		 * @param string $href Address.
+		 */
+		public function set_add_new_href( $href ) {
+			$this->add_new_href = (string) $href;
+		}
+
+		/**
+		 * The Add new button's address.
+		 *
+		 * @since 6.0.4
+		 * @return string
+		 */
+		protected function add_new_url() {
+			return '' !== $this->add_new_href ? $this->add_new_href : $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val );
 		}
 		public function set_add_new_css( $add_new_css ) {
 			$this->add_new_css = $add_new_css;
@@ -841,6 +870,38 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		public function set_filters( $filters ) {
 			$this->filters = $filters;
 		}
+		/**
+		 * The order the drawer and the active filter tags show the filters in. A filter's index is its name in the address
+		 * ( filter_N ), which links from other screens and bookmarks carry, so a list adds a filter at the end and shows it
+		 * where it belongs with this. Indices left out follow in their own order.
+		 *
+		 * @since 6.0.4
+		 * @param int[] $indices Indices of the filters, in the order to show them.
+		 */
+		public function set_filter_order( $indices ) {
+			$this->filter_order = array_map( 'intval', (array) $indices );
+		}
+		/**
+		 * Every filter's index, in the order the drawer shows them.
+		 *
+		 * @since 6.0.4
+		 * @return int[]
+		 */
+		protected function filter_display_order() {
+			$count = count( $this->filters );
+			$order = array();
+			foreach ( $this->filter_order as $index ) {
+				if ( $index >= 0 && $index < $count && ! in_array( $index, $order, true ) ) {
+					$order[] = $index;
+				}
+			}
+			for ( $i = 0; $i < $count; $i++ ) {
+				if ( ! in_array( $i, $order, true ) ) {
+					$order[] = $i;
+				}
+			}
+			return $order;
+		}
 		public function set_label( $single, $plural ) {
 			$this->item_label = $single;
 			$this->item_label_plural = $plural;
@@ -991,7 +1052,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			// Add new.
 			if ( $this->add_new ) {
-				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . ' title="' . esc_attr( $this->add_new_label ) . '"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
+				echo '<a href="' . esc_url( $this->add_new_url() ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . ' title="' . esc_attr( $this->add_new_label ) . '"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
 			}
 
 			echo '</div>'; // .ecv2-page-header-right
@@ -1177,7 +1238,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			}
 			$active_count = 0;
 			$active_tags = array();
-			for ( $i = 0; $i < count( $this->filters ); $i++ ) {
+			foreach ( $this->filter_display_order() as $i ) {
 				if ( isset( $_GET[ 'filter_' . $i ] ) && '' != sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ) {
 					$active_count++;
 					$val = sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) );
@@ -1315,7 +1376,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				echo '</div>';
 			}
 
-			for ( $i = 0; $i < count( $this->filters ); $i++ ) {
+			foreach ( $this->filter_display_order() as $i ) {
 				$filter = $this->filters[ $i ];
 				$current_val = isset( $_GET[ 'filter_' . $i ] ) ? sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) : '';
 				$filter_type = isset( $filter['type'] ) ? $filter['type'] : 'pills';
@@ -1400,6 +1461,10 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 								echo '<span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ';
 							}
 							echo esc_html( $label );
+							/* 6.0.4: an option may carry how many rows it finds, shown as the Quick Filter shows its counts. */
+							if ( isset( $option->count ) && (int) $option->count > 0 ) {
+								echo ' <span class="ecv2-drawer-pill-count" style="opacity:.6;">(' . esc_html( number_format_i18n( (int) $option->count ) ) . ')</span>';
+							}
 							echo '</button>';
 						}
 					}
@@ -2267,9 +2332,19 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			return $sql;
 		}
 
+		/**
+		 * 6.0.4: rows a list never shows, whatever its filters ( the products list's unsaved new-product drafts ).
+		 *
+		 * @since 6.0.4
+		 * @return string " AND …" or ''.
+		 */
+		protected function base_where() {
+			return '';
+		}
+
 		protected function get_filter() {
 			$join = '';
-			$where = ' WHERE 1=1' . $this->custom_where;
+			$where = ' WHERE 1=1' . $this->base_where() . $this->custom_where;
 			$having = '';
 
 			// Health filter.

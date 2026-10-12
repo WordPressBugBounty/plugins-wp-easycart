@@ -235,9 +235,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 
 			list( $per_page, $offset ) = $this->paging( $request, self::PER_PAGE );
 			if ( '' !== $like ) {
-				$products = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.product_id AS id, ec_product.title AS text FROM ec_product WHERE ec_product.title LIKE %s ORDER BY ec_product.title ASC LIMIT %d, %d', $like, $offset, $per_page + 1 ) );
+				$products = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.product_id AS id, ec_product.title AS text FROM ec_product WHERE ec_product.title LIKE %s' . wp_easycart_product_draft_sql( 'ec_product' ) . ' ORDER BY ec_product.title ASC LIMIT %d, %d', $like, $offset, $per_page + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_product_draft_sql() is a fixed SQL fragment.
 			} else {
-				$products = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.product_id AS id, ec_product.title AS text FROM ec_product ORDER BY ec_product.title ASC LIMIT %d, %d', $offset, $per_page + 1 ) );
+				$products = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.product_id AS id, ec_product.title AS text FROM ec_product WHERE 1 = 1' . wp_easycart_product_draft_sql( 'ec_product' ) . ' ORDER BY ec_product.title ASC LIMIT %d, %d', $offset, $per_page + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_product_draft_sql() is a fixed SQL fragment.
 			}
 			return $this->page_results( $products, $per_page );
 		}

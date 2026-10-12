@@ -436,6 +436,15 @@
 		drawer.$legacySave[0].click();
 	}
 
+	/* 6.0.4: a legacy save that checks its fields first and stops ( payment.js ec_admin_save_stripe_options() ) sends no request. */
+	$( document ).on( 'ecpay:legacy-refused', function() {
+		if ( drawer.legacyWait ) {
+			drawer.legacyWait = false;
+			clearTimeout( drawer.legacyTimer );
+			setBusy( false );
+		}
+	} );
+
 	/* payment.js binds its Stripe currency / country notes on document ready only; the partial arrives later. */
 	function bindLegacy( $body ) {
 		$body.on( 'change', '#ec_option_stripe_currency, #ec_option_stripe_company_country', function() {
@@ -598,6 +607,25 @@
 		var href = $( this ).attr( 'href' ), text = $( this ).data( 'ecpay-confirm' );
 		drawer.confirming = true;
 		confirmBox( text, '' ).then( function( ok ) { drawer.confirming = false; if ( ok ) { toast( T.working, 'info' ); window.location.href = href; } } );
+	} );
+	/* 6.0.4: a switch in the drawer that moves a gateway between its live and sandbox accounts ( the Square panels, data-ecpay-mode ):
+	   the lines' own mode change, then the lines and the drawer are drawn again. The switch keeps its place until that is done. */
+	$( document ).on( 'click.ecpay', '.ecpay-drawer [data-ecpay-mode]', function( e ) {
+		e.preventDefault();
+		var $b = $( this ), key = String( $b.data( 'ecpay-mode' ) ), mode = String( $b.data( 'mode' ) );
+		if ( $b.prop( 'disabled' ) || drawer.saving || drawer.confirming ) { return; }
+		var run = function() {
+			$b.prop( 'disabled', true );
+			toast( T.working, 'info' );
+			post( 'ecv2_payment_toggle', { gateway: key, mode: mode }, function( d ) {
+				toast( d.message || '', 'success' );
+				if ( d.sections ) { replaceSections( d.sections ); }
+				if ( drawer.open && drawer.key === key ) { openDrawer( 'gateway', key, $( '#ecpay_drawer_title' ).text() ); }
+			}, function( m ) { $b.prop( 'disabled', false ); toast( m, 'error' ); } );
+		};
+		if ( mode !== 'live' ) { run(); return; }
+		drawer.confirming = true;
+		confirmBox( T.confirm_live, '' ).then( function( ok ) { drawer.confirming = false; if ( ok ) { run(); } } );
 	} );
 	$wrap.on( 'click', '[data-ecpay-nav]', function() { toast( T.working, 'info' ); } );
 	/* "Replace with another gateway" and an empty line's "All card gateways": the list, filtered to that way to pay. */

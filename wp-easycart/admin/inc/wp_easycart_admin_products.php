@@ -42,6 +42,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		private $headers;
 		private $limit;
 
+		/** The row's pickup locations, as import_value() read them ( 6.0.4: set for new products too, reset every row ). */
+		private $import_pickup_locations = array();
+
+		/** Columns that hold HTML: the import filters them as the product editor saves them ( wp_easycart_escape_html() ), @since 6.0.4. */
+		const IMPORT_HTML_COLUMNS = array( 'description', 'short_description', 'specifications' );
+
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
 				self::$_instance = new self();
@@ -280,9 +286,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$status = 'private';
 			}
 
-			/* Manually Update Post */
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
-			clean_post_cache( $product->post_id );
+			/* Manually Update Post ( 6.0.4: only the product's own page, never a post a wrong link points at ) */
+			$own_post_id = wp_easycart_post_sync()->own_post_id( 'product', $product_id, $product->post_id, true );
+			if ( $own_post_id ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $own_post_id ) );
+				clean_post_cache( $own_post_id );
+			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, $product_id ) );
 			ec_db::product_cache_changed();
 			if ( 0 == $active_status ) {
@@ -326,8 +335,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number, title, activate_in_store FROM ec_product WHERE product_id = %d', (int) $bulk_id ) );
 				$active_status = 0;
 				$status = 'private';
-				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
-				clean_post_cache( $product->post_id );
+				$own_post_id = wp_easycart_post_sync()->own_post_id( 'product', (int) $bulk_id, $product->post_id, true ); /* 6.0.4 */
+				if ( $own_post_id ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $own_post_id ) );
+					clean_post_cache( $own_post_id );
+				}
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, (int) $bulk_id ) );
 				ec_db::product_cache_changed();
 				do_action( 'wpeasycart_product_deactivated', (int) $bulk_id );
@@ -365,8 +377,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number, title, activate_in_store FROM ec_product WHERE product_id = %d', (int) $bulk_id ) );
 				$active_status = 1;
 				$status = 'publish';
-				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
-				clean_post_cache( $product->post_id );
+				$own_post_id = wp_easycart_post_sync()->own_post_id( 'product', (int) $bulk_id, $product->post_id, true ); /* 6.0.4 */
+				if ( $own_post_id ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $own_post_id ) );
+					clean_post_cache( $own_post_id );
+				}
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, (int) $bulk_id ) );
 				ec_db::product_cache_changed();
 				do_action( 'wpeasycart_product_activated', (int) $bulk_id );
@@ -438,16 +453,29 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			foreach ( $results as $row ) {
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_categoryitem( product_id, category_id ) VALUES( %d, %d )', $newid, $row->category_id ) ); 
 			}
-			wp_cache_delete( 'wpeasycart-all-categories' );
+			wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 
 			$results = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_roleprice WHERE product_id = %d', $product_id));
 			foreach ( $results as $row ) {
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_roleprice( product_id, role_label, role_price ) VALUES( %d, %s, %s )', $newid, $row->role_label, $row->role_price ) ); 
 			}
 
-			$results = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_optionitemquantity WHERE product_id = %d', $product_id ) );
+			/* 6.0.4: each variant keeps its own settings ( only the choices and the stock were copied, so the copy's variants lost
+			 * their prices, switches, weights, costs and pictures ). A variant SKU gets "-copy"; a Square id is never copied. */
+			$variant_columns = array( 'optionitem_id_1', 'optionitem_id_2', 'optionitem_id_3', 'optionitem_id_4', 'optionitem_id_5', 'quantity', 'sku', 'price', 'is_enabled', 'is_stock_tracking_enabled', 'reorder_point', 'weight', 'cost', 'image', 'google_merchant' );
+			$variant_skus    = array();
+			$results = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_optionitemquantity WHERE product_id = %d ORDER BY optionitemquantity_id ASC', $product_id ) );
 			foreach ( $results as $row ) {
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitemquantity( optionitem_id_1, optionitem_id_2, optionitem_id_3, optionitem_id_4, optionitem_id_5, quantity, product_id ) VALUES( %d, %d, %d, %d, %d, %s, %d )', $row->optionitem_id_1, $row->optionitem_id_2, $row->optionitem_id_3, $row->optionitem_id_4, $row->optionitem_id_5, $row->quantity, $newid ) );
+				$variant = array( 'product_id' => (int) $newid );
+				foreach ( $variant_columns as $column ) {
+					if ( property_exists( $row, $column ) ) {
+						$variant[ $column ] = $row->{ $column };
+					}
+				}
+				if ( isset( $variant['sku'] ) && '' !== (string) $variant['sku'] ) {
+					$variant['sku'] = $this->duplicate_variant_sku( (string) $variant['sku'], $variant_skus );
+				}
+				$wpdb->insert( 'ec_optionitemquantity', $variant );
 			}
 
 			$replace_ids = array();
@@ -540,6 +568,65 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		}
 
 		/**
+		 * A copied variant's SKU: the original's with "-copy" ( then "-copy-2" … ), one no variant and no product uses yet.
+		 *
+		 * @since 6.0.4
+		 * @param string $sku   The original variant's SKU.
+		 * @param array  $taken SKUs given out in this copy ( lower case => true ), updated.
+		 * @return string '' when no free one was found.
+		 */
+		private function duplicate_variant_sku( $sku, &$taken ) {
+			global $wpdb;
+			for ( $n = 1; $n <= 100; $n++ ) {
+				$suffix    = ( 1 === $n ) ? '-copy' : '-copy-' . $n;
+				$candidate = substr( $sku, 0, 255 - strlen( $suffix ) ) . $suffix;
+				$key       = strtolower( $candidate );
+				if ( isset( $taken[ $key ] ) ) {
+					continue;
+				}
+				if ( $wpdb->get_var( $wpdb->prepare( 'SELECT optionitemquantity_id FROM ec_optionitemquantity WHERE sku = %s LIMIT 1', $candidate ) ) || $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s LIMIT 1', $candidate ) ) ) {
+					continue;
+				}
+				$taken[ $key ] = true;
+				return $candidate;
+			}
+			return '';
+		}
+
+		/**
+		 * The product's own store page follows its title, SKU ( the page's [ec_store modelnumber] shortcode ) and status, as
+		 * the editor's General save writes them. Only the product's own page is written ( WP_EasyCart_Post_Sync ), never
+		 * whatever post its row names; a product without one is left to Diagnostics › Fix product pages. A page that is
+		 * not published or private ( a draft, the trash ) keeps its status.
+		 *
+		 * @since 6.0.4
+		 * @param int $product_id  Product.
+		 * @param int $own_post_id Its own page, when the caller found it before changing the row ( 0 = find it now ).
+		 * @return int The page written, 0 when none.
+		 */
+		public function sync_product_post( $product_id, $own_post_id = 0 ) {
+			global $wpdb;
+			$product = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, post_id, title, model_number, activate_in_store FROM ec_product WHERE product_id = %d', (int) $product_id ) );
+			if ( ! $product ) {
+				return 0;
+			}
+			$own_post_id = (int) $own_post_id;
+			if ( ! $own_post_id && function_exists( 'wp_easycart_post_sync' ) ) {
+				$own_post_id = (int) wp_easycart_post_sync()->find_own_post( 'product', (int) $product->product_id, (int) $product->post_id );
+			}
+			if ( ! $own_post_id ) {
+				return 0;
+			}
+			$status = (string) get_post_status( $own_post_id );
+			if ( in_array( $status, array( 'publish', 'private' ), true ) ) {
+				$status = (int) $product->activate_in_store ? 'publish' : 'private';
+			}
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_title = %s, post_status = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d AND post_type = %s', '[ec_store modelnumber="' . $product->model_number . '"]', wp_easycart_language()->convert_text( $product->title ), $status, $own_post_id, 'ec_store' ) );
+			clean_post_cache( $own_post_id );
+			return $own_post_id;
+		}
+
+		/**
 		 * The tables a product owns rows in, beside ec_product itself.
 		 *
 		 * @since 6.0.1
@@ -582,8 +669,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					continue;
 				}
 				$post = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $wpdb->posts WHERE ID = %d", $post_id ), ARRAY_A );
-				if ( ! $post ) {
-					continue;
+				if ( ! $post || 'ec_store' !== $post['post_type'] ) {
+					continue; /* 6.0.4: an Undo only ever puts back the product's own store page */
 				}
 				$snapshot['posts'][ $post_id ] = $post;
 				$snapshot['meta'][ $post_id ] = (array) $wpdb->get_results( $wpdb->prepare( "SELECT meta_key, meta_value FROM $wpdb->postmeta WHERE post_id = %d", $post_id ), ARRAY_A );
@@ -661,7 +748,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( ! empty( $snapshot['owned_sets'] ) && class_exists( 'wp_easycart_product_writer' ) ) {
 				wp_easycart_product_writer::restore_owned_sets( $snapshot['owned_sets'], array_keys( $back ) ); /* 6.0.2 */
 			}
-			wp_cache_delete( 'wpeasycart-all-categories' );
+			wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 			/* translators: %d: number of products put back. */
 			return sprintf( _n( '%d product restored.', '%d products restored.', $restored, 'wp-easycart' ), $restored );
 		}
@@ -674,7 +761,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$snapshot = self::product_snapshot( array( $product_id ) ); /* 6.0.1: kept for 15 minutes so the list can offer an Undo. */
 			do_action( 'wpeasycart_product_deleting', $product_id );
 
-			wp_delete_post( $post_id, true );
+			/* 6.0.4: only the product's own page is deleted, never a page, menu item or image a wrong link points at. */
+			if ( $post_id ) {
+				wp_easycart_post_sync()->delete( 'product', $product_id, (int) $post_id, true );
+			}
 
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_product WHERE product_id = %d', $product_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemimage WHERE product_id = %d', $product_id ) );
@@ -685,7 +775,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_review WHERE product_id = %d', $product_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_affiliate_rule_to_product WHERE product_id = %d', $product_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE product_id = %d', $product_id ) );
-			wp_cache_delete( 'wpeasycart-all-categories' );
+			wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 			do_action( 'wpeasycart_product_deleted', $product_id );
 
 			$args = array( 'success' => 'product-deleted' );
@@ -723,7 +813,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_product WHERE product_id = %d', $bulk_id ) );
 				do_action( 'wpeasycart_product_deleting', $bulk_id );
 
-				wp_delete_post( $post_id, true );
+				if ( $post_id ) { /* 6.0.4: only the product's own page */
+					wp_easycart_post_sync()->delete( 'product', $bulk_id, (int) $post_id, true );
+				}
 
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_product WHERE product_id = %d', $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemimage WHERE product_id = %d', $bulk_id ) );
@@ -734,7 +826,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_review WHERE product_id = %d', $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_affiliate_rule_to_product WHERE product_id = %d', $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE product_id = %d', $bulk_id ) );
-				wp_cache_delete( 'wpeasycart-all-categories' );
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 				do_action( 'wpeasycart_product_deleted', $bulk_id );
 			}
 
@@ -971,7 +1063,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$price = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_product_price'] ) ) );
 				$list_price = isset( $_POST['ec_new_product_list_price'] ) ? wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_product_list_price'] ) ) ) : 0;
 				$image = sanitize_text_field( wp_unslash( $_POST['ec_new_product_image'] ) );
-				$is_shippable = (int) $_POST['ec_new_product_is_shippable'];
+				/* 6.0.4: the panel leaves the switch out while Settings › Admin › Quick add panel hides the shipping fields, so a
+				 * classic product gets the shippable defaults below ( it always posted 0, so every product was saved not shippable ). */
+				$is_shippable = isset( $_POST['ec_new_product_is_shippable'] ) ? (int) $_POST['ec_new_product_is_shippable'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_save_new_quick_product() verified the request ( verify_access() ).
 
 				$show_stock_quantity = $stock_quantity = $use_optionitem_quantity_tracking = 0;
 				if ( $_POST['ec_new_product_stock_option'] == '1' ) {
@@ -1126,6 +1220,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					}
 				}
 
+				/* 6.0.4 ( editor plan Phase 2 ): the categories Quick add picked, before the product is announced. */
+				if ( ! empty( $_POST['ec_new_product_categories'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_save_new_quick_product() verified the request ( verify_access() ).
+					$new_categories = array_filter( array_map( 'intval', explode( ',', sanitize_text_field( wp_unslash( $_POST['ec_new_product_categories'] ) ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- as above.
+					if ( $new_categories ) {
+						$this->set_categories( $product_id, $new_categories );
+					}
+				}
 				do_action( 'wpeasycart_product_added', $product_id, $sku );
 				do_action( 'wpeasycart_admin_product_inserted', $product_id, $sku );
 
@@ -1162,7 +1263,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET list_price = %s WHERE product_id = %d', $list_price, $product_id ) );
 						}
 						$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ) );
-						$previous_guid = $wpdb->get_var( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.ID = %d', $product_row->post_id ) );
+						/* 6.0.4: the save writes only the product's own page. A link to anything else ( a 6.0.3 CSV import gave new
+						 * products a category's number, on some stores a menu item, a page or an image ) is mended first: the product's
+						 * own page found again by its tag or shortcode, else a new one below. */
+						$own_post_id = wp_easycart_post_sync()->find_own_post( 'product', $product_id, $product_row->post_id );
+						$previous_guid = $own_post_id ? $wpdb->get_var( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.ID = %d', $own_post_id ) ) : null;
 
 						if ( $activate_in_store ) {
 							$status = 'publish';
@@ -1184,23 +1289,23 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 						if ( $previous_guid != $guid ) {
 							$i = 1;
-							while ( $guid_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.guid = %s AND ' . $wpdb->prefix . 'posts.ID != %d', $guid, $product_row->post_id ) ) ) {
+							while ( $guid_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.guid = %s AND ' . $wpdb->prefix . 'posts.ID != %d', $guid, $own_post_id ) ) ) {
 								$guid = $guid_orig . '-' . $i . '/';
 								$post_slug = $post_slug_orig . '-' . $i;
 								$i++;
 							}
 						}
 
-						$post_exists = false;
-						$post_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.ID = %d', $product_row->post_id ) );
-						if ( $post_check ) {
+						if ( $own_post_id ) {
 							/* Manually Update Post */
-							$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_status = %s, post_title = %s, post_name = %s, guid = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, $product_row->post_id ) ); /* post_excerpt is the merchant's SEO field ( SEO & Marketing card ) and is never derived from the description */
-							clean_post_cache( $product_row->post_id );
+							$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_status = %s, post_title = %s, post_name = %s, guid = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, $own_post_id ) ); /* post_excerpt is the merchant's SEO field ( SEO & Marketing card ) and is never derived from the description */
+							clean_post_cache( $own_post_id );
 						} else {
 							$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', '' ) ); /* excerpt left blank — many themes print it above the product */
 							$post_id = $wpdb->insert_id;
 							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d WHERE product_id = %d', $post_id, $product_id ) );
+							wp_easycart_post_sync()->tag_post( $post_id, 'product', $product_id ); /* 6.0.4 */
+							clean_post_cache( $post_id );
 							wp_set_post_tags( $post_id, array( 'product' ), true );
 						}
 
@@ -1210,7 +1315,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							wp_easycart_subscription_prices::sync( $product_id );
 						}
 						ec_db::product_cache_changed();
-						do_action( 'wpeasycart_product_updated', $product_id, $model_number );
+						/* 6.0.4: once per request, and not for a new product's draft ( its first Save announces it as added ). */
+						wp_easycart_product_writer::updated( $product_id, $model_number );
 						return true;
 					} else {
 						if ( $activate_in_store ) {
@@ -1245,6 +1351,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, title, model_number, manufacturer_id, price, description, post_id, show_on_startup, show_stock_quantity ) VALUES( %d, %s, %s, %d, %s, %s, %d, 1, 0 )', $activate_in_store, $title, $model_number, $manufacturer_id, $price, $description, $post_id ) );
 						$product_id = $wpdb->insert_id;
+						if ( $product_id ) {
+							wp_easycart_post_sync()->tag_post( $post_id, 'product', $product_id ); /* 6.0.4: the page is this product's from the start */
+						}
 						if ( isset( $_POST['list_price'] ) && $product_id ) {
 							$list_price = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['list_price'] ) ) );
 							if ( $list_price > 0 ) {
@@ -1436,15 +1545,22 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			}
 		}
 
-		public function add_category() {
+		/**
+		 * Puts the product in a category ( the posted product_id and category_id when none are given ).
+		 *
+		 * @param int|null $product_id  6.0.4: the product.
+		 * @param int|null $category_id 6.0.4: the category.
+		 * @return int The ec_categoryitem row.
+		 */
+		public function add_category( $product_id = null, $category_id = null ) {
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
-				$product_id = (int) $_POST['product_id'];
-				$category_id = (int) $_POST['category_id'];
+				$product_id = ( null === $product_id ) ? (int) $_POST['product_id'] : (int) $product_id; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_product_details_add_category() verified the request.
+				$category_id = ( null === $category_id ) ? (int) $_POST['category_id'] : (int) $category_id; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_product_details_add_category() verified the request.
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ) );
 				$category = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_category WHERE category_id = %d', $category_id ) );
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_categoryitem( product_id, category_id ) VALUES( %d, %d )', $product_id, $category_id ) );
-				wp_cache_delete( 'wpeasycart-all-categories' );
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 				$category_item_id = $wpdb->insert_id;
 				if ( false !== $category && false !== $product ) {
 					wp_set_post_tags( $product->post_id, array( $category->category_name ), true );
@@ -1453,15 +1569,21 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			}
 		}
 
-		public function delete_category() {
+		/**
+		 * Takes the product out of a category ( the posted product_id and category_id when none are given ).
+		 *
+		 * @param int|null $product_id  6.0.4: the product.
+		 * @param int|null $category_id 6.0.4: the category.
+		 */
+		public function delete_category( $product_id = null, $category_id = null ) {
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
-				$product_id = (int) $_POST['product_id'];
-				$category_id = (int) $_POST['category_id'];
+				$product_id = ( null === $product_id ) ? (int) $_POST['product_id'] : (int) $product_id; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_product_details_delete_category() verified the request.
+				$category_id = ( null === $category_id ) ? (int) $_POST['category_id'] : (int) $category_id; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_product_details_delete_category() verified the request.
 				/* Smart categories: a rule-driven membership must be excluded from the rules, or the next sync re-adds it. */
 				if ( class_exists( 'ec_smart_categories_support' ) ) { ec_smart_categories_support::exclude_product( $category_id, $product_id ); }
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE category_id = %d AND product_id = %d', $category_id, $product_id ) );
-				wp_cache_delete( 'wpeasycart-all-categories' );
+				wp_easycart_cache::categories_changed(); /* 6.0.4: the store's cached category lookups ( the key before had no group and forgot nothing ) */
 
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ) );
 				$category = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_category WHERE category_id = %d', $category_id ) );
@@ -1476,6 +1598,149 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					wp_set_post_tags( $product->post_id, $new_post_tags, false );
 				}
 			}
+		}
+
+		/**
+		 * The product editor's Save for categories ( 6.0.4, editor plan Phase 2: categories wait for Save like every other
+		 * field ). The product ends up in exactly these categories: the ones it lacks are added and the others removed, each
+		 * the way the old one-at-a-time buttons did it ( post tags, smart category exclusions ).
+		 *
+		 * @since 6.0.4
+		 * @param int   $product_id Product.
+		 * @param int[] $wanted     Category ids.
+		 * @return array added, removed ( category ids ).
+		 */
+		public function set_categories( $product_id, $wanted ) {
+			global $wpdb;
+			$product_id = (int) $product_id;
+			$wanted     = array_values( array_unique( array_filter( array_map( 'intval', (array) $wanted ) ) ) );
+			if ( $wanted ) {
+				/* Only categories that exist. */
+				$wanted = array_map( 'intval', $wpdb->get_col( 'SELECT category_id FROM ec_category WHERE category_id IN ( ' . implode( ',', $wanted ) . ' )' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- every id is an integer ( intval above ).
+			}
+			$current = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT category_id FROM ec_categoryitem WHERE product_id = %d', $product_id ) ) );
+			$added   = array_values( array_diff( $wanted, $current ) );
+			$removed = array_values( array_diff( $current, $wanted ) );
+			foreach ( $added as $category_id ) {
+				$this->add_category( $product_id, $category_id );
+			}
+			foreach ( $removed as $category_id ) {
+				$this->delete_category( $product_id, $category_id );
+			}
+			return array(
+				'added'   => $added,
+				'removed' => $removed,
+			);
+		}
+
+		/**
+		 * The product editor's Save for volume pricing and role prices ( 6.0.4, editor plan Phase 2: they wait for Save ).
+		 * Each list given replaces the product's rows; null leaves that kind alone. Adding or changing a row needs WP EasyCart
+		 * PRO ( price_rules_allowed() ); removing rows saved earlier never does.
+		 *
+		 * @since 6.0.4
+		 * @param int        $product_id Product.
+		 * @param array|null $tiers      quantity, price.
+		 * @param array|null $roles      role, price.
+		 * @return array|WP_Error tiers, roles ( how many rows each kind has now ).
+		 */
+		public function save_price_rules( $product_id, $tiers, $roles ) {
+			global $wpdb;
+			$product_id = (int) $product_id;
+			$plan       = array();
+			if ( null !== $tiers ) {
+				$rows = array();
+				foreach ( (array) $tiers as $tier ) {
+					$quantity = isset( $tier['quantity'] ) ? (int) $tier['quantity'] : 0;
+					$price    = isset( $tier['price'] ) ? (float) wp_easycart_admin_verification()->filter_float( sanitize_text_field( (string) $tier['price'] ) ) : -1;
+					if ( $quantity < 1 || $price < 0 ) {
+						return new WP_Error( 'tier_invalid', __( 'Each price break needs a quantity of 1 or more and a price.', 'wp-easycart' ) );
+					}
+					if ( isset( $rows[ $quantity ] ) ) {
+						/* translators: %d: a quantity. */
+						return new WP_Error( 'tier_duplicate', sprintf( __( 'Two price breaks start at %d. Keep one.', 'wp-easycart' ), $quantity ) );
+					}
+					$rows[ $quantity ] = round( $price, 3 );
+				}
+				ksort( $rows );
+				$saved = array();
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT quantity, price FROM ec_pricetier WHERE product_id = %d', $product_id ) ) as $row ) {
+					$saved[ (int) $row->quantity ] = round( (float) $row->price, 3 );
+				}
+				ksort( $saved );
+				if ( $rows !== $saved ) {
+					$plan['tiers'] = array(
+						'rows' => $rows,
+						'adds' => (bool) array_diff_assoc( $rows, $saved ),
+					);
+				}
+			}
+			if ( null !== $roles ) {
+				$rows  = array();
+				$known = array();
+				foreach ( $wpdb->get_col( 'SELECT role_label FROM ec_role' ) as $label ) {
+					$known[ strtolower( (string) $label ) ] = (string) $label;
+				}
+				foreach ( (array) $roles as $role ) {
+					$label = isset( $role['role'] ) ? sanitize_text_field( (string) $role['role'] ) : '';
+					$price = isset( $role['price'] ) ? (float) wp_easycart_admin_verification()->filter_float( sanitize_text_field( (string) $role['price'] ) ) : -1;
+					$key   = strtolower( $label );
+					if ( '' === $label || $price < 0 ) {
+						return new WP_Error( 'role_invalid', __( 'Each role price needs a role and a price.', 'wp-easycart' ) );
+					}
+					if ( isset( $rows[ $key ] ) ) {
+						return new WP_Error( 'role_duplicate', __( 'That role already has a price — edit or remove it first.', 'wp-easycart' ) );
+					}
+					$rows[ $key ] = array( isset( $known[ $key ] ) ? $known[ $key ] : $label, round( $price, 3 ), isset( $known[ $key ] ) );
+				}
+				$saved = array();
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT role_label, role_price FROM ec_roleprice WHERE product_id = %d', $product_id ) ) as $row ) {
+					$saved[ strtolower( (string) $row->role_label ) ] = round( (float) $row->role_price, 3 );
+				}
+				$adds = false;
+				foreach ( $rows as $key => $row ) {
+					if ( ! isset( $saved[ $key ] ) || $saved[ $key ] !== $row[1] ) {
+						$adds = true;
+						if ( ! $row[2] ) {
+							return new WP_Error( 'role_unknown', __( 'That user role no longer exists.', 'wp-easycart' ) );
+						}
+					}
+				}
+				if ( $adds || count( $rows ) !== count( $saved ) ) {
+					$plan['roles'] = array(
+						'rows' => $rows,
+						'adds' => $adds,
+					);
+				}
+			}
+			foreach ( $plan as $kind => $change ) {
+				if ( $change['adds'] ) {
+					$allowed = $this->price_rules_allowed( $kind );
+					if ( is_wp_error( $allowed ) ) {
+						return $allowed;
+					}
+				}
+			}
+			if ( isset( $plan['tiers'] ) ) {
+				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_pricetier WHERE product_id = %d', $product_id ) );
+				foreach ( $plan['tiers']['rows'] as $quantity => $price ) {
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_pricetier( product_id, price, quantity ) VALUES( %d, %s, %d )', $product_id, $price, $quantity ) );
+				}
+				wp_cache_delete( 'wpeasycart-pricetiers' );
+			}
+			if ( isset( $plan['roles'] ) ) {
+				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_roleprice WHERE product_id = %d', $product_id ) );
+				foreach ( $plan['roles']['rows'] as $row ) {
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_roleprice( product_id, role_label, role_price ) VALUES( %d, %s, %s )', $product_id, $row[0], $row[1] ) );
+				}
+			}
+			if ( $plan ) {
+				ec_db::product_cache_changed();
+			}
+			return array(
+				'tiers' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_pricetier WHERE product_id = %d', $product_id ) ),
+				'roles' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_roleprice WHERE product_id = %d', $product_id ) ),
+			);
 		}
 
 		public function save_product_details_quantities() {
@@ -2044,12 +2309,14 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET seo_description = %s, seo_keywords = %s WHERE product_id = %d', $seo_description, $seo_keywords, $product_id ) );
 
 				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number FROM ec_product WHERE product_id = %d', $product_id ) );
-				if ( $product_row && $product_row->post_id ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_excerpt = %s WHERE ID = %d', $post_excerpt, $product_row->post_id ) );
+				$own_post_id = ( $product_row && $product_row->post_id ) ? wp_easycart_post_sync()->own_post_id( 'product', $product_id, $product_row->post_id, true ) : 0; /* 6.0.4: only the product's own page */
+				if ( $own_post_id ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_excerpt = %s WHERE ID = %d', $post_excerpt, $own_post_id ) );
+					clean_post_cache( $own_post_id );
 					if ( !$featured_image ) {
-						delete_post_thumbnail( $product_row->post_id );
+						delete_post_thumbnail( $own_post_id );
 					} else {
-						set_post_thumbnail( $product_row->post_id, $featured_image );
+						set_post_thumbnail( $own_post_id, $featured_image );
 					}
 				}
 				ec_db::product_cache_changed();
@@ -2083,19 +2350,66 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				if ( $possible_match )
 					return false;
 			} else {
-				$product_id = (int) $_POST['product_id'];
-				$current_model = $wpdb->get_var( $wpdb->prepare( 'SELECT ec_product.model_number FROM ec_product WHERE ec_product.product_id = %d', $product_id ) );
-				$model_number = sanitize_text_field( wp_unslash( $_POST['model_number'] ) );
-				if ( ! preg_match( '/^[a-zA-Z0-9-\/\_]*$/', $model_number ) ) {
-					return false;
-				} else if ( $product_id == '0' || $current_model != $model_number ) {
-					$possible_match = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_product.model_number FROM ec_product WHERE ec_product.model_number = %s', $model_number ) );
-					if ( $possible_match ) {
-						return false;
-					}
-				}
+				return '' === $this->model_number_problem();
 			}
 			return true;
+		}
+
+		/**
+		 * What is wrong with the SKU the product editor posted ( model_number for product_id ), if anything.
+		 *
+		 * A SKU is required, holds only letters, numbers, slashes, underscores and dashes, and no other product may use it.
+		 * A product keeping the SKU it has is not checked again ( stores can hold two products with one SKU from an
+		 * import ); changing only its letter case is not a clash with itself.
+		 *
+		 * @since 6.0.4
+		 * @param string|null $model_number SKU ( default the posted model_number ).
+		 * @param int|null    $product_id   Product ( default the posted product_id; 0 = a new product ).
+		 * @return string '' | 'required' | 'invalid' | 'duplicate'.
+		 */
+		public function model_number_problem( $model_number = null, $product_id = null ) {
+			global $wpdb;
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- the calling handler verified the request.
+			if ( null === $model_number ) {
+				$model_number = isset( $_POST['model_number'] ) ? sanitize_text_field( wp_unslash( $_POST['model_number'] ) ) : '';
+			}
+			if ( null === $product_id ) {
+				$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			$model_number = (string) $model_number;
+			$product_id   = (int) $product_id;
+			if ( '' === trim( $model_number ) ) {
+				return 'required';
+			}
+			if ( ! preg_match( '/^[a-zA-Z0-9-\/\_]*$/', $model_number ) ) {
+				return 'invalid';
+			}
+			$current_model = ( $product_id > 0 ) ? $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) ) : null;
+			if ( null === $current_model || (string) $current_model !== $model_number ) {
+				$owner = $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s AND product_id != %d LIMIT 1', $model_number, $product_id ) );
+				if ( $owner ) {
+					return 'duplicate';
+				}
+			}
+			return '';
+		}
+
+		/**
+		 * The sentence for a model_number_problem() answer.
+		 *
+		 * @since 6.0.4
+		 * @param string $problem required | invalid | duplicate.
+		 * @return string
+		 */
+		public function model_number_message( $problem ) {
+			if ( 'required' === $problem ) {
+				return __( 'A SKU is required.', 'wp-easycart' );
+			}
+			if ( 'invalid' === $problem ) {
+				return __( 'SKU values must only include letters, numbers, forward slashes, underscores, and dashes.', 'wp-easycart' );
+			}
+			return __( 'That SKU is already in use — choose another.', 'wp-easycart' );
 		}
 
 		/**
@@ -2119,6 +2433,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$this->post_id_index = -1;
 			$this->model_number_index = -1;
 			$this->title_index = -1;
+			$this->price_index = -1; /* 6.0.4: unset ( null ) matched column 0 in the value loops' == tests */
+			$this->list_price_index = -1;
 			$this->activate_in_store_index = -1;
 			$this->is_subscription_index = -1;
 			$this->bill_period_index = -1;
@@ -2290,7 +2606,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 				for ( $i = 0; $i < count( $this->headers ); $i++ ) {
 
-					if ( $i != $this->product_id_index && $i != $this->post_id_index && $i != $this->advanced_option_ids_index && $i != $this->categories_index && $i != $this->price_tiers_index && $i != $this->b2b_prices_index ) { // Skip rows with product id and post id
+					if ( ! $this->import_skips_column( $i ) ) { // the keys, and the columns written to their own tables
 						if ( ! $first ) {
 							$insert_sql .= ',';
 							$update_sql .= ',';
@@ -2307,7 +2623,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$first = true;
 
 				for ( $i = 0; $i < count( $this->headers ); $i++ ) {
-					if ( $i != $this->product_id_index && $i != $this->post_id_index && $i != $this->advanced_option_ids_index && $i != $this->categories_index && $i != $this->price_tiers_index && $i != $this->b2b_prices_index ) { // Skip rows with product id and post id
+					if ( ! $this->import_skips_column( $i ) ) {
 						if ( ! $first ) {
 							$insert_sql .= ',';
 						}
@@ -2386,47 +2702,15 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								$existing_model_numbers[ $model_number ] = true;
 
 								$update_vals = array();
-								for ( $j = 0; $j < count( $rows[ $i ] ); $j++ ) {
-									if ( $j != $this->product_id_index && $j != $this->post_id_index && $j != $this->advanced_option_ids_index && $j != $this->categories_index && $j != $this->price_tiers_index && $j != $this->b2b_prices_index ) {
-										$rows[ $i ][ $j ] = html_entity_decode( preg_replace( "/U\+([0-9A-F]{4})/", "&#x\\1;", $rows[ $i ][ $j ] ), ENT_NOQUOTES, 'UTF-8' );
-										if ( $j == $this->price_index || $j == $this->list_price_index ) {
-											//$update_vals[] = \ForceUTF8\Encoding::fixUTF8( str_replace( ',', '', $rows[ $i ][ $j ] ) );
-											$update_vals[] = str_replace( ',', '', $rows[ $i ][ $j ] );
-										} else if ( $j == $this->model_number_index ) {
-											$chars = "!@#$%^&*()+={}[]|\'\";:,<.>/?`~*";
-											$pattern = "/[".preg_quote($chars, "/")."]/";
-											$update_vals[] = preg_replace( $pattern, '', $rows[ $i ][ $j ] );
-										} else if ( $j == $this->product_images_index ) {
-											$product_images = ( isset( $rows[ $i ][ $j ] ) && is_string( $rows[ $i ][ $j ] ) && strlen( $rows[ $i ][ $j ] ) > 0 ) ? explode( ',', $rows[ $i ][ $j ] ) : array();
-											$product_images_str = '';
-											foreach ( $product_images as $product_image ) {
-												if ( 'ml:' == substr( $product_image, 0, 3 ) ) {
-													$product_image = substr( $product_image, 3 );
-												}
-												if ( '' != $product_images_str ) {
-													$product_images_str .= ',';
-												}
-												$product_images_str .= $product_image;
-											}
-											$update_vals[] = $product_images_str;
-										} else if ( $j == $this->pickup_locations_index ) {
-											$pickup_locations = ( isset( $rows[ $i ][ $j ] ) && is_string( $rows[ $i ][ $j ] ) && strlen( $rows[ $i ][ $j ] ) > 0 ) ? explode( ',', $rows[ $i ][ $j ] ) : array();
-											$pickup_locations_str = '';
-											$pickup_locations_arr = array();
-											foreach ( $pickup_locations as $pickup_location ) {
-												if ( '' != $pickup_locations_str ) {
-													$pickup_locations_str .= ',';
-												}
-												$pickup_locations_str .= (int) $pickup_location;
-												$pickup_locations_arr[] = (int) $pickup_location;
-											}
-											$update_vals[] = $pickup_locations_str;
-										} else {
-											//$update_vals[] = \ForceUTF8\Encoding::fixUTF8( $rows[ $i ][ $j ] );
-											$update_vals[] = $rows[ $i ][ $j ];
-										}
+								$this->import_pickup_locations = array();
+								/* 6.0.4: one value per header ( a short row's missing cells are empty ), so the values always match the placeholders. */
+								for ( $j = 0; $j < count( $this->headers ); $j++ ) {
+									if ( ! $this->import_skips_column( $j ) ) {
+										$rows[ $i ][ $j ] = html_entity_decode( preg_replace( "/U\+([0-9A-F]{4})/", "&#x\\1;", isset( $rows[ $i ][ $j ] ) ? (string) $rows[ $i ][ $j ] : '' ), ENT_NOQUOTES, 'UTF-8' );
+										$update_vals[] = $this->import_value( $j, $rows[ $i ][ $j ], false );
 									}
 								}
+								$pickup_locations_arr = $this->import_pickup_locations;
 								$update_vals[] = $product_id;
 
 								/* 6.0.2: a product another service manages ( a fulfillment partner ) keeps what that service owns:
@@ -2463,8 +2747,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									$status = 'private';
 								}
 
-								if ( -1 != $post_id ) {
-									$post_sql_items = array( '[ec_store modelnumber="' . $rows[ $i ][ $this->model_number_index ] . '"]' );
+								/* 6.0.4: the product's own page, from its row, with the model number the row now holds. Never the file's
+								   post_id cell: a file from another store, or one with the 6.0.3 import's wrong numbers, names pages, menu
+								   items or images there. */
+								$own_row = $this->db->get_row( $this->db->prepare( 'SELECT post_id, model_number FROM ec_product WHERE product_id = %d', (int) $product_id ) );
+								$post_id = $own_row ? wp_easycart_post_sync()->own_post_id( 'product', (int) $product_id, (int) $own_row->post_id, true ) : 0;
+								if ( $post_id ) {
+									$post_sql_items = array( '[ec_store modelnumber="' . $own_row->model_number . '"]' );
 									$post_sql = 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s';
 									if ( $status ) {
 										$post_sql .= ', post_status = %s';
@@ -2477,6 +2766,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									$post_sql .= ', post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d';
 									$post_sql_items[] = $post_id;
 									$wpdb->query( $wpdb->prepare( $post_sql, $post_sql_items ) );
+									clean_post_cache( $post_id );
 								}
 
 								if ( ! in_array( 'options', $locked_fields, true ) && ( ( $this->use_advanced_optionset_index != -1 && $this->advanced_option_ids_index != -1 && $rows[ $i ][ $this->use_advanced_optionset_index ] == '1' ) || ( $this->use_both_option_types_index != -1 && $this->use_both_option_types_index != -1 && $rows[ $i ][ $this->use_both_option_types_index ] == '1' ) ) ) {
@@ -2506,7 +2796,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 								if ( $this->categories_index != -1 && ! in_array( 'categories', $locked_fields, true ) ) {
 									$categories_ids_string = str_replace( ' ', '', $rows[ $i ][ $this->categories_index ] );
-									$categories_ids = explode( ',', $categories_ids_string );
+									$categories_ids = $this->import_ids( $categories_ids_string ); /* 6.0.4: an empty cell added category 0 */
 									$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE product_id = %d;', $product_id ) );
 									if ( count( $categories_ids ) > 0 ) {
 										$sql = 'INSERT INTO ec_categoryitem( product_id, category_id ) VALUES';
@@ -2577,34 +2867,19 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 								$existing_model_numbers[ $model_number ] = true;
 								$insert_vals = array();
-								for ( $j = 0; $j < count( $rows[ $i ] ); $j++ ) {
-									if ( $j != $this->product_id_index && $j != $this->post_id_index && $j != $this->advanced_option_ids_index ) {
-										$rows[ $i ][ $j ] = html_entity_decode( preg_replace( "/U\+([0-9A-F]{4})/", "&#x\\1;", $rows[ $i ][ $j ] ), ENT_NOQUOTES, 'UTF-8' );
-										if ( $j == $this->price_index || $j == $this->list_price_index ) {
-											//$insert_vals[] = \ForceUTF8\Encoding::fixUTF8( str_replace( ',', '', $rows[ $i ][ $j ] ) );
-											$insert_vals[] = str_replace( ',', '', $rows[ $i ][ $j ] );
-										} else if ( $j == $this->model_number_index ) {
-											$chars = "!@#$%^&*()+={}[]|\'\";:,<.>/?`~*";
-											$pattern = "/[".preg_quote($chars, "/")."]/";
-											$insert_vals[] = preg_replace( $pattern, '', $rows[ $i ][ $j ] );
-										} else if ( $j == $this->product_images_index ) {
-											$product_images = ( isset( $rows[ $i ][ $j ] ) && is_string( $rows[ $i ][ $j ] ) && strlen( $rows[ $i ][ $j ] ) > 0 ) ? explode( ',', $rows[ $i ][ $j ] ) : array();
-											$product_images_str = '';
-											foreach ( $product_images as $product_image ) {
-												if ( 'ml:' == substr( $product_image, 0, 3 ) ) {
-													$product_image = substr( $product_image, 3 );
-												}
-												if ( '' != $product_images_str ) {
-													$product_images_str .= ',';
-												}
-												$product_images_str .= $product_image;
-											}
-											$insert_vals[] = $product_images_str;
-										} else {
-											$insert_vals[] = sanitize_text_field( $rows[ $i ][ $j ] );
-										}
+								$this->import_pickup_locations = array();
+								/* 6.0.4: the same columns as the INSERT's column list ( import_skips_column() ). This loop used to keep
+								   categories, price_tiers and b2b_prices, so every value after them moved one place and the post_id slot
+								   took the categories value ( post_id 27 for categories "27,19,12" ). */
+								for ( $j = 0; $j < count( $this->headers ); $j++ ) {
+									if ( ! $this->import_skips_column( $j ) ) {
+										$rows[ $i ][ $j ] = html_entity_decode( preg_replace( "/U\+([0-9A-F]{4})/", "&#x\\1;", isset( $rows[ $i ][ $j ] ) ? (string) $rows[ $i ][ $j ] : '' ), ENT_NOQUOTES, 'UTF-8' );
+										$insert_vals[] = $this->import_value( $j, $rows[ $i ][ $j ], true );
 									}
 								}
+								$pickup_locations_arr = $this->import_pickup_locations;
+								/* 6.0.4: the model number as the row stores it ( punctuation taken out ), so the page's shortcode finds the product. */
+								$import_model = $this->import_value( $this->model_number_index, $rows[ $i ][ $this->model_number_index ], true );
 
 								// Insert WordPress Post
 								if ( -1 != $this->activate_in_store_index && isset( $rows[ $i ][ $this->activate_in_store_index ] ) && $rows[ $i ][ $this->activate_in_store_index ] ) {
@@ -2621,7 +2896,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								}
 								$store_page = get_permalink( get_option( 'ec_option_storepage' ) );
 								if ( strstr( $store_page, '?' ) ) { 
-									$guid = $store_page . '&model_number=' . $rows[ $i ][ $this->model_number_index ];
+									$guid = $store_page . '&model_number=' . $import_model;
 								} else if ( substr( $store_page, strlen( $store_page ) - 1 ) == '/' ) { 
 									$guid = $store_page . $post_slug;
 								} else {
@@ -2640,7 +2915,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								} 
 
 								/* Manually Insert Post */
-								$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $rows[ $i ][ $this->model_number_index ] . '"]', $status, $post_title, $post_slug, $guid, 'ec_store' ) );
+								$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $import_model . '"]', $status, $post_title, $post_slug, $guid, 'ec_store' ) );
 								$post_id = $wpdb->insert_id;
 								clean_post_cache( $post_id );
 								wp_set_post_tags( $post_id, array( 'product' ), true );
@@ -2654,6 +2929,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									wp_delete_post( $post_id, true );
 									$this->error_list .= sprintf( __( 'Product on line %s never inserted', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
 								} else {
+									wp_easycart_post_sync()->tag_post( $post_id, 'product', $product_id ); /* 6.0.4 */
 									$this->import_inserted++;
 								}
 
@@ -2703,7 +2979,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								// Process categories if available
 								if ( $this->categories_index != -1 ) {
 									$categories_ids_string = str_replace( ' ', '', $rows[ $i ][ $this->categories_index ] );
-									$categories_ids = explode( ',', $categories_ids_string );
+									$categories_ids = $this->import_ids( $categories_ids_string ); /* 6.0.4: an empty cell added category 0 */
 									$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE product_id = %d;', $product_id ) );
 									if ( count( $categories_ids ) > 0 ) {
 										$sql = 'INSERT INTO ec_categoryitem( product_id, category_id ) VALUES';
@@ -2749,11 +3025,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									}
 								}
 
-								if ( -1 != $this->pickup_locations_index ) {
+								if ( -1 != $this->pickup_locations_index && $product_id ) {
 									$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_location_to_product WHERE product_id = %d', $product_id ) );
-									$sql = 'INSERT INTO ec_location_to_product( product_id, location_id ) VALUES';
-									if ( isset( $pickup_locations_arr ) && count( $pickup_locations_arr ) > 0 ) {
-										$sql = '';
+									if ( count( $pickup_locations_arr ) > 0 ) {
+										/* 6.0.4: this query lost its "INSERT … VALUES" ( it sent only the rows ) and read the list a row before had left. */
+										$sql = 'INSERT INTO ec_location_to_product( product_id, location_id ) VALUES';
 										for ( $j = 0; $j < count( $pickup_locations_arr ); $j++ ) {
 											if ( $j > 0 ) {
 												$sql .= ',';
@@ -2793,6 +3069,82 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$this->importer_respond( true, 0, 0, __( 'No URL', 'wp-easycart' ) );
 			}
 			die();
+		}
+
+		/**
+		 * A file column the INSERT and the UPDATE of ec_product leave out: the two keys, and the columns written to their own tables
+		 * after the row ( advanced_option_ids, categories, price_tiers, b2b_prices ). The one list for the column names and both
+		 * value loops ( 6.0.4 ).
+		 *
+		 * @since 6.0.4
+		 * @param int $i Column index.
+		 * @return bool
+		 */
+		private function import_skips_column( $i ) {
+			return in_array( (int) $i, array( $this->product_id_index, $this->post_id_index, $this->advanced_option_ids_index, $this->categories_index, $this->price_tiers_index, $this->b2b_prices_index ), true );
+		}
+
+		/**
+		 * One cell's value for its ec_product column ( 6.0.4: one rule for new and updated products ). Prices lose their thousands
+		 * separator, the model number its punctuation, product images their "ml:" prefix, pickup locations become ids ( kept in
+		 * $this->import_pickup_locations for ec_location_to_product ). Description, short description and specifications keep their
+		 * HTML, filtered as the product editor saves them ( wp_easycart_escape_html(); a new product's went through
+		 * sanitize_text_field() and lost every tag and line break ). Any other column: a new product's is plain text, an updated
+		 * product's is written as it is, as before.
+		 *
+		 * @since 6.0.4
+		 * @param int    $j      Column index.
+		 * @param string $value  The cell, entities decoded.
+		 * @param bool   $is_new A new product ( INSERT ).
+		 * @return string
+		 */
+		private function import_value( $j, $value, $is_new ) {
+			$value = (string) $value;
+			if ( $j === $this->price_index || $j === $this->list_price_index ) {
+				return str_replace( ',', '', $value );
+			}
+			if ( $j === $this->model_number_index ) {
+				$chars = "!@#$%^&*()+={}[]|\'\";:,<.>/?`~*";
+				return preg_replace( '/[' . preg_quote( $chars, '/' ) . ']/', '', $value );
+			}
+			if ( $j === $this->product_images_index ) {
+				$product_images = array();
+				foreach ( ( '' !== $value ) ? explode( ',', $value ) : array() as $product_image ) {
+					$product_images[] = ( 'ml:' === substr( $product_image, 0, 3 ) ) ? substr( $product_image, 3 ) : $product_image;
+				}
+				return implode( ',', $product_images );
+			}
+			if ( $j === $this->pickup_locations_index ) {
+				$this->import_pickup_locations = array();
+				foreach ( ( '' !== $value ) ? explode( ',', $value ) : array() as $pickup_location ) {
+					$this->import_pickup_locations[] = (int) $pickup_location;
+				}
+				return implode( ',', $this->import_pickup_locations );
+			}
+			if ( isset( $this->headers[ $j ] ) && in_array( $this->headers[ $j ], self::IMPORT_HTML_COLUMNS, true ) ) {
+				if ( function_exists( 'wp_easycart_escape_html' ) ) {
+					return wp_easycart_escape_html( $value );
+				}
+				return function_exists( 'wp_kses_post' ) ? wp_kses_post( $value ) : sanitize_text_field( $value );
+			}
+			return $is_new ? sanitize_text_field( $value ) : $value;
+		}
+
+		/**
+		 * The ids in a list cell ( "27, 19,12" ): whole numbers above 0, so an empty cell adds nothing ( it added category 0 ).
+		 *
+		 * @since 6.0.4
+		 * @param string $cell The cell.
+		 * @return int[]
+		 */
+		private function import_ids( $cell ) {
+			$ids = array();
+			foreach ( explode( ',', str_replace( ' ', '', (string) $cell ) ) as $id ) {
+				if ( (int) $id > 0 ) {
+					$ids[] = (int) $id;
+				}
+			}
+			return $ids;
 		}
 
 		/**
@@ -2897,11 +3249,17 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				return false;
 			}
 			global $wpdb;
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_product_quick_update() verified the request ( verify_access() ).
+			$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+			$activate   = isset( $_POST['activate_in_store'] ) ? (int) $_POST['activate_in_store'] : 0;
 			$new_sku = sanitize_text_field( wp_unslash( $_POST['model_number'] ) );
-			$sku_owner = $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s AND product_id != %d', $new_sku, (int) $_POST['product_id'] ) );
+			$sku_owner = $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s AND product_id != %d', $new_sku, $product_id ) );
 			if ( $sku_owner ) {
 				return 'model-number-error';
 			}
+			/* 6.0.4: the product's own page, found while the row still names its SKU ( an older page is known by its shortcode ). */
+			$before = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, activate_in_store FROM ec_product WHERE product_id = %d', $product_id ) );
+			$own_post_id = ( $before && function_exists( 'wp_easycart_post_sync' ) ) ? (int) wp_easycart_post_sync()->find_own_post( 'product', $product_id, (int) $before->post_id ) : 0;
 			$is_taxable = $vat_rate = $show_stock_quantity = $use_optionitem_quantity_tracking = $stock_quantity = 0;
 			if ( $_POST['is_taxable'] == '1' || $_POST['is_taxable'] == '3' ) {
 				$is_taxable = 1;
@@ -2917,13 +3275,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$use_optionitem_quantity_tracking = 1;
 			}
 			$sort_position = ( isset( $_POST['sort_position'] ) ) ? (int) $_POST['sort_position'] : 0;
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET 
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET
 				activate_in_store = %d, show_on_startup = %d, title = %s, model_number = %s, manufacturer_id = %d,
-				price = %s, list_price = %s, image1 = %s, show_stock_quantity = %d, use_optionitem_quantity_tracking = %d, stock_quantity = %d, is_shippable = %d,
+				price = %s, list_price = %s, image1 = %s, show_stock_quantity = %d, use_optionitem_quantity_tracking = %d, is_shippable = %d,
 				weight = %s, length = %s, width = %s, height = %s, is_taxable = %d, vat_rate = %s, sort_position = %d
 				WHERE product_id = %d',
-				(int) $_POST['activate_in_store'], 
-				(int) $_POST['show_on_startup'], 
+				$activate,
+				(int) $_POST['show_on_startup'],
 				wp_easycart_escape_html( wp_unslash( $_POST['title'] ) ), // XSS OK.
 				sanitize_text_field( wp_unslash( $_POST['model_number'] ) ),
 				ec_admin_ecv2_resolve_manufacturer( (int) $_POST['manufacturer_id'], isset( $_POST['manufacturer_name'] ) ? sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) ) : '' ),
@@ -2932,15 +3290,33 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				sanitize_text_field( wp_unslash( $_POST['image1'] ) ),
 				(int) $show_stock_quantity,
 				(int) $use_optionitem_quantity_tracking,
-				(int) $stock_quantity,
 				(int) $_POST['is_shippable'],
 				wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['weight'] ) ) ),
 				wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['length'] ) ) ),
 				wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['width'] ) ) ),
 				wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['height'] ) ) ),
 				$is_taxable, $vat_rate, $sort_position,
-				(int) $_POST['product_id']
+				$product_id
 			) );
+			/* 6.0.4: a product tracked per variation counts its variations' stock; the panel posts 0 for it, which overwrote the
+			 * total. The total is worked out from the variations instead ( it also is when the panel switches the product to them ). */
+			if ( $use_optionitem_quantity_tracking ) {
+				if ( class_exists( 'wp_easycart_variants' ) ) {
+					wp_easycart_variants::rollup_stock( $product_id );
+				}
+			} else {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stock_quantity = %d WHERE product_id = %d', (int) $stock_quantity, $product_id ) );
+			}
+			/* 6.0.4: the product's page follows its title, SKU and status, as the editor's save writes them. */
+			$this->sync_product_post( $product_id, $own_post_id );
+			if ( $before && (int) $before->activate_in_store !== $activate ) {
+				if ( $activate ) {
+					do_action( 'wpeasycart_product_activated', $product_id );
+				} else {
+					do_action( 'wpeasycart_product_deactivated', $product_id );
+				}
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
 			wp_cache_flush();
 		}
 
@@ -3107,8 +3483,30 @@ function ec_admin_ajax_save_product_details_basic() {
 	}
 	global $wpdb;
 	$wpec_hold = ecv2_product_save_hold( 'basic' ); /* 6.0.2: locked fields keep their stored value */
+	/* 6.0.4: a SKU another product uses ( or none, or characters a SKU can't hold ) refuses the save with the reason, which the
+	 * editor shows under the SKU field. The save used to skip every change on General and still answer as saved. */
+	$sku_problem = wp_easycart_admin_products()->model_number_problem();
+	if ( '' !== $sku_problem ) {
+		wp_easycart_product_lock::release( $wpec_hold, false );
+		wp_send_json_error(
+			array(
+				'message' => wp_easycart_admin_products()->model_number_message( $sku_problem ),
+				'field'   => 'model_number',
+				'code'    => $sku_problem,
+			)
+		);
+	}
+	/* 6.0.4 ( editor plan Phase 2 ): a new product's draft becomes a product on its first Save, which announces it as added
+	 * ( as Quick add does ), not as updated. */
+	$wpec_draft = isset( $_POST['product_id'] ) && (int) $_POST['product_id'] > 0 && class_exists( 'wp_easycart_product_drafts' ) && wp_easycart_product_drafts::is_draft( (int) $_POST['product_id'] );
+	if ( $wpec_draft ) {
+		wp_easycart_product_writer::hold_updated( (int) $_POST['product_id'] );
+	}
 	$result = wp_easycart_admin_products()->save_product_details_basic();
 	ecv2_product_save_done( $wpec_hold );
+	if ( $wpec_draft ) {
+		wp_easycart_product_drafts::promote( (int) $_POST['product_id'] );
+	}
 	if ( $_POST['product_id'] == '0' ) {
 		$product_id = $result;
 	} else {
@@ -3251,15 +3649,70 @@ function ec_admin_ajax_product_details_create_category() {
 		}
 	}
 
-	/* Assign to the product ( skip when already assigned ). */
+	/* Assign to the product ( skip when already assigned ). 6.0.4: the editor posts assign=0 and adds it to the product with
+	 * the rest of its changes when it is saved; a new category is a record of its own, made at once. */
 	$already = $wpdb->get_var( $wpdb->prepare( 'SELECT categoryitem_id FROM ec_categoryitem WHERE product_id = %d AND category_id = %d', $product_id, $category_id ) );
-	if ( ! $already ) {
+	if ( ! $already && ( ! isset( $_POST['assign'] ) || '0' !== sanitize_text_field( wp_unslash( $_POST['assign'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verify_access() checked the nonce above.
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_categoryitem( product_id, category_id ) VALUES( %d, %d )', $product_id, $category_id ) );
 	}
 	wp_cache_flush();
 	ecv2_product_save_done( $wpec_hold );
 	do_action( 'wpeasycart_category_created_inline', $category_id, $product_id, $existed );
 	wp_send_json_success( array( 'category_id' => $category_id, 'category_name' => $category_name, 'existed' => $existed, 'already_assigned' => (bool) $already ) );
+}
+/* 6.0.4 ( editor plan Phase 2 ): the editor's categories save with the product. */
+add_action( 'wp_ajax_ec_admin_ajax_save_product_details_categories', 'ec_admin_ajax_save_product_details_categories' );
+function ec_admin_ajax_save_product_details_categories() {
+	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-product-details' ) ) {
+		return false;
+	}
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_access() checked the nonce above.
+	$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+	if ( ! $product_id || ! isset( $_POST['categories_sent'] ) ) {
+		wp_send_json_error( array( 'message' => __( 'The categories could not be saved.', 'wp-easycart' ) ) );
+	}
+	$wanted = isset( $_POST['category_ids'] ) ? array_map( 'intval', (array) wp_unslash( $_POST['category_ids'] ) ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every id goes through intval().
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+	$wpec_hold = ecv2_product_save_hold( 'categories', $product_id );
+	$changed = wp_easycart_admin_products()->set_categories( $product_id, $wanted );
+	ecv2_product_save_done( $wpec_hold );
+	wp_send_json_success( $changed );
+}
+/* 6.0.4 ( editor plan Phase 2 ): volume pricing and role prices save with the product. */
+add_action( 'wp_ajax_ec_admin_ajax_save_product_details_price_rules', 'ec_admin_ajax_save_product_details_price_rules' );
+function ec_admin_ajax_save_product_details_price_rules() {
+	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-product-details' ) ) {
+		return false;
+	}
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_access() checked the nonce above.
+	$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+	if ( ! $product_id || ! isset( $_POST['price_rules_sent'] ) ) {
+		wp_send_json_error( array( 'message' => __( 'The price breaks could not be saved.', 'wp-easycart' ) ) );
+	}
+	/* A list on the page is sent with its flag even when empty ( every row removed ); a list not on the page is left alone. */
+	$tiers = ! empty( $_POST['tiers_shown'] ) ? ( isset( $_POST['tiers'] ) ? (array) wp_unslash( $_POST['tiers'] ) : array() ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- save_price_rules() sanitizes every value.
+	$roles = ! empty( $_POST['roles_shown'] ) ? ( isset( $_POST['roles'] ) ? (array) wp_unslash( $_POST['roles'] ) : array() ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- save_price_rules() sanitizes every value.
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+	$wpec_hold = ecv2_product_save_hold( '', $product_id );
+	$saved = wp_easycart_admin_products()->save_price_rules( $product_id, $tiers, $roles );
+	ecv2_product_save_done( $wpec_hold );
+	if ( is_wp_error( $saved ) ) {
+		wp_send_json_error( array( 'message' => $saved->get_error_message() ) );
+	}
+	wp_send_json_success( $saved );
+}
+if ( ! function_exists( 'wp_easycart_admin_product_new_url' ) ) {
+	/**
+	 * Add product's address: the products list with the Quick add panel open ( load_products_list() ). Every Add product goes
+	 * through Quick add ( Matt 2026-10-10 ): the editor's hidden new-product drafts ( wp_easycart_product_drafts ) are no longer
+	 * made, and a draft link from a page opened before lands here too.
+	 *
+	 * @since 6.0.4
+	 * @return string
+	 */
+	function wp_easycart_admin_product_new_url() {
+		return admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=add-new' );
+	}
 }
 add_action( 'wp_ajax_ec_admin_ajax_product_details_delete_category', 'ec_admin_ajax_product_details_delete_category' );
 function ec_admin_ajax_product_details_delete_category() {
@@ -3873,16 +4326,14 @@ function ec_admin_ajax_validate_model_number() {
 		return false;
 	}
 
-	if ( wp_easycart_admin_products()->verify_model_number() ) {
+	/* '1' fine, '-1' another product uses it, '0' empty or characters a SKU can't hold ( 6.0.4: one rule with the save ). */
+	$problem = wp_easycart_admin_products()->model_number_problem();
+	if ( '' === $problem ) {
 		echo '1';
+	} else if ( 'duplicate' === $problem ) {
+		echo '-1';
 	} else {
-		global $wpdb;
-		$possible_match = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_product.model_number FROM ec_product WHERE ec_product.model_number = %s AND ec_product.product_id != %d', sanitize_text_field( wp_unslash( $_POST['model_number'] ) ), (int) $_POST['product_id'] ) );
-		if ( $possible_match ) {
-			echo '-1';
-		} else {
-			echo '0';
-		}
+		echo '0';
 	}
 	die();
 }
@@ -4230,7 +4681,7 @@ function ec_admin_ajax_ecv2_product_search() {
 	$per_page = 25;
 	$offset   = ( $page - 1 ) * $per_page;
 	$exclude  = isset( $_POST['exclude'] ) ? (int) $_POST['exclude'] : 0;
-	$where    = ' WHERE 1=1';
+	$where    = ' WHERE 1=1' . wp_easycart_product_draft_sql( 'ec_product' ); /* 6.0.4: never an unsaved new-product draft */
 	$args     = array();
 	if ( '' !== $q ) {
 		$like   = '%' . $wpdb->esc_like( $q ) . '%';
@@ -4361,3 +4812,149 @@ function ec_admin_ajax_save_product_settings_v2() {
 
 /* 6.0.1: 15-minute undo for a deleted product ( wp_easycart_admin_undo ). */
 add_filter( 'wp_easycart_admin_undo_restore_product', array( 'wp_easycart_admin_products', 'restore_products' ), 10, 2 );
+
+/*
+ * 6.0.4: the product editor's choices for each person ( user meta wp_easycart_product_editor ): the view ( page = every
+ * section on one page, focus = one section at a time ), the sections folded in the page view, whether the EasyCart menu
+ * is folded to icons on the editor screen, and whether the view switch's tip was dismissed.
+ */
+if ( ! function_exists( 'wp_easycart_admin_product_editor_prefs' ) ) {
+	/**
+	 * The product editor's choices for one person, with the defaults filled in.
+	 *
+	 * @since 6.0.4
+	 * @param int $user_id User id ( 0 = the current user ).
+	 * @return array view ( page | focus ), collapsed ( section key => bool, only keys the person changed ), menu ( mini | full ), tip ( bool ).
+	 */
+	function wp_easycart_admin_product_editor_prefs( $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : get_current_user_id();
+		$saved   = $user_id ? get_user_meta( $user_id, 'wp_easycart_product_editor', true ) : array();
+		$saved   = is_array( $saved ) ? $saved : array();
+		$prefs   = array(
+			'view'      => ( isset( $saved['view'] ) && 'focus' === $saved['view'] ) ? 'focus' : 'page',
+			'collapsed' => array(),
+			'menu'      => ( isset( $saved['menu'] ) && 'full' === $saved['menu'] ) ? 'full' : 'mini',
+			'tip'       => ! empty( $saved['tip'] ),
+		);
+		if ( isset( $saved['collapsed'] ) && is_array( $saved['collapsed'] ) ) {
+			foreach ( $saved['collapsed'] as $key => $on ) {
+				$key = sanitize_key( $key );
+				if ( '' !== $key ) {
+					$prefs['collapsed'][ $key ] = (bool) $on;
+				}
+			}
+		}
+		/**
+		 * The product editor's choices for one person ( 6.0.4 ).
+		 *
+		 * @since 6.0.4
+		 * @param array $prefs   view, collapsed, menu, tip.
+		 * @param int   $user_id The person.
+		 */
+		return apply_filters( 'wp_easycart_admin_product_editor_prefs', $prefs, $user_id );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_is_product_editor_screen' ) ) {
+	/**
+	 * Whether this request draws the product editor ( an existing product, the edit screen ).
+	 *
+	 * @since 6.0.4
+	 * @return bool
+	 */
+	function wp_easycart_admin_is_product_editor_screen() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- reads which screen is drawn, changes nothing.
+		$page    = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$subpage = isset( $_GET['subpage'] ) ? sanitize_key( wp_unslash( $_GET['subpage'] ) ) : 'products';
+		$action  = isset( $_GET['ec_admin_form_action'] ) ? sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ) : '';
+		$id      = isset( $_GET['product_id'] ) ? (int) $_GET['product_id'] : 0;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		return is_admin() && 'wp-easycart-products' === $page && 'products' === $subpage && 'edit' === $action && $id > 0;
+	}
+}
+
+/* The EasyCart menu folds to icons on the product editor screen unless the person opened it there ( D2 of the 6.0.4 editor plan ). */
+add_filter( 'wp_easycart_admin_frame_fold', 'wp_easycart_admin_product_editor_frame_fold' );
+if ( ! function_exists( 'wp_easycart_admin_product_editor_frame_fold' ) ) {
+	/**
+	 * The admin frame's foldable menu on the product editor screen.
+	 *
+	 * @since 6.0.4
+	 * @param array|false $fold From other screens ( false = this screen does not fold the menu ).
+	 * @return array|false folded ( bool ), action ( AJAX action the fold button posts menu = mini | full to ), nonce.
+	 */
+	function wp_easycart_admin_product_editor_frame_fold( $fold ) {
+		if ( ! wp_easycart_admin_is_product_editor_screen() || ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) ) {
+			return $fold;
+		}
+		$prefs = wp_easycart_admin_product_editor_prefs();
+		return array(
+			'folded' => 'mini' === $prefs['menu'],
+			'action' => 'ecv2_product_editor_prefs',
+			'nonce'  => wp_create_nonce( 'wp-easycart-ecv2-product-editor' ),
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_product_editor_guard' ) ) {
+	/**
+	 * Guard for the product editor's own AJAX ( 6.0.4 ): someone who edits products, and the editor's nonce.
+	 *
+	 * @since 6.0.4
+	 */
+	function ecv2_product_editor_guard() {
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
+		}
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wp-easycart-ecv2-product-editor' ) ) {
+			wp_send_json_error( array( 'message' => __( 'This page has expired. Reload it and try again.', 'wp-easycart' ) ) );
+		}
+	}
+}
+
+add_action( 'wp_ajax_ecv2_product_editor_prefs', 'ecv2_product_editor_prefs' );
+if ( ! function_exists( 'ecv2_product_editor_prefs' ) ) {
+	/**
+	 * Remember one of the product editor's choices for the current person: view ( page | focus ), menu ( mini | full ),
+	 * tip ( seen ), or a section folded or opened in the page view ( section + collapsed 1 | 0 ).
+	 *
+	 * @since 6.0.4
+	 */
+	function ecv2_product_editor_prefs() {
+		ecv2_product_editor_guard();
+		$user_id = get_current_user_id();
+		$saved   = get_user_meta( $user_id, 'wp_easycart_product_editor', true );
+		$saved   = is_array( $saved ) ? $saved : array();
+		if ( isset( $_POST['view'] ) ) {
+			$view = sanitize_key( wp_unslash( $_POST['view'] ) );
+			if ( in_array( $view, array( 'page', 'focus' ), true ) ) {
+				$saved['view'] = $view;
+			}
+		}
+		if ( isset( $_POST['menu'] ) ) {
+			$menu = sanitize_key( wp_unslash( $_POST['menu'] ) );
+			if ( in_array( $menu, array( 'mini', 'full' ), true ) ) {
+				$saved['menu'] = $menu;
+			}
+		}
+		if ( isset( $_POST['tip'] ) ) {
+			$saved['tip'] = 1;
+		}
+		if ( isset( $_POST['collapsed'] ) && ( isset( $_POST['section'] ) || isset( $_POST['sections'] ) ) ) {
+			/* One section, or several at once ( Fold all / Open all ). */
+			$sections = isset( $_POST['sections'] ) ? (array) wp_unslash( $_POST['sections'] ) : array( wp_unslash( $_POST['section'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each key goes through sanitize_key() below.
+			$folded   = '1' === sanitize_text_field( wp_unslash( $_POST['collapsed'] ) ) ? 1 : 0;
+			$collapsed = ( isset( $saved['collapsed'] ) && is_array( $saved['collapsed'] ) ) ? $saved['collapsed'] : array();
+			foreach ( array_slice( $sections, 0, 40 ) as $section ) {
+				$section = sanitize_key( is_scalar( $section ) ? (string) $section : '' );
+				if ( '' !== $section && strlen( $section ) <= 40 ) {
+					unset( $collapsed[ $section ] ); /* the newest choice goes last, so the 40 kept are the latest */
+					$collapsed[ $section ] = $folded;
+				}
+			}
+			$saved['collapsed'] = array_slice( $collapsed, -40, 40, true );
+		}
+		update_user_meta( $user_id, 'wp_easycart_product_editor', $saved );
+		wp_send_json_success( wp_easycart_admin_product_editor_prefs( $user_id ) );
+	}
+}

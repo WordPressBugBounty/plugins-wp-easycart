@@ -80,12 +80,18 @@ class wp_easycart_admin_upsell {
 		if ( '' !== $key ) {
 			$url .= '?transaction_key=' . rawurlencode( $key );
 		}
+		/* 6.0.4: a license on AutoPay renews itself ( no countdown ), and a missed payment is fixed in the WP EasyCart account. */
+		$auto  = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_auto_renew() );
+		$elite = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_elite() );
+		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+			$url = wp_easycart_admin_edition::renew_url();
+		}
 		$tone = 'ok';
 		if ( $days <= 0 ) {
 			$tone = 'lapsed';
-		} else if ( $days <= 7 ) {
+		} else if ( ! $auto && $days <= 7 ) {
 			$tone = 'critical';
-		} else if ( $days <= 30 ) {
+		} else if ( ! $auto && $days <= 30 ) {
 			$tone = 'soon';
 		}
 		return array(
@@ -93,9 +99,10 @@ class wp_easycart_admin_upsell {
 			'end'     => $end,
 			'end_fmt' => date_i18n( get_option( 'date_format' ), $end ),
 			'premium' => $prem,
-			'tone'    => $tone,
-			'url'     => $url,
-			'edition' => $prem ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ),
+			'tone'       => $tone,
+			'url'        => $url,
+			'edition'    => $elite ? __( 'Elite', 'wp-easycart' ) : ( $prem ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ) ),
+			'auto_renew' => $auto,
 		);
 	}
 
@@ -413,6 +420,7 @@ class wp_easycart_admin_upsell {
 					'sell'    => self::f( 'dashicons-cart', __( 'Sell in your store', 'wp-easycart' ), __( 'Customers buy a card; the recipient redeems it at checkout.', 'wp-easycart' ) ),
 					'balance' => self::f( 'dashicons-money-alt', __( 'Running balances', 'wp-easycart' ), __( 'Partial redemption across multiple orders.', 'wp-easycart' ) ),
 					'manual'  => self::f( 'dashicons-edit', __( 'Issue manually', 'wp-easycart' ), __( 'Store credit for refunds, prizes, or goodwill.', 'wp-easycart' ) ),
+					'square'  => array_merge( self::f( 'dashicons-store', __( 'Square gift cards', 'wp-easycart' ), __( 'Customers pay with the Square gift cards you sell at your register, and the gift cards you sell online work there too.', 'wp-easycart' ) ), array( 'min_version' => '6.0.4' ) ),
 				),
 			),
 			'abandoned_cart' => array(
@@ -637,6 +645,8 @@ class wp_easycart_admin_upsell {
 				'min_version' => '6.0.2',
 				'icon'        => 'dashicons-rss',
 				'features'    => array(
+					/* 6.0.4: the product editor's Google Shopping tab. */
+					'attributes' => self::f( 'dashicons-tag', __( 'Google attributes per product', 'wp-easycart' ), __( 'Google category, color, size, gender, age group and more for each product, so it shows up for the right searches.', 'wp-easycart' ) ),
 					'auto'     => self::f( 'dashicons-update', __( 'Updates by itself', 'wp-easycart' ), __( 'Rebuilt every night and within the hour after product or stock changes, so products never expire in Merchant Center.', 'wp-easycart' ) ),
 					'match'    => self::f( 'dashicons-yes-alt', __( 'Matches your product pages', 'wp-easycart' ), __( 'Built from the same data as the page, so Google never finds a different price and disapproves the product.', 'wp-easycart' ) ),
 					'variants' => self::f( 'dashicons-randomize', __( 'Every variant listed', 'wp-easycart' ), __( 'Each size and color with its own price, stock, image and a link that opens it already chosen.', 'wp-easycart' ) ),

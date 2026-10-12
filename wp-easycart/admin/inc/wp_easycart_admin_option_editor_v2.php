@@ -620,7 +620,7 @@ function ecv2_option_assign_search() {
 		wp_send_json_error( array( 'message' => wp_easycart_admin_option_editor_v2::lock_message(), 'code' => 'pro_required' ) );
 	}
 	$limit = wp_easycart_admin_option_editor_v2::is_pro() ? 5 : (int) apply_filters( 'wp_easycart_admin_free_option_set_limit', 2 );
-	$where = $wpdb->prepare( 'WHERE NOT ( p.option_id_1 = %d OR p.option_id_2 = %d OR p.option_id_3 = %d OR p.option_id_4 = %d OR p.option_id_5 = %d ) AND NOT EXISTS ( SELECT 1 FROM ec_option_to_product otp WHERE otp.product_id = p.product_id AND otp.option_id = %d )', $option_id, $option_id, $option_id, $option_id, $option_id, $option_id );
+	$where = $wpdb->prepare( 'WHERE NOT ( p.option_id_1 = %d OR p.option_id_2 = %d OR p.option_id_3 = %d OR p.option_id_4 = %d OR p.option_id_5 = %d ) AND NOT EXISTS ( SELECT 1 FROM ec_option_to_product otp WHERE otp.product_id = p.product_id AND otp.option_id = %d )', $option_id, $option_id, $option_id, $option_id, $option_id, $option_id ) . wp_easycart_product_draft_sql( 'p' ); /* 6.0.4: never an unsaved new-product draft */
 	if ( '' !== $q ) { $where .= $wpdb->prepare( ' AND ( p.title LIKE %s OR p.model_number LIKE %s )', '%' . $wpdb->esc_like( $q ) . '%', '%' . $wpdb->esc_like( $q ) . '%' ); }
 	if ( $cat ) { $where .= $wpdb->prepare( ' AND EXISTS ( SELECT 1 FROM ec_categoryitem ci WHERE ci.product_id = p.product_id AND ci.category_id = %d )', $cat ); }
 	// 6.0.2: a product whose option sets or variants its managing service owns ( e.g. a fulfillment partner ) is left out:

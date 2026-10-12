@@ -16,11 +16,12 @@ $ecre_license = function_exists( 'wp_easycart_admin_license' ) ? wp_easycart_adm
 $ecre_info    = get_option( 'wp_easycart_license_info' );
 $ecre_key     = ( is_array( $ecre_info ) && isset( $ecre_info['transaction_key'] ) ) ? $ecre_info['transaction_key'] : '';
 $ecre_email   = ( is_array( $ecre_info ) && isset( $ecre_info['customer_email'] ) ) ? $ecre_info['customer_email'] : '';
-$ecre_premium = ( $ecre_license && isset( $ecre_license->model_number ) && 'ec410' === strtolower( trim( (string) $ecre_license->model_number ) ) );
-$ecre_plan    = $ecre_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' );
+/* 6.0.4: Premium and Elite AutoPay keys ( ec61x / ec62x ) are Premium too, not only ec410. */
+$ecre_premium = ( $ecre_license && isset( $ecre_license->model_number ) && wp_easycart_admin_edition::is_premium_model( $ecre_license->model_number ) );
+$ecre_plan    = ( $ecre_premium && 'elite' === wp_easycart_admin_edition::model_edition( $ecre_license->model_number ) ) ? __( 'Elite', 'wp-easycart' ) : ( $ecre_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ) );
 $ecre_end_ts  =( $ecre_license && ! empty( $ecre_license->support_end_date ) ) ? strtotime( $ecre_license->support_end_date ) : 0;
 $ecre_renew   = '' !== $ecre_key
-	? ( $ecre_premium ? 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecre_key ) : 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . rawurlencode( $ecre_key ) )
+	? wp_easycart_admin_edition::renew_url() /* 6.0.4: the account for AutoPay, the pricing page for Elite, else the Pro or Premium renewal */
 	: 'https://www.wpeasycart.com/my-account/';
 $ecre_activate = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=activateregistration' );
 $ecre_deact    = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=deactivateregistration' );
@@ -75,6 +76,8 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 			<h3><?php esc_html_e( 'Use a different key', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Bought a new license instead? Enter it here and it replaces the expired one on this site.', 'wp-easycart' ); ?></p>
 			<form action="<?php echo esc_url( $ecre_activate ); ?>" method="POST" id="wpeasycart_admin_form1" class="ecreg-form" novalidate="novalidate">
+				<?php /* 6.0.4: WP EasyCart PRO 6.0.2+ refuses a license form without it ( "That form had expired" ). */ ?>
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f"><label for="customername"><?php esc_html_e( 'Full name', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input" name="customername" id="customername" required="required" autocomplete="name" /></div>
 				<div class="ecreg-f"><label for="customeremail"><?php esc_html_e( 'Email address', 'wp-easycart' ); ?></label><input type="email" class="ecv2-input" name="customeremail" id="customeremail" required="required" autocomplete="email" value="<?php echo esc_attr( $ecre_email ); ?>" /></div>
 				<div class="ecreg-f"><label for="transactionkey"><?php esc_html_e( 'License key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey" required="required" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" /></div>
@@ -93,6 +96,7 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 			</dl>
 			<p class="ecreg-path-fine"><?php esc_html_e( 'Prefer the free edition? Deactivate the key here so it can be used elsewhere, or simply leave it — the store keeps running either way.', 'wp-easycart' ); ?></p>
 			<form action="<?php echo esc_url( $ecre_deact ); ?>" method="POST" id="wpeasycart_admin_form2" class="ecreg-form" novalidate="novalidate" onsubmit="return window.confirm( <?php echo wp_json_encode( __( 'Deactivate the license on this site?', 'wp-easycart' ) ); ?> );">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f"><label for="transactionkey_deact"><?php esc_html_e( 'Confirm the license key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey_deact" required="required" autocomplete="off" spellcheck="false" /></div>
 				<button type="submit" class="ecv2-btn ecv2-btn-sm ecreg-danger"><?php esc_html_e( 'Deactivate on this site', 'wp-easycart' ); ?></button>
 			</form>

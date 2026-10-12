@@ -789,3 +789,40 @@ body.ecsh-video-open { overflow:hidden; }
 @supports not (aspect-ratio: 16 / 9) {
 	.ecsh-video-frame { height:0; padding-top:56.25%; }
 }
+
+/* =========================================================
+   6.0.4: the EasyCart menu folded to icons. A screen that wants the room asks for it ( filter
+   wp_easycart_admin_frame_fold; the product editor does ), the fold button at the foot of the menu
+   switches it, and the choice is kept for that screen. Desktop only: phones keep the drawer.
+   ========================================================= */
+.ecsh-sb-fold { display:flex; align-items:center; gap:8px; width:100%; margin:0 0 10px; padding:7px 10px; border:1px solid rgba(255,255,255,.18); border-radius:var(--ecsh-r); background:transparent; color:var(--sb-item); font-size:12px; font-weight:600; text-align:left; transition:background var(--ecsh-tr), color var(--ecsh-tr); }
+.ecsh-sb-fold:hover { background:var(--sb-item-hover-bg); color:var(--ec-on-brand); }
+.ecsh-sb-fold svg { width:15px; height:15px; flex-shrink:0; transition:transform var(--ecsh-tr); }
+@media (min-width:783px){
+	.ecsh-app.ecsh-sb-mini { --ecsh-sidebar-w:64px; }
+	.ecsh-sb-mini .ecsh-sidebar { overflow-x:hidden; }
+	.ecsh-sb-mini .ecsh-brand,
+	.ecsh-sb-mini .ecsh-sb-sales,
+	.ecsh-sb-mini .ecsh-sb-sub,
+	.ecsh-sb-mini .ecsh-sb-chev,
+	.ecsh-sb-mini .ecsh-sb-item .ecsh-badge,
+	.ecsh-sb-mini .ecsh-sb-item .dashicons-lock,
+	.ecsh-sb-mini .ecsh-sb-trial,
+	.ecsh-sb-mini .ecsh-sb-renew,
+	.ecsh-sb-mini .ecsh-sb-powered,
+	.ecsh-sb-mini .ecsh-sb-fold-text { display:none; }
+	/* Anything else in the menu ( a submenu, an extension's promotion card ) waits for the full menu. */
+	.ecsh-sb-mini .ecsh-sidebar > :not(.ecsh-sb-store):not(.ecsh-sb-nav):not(.ecsh-sb-foot),
+	.ecsh-sb-mini .ecsh-sb-nav > :not(.ecsh-sb-item) { display:none; }
+	.ecsh-sb-mini .ecsh-sb-store { margin:12px 10px; padding:9px 0; gap:0; font-size:0; }
+	.ecsh-sb-mini .ecsh-sb-store svg { width:16px; height:16px; }
+	.ecsh-sb-mini .ecsh-sb-nav { padding:2px 8px 12px; }
+	.ecsh-sb-mini .ecsh-sb-item > a { justify-content:center; gap:0; padding:10px 0; font-size:0; }
+	.ecsh-sb-mini .ecsh-sb-item svg.ecsh-ico { width:19px; height:19px; }
+	.ecsh-sb-mini .ecsh-sb-item.ecsh-active::before { left:-8px; }
+	.ecsh-sb-mini .ecsh-sb-foot { padding:10px 8px 14px; }
+	.ecsh-sb-mini .ecsh-sb-fold { justify-content:center; margin:0; padding:8px 0; }
+	.ecsh-sb-mini .ecsh-sb-fold svg { transform:rotate(180deg); }
+}
+@media (max-width:782px){ .ecsh-sb-fold { display:none; } }
+@media (prefers-reduced-motion:reduce){ .ecsh-sb-fold svg { transition:none; } }

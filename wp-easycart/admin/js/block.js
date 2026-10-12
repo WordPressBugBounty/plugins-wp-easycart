@@ -23,7 +23,11 @@ jQuery( document ).ready( function( ){
 		  { value: 'ec_cartdisplay', label: wp_easycart_admin_block_language['cart-display'] },
 		  { value: 'ec_membership', label: wp_easycart_admin_block_language['membership-content'] },
 		  /* 6.0.3: a WP EasyCart PRO plan group's pricing table */
-		  { value: 'ec_plan_table', label: wp_easycart_admin_block_language['plan-table'] || 'Pricing table' }
+		  { value: 'ec_plan_table', label: wp_easycart_admin_block_language['plan-table'] || 'Pricing table' },
+		  /* 6.0.4: the EU withdrawal page, its button alone ( footers, menus ) and the guest order lookup */
+		  { value: 'ec_withdrawal', label: wp_easycart_admin_block_language['withdrawal'] || 'Withdrawal page' },
+		  { value: 'ec_withdrawal_button', label: wp_easycart_admin_block_language['withdrawal-button'] || 'Withdrawal button' },
+		  { value: 'ec_order_lookup', label: wp_easycart_admin_block_language['order-lookup'] || 'Find your order' }
 		];
 		var WPEasyCartPlanTables = [ { value: '', label: wp_easycart_admin_block_language['plan-table-choose'] || 'Choose a plan group' } ].concat( ( typeof wp_easycart_plan_tables !== 'undefined' && wp_easycart_plan_tables ) ? wp_easycart_plan_tables : [] );
 		var WPEasyCartTableColumns = [

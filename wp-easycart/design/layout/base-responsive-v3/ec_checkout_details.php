@@ -381,8 +381,8 @@
 
 		<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
 		<div class="ec_cart_input_row">
-			<input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
-			<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?>
+			<label class="ec_cart_check_label" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+			<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 		</div>
 		<?php }?>
 
@@ -391,8 +391,8 @@
 			<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
 		</div>
 		<div class="ec_cart_input_row">
-			<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" />
-			<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?>
+			<label class="ec_cart_check_label" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" />
+			<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?></span></label>
 		</div>
 		<?php }?>
 

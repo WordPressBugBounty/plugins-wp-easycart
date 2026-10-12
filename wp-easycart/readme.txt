@@ -4,7 +4,7 @@ Tags: shopping cart, store, e-commerce, paypal, square
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 6.0.3
+Stable tag: 6.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,7 +56,7 @@ It suits online shops that ship, restaurants, cafés and bakeries taking pickup 
 
 * No WP EasyCart fee on your sales, and 30+ more payment gateways.
 * One-page checkout, your own checkout questions, and gift orders.
-* Subscriptions, digital downloads and gift cards.
+* Subscriptions, digital downloads and gift cards, including Square gift cards that work at your register too.
 * Live shipping rates from UPS, FedEx, USPS, DHL, Canada Post and Australia Post, Royal Mail prices for UK shops, plus store schedules and pickup locations.
 * Automatic sales tax from TaxCloud or TaxJar.
 * Coupons, promotions and abandoned cart emails.
@@ -103,7 +103,7 @@ Yes. Start a 14-day free trial of Pro from WP EasyCart › Registration. No card
 
 = How do licenses work? =
 
-A Pro or Premium license covers one website and includes 12 months of updates and support. Licenses never renew on their own; renew from your account at wpeasycart.com whenever you choose. You can move a license from a development site to your live site.
+A Pro or Premium license covers one website and includes 12 months of updates and support. Licenses never renew on their own; renew from your account at wpeasycart.com whenever you choose. It also runs on up to 3 development copies of your store, such as localhost or a staging site, while your live store keeps it, and you can move a license to a new live site.
 
 = Will it work with my theme? =
 
@@ -124,6 +124,10 @@ Yes, with the Facebook & Instagram extension that comes with Premium. It keeps y
 = Does WP EasyCart help with privacy laws such as GDPR? =
 
 Yes. It works with the leading cookie banners and Google Consent Mode, so tracking waits for each shopper's consent, and your customers are included in WordPress's personal data export and erase tools.
+
+= Can I manage WP EasyCart with WP-CLI? =
+
+Yes. `wp easycart info` shows the version, whether the database is up to date and your plan, and `wp easycart db upgrade` finishes a database update after you update from the command line with `wp plugin update`. Run `wp help easycart` for every option.
 
 = Where can I get help? =
 
@@ -165,6 +169,71 @@ WP EasyCart connects to these services only when you use the feature that needs 
 * **Amazon S3** serves download files you choose to store there.
 
 == Changelog ==
+= 6.0.4 =
+* New Feature - Your license also runs on up to 3 development copies, such as localhost or a staging site, beside your live store: enter the key on the copy and the live store keeps its license, and see or remove the copies on the Registration page.
+* New Feature - EU withdrawal button, as EU law requires since 19 June 2026: shoppers withdraw from an order online with a "Withdraw from contract here" button, a short form and a confirm step, and get an emailed receipt, while you get an email and the order is flagged for you; products can be marked as having no right of withdrawal, and guests can find their order with its number and email.
+* New Feature - Square gift cards: customers pay with the Square gift cards you sell at your register by typing the card number in the gift card box, with the rest paid by card through Square, and the gift cards you sell online can be Square gift cards that work at your register too.
+* New Feature - WP-CLI commands: check your store with wp easycart info, and finish database updates from the command line with wp easycart db upgrade.
+* Improvement - Limit an offer to customer roles, such as Wholesale, so coupons and promotions can be just for your trade customers, and their badges show only to those customers.
+* Improvement - Try your live store with Stripe test cards: customer accounts set to Stripe test mode check out with your Stripe test keys while everyone else pays live, the payment step tells them so, their orders are marked as test payments and refund in test mode, and Settings › Payments and Diagnostics show which mode Stripe is in.
+* Improvement - Stripe with your own API keys keeps your live keys and test keys side by side, with a choice of which ones the store takes payments with, and a signing secret for Stripe's test-mode notifications.
+* Improvement - Pages load faster, most of all on stores with several languages: only the language a page shows is read, and Site Health no longer warns that autoloaded options could affect performance.
+* Improvement - Stores with an object cache such as Redis or Memcached stay fast while shoppers buy: adding to the cart and checking out no longer empty the whole site's cache.
+* Improvement - The one-page checkout's cart has a modern look on every theme: quantity buttons, each offer's saving and an estimated total under the subtotal, a clear Checkout button, and an outline of the cart while it loads; its order summary lets shoppers change quantities with + and - buttons and remove items without leaving the checkout.
+* Improvement - When a quantity can't go higher or lower, the cart tells the shopper why, right at the item: only so many in stock ( counting the same item with other options already in the cart ), the item's purchase limit or its minimum, on the cart page, the one-page checkout's cart and its order summary.
+* Improvement - On both checkouts, a click anywhere on the terms or newsletter wording ticks the box, and a click anywhere on a payment choice chooses it.
+* Improvement - A new order confirmation page: the thank-you card, the items with their pictures and the order's totals, the order's details and addresses, and how to pay a bank transfer order with its Pay now link; each order in My Account has the same modern look.
+* Improvement - A modern My Account: one menu beside every page ( a row of tabs on phones ), breadcrumbs back to the orders and the dashboard, orders listed as cards with their pictures and status, a cleaner dashboard, and new sign in, create account, password and address forms; a guest's order link shows just the order.
+* Improvement - The one-page checkout and My Account show what they are doing while they load, sign a customer in or out, save or change screens, and say so when a slow server takes longer than usual.
+* Improvement - The gateway log keeps short, readable entries when the store renews its connection to Square, PayPal or a shipping carrier, and Square and Stripe connect through WP EasyCart Connect's newer services.
+* Improvement - The product editor shows a product on one page, with a list to jump between its sections, or one section at a time if you prefer; a summary column keeps its status, type, shipping, tax, categories, manufacturer, listing health and storefront card in view ( on phones and narrow screens it slides in from a Summary button ), with a clear note when a product does not ship, previous and next move through your product list, sections follow the job with clearer names, shipping, weight, size and customs sit together in one Shipping section, the description, short description and specifications share one card with tabs, one product type choice shows only the sections that type uses, every change waits for Save with a Discard button, and adding a product can now pick its categories.
+* Improvement - Product variations are edited in one table with their own SKU, price, stock, weight and cost: tick rows to set many at once, raise prices by an amount or a percent, build SKUs from a pattern, copy a value down the list and save everything with the product's Save, and make option sets such as "Size: S, M, L" right on the product.
+* Improvement - Filter the products list by product type, such as physical products, services, downloads, subscriptions or gift cards.
+* Improvement - At checkout the card form takes its ZIP / postal code from the billing address instead of asking for it again, so the two always match: Stripe uses the billing address, and Square fills it in and asks the shopper to correct a different one.
+* Improvement - Danish, German, Spanish, French and Italian translations cover everything new in this release.
+* Bug Fix - Checkout buttons keep your store's colours on themes that style every button, so Place order and the cart's Checkout button are easy to see again.
+* Bug Fix - On the one-page checkout, changing a quantity or a coupon updates the subtotal and the price of each shipping choice straight away, the shipping choices always match the address last typed, and Edit Cart opens the cart again instead of spinning.
+* Bug Fix - On the one-page checkout, shoppers who create an account ( a download in the cart, or guest checkout off ) can place their order instead of being told their session expired, and names and addresses with an apostrophe, such as O'Neil, are saved without an extra backslash.
+* Bug Fix - A customer who creates an account on the one-page checkout keeps the address from their first order as the account's billing and shipping address, as the stepped checkout always did.
+* Bug Fix - Products with shipping turned off no longer bring up shipping choices at checkout.
+* Bug Fix - A Stripe payment always becomes an order, even when the checkout page loses track of it ( a dropped connection, a phone that went to sleep, a closed tab ), and shoppers are never asked to pay a second time.
+* Bug Fix - Apple Pay through Stripe opens its payment sheet again on both checkouts and on pay links, instead of staying on "Your payment is processing".
+* Bug Fix - Orders paid with Apple Pay or Google Pay through Stripe keep the card's own billing state or province instead of taking the shipping address's.
+* Bug Fix - Square and PayPal payments make one order each, even when the shopper presses pay twice or the connection retries, and NMI card payments with 3-D Secure no longer leave an extra unpaid order.
+* Bug Fix - Names and addresses with an apostrophe, such as O'Neil, are saved without an extra backslash when shoppers pay with Apple Pay, Google Pay or Square, subscribe, create or update their account, or join the newsletter, and an email address with an apostrophe can join the newsletter.
+* Bug Fix - Checkout protection no longer refuses real shoppers on stores that use an object cache such as Redis or Memcached, where they were told to reload the page and could not pay.
+* Bug Fix - On stores that use an object cache such as Redis or Memcached, a category switched on or off, featured, renamed or moved shows on the store straight away instead of the store keeping the old categories.
+* Bug Fix - A page limited to users, roles or products with WP EasyCart Limit Access but no redirect address set opens for everyone again, as before 6.0.2, instead of sending visitors to the home page.
+* Bug Fix - A customer account set to Stripe test mode no longer puts admin screens in test mode, and works on stores that use their own Stripe keys.
+* Bug Fix - Connecting Stripe from the setup wizard keeps the connection instead of coming back without it.
+* Bug Fix - A declined card on the payment step no longer leaves "Your payment is processing" over the page.
+* Bug Fix - Checkout fields look the same on every theme: readable labels and fields, dropdown arrows, a visible outline on the field you are in, and no zooming in on phones.
+* Bug Fix - Products added from a CSV import keep the formatting in their descriptions and specifications, link to their own product page and get their pickup locations, and Diagnostics links products an earlier import tied to a menu item, page or image back to their own pages without changing anything else.
+* Bug Fix - Bulk editing customers to add a tag no longer says "No changes selected" when the tag was added.
+* Bug Fix - Refunding a Square order shows Square's own reason when Square refuses it, and a lost connection to Square during a refund or a checkout is reported instead of stopping with an error.
+* Bug Fix - Items put back in stock after a refund or a cancelled order go back into your Square inventory too, and items sold through a pay link or an order marked as paid come off it.
+* Bug Fix - A store testing Square in its sandbox can connect its live Square account from Square's settings, and switch between the two once both are connected.
+* Bug Fix - Square payments work on stores whose Square settings were saved with "Your default Square location", where every card payment stopped with "An unexpected error occurred while verifying buyer".
+* Bug Fix - The Your Downloads list in My Account shows each download with its own name and link, the downloads used ( counted up as the customer clicks ) and when it expires, and its heading follows your store's language.
+* Bug Fix - On right-to-left stores the cart page no longer zooms out on phones, and pages with the store menu widget or a product inquiry form no longer scroll sideways.
+* Bug Fix - A license key entered on the Registration page during a Pro trial, or after support and updates have expired, activates again instead of saying the form had expired.
+* Bug Fix - The cart's totals after a change now always match the cart page, so free shipping promotions and a shipping estimate's VAT and fees count straight away, and a coupon larger than the cart no longer leaves shipping tax in the card payment.
+* Bug Fix - Bank transfer and check orders are reported as paid to analytics, email marketing, affiliate and other connected services once you mark them paid, not when they are placed, and only once.
+* Bug Fix - Updating from the command line updates the database tables without anyone opening wp-admin, and the database check on Store Status finds missing columns on Windows servers too.
+* Bug Fix - Products made with Add New are shippable again when the panel hides the shipping fields, and saving a product with a SKU another product already uses says so under the SKU field instead of "Product saved." without saving.
+* Bug Fix - Quick edit and bulk edit leave the stock of products tracked per variation to their variations instead of overwriting it, quick edit keeps the product page's title and status in step, and the products list's spreadsheet view saves weight.
+* Bug Fix - Text typed in Code mode in a product's description, specifications or notes is saved even when you open another section before saving.
+* Bug Fix - Duplicate Product in the product editor works again, and a duplicated product keeps each variation's SKU, price, weight, cost, picture and settings.
+* Bug Fix - Without an active license, the product editor no longer offers modifier and variation tools that could not save.
+* Bug Fix - Order exports include the coupon codes customers entered for offers, and show which promotions each order and each item got and how much every code and promotion took off.
+* Bug Fix - Customers who open a pay link in a new browser, such as from an invoice email, can pay on the first try instead of being asked to reload the page.
+* Bug Fix - Duplicate on a subcategory in the categories list makes the copy instead of opening a blank page that shows "0".
+* Bug Fix - Premium licenses that renew automatically unlock every Premium feature and extension, and a license that renews automatically shows when it renews instead of asking you to renew.
+* Bug Fix - The products list's Stock, Price Range and Completeness filters now work when WordPress is in another language, such as German, French or Spanish.
+* Bug Fix - German receipts, invoices and refund emails end with "Herzlichen Dank!" instead of sample bank transfer details, and the guest checkout messages in French, Spanish, Greek and Dutch read correctly again.
+* Bug Fix - A gift card with nothing left on it says it has been used up, instead of being accepted with nothing taken off or called not valid.
+* Bug Fix - Product pages, the cart and the offer's cart tester agree on the offers a customer gets: an offer set to win alone, such as a wholesale discount, wins over offers that run before it when it saves the customer more, product pages show only the offers that customer gets and the price they pay, and the tester lists every offer in the cart at that customer's own price, with or without VAT, and says why another one does not apply.
+
 = 6.0.3 =
 * New Feature - Import your store from WooCommerce or Square ( Products › Import ): products with their variations, categories, brands, pictures, stock and reviews, ten products to try first, a report of everything that came across, a one-click undo, and old WooCommerce addresses that keep working.
 * New Feature - Sell subscriptions from a pricing table on any page or in Elementor: up to four plans, each sold monthly and yearly, as cards or a compare table, with a monthly / yearly switch, the yearly saving shown, a list of what each plan includes and any free trial, and an offer to switch to yearly for monthly subscribers, and the choice to let customers buy more than one, for licenses or seats.

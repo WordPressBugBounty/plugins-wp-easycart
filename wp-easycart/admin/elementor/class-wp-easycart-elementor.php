@@ -172,10 +172,11 @@ class WP_EasyCart_Elementor {
 
 	/**
 	 * Version of the widgets' asset lists ( 6.0.2-r11: bug round 11 added WP EasyCart Tabs' files to Product Tabs and changed
-	 * control selectors ). Raise it in a release that changes what widgets list in get_script_depends() /
+	 * control selectors; 6.0.4-check-labels: the Checkout widget's field labels leave the terms / newsletter words alone ). Raise it in a
+	 * release that changes a control's selector or what widgets list in get_script_depends() /
 	 * get_style_depends(): Elementor keeps those per page ( _elementor_page_assets ) and the next admin visit clears its cache.
 	 */
-	const ASSETS_VERSION = '6.0.2-r11';
+	const ASSETS_VERSION = '6.0.4-check-labels';
 
 	/**
 	 * Elementor keeps each page's widget scripts and styles in post meta ( _elementor_page_assets ) and its CSS files; the

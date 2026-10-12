@@ -81,6 +81,8 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 			<h3><?php esc_html_e( 'Already bought a license?', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Enter the key from your purchase email. It replaces the trial on this site immediately.', 'wp-easycart' ); ?></p>
 			<form action="<?php echo esc_url( $ectr_activate ); ?>" method="POST" name="wpeasycart_admin_form" id="wpeasycart_admin_form1" class="ecreg-form" novalidate="novalidate">
+				<?php /* 6.0.4: WP EasyCart PRO 6.0.2+ refuses a license form without it ( "That form had expired" ); the trial and expired screens never sent it. */ ?>
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f">
 					<label for="customername"><?php esc_html_e( 'Full name', 'wp-easycart' ); ?></label>
 					<input type="text" class="ecv2-input" name="customername" id="customername" required="required" autocomplete="name" />
@@ -108,6 +110,7 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 			</dl>
 			<?php if ( ! $ectr_ended ) : ?>
 			<form action="<?php echo esc_url( $ectr_email_act ); ?>" method="POST" name="wpeasycart_admin_form" class="ecreg-form" novalidate="novalidate">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f">
 					<label for="customeremail"><?php esc_html_e( 'Trial email', 'wp-easycart' ); ?> <span class="ecreg-fine"><?php esc_html_e( 'where your upgrade receipt goes', 'wp-easycart' ); ?></span></label>
 					<div class="ecreg-inline">

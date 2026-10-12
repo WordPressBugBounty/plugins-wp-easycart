@@ -109,8 +109,22 @@ if ( ! class_exists( 'wp_easycart_product_writer' ) ) :
 			if ( null === $model_number ) {
 				$model_number = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 			}
+			/* 6.0.4: a new product's draft is not a product yet; its first Save announces it as added ( wp_easycart_product_drafts ). */
+			if ( class_exists( 'wp_easycart_product_drafts' ) && wp_easycart_product_drafts::is_mark( $model_number ) ) {
+				return false;
+			}
 			do_action( 'wpeasycart_product_updated', $product_id, $model_number );
 			return true;
+		}
+
+		/**
+		 * 6.0.4: no wpeasycart_product_updated for this product in this request ( a draft's first Save, which announces it
+		 * as added instead ).
+		 *
+		 * @param int $product_id Product.
+		 */
+		public static function hold_updated( $product_id ) {
+			self::$updated[ (int) $product_id ] = true;
 		}
 
 		/**
@@ -146,12 +160,14 @@ if ( ! class_exists( 'wp_easycart_product_writer' ) ) :
 					clean_post_cache( (int) $row->post_id );
 				}
 			}
-			wp_cache_delete( 'wpeasycart-product-categories-' . $product_id, 'wpeasycart-categories' );
+			/* 6.0.4: the product's categories are kept under the category cache generation ( the category tree holds nothing of a
+			 * product: a category's own changes forget it, wp_easycart_cache::categories_changed() ). */
+			if ( method_exists( 'ec_db', 'category_cache_key' ) ) {
+				wp_cache_delete( ec_db::category_cache_key( 'wpeasycart-product-categories-' . $product_id ), 'wpeasycart-categories' );
+			}
 			wp_cache_delete( 'wpeascyart-optionitem-images-' . $product_id, 'wpeasycart-optionitems' );
 			wp_cache_delete( 'wpeasycart-get-advanced-option-sets-' . $product_id, 'wpeasycart-advanced-options-list' );
 			wp_cache_delete( 'wpeasycart-menu-by-product-' . $product_id, 'wpeasycart-menu' );
-			wp_cache_delete( 'wpeasycart-all-categories', 'wpeasycart-categories' );
-			wp_cache_delete( 'wpeasycart-all-categories' );
 			wp_cache_delete( 'wpeasycart-optionset-optionitems-all', 'wpeasycart-options' );
 			if ( $row ) {
 				for ( $slot = 1; $slot <= 5; $slot++ ) {
@@ -592,6 +608,126 @@ if ( ! class_exists( 'wp_easycart_product_writer' ) ) :
 		}
 
 		/**
+		 * Make one option set that belongs to the product ( 6.0.4: the product editor's "Size: S, M, L" ), without touching
+		 * the product's slots, its other sets or its variants: the caller puts it in a slot ( WP EasyCart PRO's option sets
+		 * card does, after its usual confirm, through its own save ). Choices are kept in the order given; repeats ( ignoring
+		 * case ) are left out.
+		 *
+		 * @since 6.0.4
+		 * @param int   $product_id Product.
+		 * @param array $set        name, label ( default the name ), type ( basic-combo | basic-swatch, default basic-combo ),
+		 *                          items => list of names, or of array( name, price, weight, model_number ).
+		 * @return array|WP_Error array( 'option_id' => int, 'name' => string, 'items' => list of array( id, name ) ).
+		 */
+		public static function add_owned_set( $product_id, $set ) {
+			global $wpdb;
+			$product_id = (int) $product_id;
+			if ( ! self::ready() ) {
+				return new WP_Error( 'wp_easycart_update_database', __( 'The WP EasyCart database update has not run yet.', 'wp-easycart' ) );
+			}
+			if ( $product_id <= 0 || ! $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE product_id = %d', $product_id ) ) ) {
+				return new WP_Error( 'wp_easycart_product', __( 'Product not found.', 'wp-easycart' ) );
+			}
+			$set  = (array) $set;
+			$name = isset( $set['name'] ) ? trim( sanitize_text_field( (string) $set['name'] ) ) : '';
+			if ( '' === $name ) {
+				return new WP_Error( 'wp_easycart_option_name', __( 'Every option set needs a name.', 'wp-easycart' ) );
+			}
+			$items = array();
+			$seen  = array();
+			foreach ( isset( $set['items'] ) ? (array) $set['items'] : array() as $item ) {
+				$item      = is_array( $item ) ? $item : array( 'name' => $item );
+				$item_name = isset( $item['name'] ) ? trim( sanitize_text_field( (string) $item['name'] ) ) : '';
+				$lower     = function_exists( 'mb_strtolower' ) ? mb_strtolower( $item_name ) : strtolower( $item_name );
+				if ( '' === $item_name || isset( $seen[ $lower ] ) ) {
+					continue;
+				}
+				$seen[ $lower ] = true;
+				$items[]        = array(
+					'key'          => $item_name,
+					'stored_key'   => self::stored_key( $item_name ),
+					'name'         => $item_name,
+					'swatch'       => null,
+					'price'        => isset( $item['price'] ) ? (float) $item['price'] : 0,
+					'weight'       => isset( $item['weight'] ) ? (float) $item['weight'] : 0,
+					'model_number' => isset( $item['model_number'] ) ? preg_replace( '/[^A-Za-z0-9\-_]/', '', (string) $item['model_number'] ) : '',
+				);
+			}
+			if ( empty( $items ) ) {
+				/* translators: %s: option set name. */
+				return new WP_Error( 'wp_easycart_option_items', sprintf( __( 'The option set %s has no choices.', 'wp-easycart' ), $name ) );
+			}
+			$wpdb->insert(
+				'ec_option',
+				array(
+					'option_name'      => substr( $name, 0, 128 ),
+					'option_label'     => ( isset( $set['label'] ) && '' !== trim( (string) $set['label'] ) ) ? sanitize_text_field( (string) $set['label'] ) : $name,
+					'option_type'      => ( isset( $set['type'] ) && 'basic-swatch' === $set['type'] ) ? 'basic-swatch' : 'basic-combo',
+					'option_required'  => 1,
+					'option_meta'      => maybe_serialize(
+						array(
+							'min'         => '',
+							'max'         => '',
+							'min_length'  => '',
+							'max_length'  => '',
+							'step'        => '',
+							'url_var'     => '',
+							'swatch_size' => 30,
+						)
+					),
+					'owner_product_id' => $product_id,
+				)
+			);
+			$option_id = (int) $wpdb->insert_id;
+			if ( ! $option_id ) {
+				return new WP_Error( 'wp_easycart_option_insert', __( 'The option set could not be saved.', 'wp-easycart' ) );
+			}
+			$map = self::save_items( $product_id, $option_id, $items );
+			$out = array();
+			foreach ( $items as $item ) {
+				if ( isset( $map[ $item['key'] ] ) ) {
+					$out[] = array(
+						'id'   => (int) $map[ $item['key'] ],
+						'name' => $item['name'],
+					);
+					do_action( 'wp_easycart_optionitem_created', (int) $map[ $item['key'] ], $option_id );
+				}
+			}
+			do_action( 'wp_easycart_optionset_created', $option_id );
+			return array(
+				'option_id' => $option_id,
+				'name'      => substr( $name, 0, 128 ),
+				'items'     => $out,
+			);
+		}
+
+		/**
+		 * Put a product's own option set into the shared option set library ( 6.0.4, "Save to library" ): every product can
+		 * pick it from then on, and it is no longer deleted or copied with the product.
+		 *
+		 * @since 6.0.4
+		 * @param int $option_id  Option set.
+		 * @param int $product_id The product that owns it ( 0: whichever does ).
+		 * @return true|WP_Error WP_Error when the set is not a product's own ( already shared, or another product's ).
+		 */
+		public static function share_set( $option_id, $product_id = 0 ) {
+			global $wpdb;
+			$option_id = (int) $option_id;
+			if ( ! self::ready() ) {
+				return new WP_Error( 'wp_easycart_update_database', __( 'The WP EasyCart database update has not run yet.', 'wp-easycart' ) );
+			}
+			$owner = $wpdb->get_var( $wpdb->prepare( 'SELECT owner_product_id FROM ec_option WHERE option_id = %d', $option_id ) );
+			if ( null === $owner || (int) $owner <= 0 || ( (int) $product_id > 0 && (int) $owner !== (int) $product_id ) ) {
+				return new WP_Error( 'wp_easycart_option_owner', __( 'That option set is not this product’s own.', 'wp-easycart' ) );
+			}
+			$wpdb->update( 'ec_option', array( 'owner_product_id' => 0 ), array( 'option_id' => $option_id ) );
+			wp_cache_delete( 'wpeasycart-option-' . $option_id, 'wpeasycart-options' );
+			wp_cache_delete( 'wpeasycart-optionset-' . $option_id, 'wpeasycart-options' );
+			do_action( 'wp_easycart_optionset_updated', $option_id );
+			return true;
+		}
+
+		/**
 		 * Save one owned set's items: matched by key ( optionitem_initial_value ), then by name; the rest deleted.
 		 *
 		 * @param int   $product_id Product ( for its per-option images ).
@@ -1005,7 +1141,7 @@ if ( ! class_exists( 'wp_easycart_product_writer' ) ) :
 				}
 			}
 			/* The page's featured image, when it has none ( SEO plugins and themes read it ). */
-			if ( $ids && (int) $product->post_id && function_exists( 'has_post_thumbnail' ) && ! has_post_thumbnail( (int) $product->post_id ) ) {
+			if ( $ids && (int) $product->post_id && function_exists( 'has_post_thumbnail' ) && 'ec_store' === get_post_type( (int) $product->post_id ) && ! has_post_thumbnail( (int) $product->post_id ) ) { /* 6.0.4: the product's store page only */
 				set_post_thumbnail( (int) $product->post_id, $ids[0] );
 			}
 			self::flush_cache( $product_id );
@@ -1103,10 +1239,7 @@ if ( ! class_exists( 'wp_easycart_product_writer' ) ) :
 					)
 				);
 			}
-			wp_cache_delete( 'wpeasycart-all-categories', 'wpeasycart-categories' );
-			wp_cache_delete( 'wpeasycart-all-categories' );
-			wp_cache_delete( 'wpeasycart-category-list', 'wpeasycart-categories' );
-			wp_cache_delete( 'wpeasycart-category-list-' . (int) $parent_id, 'wpeasycart-categories' );
+			/* 6.0.4: the store's cached category lists are forgotten on this hook ( wpeasycart_cache_management ). */
 			do_action( 'wpeasycart_category_added', $category_id );
 			return $category_id;
 		}

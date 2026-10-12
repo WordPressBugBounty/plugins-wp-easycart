@@ -163,6 +163,8 @@ class ec_cartitem {
 	public $track_quantity;
 	public $max_quantity;
 	public $min_quantity;
+	/** 6.0.4: units of this line's product on the cart's other lines, when its stock is counted as a whole ( wp_easycart_cart_quantity::share_stock() ). */
+	public $stock_other_lines = 0;
 
 	public $is_preorder_type;
 	public $is_restaurant_type;

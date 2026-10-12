@@ -692,3 +692,46 @@
 		} );
 	} );
 } )( jQuery );
+
+/* ---------- The EasyCart menu folded to icons ( 6.0.4 ) ----------
+   A screen that asks for room ( filter wp_easycart_admin_frame_fold: the product editor ) prints .ecsh-sb-foldable and a fold
+   button at the foot of the menu. The button switches .ecsh-sb-mini, gives each icon its label as a tooltip, tells the page
+   ( event ecsh:menu-fold, true = folded ) and remembers the choice through the screen's own AJAX action ( menu = mini | full ). */
+( function( $ ) {
+	'use strict';
+	$( function() {
+		var $app = $( '.ecsh-app.ecsh-sb-foldable' ).first();
+		var $btn = $app.find( '.ecsh-sb-fold' ).first();
+		if ( ! $app.length || ! $btn.length ) {
+			return;
+		}
+		function titles( on ) {
+			$app.find( '.ecsh-sb-item > a, .ecsh-sb-store' ).each( function() {
+				var label = $.trim( $( this ).clone().children( '.ecsh-badge, .dashicons' ).remove().end().text() );
+				if ( on && label && ! this.getAttribute( 'title' ) ) {
+					this.setAttribute( 'title', label );
+					this.setAttribute( 'data-ecsh-mini-title', '1' );
+				} else if ( ! on && this.getAttribute( 'data-ecsh-mini-title' ) ) {
+					this.removeAttribute( 'title' );
+					this.removeAttribute( 'data-ecsh-mini-title' );
+				}
+			} );
+		}
+		function paint( on ) {
+			var label = on ? $btn.attr( 'data-label-open' ) : $btn.attr( 'data-label-fold' );
+			$app.toggleClass( 'ecsh-sb-mini', on );
+			$btn.attr( { 'aria-pressed': on ? 'true' : 'false', title: label } ).find( '.ecsh-sb-fold-text' ).text( label );
+			titles( on );
+			$( document ).trigger( 'ecsh:menu-fold', [ on ] );
+		}
+		paint( $app.hasClass( 'ecsh-sb-mini' ) );
+		$btn.on( 'click', function() {
+			var on = ! $app.hasClass( 'ecsh-sb-mini' );
+			var url = ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl;
+			paint( on );
+			if ( url ) {
+				$.post( url, { action: $btn.attr( 'data-fold-action' ), nonce: $btn.attr( 'data-fold-nonce' ), menu: on ? 'mini' : 'full' } );
+			}
+		} );
+	} );
+} )( jQuery );

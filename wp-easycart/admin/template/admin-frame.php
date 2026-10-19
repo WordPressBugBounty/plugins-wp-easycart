@@ -60,7 +60,7 @@ if ( $ecsh_renewal_m && 'ok' !== $ecsh_renewal_m['tone'] ) :
 		</div>
 		<p class="ecsh-renewal-lead"><?php
 		if ( $ecsh_lapsed ) { esc_html_e( 'Right now on this store, while the license is lapsed:', 'wp-easycart' ); }
-		else { esc_html_e( 'Renewing now adds a full year on top of the time you have left, so there is nothing to gain by waiting. If the license lapses:', 'wp-easycart' ); }
+		else { esc_html_e( 'Turn on AutoPay in your WP EasyCart account and your license renews by itself. If the license lapses:', 'wp-easycart' ); }
 		?></p>
 		<ul class="ecsh-renewal-stakes">
 			<?php foreach ( $ecsh_stakes as $ecsh_stake ) : ?><li><?php echo esc_html( $ecsh_stake ); ?></li><?php endforeach; ?>
@@ -119,10 +119,11 @@ document.addEventListener( 'DOMContentLoaded', function() {
 <div class="ecsh-scrim"></div>
 
 <div class="ecsh-app<?php echo $ecsh_fold ? ' ecsh-sb-foldable' . ( ! empty( $ecsh_fold['folded'] ) ? ' ecsh-sb-mini' : '' ) : ''; ?>">
+	<script>( function( a ) { if ( a && window.matchMedia && window.matchMedia( '(min-width: 783px) and (max-width: 1100px)' ).matches ) { a.className += ' ecsh-sb-narrow ecsh-sb-mini'; } } )( document.currentScript && document.currentScript.parentNode );</script>
 
 	<!-- ================= SIDEBAR (also the mobile drawer) ================= -->
 	<aside class="ecsh-sidebar">
-		<a class="ecsh-brand" href="http://www.wpeasycart.com" target="_blank" rel="noopener">
+		<a class="ecsh-brand" href="http://www.wpeasycart.com" target="_blank" rel="noopener" aria-label="<?php esc_attr_e( 'WP EasyCart website ( opens in a new tab )', 'wp-easycart' ); ?>">
 			<div class="ecsh-brand-logo"></div>
 		</a>
 
@@ -136,18 +137,15 @@ document.addEventListener( 'DOMContentLoaded', function() {
 			<div class="ecsh-sb-sales-row">
 				<div>
 					<div class="ecsh-sb-sales-label"><?php
-					if ( class_exists( 'DateTime' ) ) {
-						$ecsh_date = new DateTime;
-						echo esc_attr( $ecsh_date->format( 'M' ) );
-					} else {
-						echo esc_attr( date( 'M' ) );
-					} ?> <?php esc_attr_e( 'Sales', 'wp-easycart' ); ?></div>
+					/* translators: %s: this month's short name, e.g. Oct. */
+					echo esc_html( sprintf( __( '%s sales', 'wp-easycart' ), wp_date( 'M' ) ) ); /* 6.0.5: the month in the site's language */
+					?></div>
 					<div class="ecsh-sb-sales-amt"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->month_sales_total ) ); ?></div>
 				</div>
 				<div class="ecsh-sb-sales-delta<?php if ( $this->month_percentage_change >= 0 ) { echo ' ecsh-up'; } ?>"><?php
 					echo ( $this->month_percentage_change >= 0 ) ? '&#9650; ' : '&#9660; ';
 					if ( $this->month_percentage_change > 0 ) { echo '+'; }
-					echo esc_attr( number_format( (float) $this->month_percentage_change, 2, '.', '' ) );
+					echo esc_html( number_format_i18n( (float) $this->month_percentage_change, 1 ) ); /* 6.0.5: the site's decimal mark */
 				?>%</div>
 			</div>
 			<div class="ecsh-sb-goal-track">
@@ -164,12 +162,15 @@ document.addEventListener( 'DOMContentLoaded', function() {
 		</nav>
 
 		<div class="ecsh-sb-foot">
-			<?php if ( $ecsh_fold ) { ?>
-			<button type="button" class="ecsh-sb-fold" aria-pressed="<?php echo ! empty( $ecsh_fold['folded'] ) ? 'true' : 'false'; ?>" data-fold-action="<?php echo esc_attr( $ecsh_fold['action'] ); ?>" data-fold-nonce="<?php echo esc_attr( $ecsh_fold['nonce'] ); ?>" data-label-fold="<?php esc_attr_e( 'Fold the menu to icons', 'wp-easycart' ); ?>" data-label-open="<?php esc_attr_e( 'Show the full menu', 'wp-easycart' ); ?>" title="<?php echo ! empty( $ecsh_fold['folded'] ) ? esc_attr__( 'Show the full menu', 'wp-easycart' ) : esc_attr__( 'Fold the menu to icons', 'wp-easycart' ); ?>">
+			<?php
+			/* 6.0.5: every screen prints the button. From 783 to 1100px wide the menu is the icon rail on every screen, and the
+			   button opens the full menu over the page ( admin-frame-v2.js ); wider, only a screen that asks to fold shows it. */
+			$ecsh_folded = $ecsh_fold && ! empty( $ecsh_fold['folded'] );
+			?>
+			<button type="button" class="ecsh-sb-fold<?php echo $ecsh_fold ? '' : ' ecsh-sb-fold-narrow'; ?>" aria-pressed="<?php echo $ecsh_folded ? 'true' : 'false'; ?>" data-fold-action="<?php echo $ecsh_fold ? esc_attr( $ecsh_fold['action'] ) : ''; ?>" data-fold-nonce="<?php echo $ecsh_fold ? esc_attr( $ecsh_fold['nonce'] ) : ''; ?>" data-label-fold="<?php esc_attr_e( 'Fold the menu to icons', 'wp-easycart' ); ?>" data-label-open="<?php esc_attr_e( 'Show the full menu', 'wp-easycart' ); ?>" title="<?php echo $ecsh_folded ? esc_attr__( 'Show the full menu', 'wp-easycart' ) : esc_attr__( 'Fold the menu to icons', 'wp-easycart' ); ?>">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
-				<span class="ecsh-sb-fold-text"><?php echo ! empty( $ecsh_fold['folded'] ) ? esc_html__( 'Show the full menu', 'wp-easycart' ) : esc_html__( 'Fold the menu to icons', 'wp-easycart' ); ?></span>
+				<span class="ecsh-sb-fold-text"><?php echo $ecsh_folded ? esc_html__( 'Show the full menu', 'wp-easycart' ) : esc_html__( 'Fold the menu to icons', 'wp-easycart' ); ?></span>
 			</button>
-			<?php } ?>
 			<?php if ( $ecsh_status['has_license'] && $ecsh_status['is_trial'] ) { ?>
 			<div class="ecsh-sb-trial">
 				<strong><?php esc_attr_e( 'Pro trial', 'wp-easycart' ); ?> &middot; <?php echo esc_attr( $ecsh_status['days_left'] ); ?> <?php esc_attr_e( 'days left', 'wp-easycart' ); ?></strong>
@@ -213,10 +214,10 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 			<form class="ecsh-tb-search" method="GET" action="https://docs.wpeasycart.com/" target="_blank" id="wpeasycart_search_form">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-				<input type="text" name="s" placeholder="<?php esc_attr_e( 'Search admin & docs…', 'wp-easycart' ); ?>" autocomplete="off" />
-				<kbd class="ecsh-tb-search-kbd">⌘K</kbd>
+				<input type="text" name="s" placeholder="<?php esc_attr_e( 'Search orders, products, settings…', 'wp-easycart' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Search everything', 'wp-easycart' ); ?>" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K /" />
+				<kbd class="ecsh-tb-search-kbd" data-wpec-search-kbd>⌘K</kbd>
 			</form>
-			<button class="ecsh-tb-search-btn" type="button" aria-label="<?php esc_attr_e( 'Search admin and docs', 'wp-easycart' ); ?>">
+			<button class="ecsh-tb-search-btn" type="button" aria-label="<?php esc_attr_e( 'Search everything', 'wp-easycart' ); ?>" aria-haspopup="dialog">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
 			</button>
 
@@ -232,10 +233,17 @@ document.addEventListener( 'DOMContentLoaded', function() {
 			</button>
 			<?php endif; ?>
 
+			<?php /* 6.0.5 ( admin review M11 ): the notices waiting below the one shown ( admin-frame-v2.js counts them ). */ ?>
+			<button class="ecsh-tb-btn ecsh-tb-notices" type="button" id="ecsh_notices_btn" aria-expanded="false" aria-controls="ecsh_notices_more" hidden>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+				<span class="ecsh-tb-notices-label"><?php esc_html_e( 'Notices', 'wp-easycart' ); ?></span>
+				<span class="ecsh-tb-notices-n">0</span>
+			</button>
+
 			<div class="ecsh-tb-menu">
-				<button class="ecsh-tb-btn" type="button" aria-haspopup="true">
+				<button class="ecsh-tb-btn" type="button" aria-haspopup="true" aria-label="<?php esc_attr_e( 'Help', 'wp-easycart' ); ?>">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-					<?php esc_attr_e( 'Help', 'wp-easycart' ); ?>
+					<span class="ecsh-tb-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span>
 				</button>
 				<div class="ecsh-tb-dropdown">
 					<?php do_action( 'wp_easycart_admin_head_navigation' ); ?>
@@ -251,7 +259,13 @@ document.addEventListener( 'DOMContentLoaded', function() {
 		</header>
 
 		<main class="ecsh-content ec_admin_content_area">
-			<?php do_action( 'wp_easycart_admin_messages' ); ?>
+			<?php
+			/* 6.0.5 ( admin review M11 ): one banner a screen. admin-frame-v2.js keeps the most urgent notice here ( none on an edit
+			   screen ) and moves the rest into #ecsh_notices_more, opened from the header's Notices button. */
+			$ecsh_edit_screen = isset( $_GET['ec_admin_form_action'] ) && 'edit' === sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- which screen this is, nothing is changed.
+			?>
+			<div class="ecsh-notices" id="ecsh_notices" data-edit="<?php echo $ecsh_edit_screen ? '1' : '0'; ?>"><?php do_action( 'wp_easycart_admin_messages' ); ?></div>
+			<div class="ecsh-notices-more" id="ecsh_notices_more" role="region" aria-label="<?php esc_attr_e( 'Notices', 'wp-easycart' ); ?>" hidden></div>
 			<?php do_action( 'wp_easycart_admin_shell_content' ); ?>
 		</main>
 	</div>
@@ -259,19 +273,4 @@ document.addEventListener( 'DOMContentLoaded', function() {
 
 <?php do_action( 'wp_easycart_admin_mobile_navigation' ); ?>
 
-<!-- Command palette: jump to admin pages/sections, or search docs -->
-<div class="ecsh-palette" id="ecsh_palette" hidden>
-	<div class="ecsh-palette-backdrop"></div>
-	<div class="ecsh-palette-panel" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Search admin and docs', 'wp-easycart' ); ?>">
-		<div class="ecsh-palette-inputrow">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-			<input type="text" id="ecsh_palette_input" placeholder="<?php esc_attr_e( 'Jump to a page or setting, or search docs…', 'wp-easycart' ); ?>" autocomplete="off" spellcheck="false" />
-			<kbd>esc</kbd>
-		</div>
-		<div class="ecsh-palette-results" id="ecsh_palette_results" role="listbox"></div>
-	</div>
-</div>
-<?php
-wp_easycart_shell_output_search_index();
-?>
-<script>var wpEasyCartShellDocsSearchLabel = <?php echo wp_json_encode( __( 'Search docs for', 'wp-easycart' ) ); ?>, wpEasyCartShellNoResultsLabel = <?php echo wp_json_encode( __( 'No admin pages match', 'wp-easycart' ) ); ?>;</script>
+<?php /* 6.0.5: the search window is drawn by admin/js/admin-search-v2.js ( wp_easycart_admin_search ). */ ?>

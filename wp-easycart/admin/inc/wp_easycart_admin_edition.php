@@ -47,8 +47,15 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		/** Every license model number that sells Elite ( 6.0.4 ). Elite includes everything in Premium. */
 		const ELITE_MODELS = array( 'ec620', 'ec625' );
 
-		/** Where a customer manages a license that renews itself, or fixes its payment ( 6.0.4 ). */
+		/**
+		 * Where a customer manages a license: an AutoPay plan's card and plan changes ( 6.0.4 ), and since 6.0.5 every renewal and
+		 * upgrade. Pro and Premium are sold only as AutoPay plans ( billed yearly or monthly ) from October 2026; a key bought
+		 * before ( ec400 / ec410 ) renews by turning AutoPay on there, and moves to Premium through Change plan.
+		 */
 		const ACCOUNT_URL = 'https://www.wpeasycart.com/my-account/';
+
+		/** The plans and pricing page: where a store without a paid license ( free, a trial ) buys Pro or Premium ( 6.0.5 ). */
+		const PRICING_URL = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 
 		/**
 		 * Cached license state for this request.
@@ -136,6 +143,92 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
+		 * The store's license as every admin surface shows it ( 6.0.5, admin review M13 ): the menu badge, the trial strip, the renewal
+		 * banner and header button, the license menu items, Store Status, Reports' renewal prompt and the locked pages' links. WP
+		 * EasyCart PRO's raw license data can describe another site's registration ( or none ): read through here, never directly.
+		 *
+		 * @since 6.0.5
+		 * @return array|null tier, edition, trial, lapsed, end, days ( whole days left, 0 or less once ended ), auto_renew; null when
+		 *                    this site has no license
+		 */
+		public static function license_view() {
+			$state = self::state();
+			if ( 'free' === $state['tier'] ) {
+				return null;
+			}
+			$days = 0;
+			if ( ! empty( $state['end'] ) ) {
+				$today = strtotime( gmdate( 'Y-m-d' ) );
+				$day   = strtotime( gmdate( 'Y-m-d', (int) $state['end'] ) );
+				$days  = (int) round( ( $day - $today ) / DAY_IN_SECONDS );
+			}
+			return array(
+				'tier'       => $state['tier'],
+				'edition'    => $state['edition'],
+				'trial'      => ( 'trial' === $state['tier'] ),
+				'lapsed'     => (bool) $state['lapsed'] || ( ! empty( $state['end'] ) && $days <= 0 && empty( $state['auto_renew'] ) ),
+				'end'        => (int) $state['end'],
+				'days'       => $days,
+				'auto_renew' => ! empty( $state['auto_renew'] ),
+			);
+		}
+
+		/**
+		 * WP EasyCart PRO's license data, only while it is this site's license ( license_view() ), else null.
+		 *
+		 * @since 6.0.5
+		 * @return object|null
+		 */
+		public static function license_data() {
+			if ( null === self::license_view() || ! function_exists( 'wp_easycart_admin_license' ) ) {
+				return null;
+			}
+			$data = wp_easycart_admin_license()->license_data;
+			return is_object( $data ) ? $data : null;
+		}
+
+		/**
+		 * The license badge beside Registration in the EasyCart menu: "Expired", or the days left once they run short ( a trial
+		 * from 9 days, a license from 69, never for AutoPay before its date ), with words for screen readers.
+		 *
+		 * @since 6.0.5
+		 * @return array|null level ( danger | warn ), text, label; null for no badge
+		 */
+		public static function license_badge() {
+			$view = self::license_view();
+			if ( ! $view ) {
+				return null;
+			}
+			if ( $view['lapsed'] ) {
+				return array(
+					'level' => 'danger',
+					'text'  => __( 'Expired', 'wp-easycart' ),
+					'label' => $view['trial'] ? __( 'Your Pro trial has ended', 'wp-easycart' ) : __( 'Your license has expired', 'wp-easycart' ),
+				);
+			}
+			if ( empty( $view['end'] ) || ( $view['auto_renew'] && ! $view['trial'] ) ) {
+				return null;
+			}
+			$days  = max( 0, (int) $view['days'] );
+			$level = '';
+			if ( $view['trial'] ) {
+				$level = ( $days <= 4 ) ? 'danger' : ( ( $days <= 9 ) ? 'warn' : '' );
+			} else {
+				$level = ( $days <= 35 ) ? 'danger' : ( ( $days <= 69 ) ? 'warn' : '' );
+			}
+			if ( '' === $level ) {
+				return null;
+			}
+			return array(
+				'level' => $level,
+				/* translators: %d: days. */
+				'text'  => sprintf( _n( '%d day left', '%d days left', $days, 'wp-easycart' ), $days ),
+				/* translators: %d: days. */
+				'label' => $view['trial'] ? sprintf( _n( 'Your Pro trial ends in %d day', 'Your Pro trial ends in %d days', $days, 'wp-easycart' ), $days ) : sprintf( _n( 'Your license ends in %d day', 'Your license ends in %d days', $days, 'wp-easycart' ), $days ),
+			);
+		}
+
+		/**
 		 * Drop the cached state ( after a license is activated or removed in this request ).
 		 */
 		public static function reset() {
@@ -215,21 +308,41 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
-		 * Where a paid license is renewed: the WP EasyCart account for one on AutoPay ( a payment that did not go through is
-		 * fixed there ), the pricing page for Elite ( sold only as a subscription ), else the Premium or Pro renewal with the key.
+		 * Where a paid license is renewed: the WP EasyCart account. An AutoPay plan fixes a payment that did not go through there;
+		 * since 6.0.5 a key bought before AutoPay ( the one-time renewal products are retired ) turns AutoPay on there too.
 		 *
 		 * @since 6.0.4
 		 * @return string
 		 */
 		public static function renew_url() {
-			if ( self::is_auto_renew() ) {
-				return self::ACCOUNT_URL;
-			}
-			if ( self::is_elite() ) {
-				return 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-			}
-			$key = self::license_key();
-			return 'https://www.wpeasycart.com/products/' . ( self::is_premium() ? 'wp-easycart-premium-support-extensions/' : 'wp-easycart-professional-support-upgrades/' ) . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' );
+			/**
+			 * Where a paid license is renewed.
+			 *
+			 * @since 6.0.5
+			 * @param string $url     The WP EasyCart account.
+			 * @param bool   $autopay The license renews itself ( AutoPay ).
+			 */
+			return (string) apply_filters( 'wp_easycart_admin_renew_url', self::ACCOUNT_URL, self::is_auto_renew() );
+		}
+
+		/**
+		 * Where a Pro trial becomes a paid plan ( 6.0.5 ): the plans and pricing page, as Pro and Premium are sold only as AutoPay
+		 * plans ( the one-time trial upgrade is retired ). Every trial link in WP EasyCart and WP EasyCart PRO comes from here.
+		 *
+		 * @since 6.0.5
+		 * @param string $plan 'pro' or 'premium'.
+		 * @return string
+		 */
+		public static function trial_url( $plan = 'pro' ) {
+			/**
+			 * Where a Pro trial becomes a paid plan.
+			 *
+			 * @since 6.0.5
+			 * @param string $url  The plans and pricing page.
+			 * @param string $plan 'pro' or 'premium'.
+			 * @param string $key  The trial's license key ( '' when none is saved ).
+			 */
+			return (string) apply_filters( 'wp_easycart_admin_trial_upgrade_url', self::PRICING_URL, ( 'premium' === $plan ? 'premium' : 'pro' ), self::license_key() );
 		}
 
 		/**
@@ -352,10 +465,11 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
-		 * How this store gets Premium, and where its button goes. A licensed Pro store upgrades at the Pro discount, a Pro
-		 * trial upgrades through the trial link ( it keeps the trial's key ), a lapsed Premium store renews, and every other
-		 * store ( free, a lapsed Pro license ) buys Premium on premium-support-extensions. A Premium store with a current
-		 * license gets mode 'active' and no link.
+		 * How this store gets Premium, and where its button goes. A licensed Pro store changes its plan to Premium in the WP
+		 * EasyCart account, a Pro trial and every other store ( free, a lapsed Pro license ) choose Premium on the pricing page
+		 * ( trial_url() ), and a lapsed Premium store renews ( renew_url() ). A Premium store with a current license gets mode
+		 * 'active' and no link. 6.0.5: the one-time products ( premium-support-extensions, pro-to-premium-upgrade, trial-upgrade )
+		 * are retired with the AutoPay plans.
 		 *
 		 * @since 6.0.2
 		 * @return array mode ( active|renew|upgrade|trial|get ), url, cta, title, desc.
@@ -363,9 +477,6 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		public static function premium_offer() {
 			$tier   = self::tier();
 			$lapsed = self::is_lapsed();
-			$key    = self::license_key();
-			$buy    = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/';
-			$keyed  = ( '' !== $key ) ? $buy . '?transaction_key=' . rawurlencode( $key ) : $buy;
 			if ( 'premium' === $tier && ! $lapsed ) {
 				$offer = array(
 					'mode'  => 'active',
@@ -377,13 +488,14 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 			} elseif ( 'premium' === $tier ) {
 				$offer = array(
 					'mode'  => 'renew',
-					'url'   => self::renew_url(), // 6.0.4: the account for AutoPay, the pricing page for Elite, else $keyed.
+					'url'   => self::renew_url(), // The WP EasyCart account ( 6.0.5: every paid license ).
 					'cta'   => __( 'Renew Premium', 'wp-easycart' ),
 					'title' => __( 'Renew Premium', 'wp-easycart' ),
 					'desc'  => __( 'Renew to install, update and change your extensions. They keep running in the meantime.', 'wp-easycart' ),
 				);
-			} elseif ( 'pro' === $tier && ! $lapsed && self::is_auto_renew() ) {
-				/* 6.0.4: a Pro subscription ( AutoPay ) moves to Premium in the WP EasyCart account, as a change of plan. */
+			} elseif ( 'pro' === $tier && ! $lapsed ) {
+				/* 6.0.4: a Pro plan moves to Premium in the WP EasyCart account, as a change of plan; 6.0.5: a Pro key bought before
+				   AutoPay too ( the pro-to-premium upgrade product is retired ). */
 				$offer = array(
 					'mode'  => 'upgrade',
 					'url'   => self::ACCOUNT_URL,
@@ -391,18 +503,10 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 					'title' => __( 'Upgrade to Premium', 'wp-easycart' ),
 					'desc'  => __( 'Change your plan to Premium in your WP EasyCart account. You keep everything in Pro and add every extension.', 'wp-easycart' ),
 				);
-			} elseif ( 'pro' === $tier && ! $lapsed ) {
-				$offer = array(
-					'mode'  => 'upgrade',
-					'url'   => 'https://www.wpeasycart.com/products/wp-easycart-pro-to-premium-upgrade/' . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' ),
-					'cta'   => __( 'Upgrade to Premium', 'wp-easycart' ),
-					'title' => __( 'Upgrade to Premium', 'wp-easycart' ),
-					'desc'  => __( 'Pro customers upgrade at a discount. You keep everything in Pro and add every extension.', 'wp-easycart' ),
-				);
 			} elseif ( 'trial' === $tier ) {
 				$offer = array(
 					'mode'  => 'trial',
-					'url'   => 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=Premium',
+					'url'   => self::trial_url( 'premium' ),
 					'cta'   => __( 'Upgrade to Premium', 'wp-easycart' ),
 					'title' => __( 'Upgrade your trial to Premium', 'wp-easycart' ),
 					'desc'  => __( 'Everything in Pro, plus every extension, installed and updated from your dashboard.', 'wp-easycart' ),
@@ -410,7 +514,7 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 			} else {
 				$offer = array(
 					'mode'  => 'get',
-					'url'   => $keyed,
+					'url'   => self::PRICING_URL,
 					'cta'   => __( 'Get Premium', 'wp-easycart' ),
 					'title' => __( 'Premium', 'wp-easycart' ),
 					'desc'  => __( 'Everything in Pro, plus every extension, installed and updated from your dashboard.', 'wp-easycart' ),
@@ -428,8 +532,8 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
-		 * Where a Premium button goes for this store ( see premium_offer() ). A Premium store with a current license gets
-		 * the Premium product page, keyed to its license.
+		 * Where a Premium button goes for this store ( see premium_offer() ). A Premium store with a current license gets the
+		 * pricing page ( 6.0.5; it was the retired Premium product ).
 		 *
 		 * @since 6.0.2
 		 * @return string
@@ -439,8 +543,7 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 			if ( '' !== $offer['url'] ) {
 				return $offer['url'];
 			}
-			$key = self::license_key();
-			return 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/' . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' );
+			return self::PRICING_URL;
 		}
 
 		/**

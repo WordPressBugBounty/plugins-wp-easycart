@@ -249,7 +249,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			/* -------------------------------------------------------------- */
 			$status_options = array();
 			foreach ( $this->order_statuses as $status ) {
-				$status_options[] = (object) array( 'value' => $status->status_id, 'label' => $status->order_status );
+				$status_options[] = (object) array( 'value' => $status->status_id, 'label' => wp_easycart_order_status_label( $status ) );
 			}
 
 			/* DISTINCT over every order is a full scan: keep the gateway list for an hour ( see GATEWAYS_TRANSIENT ). */
@@ -385,7 +385,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			/* -------------------------------------------------------------- */
 			$order_status_opts = array();
 			foreach ( $this->order_statuses as $status ) {
-				$order_status_opts[] = (object) array( 'value' => $status->status_id, 'label' => $status->order_status );
+				$order_status_opts[] = (object) array( 'value' => $status->status_id, 'label' => wp_easycart_order_status_label( $status ) );
 			}
 			$this->set_bulk_actions( apply_filters( 'wp_easycart_admin_bulk_order_options', array(
 				array( 'name' => 'delete-order', 'label' => __( 'Delete', 'wp-easycart' ) ),
@@ -1143,6 +1143,20 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		private function print_order_total( $result ) {
+			/* 6.0.5 ( Matt's H2 ): in the currency the order was placed in ( the page's orders read in one query ). */
+			if ( class_exists( 'wp_easycart_order_currency' ) ) {
+				if ( isset( $this->results ) && is_array( $this->results ) ) {
+					wp_easycart_order_currency::prime( $this->results );
+				}
+				wp_easycart_order_currency::push( $result );
+			}
+			$this->print_order_total_cell( $result );
+			if ( class_exists( 'wp_easycart_order_currency' ) ) {
+				wp_easycart_order_currency::pop();
+			}
+		}
+
+		private function print_order_total_cell( $result ) {
 			$total  = isset( $result->grand_total ) ? (float) $result->grand_total : 0;
 			$refund = isset( $result->refund_total ) ? (float) $result->refund_total : 0;
 			$promo  = isset( $result->promo_code ) ? (string) $result->promo_code : '';
@@ -1204,7 +1218,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		private function print_status_chip( $result ) {
 			$order_id   = (int) $result->order_id;
 			$status_id  = (int) $result->orderstatus_id;
-			$label      = isset( $result->order_status ) ? $result->order_status : __( 'Unknown', 'wp-easycart' );
+			$label      = isset( $result->order_status ) ? wp_easycart_order_status_label( $status_id, $result->order_status ) : __( 'Unknown', 'wp-easycart' ); /* 6.0.5: built-in names in the admin's language */
 			$color      = ( isset( $result->color_code ) && '' !== $result->color_code ) ? $result->color_code : '#e5e7eb';
 			$nonce      = wp_create_nonce( 'wp-easycart-ecv2-order-status-' . $order_id );
 
@@ -1219,9 +1233,9 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			foreach ( $this->order_statuses as $status ) {
 				$active = ( (int) $status->status_id === $status_id );
 				$s_color = ( '' !== $status->color_code ) ? $status->color_code : '#e5e7eb';
-				echo '<a href="#" class="ecv2-order-status-item' . ( $active ? ' ecv2-order-status-item-active' : '' ) . '" data-status-id="' . esc_attr( $status->status_id ) . '" data-label="' . esc_attr( $status->order_status ) . '" data-color="' . esc_attr( $s_color ) . '" onclick="ecv2_order_set_status( this ); return false;">';
+				echo '<a href="#" class="ecv2-order-status-item' . ( $active ? ' ecv2-order-status-item-active' : '' ) . '" data-status-id="' . esc_attr( $status->status_id ) . '" data-label="' . esc_attr( wp_easycart_order_status_label( $status ) ) . '" data-color="' . esc_attr( $s_color ) . '" onclick="ecv2_order_set_status( this ); return false;">';
 				echo '<span class="ecv2-order-status-swatch" style="background:' . esc_attr( $s_color ) . ';"></span>';
-				echo esc_html( $status->order_status );
+				echo esc_html( wp_easycart_order_status_label( $status ) );
 				if ( $active ) {
 					echo '<span class="dashicons dashicons-yes ecv2-order-status-check"></span>';
 				}
@@ -1545,7 +1559,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			}
 			return array(
 				'status_id'   => (int) $status->status_id,
-				'label'       => $status->order_status,
+				'label'       => wp_easycart_order_status_label( $status ),
 				'color'       => ( '' !== (string) $status->color_code ) ? $status->color_code : '#e5e7eb',
 				'is_approved' => (int) $status->is_approved,
 			);
@@ -1734,7 +1748,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			echo '<label class="ecv2-modal-label">' . esc_html__( 'New status for the selected orders', 'wp-easycart' ) . '</label>';
 			echo '<select id="ecv2-order-status-modal-select" class="ecv2-select">';
 			foreach ( $this->order_statuses as $status ) {
-				echo '<option value="' . esc_attr( $status->status_id ) . '">' . esc_html( $status->order_status ) . '</option>';
+				echo '<option value="' . esc_attr( $status->status_id ) . '">' . esc_html( wp_easycart_order_status_label( $status ) ) . '</option>';
 			}
 			echo '</select>';
 			echo '</div>';
@@ -2080,20 +2094,13 @@ function ecv2_order_quick_edit_get() {
 	}
 
 	$ts = strtotime( $order->order_date );
-	$ship_lines = array_values( array_filter( array(
-		trim( $order->shipping_first_name . ' ' . $order->shipping_last_name ),
-		trim( (string) $order->shipping_company_name ),
-		trim( (string) $order->shipping_address_line_1 ),
-		trim( (string) $order->shipping_address_line_2 ),
-		trim( trim( $order->shipping_city . ', ' . $order->shipping_state, ', ' ) . ' ' . $order->shipping_zip ),
-		trim( (string) $order->shipping_country ),
-	), 'strlen' ) );
+	$ship_lines = wp_easycart_address::lines( $order, 'shipping', array( 'all' => true ) ); /* 6.0.5: in the country's order */
 
 	$payload = array(
 		'order_id'      => $order_id,
 		'date'          => $ts > 0 ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts ) : '',
 		'status_id'     => (int) $order->orderstatus_id,
-		'status_label'  => (string) $order->order_status,
+		'status_label'  => wp_easycart_order_status_label( (int) $order->orderstatus_id, (string) $order->order_status ),
 		'status_color'  => ( '' !== (string) $order->color_code ) ? $order->color_code : '#e5e7eb',
 		'total'         => $GLOBALS['currency']->get_currency_display( (float) $order->grand_total ),
 		'refund_total'  => ( (float) $order->refund_total > 0 ) ? $GLOBALS['currency']->get_currency_display( (float) $order->refund_total ) : '',
@@ -2212,7 +2219,7 @@ function ecv2_order_quick_edit_save() {
 	wp_send_json_success( array(
 		'order_id'    => $order_id,
 		'status_id'   => (int) $status->status_id,
-		'label'       => $status->order_status,
+		'label'       => wp_easycart_order_status_label( $status ),
 		'color'       => ( '' !== $status->color_code ) ? $status->color_code : '#e5e7eb',
 		'is_approved' => (int) $status->is_approved,
 		'expedited'   => $expedited,
@@ -2276,21 +2283,14 @@ function ecv2_order_duplicate_get() {
 		);
 	}
 
-	$ship_lines = array_values( array_filter( array(
-		trim( $order->shipping_first_name . ' ' . $order->shipping_last_name ),
-		trim( (string) $order->shipping_company_name ),
-		trim( (string) $order->shipping_address_line_1 ),
-		trim( (string) $order->shipping_address_line_2 ),
-		trim( trim( $order->shipping_city . ', ' . $order->shipping_state, ', ' ) . ' ' . $order->shipping_zip ),
-		trim( (string) $order->shipping_country ),
-	), 'strlen' ) );
+	$ship_lines = wp_easycart_address::lines( $order, 'shipping', array( 'all' => true ) ); /* 6.0.5: in the country's order */
 
 	$ts = strtotime( $order->order_date );
 	wp_send_json_success( apply_filters( 'wp_easycart_ecv2_order_duplicate_payload', array(
 		'order_id'       => $order_id,
 		'date'           => $ts > 0 ? date_i18n( get_option( 'date_format' ), $ts ) : '',
 		'status_id'      => (int) $order->orderstatus_id,
-		'status_label'   => (string) $order->order_status,
+		'status_label'   => wp_easycart_order_status_label( (int) $order->orderstatus_id, (string) $order->order_status ),
 		'customer_name'  => trim( wp_unslash( $order->billing_first_name . ' ' . $order->billing_last_name ) ),
 		'email'          => (string) $order->user_email,
 		'ship_to'        => array_map( 'wp_unslash', $ship_lines ),
@@ -2559,7 +2559,7 @@ function ecv2_order_duplicate_create() {
 		'order_id'     => $new_order_id,
 		'source_id'    => $order_id,
 		'grand_total'  => $GLOBALS['currency']->get_currency_display( (float) $new['grand_total'] ),
-		'status_label' => $status->order_status,
+		'status_label' => wp_easycart_order_status_label( $status ),
 		'email_sent'   => $email_sent,
 		'edit_url'     => admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ec_admin_form_action=edit&order_id=' . $new_order_id ),
 	) );

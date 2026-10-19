@@ -99,13 +99,8 @@ if ( ! $ec_receipt_show( 'shipping_method' ) ) {
 }
 
 /* Coupon line. */
-$ec_receipt_promo = '';
-if ( isset( $this->promo_code ) && '' !== (string) $this->promo_code ) {
-	$ec_receipt_promo = $this->promo_code;
-	if ( get_option( 'ec_option_show_coupon_message' ) && isset( $this->promo_code_message ) && '' !== (string) $this->promo_code_message ) {
-		$ec_receipt_promo = $this->promo_code_message;
-	}
-}
+/* 6.0.5: the code, or the coupon's message ( wp_easycart_order_discounts::coupon_text(): no line while codes are hidden and the coupon has none ). */
+$ec_receipt_promo = wp_easycart_order_discounts::coupon_text( isset( $this->promo_code ) ? $this->promo_code : '', isset( $this->promo_code_message ) ? $this->promo_code_message : '', 'receipt' );
 
 $ec_receipt_view_url  = wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'ec_guest_key' => ( ( '' != $this->guest_key ) ? $this->guest_key : null ) ) ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- guest_key may be null on older orders.
 $ec_receipt_orders_url = wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) );
@@ -270,7 +265,7 @@ $ed::address_cards(
 			'address' => ( $has_shipping && $ec_receipt_show( 'shipping' ) ) ? $ed::address( $this, 'shipping' ) : array( 'has' => false ),
 		),
 	),
-	( $has_billing && $ec_receipt_show( 'billing' ) && isset( $this->vat_registration_number ) && '' !== (string) $this->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_receipt_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $this->vat_registration_number ) : ''
+	( $has_billing && $ec_receipt_show( 'billing' ) && isset( $this->vat_registration_number ) && '' !== (string) $this->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_receipt_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $this->vat_registration_number ) . ( class_exists( 'wp_easycart_vat' ) && '' !== wp_easycart_vat::reverse_charge_text( $this ) ? ' · ' . esc_html( wp_easycart_vat::reverse_charge_text( $this ) ) : '' ) : '' /* 6.0.5: "Reverse charge" for a business in another EU country */
 );
 
 /* Items */
@@ -472,7 +467,7 @@ if ( is_array( $ec_receipt_offers ) && isset( $ec_receipt_offers['applied_offers
 		if ( ! isset( $ec_receipt_offer['amount'] ) || $ec_receipt_offer['amount'] <= 0 ) {
 			continue;
 		}
-		$ec_receipt_offer_label = ( isset( $ec_receipt_offer['label'] ) ? $ec_receipt_offer['label'] : '' ) . ( ( isset( $ec_receipt_offer['code'] ) && '' !== (string) $ec_receipt_offer['code'] ) ? ' (' . $ec_receipt_offer['code'] . ')' : '' );
+		$ec_receipt_offer_label = wp_easycart_order_discounts::display_label( $ec_receipt_offer, 'receipt' ); // 6.0.5: the code only while the store shows codes.
 		$ec_receipt_totals[]    = array( esc_html( $ec_receipt_offer_label ), $ed::ltr( '-' . $ec_receipt_currency->get_currency_display( $ec_receipt_offer['amount'] ) ) );
 	}
 }
@@ -482,7 +477,12 @@ if ( 0 != $this->discount_total ) { // phpcs:ignore Universal.Operators.StrictCo
 if ( $has_duty ) {
 	$ec_receipt_totals[] = array( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_duty' ) ), $ed::ltr( $duty ) );
 }
-if ( $ec_receipt_has_tax_struct && $tax_struct->is_vat_enabled() ) {
+/* 6.0.5: the VAT the order recorded ( not today's settings ), one row per rate when it charged more than one ( tax classes ). */
+$ec_receipt_vat_rows = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::rows( $this, wp_strip_all_tags( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_vat' ) ) ) : array();
+foreach ( $ec_receipt_vat_rows as $ec_receipt_vat_row ) {
+	$ec_receipt_totals[] = array( esc_html( $ec_receipt_vat_row[0] ), $ed::ltr( $GLOBALS['currency']->get_currency_display( $ec_receipt_vat_row[1] ) ) );
+}
+if ( ! $ec_receipt_vat_rows && ( ( isset( $this->vat_total ) && 0 != (float) $this->vat_total ) || ( isset( $this->vat_rate ) && (float) $this->vat_rate > 0 ) || ( $ec_receipt_has_tax_struct && $tax_struct->is_vat_enabled() && ! isset( $this->vat_total ) ) ) ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- a float compare.
 	$ec_receipt_totals[] = array( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_vat' ) ) . esc_html( $vat_rate ) . '%', $ed::ltr( $vat ) );
 }
 foreach (

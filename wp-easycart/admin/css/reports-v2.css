@@ -28,6 +28,11 @@
 .ecrp3-tab.is-locked { color: var(--ecv2-g500, #6b7280); }
 .ecrp3-chip { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 5px; background: var(--ecv2-amber, #d97706); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; line-height: 1.5; text-transform: uppercase; }
 .ecrp3-chip.is-update { background: var(--ecv2-blue, #2563eb); }
+/* 6.0.5 ( admin review L8 ): a locked tab shows a lock ( one plan chip per tab pushed the last tabs off the edge ); one line under the tabs says why. */
+.ecrp3-tab-lock { font-size: 14px; width: 14px; height: 14px; color: var(--ecv2-g500, #6b7280); }
+.ecrp3-lockline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -6px 0 14px; font-size: 12.5px; color: var(--ecv2-g600, #4b5563); }
+.ecrp3-lockline .dashicons { font-size: 14px; width: 14px; height: 14px; color: var(--ecv2-g500, #6b7280); }
+.ecrp3-lockline a, .ecrp3-lockline button { font-size: 12.5px; }
 
 /* Notes, offer */
 .ecrp3-offer, .ecrp3-note { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin: 0 0 14px; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); background: #fff; font-size: 13px; color: var(--ecv2-g700, #374151); }
@@ -54,11 +59,15 @@
 .ecrp3-insights li.is-bad::before { background: var(--ecrp-bad); }
 
 /* KPIs */
-.ecrp3-kpis { display: grid; grid-template-columns: repeat( auto-fill, minmax( 190px, 1fr ) ); gap: 12px; margin: 0 0 14px; }
+/* 6.0.5 ( admin review L8 ): --ecrp-cols tiles a row ( reports-v2.js kpiCols() ), fewer when a tile would be under 150px. */
+.ecrp3-kpis { display: grid; grid-template-columns: repeat( auto-fit, minmax( max( 150px, calc( ( 100% - ( var( --ecrp-cols, 5 ) - 1 ) * 12px ) / var( --ecrp-cols, 5 ) ) ), 1fr ) ); gap: 12px; margin: 0 0 14px; }
+.ecrp3-kpi-groups { display: flex; flex-direction: column; gap: 4px; margin: 0 0 14px; }
+.ecrp3-kpi-group .ecrp3-kpis { margin: 0; }
+.ecrp3-kpi-group-title { margin: 6px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ecv2-g600, #4b5563); }
 .ecrp3-kpi { padding: 14px 16px; background: #fff; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ecrp3-kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ecv2-g500, #6b7280); }
 .ecrp3-kpi-value { font-size: 22px; font-weight: 600; color: var(--ecv2-g900, #111827); line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.ecrp3-kpis .ecrp3-kpi:first-child .ecrp3-kpi-value { font-size: 26px; }
+.ecrp3-kpi.is-lead .ecrp3-kpi-value { font-size: 26px; }
 .ecrp3-kpi-compare { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
 .ecrp3-change { display: inline-flex; align-items: center; gap: 1px; font-weight: 700; }
 .ecrp3-change .dashicons { font-size: 14px; width: 14px; height: 14px; }
@@ -151,7 +160,7 @@
 	.ecrp3-charts { grid-template-columns: 1fr; }
 	.ecrp3-kpis { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); gap: 8px; }
 	.ecrp3-kpi { padding: 12px; }
-	.ecrp3-kpi-value, .ecrp3-kpis .ecrp3-kpi:first-child .ecrp3-kpi-value { font-size: 19px; }
+	.ecrp3-kpi-value, .ecrp3-kpi.is-lead .ecrp3-kpi-value { font-size: 19px; }
 	.ecrp3 .ecrp-toolbar { padding: 10px; }
 	.ecrp3-field, .ecrp3-field select { width: 100%; max-width: none !important; }
 	.ecrp3 .ecrp-ranges { width: 100%; }

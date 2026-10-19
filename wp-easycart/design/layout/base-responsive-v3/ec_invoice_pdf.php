@@ -97,14 +97,38 @@ $ec_in_title = ( 'receipt' === $document->option( 'heading' ) )
 $ec_in_title = (string) apply_filters( 'wp_easycart_pdf_receipt_title', wp_strip_all_tags( $ec_in_title ), $ec_in_order );
 $ec_in_head  = '';
 $ec_in_cell  = 'vertical-align:top;padding:0 0 10px 0;font-size:10px;line-height:1.45;color:#1d2327;font-family:' . $ed::ctx()['font'] . ';';
+$ec_in_open  = wp_easycart_documents::open_args(
+	'invoice',
+	$document->fields,
+	array(
+		'title'     => $ec_in_title . ' ' . $ec_in_id,
+		'flat'      => true,
+		/* Settings › Documents preview: the page margins the PDF gets from its @page rule. */
+		'extra_css' => ( 'preview' === $document->output ) ? 'body{padding:32px 40px !important;box-sizing:border-box !important;}' : '',
+	)
+);
+/* 6.0.5: Settings › Documents › Logo position. At the top of the page, with the business details or above the title, the logo is
+   drawn here and the header row under the heading is left out. Under the heading ( the default ), or with no heading block, it is
+   the header row, as before. */
+$ec_in_place = ( ( $document->show( 'seller' ) || $document->show( 'heading' ) ) && method_exists( 'wp_easycart_documents', 'logo_place' ) ) ? wp_easycart_documents::logo_place( $document ) : '';
 if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 	$ec_in_seller = trim( (string) get_option( 'ec_option_pdf_seller_details', '' ) );
+	if ( '' === $ec_in_seller && class_exists( 'wp_easycart_business' ) ) {
+		$ec_in_seller = wp_easycart_business::text(); /* 6.0.5: Settings › Store details › Business details */
+	}
 	if ( '' === $ec_in_seller ) {
 		$ec_in_seller = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 	}
+	$ec_in_seller_html = $document->show( 'seller' ) ? nl2br( esc_html( $ec_in_seller ) ) : '';
+	if ( 'seller' === $ec_in_place ) {
+		$ec_in_seller_html = '<div class="wpec-pdf-logo" style="margin:0 0 ' . ( '' !== $ec_in_seller_html ? 8 : 0 ) . 'px 0;">' . $ed::get_logo( $ec_in_open, array( 'share' => 55 ) ) . '</div>' . $ec_in_seller_html;
+	}
 	$ec_in_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 8px 0;border-bottom:2px solid #1d2327;"><tr>';
-	$ec_in_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_in_cell ) . '">' . ( $document->show( 'seller' ) ? nl2br( esc_html( $ec_in_seller ) ) : '&nbsp;' ) . '</td>';
+	$ec_in_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_in_cell ) . '">' . ( '' !== $ec_in_seller_html ? $ec_in_seller_html : '&nbsp;' ) . '</td>';
 	$ec_in_head .= '<td width="45%" align="right" style="' . esc_attr( $ec_in_cell . 'text-align:right;' ) . '">';
+	if ( 'title' === $ec_in_place ) {
+		$ec_in_head .= '<div class="wpec-pdf-logo" style="margin:0 0 8px 0;">' . $ed::get_logo( $ec_in_open, array( 'share' => 45 ) ) . '</div>';
+	}
 	if ( $document->show( 'heading' ) ) {
 		$ec_in_head .= '<div class="wpec-pdf-title" style="font-size:22px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px 0;">' . esc_html( $ec_in_title ) . '</div>';
 		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'invoice_order_number', __( 'Order number:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_in_id ) . '</div>';
@@ -125,22 +149,18 @@ if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_in_po ) . '</div>';
 	}
 	$ec_in_head .= '</td></tr></table>';
+	if ( 'top' === $ec_in_place ) {
+		$ec_in_head = '<div class="wpec-pdf-logo" style="margin:0 0 10px 0;">' . $ed::get_logo( $ec_in_open, array( 'row' => true ) ) . '</div>' . $ec_in_head;
+	}
 }
 $ec_in_head = (string) apply_filters( 'wp_easycart_pdf_receipt_header_html', $ec_in_head, $ec_in_order );
 
-$ed::open(
-	wp_easycart_documents::open_args(
-		'invoice',
-		$document->fields,
-		array(
-			'title'     => $ec_in_title . ' ' . $ec_in_id,
-			'flat'      => true,
-			'top_html'  => $ec_in_head,
-			/* Settings › Documents preview: the page margins the PDF gets from its @page rule. */
-			'extra_css' => ( 'preview' === $document->output ) ? 'body{padding:32px 40px !important;box-sizing:border-box !important;}' : '',
-		)
-	)
-);
+/* The logo moved into the heading block replaces the header row, unless a filter rewrote the heading without it. */
+if ( in_array( $ec_in_place, array( 'top', 'seller', 'title' ), true ) && false !== strpos( $ec_in_head, 'wpec-pdf-logo' ) ) {
+	$ec_in_open['header'] = false;
+}
+$ec_in_open['top_html'] = $ec_in_head;
+$ed::open( $ec_in_open );
 
 /* Pickup banners */
 if ( ! empty( $ec_in_order->includes_preorder_items ) ) {
@@ -179,7 +199,7 @@ if ( $ec_in_has_billing && $document->show( 'billing' ) ) {
 }
 $ec_in_notes = array();
 if ( $document->show( 'vat_number' ) && '' !== (string) $ec_in_order->vat_registration_number ) {
-	$ec_in_notes[] = '<strong>' . wp_kses_post( $ec_in_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $ec_in_order->vat_registration_number );
+	$ec_in_notes[] = '<strong>' . wp_kses_post( $ec_in_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $ec_in_order->vat_registration_number ) . ( class_exists( 'wp_easycart_vat' ) && '' !== wp_easycart_vat::reverse_charge_text( $ec_in_order ) ? ' · ' . esc_html( wp_easycart_vat::reverse_charge_text( $ec_in_order ) ) : '' ); /* 6.0.5: "Reverse charge" */
 }
 if ( $document->show( 'email' ) && '' !== (string) $ec_in_order->user_email ) {
 	$ec_in_notes[] = esc_html( $ec_in_order->user_email );
@@ -370,7 +390,7 @@ if ( $ec_in_price ) {
 			if ( ! isset( $ec_in_offer['amount'] ) || $ec_in_offer['amount'] <= 0 ) {
 				continue;
 			}
-			$ec_in_totals[] = array( esc_html( $ec_in_offer['label'] . ( ( isset( $ec_in_offer['code'] ) && '' != $ec_in_offer['code'] ) ? ' (' . $ec_in_offer['code'] . ')' : '' ) ), $ed::ltr( '-' . $ec_in_curr->get_currency_display( $ec_in_offer['amount'] ) ) ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- string from the database.
+			$ec_in_totals[] = array( esc_html( wp_easycart_order_discounts::display_label( $ec_in_offer, 'invoice_pdf' ) ), $ed::ltr( '-' . $ec_in_curr->get_currency_display( $ec_in_offer['amount'] ) ) );
 		}
 	}
 	if ( $ec_in_order->discount_total > 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $ec_in_order ) ) {
@@ -379,8 +399,13 @@ if ( $ec_in_price ) {
 	if ( $ec_in_order->duty_total > 0 ) {
 		$ec_in_totals[] = array( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_duty' ) ), $ed::money( $ec_in_order->duty_total ) );
 	}
-	$ec_in_tax = class_exists( 'ec_tax' ) ? new ec_tax( 0, 0, 0, '', '' ) : null;
-	if ( $ec_in_tax && $ec_in_tax->is_vat_enabled() ) {
+	/* 6.0.5: the VAT the order recorded, whatever the VAT settings say today ( a reprint keeps it ), one row per rate when the
+	   order charged more than one ( wp_easycart_tax_classes ). */
+	$ec_in_vat_rows = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::rows( $ec_in_order, wp_strip_all_tags( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_vat' ) ) ) : array();
+	foreach ( $ec_in_vat_rows as $ec_in_vat_row ) {
+		$ec_in_totals[] = array( esc_html( $ec_in_vat_row[0] ), $ed::money( $ec_in_vat_row[1] ) );
+	}
+	if ( ! $ec_in_vat_rows && ( 0 != (float) $ec_in_order->vat_total || (float) $ec_in_order->vat_rate > 0 ) ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- a float compare.
 		if ( $ec_in_order->vat_rate > 0 ) {
 			$ec_in_vat_rate = $ec_in_order->vat_rate;
 		} elseif ( ( $ec_in_order->grand_total - $ec_in_order->vat_total ) > 0 ) {

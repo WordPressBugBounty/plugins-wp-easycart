@@ -323,9 +323,9 @@ class ec_orderdetail{
 
 	public function display_option1_price() {
 		if ( $this->optionitem_price_1 < 0 )
-			echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_1 ) );
+			echo esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_1 ) );
 		else if ( $this->optionitem_price_1 > 0 )
-			echo "+" . esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_1 ) );
+			echo "+" . esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_1 ) );
 	}
 
 	public function has_option2() {
@@ -354,9 +354,9 @@ class ec_orderdetail{
 
 	public function display_option2_price() {
 		if ( $this->optionitem_price_2 < 0 )
-			echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_2 ) );
+			echo esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_2 ) );
 		else if ( $this->optionitem_price_2 > 0 )
-			echo "+" . esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_2 ) );
+			echo "+" . esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_2 ) );
 	}
 
 	public function has_option3() {
@@ -385,9 +385,9 @@ class ec_orderdetail{
 
 	public function display_option3_price() {
 		if ( $this->optionitem_price_3 < 0 )
-			echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_3 ) );
+			echo esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_3 ) );
 		else if ( $this->optionitem_price_3 > 0 )
-			echo "+" . esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_3 ) );
+			echo "+" . esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_3 ) );
 	}
 
 	public function has_option4() {
@@ -416,9 +416,9 @@ class ec_orderdetail{
 
 	public function display_option4_price() {
 		if ( $this->optionitem_price_4 < 0 )
-			echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_4 ) );
+			echo esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_4 ) );
 		else if ( $this->optionitem_price_4 > 0 )
-			echo "+" . esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_4 ) );
+			echo "+" . esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_4 ) );
 	}
 
 	public function has_option5() {
@@ -447,9 +447,9 @@ class ec_orderdetail{
 
 	public function display_option5_price() {
 		if ( $this->optionitem_price_5 < 0 )
-			echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_5 ) );
+			echo esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_5 ) );
 		else if ( $this->optionitem_price_5 > 0 )
-			echo "+" . esc_attr( $GLOBALS['currency']->get_currency_display( $this->optionitem_price_5 ) );
+			echo "+" . esc_attr( wp_easycart_order_currency::money( $this, $this->optionitem_price_5 ) );
 	}
 
 	public function has_gift_card_message() {
@@ -518,7 +518,7 @@ class ec_orderdetail{
 		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->unit_discount_promotion > 0 ) {
 			$unit_price += $this->unit_discount_promotion;
 		}
-		echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( $unit_price ), $this->product_id ) );
+		echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', wp_easycart_order_currency::money( $this, $unit_price ), $this->product_id ) );
 	}
 
 	public function has_discounted_unit_price() {
@@ -531,7 +531,7 @@ class ec_orderdetail{
 			$unit_price -= $this->unit_discount_coupon;
 		}
 		$unit_price = max( 0, $unit_price - $this->offer_unit_savings() );
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $unit_price ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $unit_price ) );
 	}
 
 	/**
@@ -563,7 +563,7 @@ class ec_orderdetail{
 		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->total_discount_promotion > 0 ) {
 			$total_price += $this->total_discount_promotion;
 		}
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $total_price ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $total_price ) );
 	}
 
 	public function has_discounted_total_price() {
@@ -576,7 +576,7 @@ class ec_orderdetail{
 			$total_price -= $this->total_discount_coupon;
 		}
 		$total_price = max( 0, $total_price - $this->offer_line_savings() );
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $total_price ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $total_price ) );
 	}
 
 	public function display_custom_fields( $divider, $seperator ) {

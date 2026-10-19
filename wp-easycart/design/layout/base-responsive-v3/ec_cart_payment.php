@@ -30,7 +30,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_zip, ENT_QUOTES ) ); ?>
+		<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_cart_data']->cart_data, 'billing' ) ) ); /* 6.0.5: in the country's order */ ?>
 	</div>
 
 	<div class="ec_cart_input_row">
@@ -80,7 +80,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_zip, ENT_QUOTES ) ); ?>
+		<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_cart_data']->cart_data, 'shipping' ) ) ); /* 6.0.5: in the country's order */ ?>
 	</div>
 
 	<div class="ec_cart_input_row">
@@ -534,12 +534,20 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 				/* 6.0.2 checkout protection: while this shopper is paused or owes a human check there is no client secret,
 				   and the form is skipped ( no "Stripe has a problem" alert ); the protection script shows why instead. */
 				$wpec_client_secret = $this->get_stripe_intent_client_secret();
+				if ( class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+					/* 6.0.5: after the payment was asked for, so a store manager's reason is this request's. */
+					echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+				}
 				/* 6.0.4: this checkout's payment went through and has no order yet: no second payment form, the return page makes its order. */
 				$wpec_paid_return = ( '' === $wpec_client_secret && method_exists( $this, 'stripe_paid_intent_return_url' ) ) ? $this->stripe_paid_intent_return_url() : '';
 				if ( '' !== $wpec_paid_return ) {
 					echo 'window.location.href = ' . wp_json_encode( esc_url_raw( $wpec_paid_return ) ) . '; if ( false ) '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() of esc_url_raw().
-				} else {
-					echo ( '' === $wpec_client_secret && method_exists( $this, 'stripe_held_by_protection' ) && $this->stripe_held_by_protection() ) ? 'if ( false ) ' : '';
+				} else if ( '' === $wpec_client_secret && method_exists( $this, 'stripe_held_by_protection' ) && $this->stripe_held_by_protection() ) {
+					echo 'if ( false ) ';
+				} else if ( '' === $wpec_client_secret && class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+					/* 6.0.5: Stripe started no payment ( the server could not reach it, or Stripe refused ): the card form's place says card
+					   payments can't be taken right now and Place order with the card stops there; other ways to pay go on. */
+					echo wp_easycart_stripe_unavailable::call( 'null', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_order_form' )" ) . ' if ( false ) '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script.
 				}
 				?>try {
 					var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
@@ -809,7 +817,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 						}
 					} );
 				} catch( err ) {
-					alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+					<?php echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::call( 'err', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_order_form' )" ) : 'console.error( err );'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script. ?>
 				}
 				var ec_stripe_3ds_tries = 0;
 				function ec_stripe_3ds_waiting_for_response( payment_id, client_secret ){
@@ -1139,7 +1147,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section" id="ec_terms_agreement_row">
-		<label class="ec_cart_check_label" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
+		<label class="ec_cart_check_label ec_agree_box" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 	</div>
 	<?php }else{ ?>
 		<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -1147,7 +1155,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 
 	<?php if( get_option( 'ec_option_show_subscriber_feature' ) && ( !$GLOBALS['ec_user']->user_id || !$GLOBALS['ec_user']->is_subscriber ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section"<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?> style="margin-top:-10px;"<?php }?>>
-		<label class="ec_cart_check_label" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+		<label class="ec_cart_check_label ec_agree_box" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
 		<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 	</div>
 	<?php }?>
@@ -1221,7 +1229,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_zip, ENT_QUOTES ) ); ?>
+		<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_cart_data']->cart_data, 'billing' ) ) ); /* 6.0.5: in the country's order */ ?>
 	</div>
 
 	<div class="ec_cart_input_row">
@@ -1270,7 +1278,7 @@ if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_zip, ENT_QUOTES ) ); ?>
+		<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_cart_data']->cart_data, 'shipping' ) ) ); /* 6.0.5: in the country's order */ ?>
 	</div>
 
 	<div class="ec_cart_input_row">

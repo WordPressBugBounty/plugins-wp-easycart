@@ -27,7 +27,8 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 
 		public static function init() {
 			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
-			add_action( 'admin_notices', array( __CLASS__, 'banner' ) );
+			/* 6.0.5 ( admin review M11 ): inside the EasyCart shell with its other notices ( one banner a screen ), not above it. */
+			add_action( 'wp_easycart_admin_messages', array( __CLASS__, 'banner' ), 3 );
 		}
 
 		public static function available() { return class_exists( 'ec_email' ) && ec_email::tables_exist(); }
@@ -70,7 +71,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			$h = ec_email::health( 7 );
 			$rate = $h['rate']; $tone = null === $rate ? 'gray' : ( $rate >= 98 ? 'green' : ( $rate >= 85 ? 'amber' : 'red' ) );
 			$since = '';
-			if ( $h['failed'] ) { global $wpdb; $first = $wpdb->get_var( "SELECT MIN( created_at ) FROM ec_email_log WHERE status IN ( 'failed', 'retrying' ) AND created_at >= DATE_SUB( NOW(), INTERVAL 7 DAY )" ); if ( $first ) { $since = date_i18n( 'M j', strtotime( $first ) ); } }
+			if ( $h['failed'] ) { global $wpdb; $first = $wpdb->get_var( "SELECT MIN( created_at ) FROM ec_email_log WHERE status IN ( 'failed', 'retrying' ) AND created_at >= DATE_SUB( NOW(), INTERVAL 7 DAY )" ); if ( $first ) { $since = wp_easycart_admin_date( strtotime( $first ), 'day' ); } }
 			echo '<div class="ecem-card ecem-health" id="ecem_health">';
 			echo '<div class="ecem-card-h"><h3>' . esc_html__( 'Email health', 'wp-easycart' ) . '</h3><span class="ecem-hint">' . esc_html__( 'Receipts, status updates, account mail, review requests', 'wp-easycart' ) . '</span><a class="ecem-link" href="' . esc_url( self::settings_url() . '#ecem_log' ) . '">' . esc_html__( 'Open the email log →', 'wp-easycart' ) . '</a></div>';
 			echo '<div class="ecem-health-grid' . ( $compact ? ' is-compact' : '' ) . '">';
@@ -84,7 +85,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			echo '<div class="ecem-kpis">';
 			echo '<div class="ecem-kpi' . ( $h['failed'] ? ' is-bad' : '' ) . '"><b>' . (int) $h['failed'] . '</b><span>' . esc_html__( 'failed · 7 days', 'wp-easycart' ) . '</span></div>';
 			echo '<div class="ecem-kpi is-ok"><b>' . (int) $h['sent'] . '</b><span>' . esc_html__( 'sent · 7 days', 'wp-easycart' ) . '</span></div>';
-			echo '<div class="ecem-kpi"><b>' . esc_html( $h['last_success'] ? date_i18n( 'M j, H:i', strtotime( $h['last_success'] ) ) : '—' ) . '</b><span>' . esc_html__( 'last successful send', 'wp-easycart' ) . '</span></div>';
+			echo '<div class="ecem-kpi"><b>' . esc_html( $h['last_success'] ? wp_easycart_admin_date( strtotime( $h['last_success'] ), 'day_clock' ) : '—' ) . '</b><span>' . esc_html__( 'last successful send', 'wp-easycart' ) . '</span></div>';
 			/* 6.0.2: a custom method that does not send store emails leaves them to WordPress mail ( ec_email::store_email_transport() ). */
 			$kpi_note = '';
 			if ( 'plugin_smtp' === $h['transport'] ) {
@@ -99,11 +100,11 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			/* sparkline */
 			echo '<div class="ecem-spark-label">' . esc_html__( 'Last 14 days', 'wp-easycart' ) . '</div><div class="ecem-spark">';
 			$max = 1; foreach ( $h['daily'] as $d ) { $max = max( $max, $d['sent'] + $d['failed'] ); }
-			for ( $i = 13; $i >= 0; $i-- ) { $day = date( 'Y-m-d', current_time( 'timestamp' ) - $i * DAY_IN_SECONDS ); $d = isset( $h['daily'][ $day ] ) ? $h['daily'][ $day ] : array( 'sent' => 0, 'failed' => 0 ); $tot = $d['sent'] + $d['failed']; $hgt = $tot ? max( 8, (int) ( 100 * $tot / $max ) ) : 3; echo '<i class="' . esc_attr( $d['failed'] > $d['sent'] ? 'f' : ( $d['failed'] ? 'm' : '' ) ) . '" style="height:' . (int) $hgt . '%" title="' . esc_attr( date_i18n( 'M j', strtotime( $day ) ) . ': ' . $d['sent'] . ' sent, ' . $d['failed'] . ' failed' ) . '"></i>'; }
+			for ( $i = 13; $i >= 0; $i-- ) { $day = date( 'Y-m-d', current_time( 'timestamp' ) - $i * DAY_IN_SECONDS ); $d = isset( $h['daily'][ $day ] ) ? $h['daily'][ $day ] : array( 'sent' => 0, 'failed' => 0 ); $tot = $d['sent'] + $d['failed']; $hgt = $tot ? max( 8, (int) ( 100 * $tot / $max ) ) : 3; echo '<i class="' . esc_attr( $d['failed'] > $d['sent'] ? 'f' : ( $d['failed'] ? 'm' : '' ) ) . '" style="height:' . (int) $hgt . '%" title="' . esc_attr( wp_easycart_admin_date( strtotime( $day ), 'day' ) . ': ' . $d['sent'] . ' sent, ' . $d['failed'] . ' failed' ) . '"></i>'; }
 			echo '</div>';
 			if ( $h['last_error'] ) {
 				$le = $h['last_error']; $ex = ec_email::explain( $le->error_text );
-				echo '<div class="ecem-err-label">' . esc_html__( 'Last error', 'wp-easycart' ) . ' <span>· ' . esc_html( date_i18n( 'M j, H:i', strtotime( $le->created_at ) ) . ' · ' . self::type_label( $le->email_type ) . ( $le->order_id ? ' #' . (int) $le->order_id : '' ) . ' · ' . ec_email::transport_label( $le->transport ) ) . '</span></div>';
+				echo '<div class="ecem-err-label">' . esc_html__( 'Last error', 'wp-easycart' ) . ' <span>· ' . esc_html( wp_easycart_admin_date( strtotime( $le->created_at ), 'day_clock' ) . ' · ' . self::type_label( $le->email_type ) . ( $le->order_id ? ' #' . (int) $le->order_id : '' ) . ' · ' . ec_email::transport_label( $le->transport ) ) . '</span></div>';
 				echo '<pre class="ecem-err">' . esc_html( $le->error_text ) . '</pre>';
 				echo '<div class="ecos-note ecos-note-danger"><span class="dashicons dashicons-warning"></span><div><b>' . esc_html__( 'What this means:', 'wp-easycart' ) . '</b> ' . esc_html( $ex['meaning'] ) . ' <a href="' . esc_url( self::settings_url() ) . '">' . esc_html( $ex['fix'] ) . '</a></div></div>';
 			}
@@ -331,7 +332,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			echo '<table class="ecem-t"><thead><tr><th>' . esc_html__( 'When', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Type', 'wp-easycart' ) . '</th><th>' . esc_html__( 'To', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Transport', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Result', 'wp-easycart' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $rows as $r ) {
 				$ts = strtotime( $r->created_at );
-				echo '<tr data-log="' . (int) $r->log_id . '"><td class="ecem-mono">' . esc_html( $ts > current_time( 'timestamp' ) - DAY_IN_SECONDS ? date_i18n( 'H:i', $ts ) : date_i18n( 'M j H:i', $ts ) ) . '</td>';
+				echo '<tr data-log="' . (int) $r->log_id . '"><td class="ecem-mono">' . esc_html( $ts > current_time( 'timestamp' ) - DAY_IN_SECONDS ? date_i18n( 'H:i', $ts ) : wp_easycart_admin_date( $ts, 'day_clock' ) ) . '</td>';
 				echo '<td>' . esc_html( self::type_label( $r->email_type ) ) . ( $r->order_id ? ' · <a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ec_admin_form_action=edit&order_id=' . (int) $r->order_id ) ) . '">#' . (int) $r->order_id . '</a>' : '' ) . '<div class="ecem-sub">' . esc_html( $r->subject ) . '</div></td>';
 				echo '<td>' . esc_html( $r->to_email ) . '</td><td>' . esc_html( ec_email::transport_label( $r->transport ) ) . '</td><td>';
 				if ( 'sent' === $r->status ) { echo '<span class="ecv2-chip ecv2-chip-green">' . esc_html__( 'Sent', 'wp-easycart' ) . ( (int) $r->attempts > 1 ? ' · ' . esc_html( sprintf( __( 'attempt %d', 'wp-easycart' ), (int) $r->attempts ) ) : '' ) . '</span>'; }
@@ -415,7 +416,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 					echo '<span class="ecv2-chip ecv2-chip-red">' . esc_html__( 'Gave up', 'wp-easycart' ) . '</span>';
 				} elseif ( $r->next_attempt ) {
 					$ts = strtotime( $r->next_attempt );
-					echo esc_html( date_i18n( 'M j, H:i', $ts ) );
+					echo esc_html( wp_easycart_admin_date( $ts, 'day_clock' ) );
 					echo '<div class="ecem-sub">' . esc_html( $ts <= current_time( 'timestamp' ) ? __( 'due now', 'wp-easycart' ) : sprintf( /* translators: %s: human time difference. */ __( 'in %s', 'wp-easycart' ), human_time_diff( current_time( 'timestamp' ), $ts ) ) ) . '</div>'; // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- local time, matching the stored queue time.
 				}
 				echo '</td>';
@@ -512,7 +513,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			if ( $streak < ec_email::FAIL_STREAK_ALERT ) { return; }
 			if ( get_transient( 'ec_email_banner_snooze_' . get_current_user_id() ) ) { return; }
 			$h = ec_email::health( 7 ); $ex = $h['last_error'] ? ec_email::explain( $h['last_error']->error_text ) : null;
-			echo '<div class="notice notice-error ecem-banner"><span class="ecem-banner-ico">📭</span><div class="ecem-banner-body"><b>' . esc_html__( 'Store emails are failing.', 'wp-easycart' ) . '</b> ';
+			echo '<div class="notice notice-error inline ecem-banner"><span class="ecem-banner-ico">📭</span><div class="ecem-banner-body"><b>' . esc_html__( 'Store emails are failing.', 'wp-easycart' ) . '</b> ';
 			echo esc_html( sprintf( __( '%1$d emails in the last 7 days could not be sent', 'wp-easycart' ), $h['failed'] + $h['queued'] + $h['parked'] ) );
 			if ( $h['affected_orders'] ) { echo ' — ' . esc_html( sprintf( _n( '%d customer has not received an order email', '%d customers have not received an order email', $h['affected_orders'], 'wp-easycart' ), $h['affected_orders'] ) ); }
 			echo '.';

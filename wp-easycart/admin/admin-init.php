@@ -21,6 +21,9 @@ include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_documents.php'
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_checkout_fields.php' );
 // The Payment settings page loads gateway forms and switches gateways through its own AJAX handlers ( ecv2_payment_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payment_v2.php' );
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_deferred_checks.php' ); /* 6.0.5: checks that run after the page shows */
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_js_text.php' ); /* 6.0.5: words for the admin scripts ( T() / TN() ) */
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_dashboard_widget.php' ); /* 6.0.5: the store on the WordPress Dashboard */
 // The Shipping settings page edits zones through its own AJAX handlers ( ecv2_shipping_zone_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shipping_settings_v2.php' );
 // The Taxes settings page edits its rate tables, VAT country rates and the Canada grid through its own AJAX handlers ( ecv2_tax_* ), so it must also load on admin-ajax requests.
@@ -69,9 +72,14 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_orders.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_packages.php' ); /* 6.0.2: Settings › Shipping › Boxes and the order screen's Packages */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_order_screen.php' ); /* 6.0.2: the order screen's helpers and actions */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_withdrawals.php' ); /* 6.0.4: the EU withdrawal button's settings, order notice, orders list tile and product switch */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_cart_fit.php' ); /* 6.0.5: Settings › Design's Fit the cart to your theme's content area: the measurement and the recommendation */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_page_access.php' ); /* 6.0.5: Limit Access: the editor box, Users › Limit Access, the Access column */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_search.php' ); /* 6.0.5: one admin search: pages, settings, help, orders, products, customers */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payments.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_preloader.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_products.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_price_history.php' ); /* 6.0.5: the product editor's lowest price of the last 30 days */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tax_setup.php' ); /* 6.0.5: recommended tax settings by store country */
 
 if( $wp_easycart_is_ajax || ( isset( $_GET['page'] ) && isset( $_GET['subpage'] ) && $_GET['page'] == 'wp-easycart-products' && $_GET['subpage'] == 'reviews' ) )
 	include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_reviews.php' );

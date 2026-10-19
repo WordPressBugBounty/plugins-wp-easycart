@@ -12,6 +12,9 @@ jQuery( function( $ ) {
 
 	var D = JSON.parse( $( '#eccat_data' ).text() || '{}' );
 	var L = D.i18n || {};
+	/* 6.0.5 ( admin review M17 ): words through T() / TN() ( wp_easycart_admin_js_text: window.ecv2_t / ecv2_tn ), English without it. */
+	var T = window.ecv2_t || function( text ) { var a = arguments, i = 1; return String( text ).replace( /%(?:(\d+)\$)?([sd%])/g, function( m, n, k ) { return '%' === k ? '%' : String( n ? a[ +n ] : a[ i++ ] ); } ); };
+	var TN = window.ecv2_tn || function( one, many, n ) { return T.apply( null, [ 1 === Number( n ) ? one : many ].concat( Array.prototype.slice.call( arguments, 2 ) ) ); };
 	var AJAX_URL = ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) || window.ajaxurl;
 	var products = D.products || [];
 	var total = D.product_total || 0;
@@ -26,13 +29,13 @@ jQuery( function( $ ) {
 	/* Dirty + header binding                                              */
 	/* ------------------------------------------------------------------ */
 
-	function mark_dirty() { dirty = true; $( '#eccat_dirty' ).addClass( 'is-visible' ).removeClass( 'is-saved' ).text( 'Unsaved changes' ); }
+	function mark_dirty() { dirty = true; $( '#eccat_dirty' ).addClass( 'is-visible' ).removeClass( 'is-saved' ).text( L.unsaved || T( 'Unsaved changes' ) ); }
 	function mark_saved() { dirty = false; $( '#eccat_dirty' ).addClass( 'is-visible is-saved' ).text( L.saved || 'Saved' ); setTimeout( function() { if ( ! dirty ) { $( '#eccat_dirty' ).removeClass( 'is-visible' ); } }, 2500 ); }
 	$root.on( 'input change', '[data-track]', mark_dirty );
 	$( window ).on( 'beforeunload', function() { if ( dirty ) { return L.leave || 'You have unsaved changes.'; } } );
 
 	$( '#eccat_name' ).on( 'input', function() { $( '#eccat_h_title' ).text( this.value || '…' ); } );
-	$( '#eccat_active' ).on( 'change', function() { $( '#eccat_h_status' ).toggleClass( 'is-active', this.checked ).text( this.checked ? 'Active' : 'Hidden' ); } );
+	$( '#eccat_active' ).on( 'change', function() { $( '#eccat_h_status' ).toggleClass( 'is-active', this.checked ).text( this.checked ? T( 'Active' ) : T( 'Hidden' ) ); } );
 	$( '#eccat_excerpt' ).on( 'input', function() { $( '#eccat_excerpt_count' ).text( this.value.length ); } );
 
 	/* Slug: manual only; offer redirect when it changes */
@@ -95,14 +98,14 @@ jQuery( function( $ ) {
 		$t.children( '.eccat-token, .eccat-token-more' ).remove();
 		var frag = '';
 		$.each( products, function( i, p ) {
-			frag += '<span class="eccat-token' + ( p.active ? '' : ' is-inactive' ) + ( p.smart ? ' is-smart' : '' ) + '" data-id="' + p.id + '" title="' + esc( p.sku || '' ) + ( p.smart ? ' · added by a rule' : '' ) + '">' + thumb( p.image, 'ecv2-thumb-xs' ) + '<a href="' + esc( p.edit_url ) + '">' + esc( p.title ) + '</a>' + ( p.smart ? '<span class="eccat-token-tag" title="Added by a smart rule">rule</span>' : '' ) + '<button type="button" class="eccat-token-x" data-id="' + p.id + '" title="' + ( p.smart ? 'Exclude from this category\'s rules' : 'Remove from category' ) + '">&times;</button></span>';
+			frag += '<span class="eccat-token' + ( p.active ? '' : ' is-inactive' ) + ( p.smart ? ' is-smart' : '' ) + '" data-id="' + p.id + '" title="' + esc( p.sku || '' ) + ( p.smart ? ' · ' + esc( T( 'added by a rule' ) ) : '' ) + '">' + thumb( p.image, 'ecv2-thumb-xs' ) + '<a href="' + esc( p.edit_url ) + '">' + esc( p.title ) + '</a>' + ( p.smart ? '<span class="eccat-token-tag" title="' + esc( T( 'Added by a smart rule' ) ) + '">' + esc( T( 'rule' ) ) + '</span>' : '' ) + '<button type="button" class="eccat-token-x" data-id="' + p.id + '" title="' + esc( p.smart ? T( 'Exclude from this category\'s rules' ) : T( 'Remove from category' ) ) + '">&times;</button></span>';
 		} );
 		if ( total > products.length ) { frag += '<span class="eccat-token-more">+' + ( total - products.length ) + ' more</span>'; }
 		$in.before( frag );
 		$( '#eccat_rail_count, #eccat_h_count' ).text( total + ( $( '#eccat_h_count' ).length ? '' : '' ) );
 		$( '#eccat_h_count' ).text( total + ( total === 1 ? ' product' : ' products' ) );
 		var mode = window.eccat_smart ? eccat_smart.mode() : 0;
-		$( '#eccat_products_hint' ).text( total + ' in this category · ' + ( mode === 1 ? 'filled by rules' : ( mode === 2 ? 'rules + hand-picked · adds apply immediately' : 'changes apply immediately' ) ) );
+		$( '#eccat_products_hint' ).text( T( '%d in this category', total ) + ' · ' + ( mode === 1 ? T( 'filled by rules' ) : ( mode === 2 ? T( 'rules + hand-picked · adds apply immediately' ) : T( 'changes apply immediately' ) ) ) );
 		$( '#eccat_combo' ).toggleClass( 'is-readonly', mode === 1 );
 		$( '#eccat_more' ).toggle( total > products.length );
 		var inactive = $.grep( products, function( p ) { return ! p.active; } ).length;
@@ -130,7 +133,7 @@ jQuery( function( $ ) {
 		var p = $.grep( products, function( x ) { return x.id === id; } )[0];
 		post( { action: 'ecv2_category_remove_product', wp_easycart_nonce: D.list_nonce, category_id: D.category_id, product_id: id }, function( d ) {
 			products = $.grep( products, function( x ) { return x.id !== id; } ); total = Math.max( 0, total - 1 ); render_tokens();
-			if ( d && d.excluded && window.eccat_smart ) { eccat_smart.note_excluded( id ); if ( p ) { ecv2_toast( 'Excluded “' + p.title + '” — rules won\'t add it back.', 'success' ); } return; }
+			if ( d && d.excluded && window.eccat_smart ) { eccat_smart.note_excluded( id ); if ( p ) { ecv2_toast( T( 'Excluded “%s” — rules won\'t add it back.', p.title ), 'success' ); } return; }
 			if ( silent || ! p ) { return; }
 			var $t = $( '<div class="ecv2-toast ecv2-toast-success"><span class="dashicons dashicons-yes"></span> <span></span> <a href="#">' + esc( L.undo || 'Undo' ) + '</a></div>' );
 			$t.find( 'span' ).last().text( ( L.removed || 'Removed “%s”' ).replace( '%s', p.title ) );
@@ -205,7 +208,7 @@ jQuery( function( $ ) {
 	function render_children() {
 		var html = '';
 		$.each( children, function( i, ch ) {
-			html += '<div class="ecos-u">' + thumb( ch.image ) + '<div class="ecos-u-main"><a class="ecv2-link-primary" href="' + esc( ch.edit_url ) + '">' + esc( ch.name ) + '</a><span class="ecv2-sub">' + ch.products + ( ch.products === 1 ? ' product' : ' products' ) + '</span></div><span class="ecv2-chip ' + ( ch.active ? 'ecv2-chip-green' : 'ecv2-chip-gray' ) + '">' + ( ch.active ? 'Active' : 'Hidden' ) + '</span><a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="' + esc( ch.edit_url ) + '">Open</a></div>';
+			html += '<div class="ecos-u">' + thumb( ch.image ) + '<div class="ecos-u-main"><a class="ecv2-link-primary" href="' + esc( ch.edit_url ) + '">' + esc( ch.name ) + '</a><span class="ecv2-sub">' + esc( TN( '%d product', '%d products', ch.products ) ) + '</span></div><span class="ecv2-chip ' + ( ch.active ? 'ecv2-chip-green' : 'ecv2-chip-gray' ) + '">' + esc( ch.active ? T( 'Active' ) : T( 'Hidden' ) ) + '</span><a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="' + esc( ch.edit_url ) + '">' + esc( T( 'Open' ) ) + '</a></div>';
 		} );
 		$( '#eccat_subs_list' ).html( html );
 		$( '#eccat_subs_empty' ).toggle( ! children.length );
@@ -313,7 +316,7 @@ jQuery( function( $ ) {
 				original_slug = d.slug; $( '#eccat_slug' ).val( d.slug ).trigger( 'input' );
 				if ( d.slug_prefix ) { $( '#eccat_slug_pre' ).text( d.slug_prefix.replace( /^https?:\/\/[^\/]+/, '' ) ); }
 				if ( d.permalink ) { $( '#eccat_view' ).attr( 'href', d.permalink ); $( '#eccat_h_url' ).text( d.permalink.replace( /^https?:\/\/[^\/]+/, '' ) ); }
-				$( '#eccat_h_path' ).text( d.path && d.path.length ? d.path.join( ' › ' ) + ' › ' + name : 'Top level' );
+				$( '#eccat_h_path' ).text( d.path && d.path.length ? d.path.join( ' › ' ) + ' › ' + name : T( 'Top level' ) );
 				var $h = $( '#eccat_health .ecdv2-health-items' ).empty();
 				$.each( d.health || [], function( i, h ) { $h.append( '<div class="ecdv2-health-item ' + ( h.ok ? 'is-ok' : 'is-warn' ) + '"><span class="dashicons dashicons-' + ( h.ok ? 'yes' : 'warning' ) + '"></span><span class="ecdv2-health-label">' + esc( h.label ) + '</span></div>' ); } );
 				if ( d.products ) { products = d.products; total = d.product_total || products.length; render_tokens(); }
@@ -321,7 +324,7 @@ jQuery( function( $ ) {
 				mark_saved();
 				yoast_save();
 				var smart_msg = d.smart ? ( ( d.smart.added ? ' · ' + d.smart.added + ' added by rules' : '' ) + ( d.smart.removed ? ' · ' + d.smart.removed + ' removed' : '' ) ) : '';
-				ecv2_toast( ( L.saved || 'Saved' ) + ( d.redirect_added ? ' · redirect added from the old URL' : '' ) + smart_msg, 'success' );
+				ecv2_toast( ( L.saved || 'Saved' ) + ( d.redirect_added ? ' · ' + T( 'redirect added from the old URL' ) : '' ) + smart_msg, 'success' );
 			} )
 			.fail( function() { ecv2_toast( L.error, 'error' ); } )
 			.always( function() { $btn.removeClass( 'is-saving' ).prop( 'disabled', false ).find( '.ecdv2-save-label' ).text( 'Save' ); } );
@@ -355,7 +358,7 @@ jQuery( function( $ ) {
 				var fields_html = ''; $.each( S.fields, function( k, f ) { fields_html += '<option value="' + k + '"' + ( k === r.f ? ' selected' : '' ) + '>' + esc( f.label ) + '</option>'; } );
 				$l.append( '<div class="eccat-rule" data-i="' + i + '"><select class="ecv2-select eccat-rule-f" data-i="' + i + '">' + fields_html + '</select><select class="ecv2-select eccat-rule-o" data-i="' + i + '">' + opts_html( S.ops[ type_of( r.f ) ] || {}, r.o ) + '</select><div class="eccat-rule-vwrap">' + value_html( i, r ) + '</div><button type="button" class="eccat-rule-x" data-i="' + i + '" title="Remove rule">×</button></div>' );
 			} );
-			if ( ! rules.length ) { $l.append( '<div class="ecos-hint" style="padding:6px 0">No rules yet — add one to start matching products.</div>' ); }
+			if ( ! rules.length ) { $l.append( '<div class="ecos-hint" style="padding:6px 0">' + esc( T( 'No rules yet — add one to start matching products.' ) ) + '</div>' ); }
 			$( '#eccat_exclude_hint' ).html( exclude.length ? exclude.length + ' excluded · <a href="#" id="eccat_exclude_clear">clear</a>' : '' );
 			$( '#eccat_rules_only_warn' ).toggle( mode === 1 );
 			schedule_preview();
@@ -371,7 +374,7 @@ jQuery( function( $ ) {
 				var $t = $( '#eccat_preview_thumbs' ).empty();
 				$.each( r.data.sample || [], function( i, p ) { $t.append( $( '<span class="ecv2-thumb" title="' + esc( p.title ) + '">' + ( p.image ? '<img src="' + esc( p.image ) + '" alt="">' : '<span class="dashicons dashicons-format-image"></span>' ) + '</span>' ) ); } );
 				if ( r.data.count > ( r.data.sample || [] ).length ) { $t.append( '<span class="eccat-preview-more">+' + ( r.data.count - r.data.sample.length ) + '</span>' ); }
-				if ( mode === 1 ) { var manual = $.grep( products, function( p ) { return ! p.smart; } ).length; $( '#eccat_rules_only_n' ).text( manual ? manual + ' hand-picked product' + ( manual === 1 ? '' : 's' ) + ' will be re-checked against the rules.' : '' ); }
+				if ( mode === 1 ) { var manual = $.grep( products, function( p ) { return ! p.smart; } ).length; $( '#eccat_rules_only_n' ).text( manual ? TN( '%d hand-picked product will be re-checked against the rules.', '%d hand-picked products will be re-checked against the rules.', manual ) : '' ); }
 			}, 'json' );
 		}
 		function rules_obj() { return { mode: $( '#eccat_rules_mode' ).val() || 'all', rules: rules, exclude: exclude }; }
@@ -412,7 +415,7 @@ jQuery( function( $ ) {
 		$( '#eccat_serp_desc' ).text( ex || 'Google will pull text from the page — add a search excerpt above to control it.' ).toggleClass( 'is-placeholder', ! ex );
 		var pre = $( '#eccat_slug_pre' ).text(); $( '#eccat_serp_path' ).text( pre + ( slug || '' ) + ( slug ? '/' : '' ) );
 		var n = ex.length, $c = $( '#eccat_serp_count' );
-		$c.text( n ? n + ' / 160' + ( n < 70 ? ' · room for about ' + ( 155 - n ) + ' more characters' : ( n > 160 ? ' · likely truncated' : '' ) ) : '' ).toggleClass( 'is-warn', n > 160 );
+		$c.text( n ? n + ' / 160' + ( n < 70 ? ' · ' + TN( 'room for about %d more character', 'room for about %d more characters', 155 - n ) : ( n > 160 ? ' · ' + T( 'likely truncated' ) : '' ) ) : '' ).toggleClass( 'is-warn', n > 160 );
 	}
 	$( '#eccat_name, #eccat_excerpt, #eccat_slug' ).on( 'input', serp ); serp();
 

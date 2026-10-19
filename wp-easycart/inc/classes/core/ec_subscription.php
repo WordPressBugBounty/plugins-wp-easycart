@@ -40,6 +40,9 @@ class ec_subscription{
 	private $trial_days_cache = null;					// 6.0.3: trial_days()
 	public $num_failed_payment;							// INT
 	public $model_number;								// VARCHAR
+	public $usage_level = '';							// 6.0.5: the usage level it bills ( wp_easycart_subscription_levels )
+	public $usage_value = 0;
+	public $usage_label = '';
 
 	private $purchase_details = false;					// Lazy cache for get_purchase_details()
 
@@ -702,7 +705,22 @@ class ec_subscription{
 	 */
 	public function has_plan_choices() {
 		/* 6.0.3: another plan the change rule allows ( the plan list itself counts the current plan ). */
-		return ( count( $this->get_plan_rows() ) > 1 || ! get_option( 'ec_option_subscription_one_only' ) );
+		return ( count( $this->get_plan_rows() ) > 1 || ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( (int) $this->product_id ) : ! get_option( 'ec_option_subscription_one_only' ) ) || $this->has_level_choices() );
+	}
+
+	/**
+	 * 6.0.5: other usage levels the customer may move to on this product ( wp_easycart_subscription_levels::choices_for() ).
+	 *
+	 * @since 6.0.5
+	 * @return array[]
+	 */
+	public function get_level_choices() {
+		return class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::choices_for( $this ) : array();
+	}
+
+	/** @since 6.0.5 */
+	public function has_level_choices() {
+		return count( $this->get_level_choices() ) > 0;
 	}
 
 	/**
@@ -786,10 +804,12 @@ class ec_subscription{
 		$choices = array();
 		foreach ( $this->get_plan_rows() as $choice ) {
 			$upgrade   = $choice['row'];
+			/* 6.0.5: a plan that sells usage levels shows its price and name at the subscriber's level ( or the nearest it sells ). */
+			$at_level  = class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::at_subscription_level( $upgrade, $this ) : array( 'price' => $upgrade->price, 'label' => '' );
 			$choices[] = array(
 				'product_id' => (int) $upgrade->product_id,
-				'title'      => wp_easycart_language()->convert_text( $upgrade->title ),
-				'amount'     => $GLOBALS['currency']->get_currency_display( $upgrade->price ),
+				'title'      => ( '' !== $at_level['label'] ) ? wp_easycart_subscription_levels::title( wp_easycart_language()->convert_text( $upgrade->title ), $at_level['label'] ) : wp_easycart_language()->convert_text( $upgrade->title ),
+				'amount'     => $GLOBALS['currency']->get_currency_display( $at_level['price'] ),
 				'period'     => $this->get_new_bill_period_formatted( $upgrade->subscription_bill_length, $upgrade->subscription_bill_period ),
 				'interval'   => $upgrade->subscription_bill_period . max( 1, (int) $upgrade->subscription_bill_length ), /* 6.0.3: tells the page when a choice bills on another schedule */
 				'current'    => $choice['current'],
@@ -1149,6 +1169,14 @@ class ec_subscription{
 		$this->amount = $db_row->price;
 		$this->quantity = $db_row->quantity;
 		$this->product_id = $db_row->product_id;
+		if ( ! isset( $db_row->usage_level ) && $this->is_details && class_exists( 'wp_easycart_subscription_levels' ) ) {
+			wp_easycart_subscription_levels::fill( $db_row ); /* 6.0.5: the details page reads its level */
+		}
+		if ( isset( $db_row->usage_level ) ) {
+			$this->usage_level = (string) $db_row->usage_level;
+			$this->usage_value = (float) $db_row->usage_value;
+			$this->usage_label = (string) $db_row->usage_label;
+		}
 		$this->trial_period_days = $db_row->trial_period_days;
 		$this->bill_length = $db_row->payment_length;
 		$this->bill_period = $db_row->payment_period;

@@ -37,6 +37,19 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 		}
 
 		public function register_rest_api() {
+			/* 6.0.5: pages for Limit Access in Elementor's page settings ( WP_EasyCart_Elementor_Access ). */
+			register_rest_route(
+				'wp-easycart/v1',
+				'/easycart_page/',
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'wp_easycart_ajax_select_page' ),
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
+				),
+				true
+			);
 			register_rest_route(
 				'wp-easycart/v1',
 				'/easycart_product/',
@@ -240,6 +253,64 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				$products = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.product_id AS id, ec_product.title AS text FROM ec_product WHERE 1 = 1' . wp_easycart_product_draft_sql( 'ec_product' ) . ' ORDER BY ec_product.title ASC LIMIT %d, %d', $offset, $per_page + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_product_draft_sql() is a fixed SQL fragment.
 			}
 			return $this->page_results( $products, $per_page );
+		}
+
+		/**
+		 * Pages for the Elementor picker ( 6.0.5, Limit Access ): every post in `ids`, or a page of a title search over the published posts of
+		 * the types Limit Access covers.
+		 *
+		 * @param WP_REST_Request|null $request Request.
+		 * @return array
+		 */
+		public function wp_easycart_ajax_select_page( $request = null ) {
+			$types = class_exists( 'wp_easycart_page_access' ) ? wp_easycart_page_access::post_types() : array( 'page', 'post' );
+			$ids   = $this->requested_ids( $request );
+			if ( false !== $ids ) {
+				if ( empty( $ids ) ) {
+					return array( 'results' => array() );
+				}
+				$posts = get_posts(
+					array(
+						'post__in'    => array_map( 'intval', $ids ),
+						'post_type'   => $types,
+						'post_status' => array( 'publish', 'private', 'draft', 'pending', 'future' ),
+						'numberposts' => count( $ids ),
+						'orderby'     => 'post__in',
+					)
+				);
+				$rows  = array();
+				foreach ( $posts as $post ) {
+					$rows[] = (object) array(
+						'id'   => (int) $post->ID,
+						'text' => wp_strip_all_tags( '' !== $post->post_title ? $post->post_title : '#' . $post->ID ),
+					);
+				}
+				return array( 'results' => $rows );
+			}
+			$search = $this->request_param( $request, 's' );
+			list( $per_page, $offset ) = $this->paging( $request, self::PER_PAGE );
+			$query = new WP_Query(
+				array(
+					'post_type'              => $types,
+					'post_status'            => 'publish',
+					's'                      => is_scalar( $search ) ? sanitize_text_field( (string) $search ) : '',
+					'posts_per_page'         => $per_page + 1,
+					'offset'                 => $offset,
+					'orderby'                => 'title',
+					'order'                  => 'ASC',
+					'no_found_rows'          => true,
+					'update_post_term_cache' => false,
+				)
+			);
+			$rows  = array();
+			foreach ( $query->posts as $post ) {
+				$type   = get_post_type_object( $post->post_type );
+				$rows[] = (object) array(
+					'id'   => (int) $post->ID,
+					'text' => wp_strip_all_tags( '' !== $post->post_title ? $post->post_title : '#' . $post->ID ) . ( $type ? ' ( ' . $type->labels->singular_name . ' )' : '' ),
+				);
+			}
+			return $this->page_results( $rows, $per_page );
 		}
 
 		/**

@@ -54,7 +54,7 @@
 						<?php if( $order->shipping_address_line_2 != "" ){ ?>
 						<?php echo esc_attr( htmlspecialchars( $order->shipping_address_line_2, ENT_QUOTES ) ); ?><br />
 						<?php }?>
-						<?php $order->display_order_shipping_city( ); ?>, <?php $order->display_order_shipping_state( ); ?> <?php $order->display_order_shipping_zip( ); ?><br />
+						<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $order, 'shipping' ) ) ); /* 6.0.5: in the country's order */ ?><br />
 						<?php $order->display_order_shipping_country( ); ?><?php if( $order->shipping_phone != "" ){ ?><br />
 						<?php echo wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_phone' )?>: <?php $order->display_order_shipping_phone( ); ?><?php }?></span>
 					</a>
@@ -285,7 +285,7 @@
 
 		<?php if( $GLOBALS['ec_user']->billing->city || $GLOBALS['ec_user']->billing->state || $GLOBALS['ec_user']->billing->zip ){ ?>
 		<div class="ec_cart_input_row">
-		  <?php $GLOBALS['ec_user']->billing->display_city(); ?>, <?php $GLOBALS['ec_user']->billing->display_state(); ?> <?php $GLOBALS['ec_user']->billing->display_zip(); ?>
+		  <?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_user']->billing, '' ) ) ); /* 6.0.5: in the country's order */ ?>
 		</div>
 		<?php } ?>
 
@@ -337,7 +337,7 @@
 
 		<?php if( $GLOBALS['ec_user']->shipping->city || $GLOBALS['ec_user']->shipping->state || $GLOBALS['ec_user']->shipping->zip ){ ?>
 		<div class="ec_cart_input_row">
-			<?php $GLOBALS['ec_user']->shipping->display_city(); ?>, <?php $GLOBALS['ec_user']->shipping->display_state(); ?> <?php $GLOBALS['ec_user']->shipping->display_zip(); ?>
+			<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $GLOBALS['ec_user']->shipping, '' ) ) ); /* 6.0.5: in the country's order */ ?>
 		</div>
 		<?php } ?>
 

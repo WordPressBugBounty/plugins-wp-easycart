@@ -179,7 +179,8 @@ $icon_warn = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 					<?php esc_html_e( 'Order emails go through WordPress mail, which many hosts handle poorly. Send a test now so you know before your first order does.', 'wp-easycart' ); ?>
 					<?php } ?>
 				</div>
-				<label class="ecwz-check-row ecwz-check-row-sm"><input type="checkbox" name="subscribe_me" value="1" checked> <span><?php esc_html_e( 'Send me security updates and product news from WP EasyCart', 'wp-easycart' ); ?></span></label>
+				<?php /* 6.0.5: never ticked for the merchant ( a ticked box is not consent under the GDPR and UK GDPR; usage data asks the same way ). */ ?>
+				<label class="ecwz-check-row ecwz-check-row-sm"><input type="checkbox" name="subscribe_me" value="1"> <span><?php esc_html_e( 'Send me security updates and product news from WP EasyCart', 'wp-easycart' ); ?></span></label>
 			</div>
 		</div>
 		<div class="ecwz-frow">

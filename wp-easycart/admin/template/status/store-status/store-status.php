@@ -335,89 +335,17 @@ ob_start();
 
 		<?php
 		////////////////////////////
-		// Customer Uploads Privacy Check ( 6.0.0 )
+		// Customer Uploads and Paid Downloads Privacy Checks ( 6.0.0; 6.0.5: they fetch the site's own addresses, so they run after the
+		// page shows unless their answer is cached: wp_easycart_admin_deferred_checks, admin review M15 )
 		////////////////////////////
-		$ecds_uploads_access = $status->uploads_access_check();
-		if ( is_array( $ecds_uploads_access ) ) {
-			$ecds_uploads_fix_url = add_query_arg(
-				array(
-					'page'                 => 'wp-easycart-status',
-					'subpage'              => 'store-status',
-					'ec_admin_form_action' => 'fix-upload-protection',
-					'wp_easycart_nonce'    => wp_create_nonce( 'wp-easycart-fix-upload-protection' ),
-				),
-				admin_url( 'admin.php' )
-			);
-			$ecds_uploads_nginx = wp_easycart_customer_uploads::nginx_rule();
-			if ( 'protected' === $ecds_uploads_access['status'] ) {
-				?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Customer uploads are private (they cannot be downloaded by URL)', 'wp-easycart' ); ?></span></div>
-				<?php
-			} elseif ( 'exposed' === $ecds_uploads_access['status'] ) {
-				?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label">
-			<strong><?php esc_html_e( 'Customer uploads can be downloaded by anyone who knows the file address.', 'wp-easycart' ); ?></strong>
-			<?php esc_html_e( 'Your web server ignored the protection rules in the uploads folder. On Apache or LiteSpeed, allow .htaccess files for the WordPress folder (AllowOverride). On nginx, which never reads .htaccess, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
-			<pre class="ecds-code"><?php echo esc_html( $ecds_uploads_nginx ); ?></pre>
-			<a href="<?php echo esc_url( $ecds_uploads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a>
-		</span></div>
-				<?php
-			} else {
-				?>
-		<div class="ec_status_subs">
-			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-warning"></div><?php esc_html_e( 'Could not check whether customer uploads are private', 'wp-easycart' ); ?><?php echo ( '' !== $ecds_uploads_access['message'] ) ? ': ' . esc_html( $ecds_uploads_access['message'] ) : ''; ?></div>
-			<span class="ec_status_label"><?php esc_html_e( 'Apache, LiteSpeed and IIS are protected by the files WP EasyCart writes into the uploads folder. If this site runs on nginx, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
-			<pre class="ecds-code"><?php echo esc_html( $ecds_uploads_nginx ); ?></pre>
-			<a href="<?php echo esc_url( $ecds_uploads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a></span>
-		</div>
-				<?php
-			}
-		}
-		?>
-
-		<?php
-		////////////////////////////
-		// Paid Downloads Privacy Check ( 6.0.0 )
-		////////////////////////////
-		$ecds_downloads_access = method_exists( $status, 'downloads_access_check' ) ? $status->downloads_access_check() : false;
-		if ( is_array( $ecds_downloads_access ) ) {
-			$ecds_downloads_fix_url = add_query_arg(
-				array(
-					'page'                 => 'wp-easycart-status',
-					'subpage'              => 'store-status',
-					'ec_admin_form_action' => 'fix-upload-protection',
-					'wp_easycart_nonce'    => wp_create_nonce( 'wp-easycart-fix-upload-protection' ),
-				),
-				admin_url( 'admin.php' )
-			);
-			$ecds_downloads_nginx = wp_easycart_customer_uploads::nginx_rule( 'downloads' );
-			if ( 'protected' === $ecds_downloads_access['status'] ) {
-				?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Paid download files are private (they cannot be downloaded by URL)', 'wp-easycart' ); ?></span></div>
-				<?php
-			} elseif ( 'missing' === $ecds_downloads_access['status'] ) {
-				?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'No downloads folder yet, so there are no download files to protect', 'wp-easycart' ); ?></span></div>
-				<?php
-			} elseif ( 'exposed' === $ecds_downloads_access['status'] ) {
-				?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label">
-			<strong><?php esc_html_e( 'Paid download files can be downloaded by anyone who knows the file address, without buying them.', 'wp-easycart' ); ?></strong>
-			<?php esc_html_e( 'Your web server ignored the protection rules in the downloads folder. On Apache or LiteSpeed, allow .htaccess files for the WordPress folder (AllowOverride). On nginx, which never reads .htaccess, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
-			<pre class="ecds-code"><?php echo esc_html( $ecds_downloads_nginx ); ?></pre>
-			<a href="<?php echo esc_url( $ecds_downloads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a>
-		</span></div>
-				<?php
-			} else {
-				?>
-		<div class="ec_status_subs">
-			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-warning"></div><?php esc_html_e( 'Could not check whether paid download files are private', 'wp-easycart' ); ?><?php echo ( '' !== $ecds_downloads_access['message'] ) ? ': ' . esc_html( $ecds_downloads_access['message'] ) : ''; ?></div>
-			<span class="ec_status_label"><?php esc_html_e( 'Apache, LiteSpeed and IIS are protected by the files WP EasyCart writes into the downloads folders. If this site runs on nginx, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
-			<pre class="ecds-code"><?php echo esc_html( $ecds_downloads_nginx ); ?></pre>
-			<a href="<?php echo esc_url( $ecds_downloads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a></span>
-		</div>
-				<?php
-			}
+		if ( class_exists( 'wp_easycart_admin_deferred_checks' ) ) {
+			wp_easycart_admin_deferred_checks::maybe( 'uploads', __( 'Checking whether customer uploads are private…', 'wp-easycart' ) );
+			wp_easycart_admin_deferred_checks::maybe( 'downloads', __( 'Checking whether paid download files are private…', 'wp-easycart' ) );
+		} else {
+			$ecds_area = 'uploads';
+			include __DIR__ . '/access-checks.php';
+			$ecds_area = 'downloads';
+			include __DIR__ . '/access-checks.php';
 		}
 		?>
 

@@ -70,6 +70,28 @@ if ( ! function_exists( 'ecst_account_recaptcha_keys_saved' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_account_render_limit_access' ) ) {
+	/**
+	 * The Limit Access row ( 6.0.5 ): how many pages have a rule, and a link to Users › Limit Access.
+	 *
+	 * @since 6.0.5
+	 * @param array $field Field declaration.
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function ecst_account_render_limit_access( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		if ( ! class_exists( 'wp_easycart_page_access' ) || ! class_exists( 'wp_easycart_admin_page_access' ) ) {
+			return;
+		}
+		$count = count( wp_easycart_page_access::limited_post_ids() );
+		echo '<p class="ecst-limit-access-count" style="margin:0">';
+		/* translators: %d: number of pages with a Limit Access rule */
+		echo esc_html( sprintf( _n( '%d page has a Limit Access rule.', '%d pages have a Limit Access rule.', $count, 'wp-easycart' ), $count ) ) . ' ';
+		echo '<a href="' . esc_url( wp_easycart_admin_page_access::screen_url() ) . '">' . esc_html__( 'Users › Limit Access', 'wp-easycart' ) . '</a>';
+		echo '</p>';
+	}
+}
+
 return array(
 	'slug'        => 'account',
 	'title'       => __( 'Accounts', 'wp-easycart' ),
@@ -191,6 +213,28 @@ return array(
 					'parent'   => 'ec_option_enable_recaptcha',
 					'keywords' => array( 'captcha', 'checkout' ),
 					'legacy'   => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Enable in Cart' ),
+				),
+			),
+		),
+
+		'limit-access' => array(
+			'title'  => __( 'Limit Access', 'wp-easycart' ),
+			'hint'   => __( 'Pages kept for members: customers who bought a product or subscription, customers with a role, or any signed-in customer', 'wp-easycart' ),
+			'fields' => array(
+				'ecst_limit_access_status' => array(
+					'type'     => 'html',
+					'label'    => __( 'Limited pages', 'wp-easycart' ),
+					'render'   => 'ecst_account_render_limit_access',
+					'keywords' => array( 'members', 'membership', 'restrict', 'protect', 'redirect', 'locked' ),
+					'legacy'   => array( 'page' => 'account', 'section' => 'Limit Access', 'label' => 'New in 6.0.5' ),
+				),
+				'ec_option_page_access_paused' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Pause every Limit Access rule', 'wp-easycart' ),
+					'desc'     => __( 'Every limited page opens to everyone until you switch this off. For troubleshooting: your rules are kept.', 'wp-easycart' ),
+					'default'  => 0,
+					'keywords' => array( 'members', 'membership', 'restrict', 'troubleshoot', 'disable' ),
+					'legacy'   => array( 'page' => 'account', 'section' => 'Limit Access', 'label' => 'New in 6.0.5' ),
 				),
 			),
 		),

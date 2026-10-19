@@ -348,9 +348,10 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_My_Account_Widget' ) && class_exists
 				'password'             => 'details',
 				'payment_methods'      => 'payment_methods',
 				'reset_password'       => 'reset_password',
+				'members_only'         => 'members_only', /* 6.0.5: what unlocks a page with WP EasyCart Limit Access */
 			);
 			$view      = isset( $map[ $requested ] ) ? $map[ $requested ] : 'dashboard';
-			$item      = ( 'reset_password' === $view ) ? '' : self::menu_key_for( 'addresses' === $view ? 'billing_information' : ( 'details' === $view ? 'personal_information' : $view ) );
+			$item      = ( 'reset_password' === $view || 'members_only' === $view ) ? '' : self::menu_key_for( 'addresses' === $view ? 'billing_information' : ( 'details' === $view ? 'personal_information' : $view ) );
 			if ( '' !== $item && 'dashboard' !== $item && ! $this->item_on( $settings, $item ) ) {
 				$view = 'dashboard';
 			}
@@ -392,6 +393,9 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_My_Account_Widget' ) && class_exists
 				echo '<div class="wpec-acc__content wpec-acc__content--' . esc_attr( str_replace( '_', '-', $view ) ) . '">';
 				WP_EasyCart_Elementor_Account::print_account_top( $context );
 				WP_EasyCart_Elementor_Account::print_message( $page, $views );
+				if ( 'login' === $view && ! $context['editor'] && class_exists( 'wp_easycart_page_access' ) ) {
+					echo wp_easycart_page_access::account_notice(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by account_notice().
+				}
 				if ( 'register' === $view ) {
 					WP_EasyCart_Elementor_Account_Views::register( $page );
 				} elseif ( 'forgot_password' === $view || 'reset_password' === $view ) {
@@ -443,6 +447,13 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_My_Account_Widget' ) && class_exists
 					break;
 				case 'reset_password':
 					WP_EasyCart_Elementor_Account_Views::lost_password( $page, true );
+					break;
+				case 'members_only':
+					if ( class_exists( 'wp_easycart_page_access' ) ) {
+						echo wp_easycart_page_access::message_html( wp_easycart_page_access::requested_page() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by message_html().
+					} else {
+						$page->display_dashboard_page();
+					}
 					break;
 				default:
 					$page->display_dashboard_page();

@@ -19,9 +19,12 @@ if ( $atts['show_price'] && ! $ec_offer_price_hidden && wp_easycart_offers_activ
 		$ec_offer_rules = array_values( (array) ec_offer_display::get_product_price_rules( $product->product_id, $product->manufacturer_id, $ec_offer_base, $ec_offer_list ) );
 	}
 }
+/* 6.0.5 ( Matt's call B ): with the lowest price of the last 30 days showing, an offer's struck price is the price before the offer, not
+ * the compare-at price ( wp_easycart_price_history::strike_before_offer() ); data-wpec-strike-base tells product-buy.js. */
+$ec_offer_strike_base = false !== $ec_offer_price_preview && class_exists( 'wp_easycart_price_history' ) && method_exists( 'wp_easycart_price_history', 'strike_before_offer' ) && wp_easycart_price_history::strike_before_offer();
 $ec_offer_attrs = '';
 if ( false !== $ec_offer_price_preview ) {
-	$ec_offer_attrs = ' data-wpec-offer="1" data-wpec-offer-base="' . esc_attr( $ec_offer_base ) . '" data-wpec-list-price="' . esc_attr( $ec_offer_list ) . '"';
+	$ec_offer_attrs = ' data-wpec-offer="1" data-wpec-offer-base="' . esc_attr( $ec_offer_base ) . '" data-wpec-list-price="' . esc_attr( $ec_offer_list ) . '"' . ( $ec_offer_strike_base ? ' data-wpec-strike-base="1"' : '' );
 	if ( is_array( $ec_offer_rules ) ) {
 		$ec_offer_attrs .= ' data-wpec-offer-rules="' . esc_attr( wp_json_encode( $ec_offer_rules ) ) . '"';
 	}
@@ -70,7 +73,7 @@ $shipping_state = '';
 	$ec_offer_saved = false;
 	if ( false !== $ec_offer_price_preview ) {
 		$ec_offer_saved = array( $product->price_options, $product->list_price );
-		$product->list_price = max( $ec_offer_list, $ec_offer_base );
+		$product->list_price = $ec_offer_strike_base ? $ec_offer_base : max( $ec_offer_list, $ec_offer_base );
 		$product->price_options = (float) $ec_offer_price_preview;
 	}
 
@@ -110,7 +113,14 @@ $shipping_state = '';
 <div class="ec_details_price ec_details_single_price<?php echo ( false !== $ec_offer_price_preview ) ? ' ec_details_price_has_offer' : ''; ?>" data-wpec-linked-product="<?php echo esc_attr( $product->product_id ); ?>" data-wpec-linked-rand="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php echo $ec_offer_attrs; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped where built above. */ ?>><?php
 	echo $ec_price_prefix_html; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped where built above. */
 	if ( $atts['show_list_price'] ) {
-		$product->display_product_list_price( ( isset( $atts['list_price_font'] ) ) ? $atts['list_price_font'] : false, ( isset( $atts['list_price_color'] ) ) ? $atts['list_price_color'] : false, true );
+		if ( $ec_offer_strike_base ) {
+			/* Printed hidden: product-buy.js shows it again when the options chosen leave the offer out. */
+			ob_start();
+			$product->display_product_list_price( ( isset( $atts['list_price_font'] ) ) ? $atts['list_price_font'] : false, ( isset( $atts['list_price_color'] ) ) ? $atts['list_price_color'] : false, true );
+			echo preg_replace( '/^<span class="ec_product_old_price/', '<span hidden class="ec_product_old_price', (string) ob_get_clean(), 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- display_product_list_price() escapes its output.
+		} else {
+			$product->display_product_list_price( ( isset( $atts['list_price_font'] ) ) ? $atts['list_price_font'] : false, ( isset( $atts['list_price_color'] ) ) ? $atts['list_price_color'] : false, true );
+		}
 	}
 	if ( $atts['show_price'] ) {
 		if ( $product->replace_price_label && in_array( $product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
@@ -133,4 +143,6 @@ $shipping_state = '';
 	<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> <?php $product->display_promotion_text(); ?></span><span class="ec_details_price_promo_discount_minus"> -</span><span class="ec_details_price_promo_discount_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $product->promotion_discount_total ) ); ?></span></div>
 <?php }?>
 
+<?php if ( $atts['show_price'] && class_exists( 'wp_easycart_unit_price' ) ) { echo wp_kses_post( wp_easycart_unit_price::note_html( $product, 'details', ( false !== $ec_offer_price_preview ) ? (float) $ec_offer_price_preview : null ) ); /* 6.0.5: the price per kg, litre, metre or item ( admin review M16 ) */ } ?>
+<?php if ( class_exists( 'wp_easycart_price_history' ) ) { echo wp_kses_post( wp_easycart_price_history::note_html( $product, ( false !== $ec_offer_price_preview ), 'details' ) ); /* 6.0.5: the lowest price of the last 30 days under a reduction */ } ?>
 <?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $product->product_id, 'callout_manufacturer_id' => $product->manufacturer_id, 'callout_price' => $ec_offer_base, 'callout_list_price' => $ec_offer_list ) ); ?>

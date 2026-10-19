@@ -460,6 +460,7 @@ if ( ! class_exists( 'wp_easycart_product_schema' ) ) :
 								'manufacturer_id' => $product->manufacturer_id,
 								'is_taxable'      => $product->is_taxable,
 								'vat_enabled'     => $product->vat_rate,
+								'tax_class'       => isset( $product->tax_class ) ? $product->tax_class : '',
 							),
 						),
 					)

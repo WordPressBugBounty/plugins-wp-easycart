@@ -106,6 +106,7 @@
 .ecpay-tile-text > b { font-size:13px; font-weight:600; color:var(--ecv2-g900); line-height:1.35; }
 .ecpay-tile-text > span { font-size:11.5px; color:var(--ecv2-g500); line-height:1.4; }
 .ecpay-tile-text > .ecpay-tile-state { color:var(--ecv2-g600); font-weight:600; }
+.ecpay-tile-text > .ecpay-tile-away { color:var(--ecv2-g600); font-style:italic; } /* 6.0.5: not offered where the store is */
 .ecpay-tile-act { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; min-width:0; }
 .ecpay-tile-act a.ecv2-btn { text-decoration:none; }
 .ecpay-lock-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; border:1px solid var(--ecv2-g200); border-radius:8px; background:var(--ecv2-g50); color:var(--ecv2-g500); cursor:pointer; }
@@ -474,4 +475,43 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ecsq-status.is-warn { background:#fff7e6; color:#874d00; }
 .ecpay-drawer .ecpay-legacy .ecsq-status.is-warn .ecsq-dot { background:#d97706; }
 .ecpay-drawer .ecpay-legacy .ecsq-status a { display:inline; padding:0; margin:0; border:0; background:transparent; color:inherit; font-weight:600; text-decoration:underline; font-size:inherit; }
+/* 6.0.5: Intuit Payments ( wp-easycart-pro/admin/template/settings/payments/intuit.php ) uses the groups above; its connection block
+   ( redrawn after a save ) holds the status and the warning notes at the group's edge, like a group's own notes. */
+.ecpay-drawer .ecpay-legacy .ecin-connection > .ec_admin_toggle_note { margin:8px 0; }
+.ecpay-drawer .ecpay-legacy .ecin-connection > .ecsq-actions { margin:0 0 4px; }
+.ecpay-drawer .ecpay-legacy .ecin .ecin-unsaved { margin:0 0 8px; }
 
+/* 6.0.5: Apple Pay on a live Square store ( wp_easycart_square_apple_pay ): under the Square line and in the Square panel */
+.ecpay-applepay { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:4px 10px; padding:10px 12px; border-radius:var(--ecv2-r); border:1px solid #fecaca; background:#fef2f2; color:#7f1d1d; font-size:13px; line-height:1.45; text-align:start; }
+.ecpay-line > .ecpay-applepay { grid-column:1 / -1; margin-top:-4px; }
+.ecsq .ecpay-applepay, .ecpay-drawer .ecpay-applepay { margin:10px 0 0; }
+.ecpay-applepay.is-warn { border-color:#ffd591; background:#fff7e6; color:#78350f; }
+.ecpay-applepay.is-ok { border-color:#bbf7d0; background:#f0fdf4; color:#14532d; }
+.ecpay-applepay.is-checking, .ecpay-applepay.is-note { border-color:var(--ecv2-g200); background:var(--ecv2-g50); color:var(--ecv2-g700); }
+.ecpay-applepay-icon { margin-top:1px; }
+.ecpay-applepay.is-checking .ecpay-applepay-icon { animation:ecpay-applepay-spin 1s linear infinite; }
+@keyframes ecpay-applepay-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .ecpay-applepay.is-checking .ecpay-applepay-icon { animation:none; } }
+.ecpay-applepay-body { min-width:0; display:flex; flex-direction:column; gap:2px; overflow-wrap:anywhere; }
+.ecpay-applepay-body > b { font-weight:600; }
+.ecpay-applepay-act { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.ecpay-applepay-act .ecv2-btn-primary { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecpay-applepay.is-busy { opacity:.75; }
+.ecpay-applepay-manual { margin-top:6px; }
+.ecpay-applepay-manual > summary { cursor:pointer; font-weight:600; width:max-content; max-width:100%; }
+.ecpay-applepay-manual ol { margin:6px 0 2px; padding-inline-start:1.3em; display:grid; gap:4px; }
+.ecpay-applepay-manual a { color:inherit; font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+.ecpay-applepay code { font-size:12px; background:rgba(0,0,0,.06); border-radius:4px; padding:0 4px; }
+.ecpay-applepay-note { display:block; box-sizing:border-box; width:100%; max-width:680px; margin:6px 0; padding:8px 10px; border:1px solid rgba(0,0,0,.15); border-radius:6px; background:#fff; color:#1f2937; font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; resize:vertical; }
+.ecpay-applepay-host .ecpay-applepay-copy { margin-bottom:2px; }
+.ecpay-applepay.is-note { grid-template-columns:minmax(0,1fr); }
+@media (max-width:600px) { .ecpay-applepay { grid-template-columns:auto minmax(0,1fr); } .ecpay-applepay-act { grid-column:2; } }
+
+/* 6.0.5: Bill later bank details ( print_bank_fields() ) */
+.ecpay-manual-form .ecpay-bank { border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:10px; padding:12px 14px 14px; margin:0; display:flex; flex-direction:column; gap:12px; min-width:0; }
+.ecpay-manual-form .ecpay-bank > legend { padding:0 6px; margin-left:-6px; font-weight:600; }
+.ecpay-manual-form .ecpay-bank-fields { display:flex; flex-direction:column; gap:12px; }
+.ecpay-manual-form .ecpay-bank-field[hidden] { display:none !important; }
+.ecpay-manual-form .ecpay-bank-optional { color:var(--ecv2-g400, #9ca3af); font-weight:400; margin-left:3px; }
+.ecpay-manual-form .ecpay-bank-in { font-variant-numeric:tabular-nums; letter-spacing:.02em; }
+.ecpay-manual-form .ecpay-bank-in.is-invalid { border-color:var(--ecv2-danger, #dc2626); box-shadow:0 0 0 3px rgba(220,38,38,.12); }

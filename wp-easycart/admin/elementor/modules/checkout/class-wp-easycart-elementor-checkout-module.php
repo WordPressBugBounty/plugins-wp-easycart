@@ -1394,7 +1394,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Module' ) ) :
 				'cart_totals_title'                       => array( 'cart_totals', __( 'Totals heading', 'wp-easycart' ), 'Cart Totals' ),
 				'order_summary'                           => array( 'cart_onepage', __( '"Order Summary" heading', 'wp-easycart' ), 'Order Summary' ),
 				'cart_simple_apply'                       => array( 'cart_coupons', __( 'Apply button ( code boxes )', 'wp-easycart' ), 'Apply' ),
-				'cart_payment_information_submit_order_button' => array( 'cart_payment_information', __( 'Place order button', 'wp-easycart' ), 'SUBMIT ORDER' ),
+				'cart_payment_information_submit_order_button' => array( 'cart_payment_information', __( 'Place order button', 'wp-easycart' ), 'PLACE ORDER AND PAY' ),
 				/* The order confirmation */
 				'cart_success_thank_you_title'            => array( 'cart_success', __( 'Thank-you heading', 'wp-easycart' ), 'Thank you for your order' ),
 				'cart_success_will_receive_email'         => array( 'cart_success', __( 'Email note', 'wp-easycart' ), 'You will receive an email confirmation shortly at' ),

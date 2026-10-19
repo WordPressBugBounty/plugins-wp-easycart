@@ -258,11 +258,21 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account_Views' ) ) :
 			if ( $show_title ) {
 				echo '<div class="ec_cart_header ec_top">' . esc_html( WP_EasyCart_Elementor_Account::text( 'payment_title', 'Payment methods' ) ) . '</div>';
 			}
+			/* 6.0.5: each subscription bills its own card; "Used for your subscriptions" only while every one bills this card. */
+			$cards = ( isset( $data['cards'] ) && is_array( $data['cards'] ) ) ? $data['cards'] : array();
+			$mixed = false;
+			foreach ( $cards as $card ) {
+				if ( '' !== (string) $card['last4'] && (string) $card['last4'] !== (string) $data['last4'] ) {
+					$mixed = true;
+				}
+			}
 			if ( '' !== $data['last4'] ) {
 				echo '<div class="wpec-acc-card">';
 				echo '<span class="wpec-acc-card__brand">' . esc_html( '' !== $data['brand'] ? $data['brand'] : WP_EasyCart_Elementor_Account::text( 'payment_card', 'Card' ) ) . '</span>';
 				echo '<span class="wpec-acc-card__number">&bull;&bull;&bull;&bull; ' . esc_html( $data['last4'] ) . '</span>';
-				echo '<span class="wpec-acc-card__note">' . esc_html( WP_EasyCart_Elementor_Account::text( 'payment_card_note', 'Used for your subscriptions.' ) ) . '</span>';
+				if ( ! $mixed ) {
+					echo '<span class="wpec-acc-card__note">' . esc_html( WP_EasyCart_Elementor_Account::text( 'payment_card_note', 'Used for your subscriptions.' ) ) . '</span>';
+				}
 				echo '</div>';
 			} else {
 				echo '<p class="wpec-acc-empty">' . esc_html( WP_EasyCart_Elementor_Account::text( 'payment_none', 'You have no saved payment method.' ) ) . '</p>';
@@ -272,6 +282,9 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account_Views' ) ) :
 				foreach ( $data['subscriptions'] as $subscription ) {
 					echo '<li class="wpec-acc-card__subscription">';
 					echo '<span class="wpec-acc-card__subscription-title">' . esc_html( wp_strip_all_tags( wp_easycart_language()->convert_text( $subscription->title ) ) ) . '</span> ';
+					if ( isset( $cards[ (int) $subscription->subscription_id ] ) && class_exists( 'wp_easycart_subscription_cards' ) ) {
+						echo '<span class="wpec-acc-card__subscription-card">' . esc_html( wp_easycart_subscription_cards::label( $cards[ (int) $subscription->subscription_id ] ) ) . '</span> ';
+					}
 					echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription->subscription_id ) ) ) . '">' . esc_html( WP_EasyCart_Elementor_Account::store_text( 'cart_payment_information', 'cart_change_payment_method', 'Change payment method' ) ) . '</a>';
 					echo '</li>';
 				}

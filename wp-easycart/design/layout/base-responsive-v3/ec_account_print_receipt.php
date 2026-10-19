@@ -132,7 +132,7 @@ if ( $has_billing ) {
 }
 $ed::address_cards(
 	$ec_pr_cards,
-	( '' !== (string) $order->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_pr_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $order->vat_registration_number ) : ''
+	( '' !== (string) $order->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_pr_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $order->vat_registration_number ) . ( class_exists( 'wp_easycart_vat' ) && '' !== wp_easycart_vat::reverse_charge_text( $order ) ? ' · ' . esc_html( wp_easycart_vat::reverse_charge_text( $order ) ) : '' ) : '' /* 6.0.5: "Reverse charge" */
 );
 
 /* Items */
@@ -305,7 +305,7 @@ if ( is_array( $ec_receipt_offers ) && isset( $ec_receipt_offers['applied_offers
 		if ( ! isset( $ec_receipt_offer['amount'] ) || $ec_receipt_offer['amount'] <= 0 ) {
 			continue;
 		}
-		$ec_pr_totals[] = array( esc_html( $ec_receipt_offer['label'] . ( ( isset( $ec_receipt_offer['code'] ) && '' != $ec_receipt_offer['code'] ) ? ' (' . $ec_receipt_offer['code'] . ')' : '' ) ), $ed::ltr( '-' . $ec_pr_curr->get_currency_display( $ec_receipt_offer['amount'] ) ) );
+		$ec_pr_totals[] = array( esc_html( wp_easycart_order_discounts::display_label( $ec_receipt_offer, 'print_receipt' ) ), $ed::ltr( '-' . $ec_pr_curr->get_currency_display( $ec_receipt_offer['amount'] ) ) );
 	}
 }
 if ( $order->discount_total > 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $order ) ) {

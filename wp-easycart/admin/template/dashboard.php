@@ -26,9 +26,9 @@ $ecv2_rp_is_trial    = false;
 $ecv2_rp_is_auto     = false;
 $ecv2_rp_key         = '';
 $ecv2_rp_renew_url   = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
+$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/premium/';
 if ( function_exists( 'wp_easycart_admin_license' ) ) {
-	$ecv2_rp_license      = wp_easycart_admin_license()->license_data;
+	$ecv2_rp_license      = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_data() : wp_easycart_admin_license()->license_data; /* 6.0.5: this site's license only */
 	$ecv2_rp_license_info = get_option( 'wp_easycart_license_info' );
 	$ecv2_rp_key          = ( is_array( $ecv2_rp_license_info ) && isset( $ecv2_rp_license_info['transaction_key'] ) ) ? $ecv2_rp_license_info['transaction_key'] : '';
 	if ( $ecv2_rp_license && isset( $ecv2_rp_license->support_end_date ) ) {
@@ -38,11 +38,12 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 		$ecv2_rp_is_trial   = ! empty( $ecv2_rp_license->is_trial );
 		$ecv2_rp_is_auto    = ( ! $ecv2_rp_is_trial && ! empty( $ecv2_rp_license->is_auto_renew ) );
 		if ( $ecv2_rp_is_trial ) {
-			$ecv2_rp_renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key;
-			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key . '&license_type=Premium';
+			/* 6.0.5: a trial chooses a plan on the pricing page, a paid license renews and upgrades in the WP EasyCart account. */
+			$ecv2_rp_renew_url   = wp_easycart_admin_edition::trial_url( 'pro' );
+			$ecv2_rp_upgrade_url = wp_easycart_admin_edition::trial_url( 'premium' );
 		} else {
 			$ecv2_rp_renew_url   = wp_easycart_admin_edition::renew_url();
-			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $ecv2_rp_key;
+			$ecv2_rp_upgrade_url = wp_easycart_admin_edition::premium_url();
 		}
 	}
 }
@@ -202,11 +203,37 @@ $ecv2_rp_card      = ( class_exists( 'wp_easycart_order_source' ) && wp_easycart
 		<button type="button" role="tab" class="ecrp3-tab<?php echo ( 'free' === $ecv2_rp_tab['state'] || 'enabled' === $ecv2_rp_tab['state'] ) ? '' : ' is-locked'; ?>" id="ecrp_tab_<?php echo esc_attr( $ecv2_rp_tab['id'] ); ?>" data-tab="<?php echo esc_attr( $ecv2_rp_tab['id'] ); ?>" aria-controls="ecrp_panel" aria-selected="<?php echo 'overview' === $ecv2_rp_tab['id'] ? 'true' : 'false'; ?>" tabindex="<?php echo 'overview' === $ecv2_rp_tab['id'] ? '0' : '-1'; ?>" title="<?php echo esc_attr( $ecv2_rp_tab['desc'] ); ?>">
 			<?php echo esc_html( $ecv2_rp_tab['label'] ); ?>
 			<?php if ( '' !== $ecv2_rp_tab['badge'] ) : ?>
-			<span class="ecrp3-chip<?php echo 'update' === $ecv2_rp_tab['state'] ? ' is-update' : ''; ?>"><?php echo esc_html( $ecv2_rp_tab['badge'] ); ?></span>
+			<span class="dashicons dashicons-lock ecrp3-tab-lock" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( '( ' . $ecv2_rp_tab['badge'] . ' )' ); ?></span>
 			<?php endif; ?>
 		</button>
 		<?php endforeach; ?>
 	</div>
+	<?php
+	/* 6.0.5 ( admin review L8 ): one line under the tabs for every locked tab, worded by why they are locked. */
+	$ecv2_rp_lock_state = '';
+	foreach ( $ecv2_rp_config['tabs'] as $ecv2_rp_tab ) {
+		if ( '' !== $ecv2_rp_tab['badge'] ) {
+			$ecv2_rp_lock_state = ( '' === $ecv2_rp_lock_state ) ? $ecv2_rp_tab['state'] : $ecv2_rp_lock_state;
+		}
+	}
+	$ecv2_rp_plan = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : 'Pro/Premium';
+	if ( '' !== $ecv2_rp_lock_state ) :
+		?>
+	<p class="ecrp3-lockline" id="ecrp_lockline"><span class="dashicons dashicons-lock" aria-hidden="true"></span>
+		<?php if ( 'update' === $ecv2_rp_lock_state ) : ?>
+			<span><?php esc_html_e( 'Tabs with a lock need a newer WP EasyCart PRO.', 'wp-easycart' ); ?></span> <a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Update it', 'wp-easycart' ); ?></a>
+		<?php elseif ( 'inactive' === $ecv2_rp_lock_state ) : ?>
+			<span><?php esc_html_e( 'Tabs with a lock open once WP EasyCart PRO is active.', 'wp-easycart' ); ?></span> <a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Plugins', 'wp-easycart' ); ?></a>
+		<?php elseif ( 'license' === $ecv2_rp_lock_state ) : ?>
+			<span><?php echo esc_html( sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Tabs with a lock need an active %s license.', 'wp-easycart' ), $ecv2_rp_plan ) ); ?></span> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-registration' ) ); ?>"><?php esc_html_e( 'Registration', 'wp-easycart' ); ?></a>
+		<?php else : ?>
+			<span><?php echo esc_html( sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Tabs with a lock come with %s.', 'wp-easycart' ), $ecv2_rp_plan ) ); ?></span>
+			<?php if ( class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+			<button type="button" class="button-link" onclick="<?php echo esc_attr( wp_easycart_admin_upsell::onclick( 'reports' ) ); ?>"><?php esc_html_e( 'See what they add', 'wp-easycart' ); ?></button>
+			<?php endif; ?>
+		<?php endif; ?>
+	</p>
+	<?php endif; ?>
 
 	<?php /* ---- Summary email offer ( D4: one click, off until then ) and the store activity note ---- */ ?>
 	<div class="ecrp3-offer" id="ecrp_offer" hidden>

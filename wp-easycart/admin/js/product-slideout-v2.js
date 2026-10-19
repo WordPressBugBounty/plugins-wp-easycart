@@ -51,9 +51,14 @@
 	function num( id ) { var n = parseFloat( val( id ) ); return isNaN( n ) ? null : n; }
 	function checked( id ) { return $f( id ).is( ':checked' ); }
 	function esc( s ) { return $( '<span>' ).text( s == null ? '' : s ).html(); }
+	/* 6.0.5: the store's own format ( symbol before or after, separators, decimals: ecpsv2_vars.money ). */
 	function fmt( n ) {
-		var d = parseInt( V.decimals, 10 ); if ( isNaN( d ) ) { d = 2; }
-		return ( V.currency || '$' ) + Number( n ).toFixed( d );
+		var m = V.money || {}, d = parseInt( null == m.decimals ? V.decimals : m.decimals, 10 ), x = Number( n ) || 0;
+		if ( isNaN( d ) ) { d = 2; }
+		var p = Math.abs( x ).toFixed( d ).split( '.' ), s = null == m.symbol ? ( V.currency || '$' ) : m.symbol;
+		var t = p[0].replace( /\B(?=(\d{3})+(?!\d))/g, null == m.group ? ',' : m.group ) + ( p[1] ? ( m.dec || '.' ) + p[1] : '' );
+		var sp = m.space ? '\u00a0' : ''; /* 6.0.5: 93,00 € */
+		return ( x < 0 ? '-' : '' ) + ( ( undefined === m.before || m.before ) ? s + sp + t : t + sp + s );
 	}
 	function toast( msg, type ) {
 		if ( typeof window.ecv2_toast === 'function' ) { window.ecv2_toast( msg, type || 'success' ); return; }

@@ -59,6 +59,7 @@ class ec_db_manager {
 			$setting_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_setting" );
 			if ( 0 === $setting_count ) {
 				$this->install_base_data();
+				$this->seed_new_store_options();
 			}
 		}
 
@@ -116,6 +117,26 @@ class ec_db_manager {
 	public function get_install_errors() {
 		$errors = get_option( 'ec_option_db_install_errors' );
 		return is_array( $errors ) ? $errors : array();
+	}
+
+	/**
+	 * Settings a new store starts with that a store set up before never gets ( 6.0.5 ): called by install_db() right after it seeds
+	 * an empty store's base data, never by install_base_data() ( Store Status › Repair runs that on stores that exist ). A store
+	 * with orders is never new. A saved value is kept.
+	 *
+	 * @since 6.0.5
+	 */
+	public function seed_new_store_options() {
+		global $wpdb;
+		if ( 0 < (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_order' ) ) {
+			return;
+		}
+		/* The cart fitted to the theme's content area ( Settings › Design › Cart & checkout look ). */
+		if ( class_exists( 'wp_easycart_cart_fit' ) && method_exists( 'wp_easycart_cart_fit', 'seed_new_store' ) ) {
+			wp_easycart_cart_fit::seed_new_store();
+		} else {
+			add_option( 'ec_option_cart_fit', '1' );
+		}
 	}
 
 	public function install_recommended_defaults() {
@@ -782,6 +803,16 @@ class ec_db_manager {
 			'6.0.4' => array(
 				'wpeasycart_sql_6_0_4_withdrawals',
 				'wpeasycart_sql_6_0_4_square_gift_cards'
+			),
+			'6.0.5' => array(
+				'wpeasycart_sql_6_0_5_cart_links',
+				'wpeasycart_sql_6_0_5_regions',
+				'wpeasycart_sql_6_0_5_price_history',
+				'wpeasycart_sql_6_0_5_tax_classes',
+				'wpeasycart_sql_6_0_5_unit_price',
+				'wpeasycart_sql_6_0_5_order_currency',
+				'wpeasycart_sql_6_0_5_subscription_cards',
+				'wpeasycart_sql_6_0_5_usage_levels'
 			),
 		);
 
@@ -2571,6 +2602,161 @@ class ec_db_manager {
 		delete_option( 'ec_option_square_gift_cards' );
 	}
 
+	/**
+	 * 6.0.5 cart links ( EC_UPGRADE_DB 125 ): the cart link a checkout session came from, which ec_db::insert_order() copies to
+	 * ec_order.cart_link_id ( the orders WP EasyCart PRO counts per link ). wp_easycart_cart_link::resolve() wrote it to the session
+	 * since 6.0.0 without the column, so the whole session save failed. dbDelta adds the same from get_schema(), which is how a
+	 * store that already recorded 6.0.5 gets it.
+	 */
+	/**
+	 * 6.0.5 regions: whether each country's region must be chosen at checkout ( NULL = WP EasyCart decides: optional for the UK,
+	 * Germany and New Zealand, see wp_easycart_regions ). No data to move; dbDelta adds the same from get_schema().
+	 */
+	/**
+	 * 6.0.5 price history ( EC_UPGRADE_DB 127 ): ec_price_history keeps each product's price when it changes, for the lowest price of
+	 * the last 30 days under a reduction ( EU price indication rules; wp_easycart_price_history ). Every product's price today is the
+	 * first row; a store already on 6.0.5 gets its rows from the daily sweep and as pages ask.
+	 */
+	private function wpeasycart_sql_6_0_5_price_history() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_price_history' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_price_history ( price_history_id int(11) NOT NULL AUTO_INCREMENT, product_id int(11) NOT NULL DEFAULT '0', optionitemquantity_id int(11) NOT NULL DEFAULT '0', price decimal(15,3) NOT NULL DEFAULT '0.000', recorded_at datetime DEFAULT NULL, PRIMARY KEY  (price_history_id), KEY product_recorded (product_id,optionitemquantity_id,recorded_at) ) $collate;" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed DDL; $collate is the charset clause.
+			$sql_error = $wpdb->last_error;
+			if ( ! $this->table_exists( 'ec_price_history' ) ) {
+				$this->record_update_failure( '6.0.5 price history: could not create ec_price_history: ' . $sql_error );
+				return;
+			}
+		}
+		if ( ! $wpdb->get_var( 'SELECT price_history_id FROM ec_price_history LIMIT 1' ) ) {
+			$wpdb->query( "INSERT INTO ec_price_history ( product_id, optionitemquantity_id, price, recorded_at ) SELECT product_id, 0, price, UTC_TIMESTAMP() FROM ec_product" );
+		}
+	}
+
+	/**
+	 * 6.0.5 ( admin review M16 ): unit prices. What one item holds ( ec_product.unit_measure + unit_measure_unit, Google Merchant's
+	 * unit tokens ) and the base its price is shown per ( unit_base, '' = automatic ); see wp_easycart_unit_price.
+	 */
+	/**
+	 * 6.0.5: the card each Stripe subscription bills ( ec_subscription.credit_card_type, credit_card_last4, credit_card_exp_month,
+	 * credit_card_exp_year, stripe_payment_method_id ), so My Account shows the subscription's own card, not the account's last one.
+	 * Subscriptions from before stay empty until Stripe is asked once ( wp_easycart_subscription_cards::lookup() ).
+	 */
+	private function wpeasycart_sql_6_0_5_subscription_cards() {
+		global $wpdb;
+		$columns = array(
+			array( 'ec_subscription', 'credit_card_type', "varchar(50) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription', 'credit_card_last4', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription', 'credit_card_exp_month', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'ec_subscription', 'credit_card_exp_year', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'ec_subscription', 'stripe_payment_method_id', "varchar(255) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $columns as $column ) {
+			if ( ! $this->add_column( $column[0], $column[1], $column[2] ) || ( $this->table_exists( $column[0] ) && ! $this->column_exists( $column[0], $column[1] ) ) ) {
+				$this->record_update_failure( '6.0.5 subscription cards: could not add ' . $column[0] . '.' . $column[1] . ': ' . $wpdb->last_error );
+				return;
+			}
+		}
+	}
+
+	/**
+	 * 6.0.5: usage-based subscription levels ( wp_easycart_subscription_levels ). A product's levels and their prices
+	 * ( ec_product.usage_levels JSON, written by WP EasyCart PRO's pricing tables ) and the Stripe price made for each level
+	 * ( usage_stripe JSON, by mode ); the level a checkout session chose ( ec_tempcart_data.subscription_level ); the level a
+	 * subscription bills ( ec_subscription.usage_level, usage_value, usage_label ); the levels a change moves between
+	 * ( ec_subscription_change.from_level, to_level ).
+	 */
+	private function wpeasycart_sql_6_0_5_usage_levels() {
+		global $wpdb;
+		$columns = array(
+			array( 'ec_product', 'usage_levels', 'text' ),
+			array( 'ec_product', 'usage_stripe', 'text' ),
+			array( 'ec_tempcart_data', 'subscription_level', "varchar(40) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription', 'usage_level', "varchar(40) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription', 'usage_value', "decimal(18,4) NOT NULL DEFAULT '0.0000'" ),
+			array( 'ec_subscription', 'usage_label', "varchar(255) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription_change', 'from_level', "varchar(40) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription_change', 'to_level', "varchar(40) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $columns as $column ) {
+			if ( ! $this->add_column( $column[0], $column[1], $column[2] ) || ( $this->table_exists( $column[0] ) && ! $this->column_exists( $column[0], $column[1] ) ) ) {
+				$this->record_update_failure( '6.0.5 usage levels: could not add ' . $column[0] . '.' . $column[1] . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.5 ( Matt's H2 ): the currency an order was placed in ( ec_order.currency_code, currency_format JSON ), so a store that
+	 * changes its currency, or a shopper browsing in another, no longer changes how past orders show. Orders already placed get the
+	 * store's format now: they keep showing as they do today ( wp_easycart_order_currency::backfill() ).
+	 */
+	private function wpeasycart_sql_6_0_5_order_currency() {
+		global $wpdb;
+		$columns = array(
+			array( 'ec_order', 'currency_code', "varchar(3) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'currency_format', "varchar(255) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $columns as $column ) {
+			if ( ! $this->add_column( $column[0], $column[1], $column[2] ) || ( $this->table_exists( $column[0] ) && ! $this->column_exists( $column[0], $column[1] ) ) ) {
+				$this->record_update_failure( '6.0.5 order currency: could not add ' . $column[0] . '.' . $column[1] . ': ' . $wpdb->last_error );
+				return;
+			}
+		}
+		if ( ! class_exists( 'wp_easycart_order_currency' ) && defined( 'EC_PLUGIN_DIRECTORY' ) && file_exists( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-currency.php' ) ) {
+			require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-currency.php';
+		}
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::backfill();
+		}
+	}
+
+	private function wpeasycart_sql_6_0_5_unit_price() {
+		global $wpdb;
+		$columns = array(
+			array( 'ec_product', 'unit_measure', "decimal(15,4) NOT NULL DEFAULT '0.0000'" ),
+			array( 'ec_product', 'unit_measure_unit', "varchar(8) NOT NULL DEFAULT ''" ),
+			array( 'ec_product', 'unit_base', "varchar(12) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $columns as $column ) {
+			if ( ! $this->add_column( $column[0], $column[1], $column[2] ) || ( $this->table_exists( $column[0] ) && ! $this->column_exists( $column[0], $column[1] ) ) ) {
+				$this->record_update_failure( '6.0.5 unit prices: could not add ' . $column[0] . '.' . $column[1] . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.5 ( admin review M6 ): tax classes. ec_product.tax_class ( '' standard, reduced, reduced2, zero ), the VAT each rate
+	 * charged on an order ( ec_order.vat_breakdown, JSON ) and each line's VAT rate ( ec_orderdetail.vat_rate, NULL = not recorded ).
+	 */
+	private function wpeasycart_sql_6_0_5_tax_classes() {
+		global $wpdb;
+		$columns = array(
+			array( 'ec_product', 'tax_class', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'vat_breakdown', 'text NULL' ),
+			array( 'ec_orderdetail', 'vat_rate', 'float(15,3) DEFAULT NULL' ),
+		);
+		foreach ( $columns as $column ) {
+			if ( ! $this->add_column( $column[0], $column[1], $column[2] ) || ( $this->table_exists( $column[0] ) && ! $this->column_exists( $column[0], $column[1] ) ) ) {
+				$this->record_update_failure( '6.0.5 tax classes: could not add ' . $column[0] . '.' . $column[1] . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	private function wpeasycart_sql_6_0_5_regions() {
+		global $wpdb;
+		if ( ! $this->add_column( 'ec_country', 'region_required', 'tinyint(1) DEFAULT NULL' ) || ( $this->table_exists( 'ec_country' ) && ! $this->column_exists( 'ec_country', 'region_required' ) ) ) {
+			$this->record_update_failure( '6.0.5 regions: could not add ec_country.region_required: ' . $wpdb->last_error );
+		}
+		wp_cache_delete( 'wpeasycart-countries' );
+	}
+
+	private function wpeasycart_sql_6_0_5_cart_links() {
+		global $wpdb;
+		if ( ! $this->add_column( 'ec_tempcart_data', 'cart_link_id', "int(11) NOT NULL DEFAULT '0'" ) || ( $this->table_exists( 'ec_tempcart_data' ) && ! $this->column_exists( 'ec_tempcart_data', 'cart_link_id' ) ) ) {
+			$this->record_update_failure( '6.0.5 cart links: could not add ec_tempcart_data.cart_link_id: ' . $wpdb->last_error );
+		}
+	}
+
 	private function wpeasycart_sql_6_0_4_withdrawals() {
 		global $wpdb;
 		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
@@ -3004,6 +3190,7 @@ class ec_db_manager {
 			"ec_package",
 			"ec_pageoption",
 			"ec_perpage",
+			"ec_price_history",
 			"ec_pricepoint",
 			"ec_pricetier",
 			"ec_product",
@@ -3298,6 +3485,7 @@ CREATE TABLE ec_country (
   ship_to_active tinyint(1) NOT NULL DEFAULT '1',
   stripe_taxrate_id varchar(100) NOT NULL DEFAULT '',
   vat_b2b_enabled tinyint(1) NOT NULL DEFAULT '1',
+  region_required tinyint(1) DEFAULT NULL,
   PRIMARY KEY  (id_cnt),
   KEY iso2_cnt (iso2_cnt),
   KEY iso3_cnt (iso3_cnt)
@@ -3796,6 +3984,9 @@ CREATE TABLE ec_order (
   discount_total float(15,3) NOT NULL DEFAULT '0.000',
   vat_total float(15,3) NOT NULL DEFAULT '0.000',
   vat_rate float(15,3) NOT NULL DEFAULT '0.000',
+  vat_breakdown text NULL,
+  currency_code varchar(3) NOT NULL DEFAULT '',
+  currency_format varchar(255) NOT NULL DEFAULT '',
   duty_total float(15,3) NOT NULL DEFAULT '0.000',
   gst_total float(15,3) NOT NULL DEFAULT '0.000',
   gst_rate float(15,3) NOT NULL DEFAULT '0.000',
@@ -4084,6 +4275,15 @@ CREATE TABLE ec_order_tag_item (
   KEY order_id (order_id),
   KEY tag_id (tag_id)
 ) $collate;
+CREATE TABLE ec_price_history (
+  price_history_id int(11) NOT NULL AUTO_INCREMENT,
+  product_id int(11) NOT NULL DEFAULT '0',
+  optionitemquantity_id int(11) NOT NULL DEFAULT '0',
+  price decimal(15,3) NOT NULL DEFAULT '0.000',
+  recorded_at datetime DEFAULT NULL,
+  PRIMARY KEY  (price_history_id),
+  KEY product_recorded (product_id,optionitemquantity_id,recorded_at)
+) $collate;
 CREATE TABLE ec_order_withdrawal (
   withdrawal_id int(11) NOT NULL AUTO_INCREMENT,
   order_id int(11) NOT NULL DEFAULT '0',
@@ -4118,6 +4318,7 @@ CREATE TABLE ec_orderdetail (
   unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
   unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
   total_price float(15,3) NOT NULL DEFAULT '0.000',
+  vat_rate float(15,3) DEFAULT NULL,
   total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
   total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
   quantity int(11) NOT NULL DEFAULT '0',
@@ -4251,6 +4452,12 @@ CREATE TABLE ec_product (
   list_price float(15,3) NOT NULL DEFAULT '0.000',
   product_cost float(15,3) NOT NULL DEFAULT '0.000',
   vat_rate float(15,3) NOT NULL DEFAULT '0.000',
+  tax_class varchar(20) NOT NULL DEFAULT '',
+  unit_measure decimal(15,4) NOT NULL DEFAULT '0.0000',
+  unit_measure_unit varchar(8) NOT NULL DEFAULT '',
+  unit_base varchar(12) NOT NULL DEFAULT '',
+  usage_levels text,
+  usage_stripe text,
   handling_price float(15,3) NOT NULL DEFAULT '0.000',
   handling_price_each float(15,3) NOT NULL DEFAULT '0.000',
   stock_quantity int(7) NOT NULL DEFAULT '0',
@@ -4786,6 +4993,14 @@ CREATE TABLE ec_subscription (
   cancelled_at datetime DEFAULT NULL,
   renewal_reminder_for varchar(20) NOT NULL DEFAULT '',
   trial_reminder_for varchar(20) NOT NULL DEFAULT '',
+  credit_card_type varchar(50) NOT NULL DEFAULT '',
+  credit_card_last4 varchar(20) NOT NULL DEFAULT '',
+  credit_card_exp_month int(11) NOT NULL DEFAULT '0',
+  credit_card_exp_year int(11) NOT NULL DEFAULT '0',
+  stripe_payment_method_id varchar(255) NOT NULL DEFAULT '',
+  usage_level varchar(40) NOT NULL DEFAULT '',
+  usage_value decimal(18,4) NOT NULL DEFAULT '0.0000',
+  usage_label varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY  (subscription_id),
   UNIQUE KEY subscription_id (subscription_id),
   KEY user_id (user_id),
@@ -4814,6 +5029,8 @@ CREATE TABLE ec_subscription_change (
   stripe_price_id varchar(255) NOT NULL DEFAULT '',
   stripe_invoice_id varchar(255) NOT NULL DEFAULT '',
   change_source varchar(20) NOT NULL DEFAULT 'customer',
+  from_level varchar(40) NOT NULL DEFAULT '',
+  to_level varchar(40) NOT NULL DEFAULT '',
   created_at datetime DEFAULT NULL,
   updated_at datetime DEFAULT NULL,
   PRIMARY KEY  (change_id),
@@ -4959,6 +5176,7 @@ CREATE TABLE ec_tempcart_data (
   subscription_advanced_option text,
   subscription_quantity varchar(255) NOT NULL DEFAULT '',
   subscription_product_id int(11) NOT NULL DEFAULT '0',
+  subscription_level varchar(40) NOT NULL DEFAULT '',
   convert_to varchar(255) NOT NULL DEFAULT '',
   translate_to varchar(255) NOT NULL DEFAULT '',
   taxcloud_tax_amount varchar(255) NOT NULL DEFAULT '',
@@ -4987,6 +5205,7 @@ CREATE TABLE ec_tempcart_data (
   gift_recipient_email varchar(255) NOT NULL DEFAULT '',
   po_number varchar(100) NOT NULL DEFAULT '',
   source_data text,
+  cart_link_id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (tempcart_data_id)
 ) $collate;
 CREATE TABLE ec_tempcart_field (
@@ -5518,7 +5737,7 @@ CREATE TABLE ec_zone_to_location (
 			"ec_orderstatus",
 			array(
 				"status_id" => "14",
-				"order_status" => "Direct Deposit Pending",
+				"order_status" => "Awaiting Bank Transfer", /* 6.0.5: was Direct Deposit Pending ( stores set up before keep it ) */
 				"is_approved" => "0",
 				"color_code" => "#DD9933",
 			)
@@ -5528,7 +5747,7 @@ CREATE TABLE ec_zone_to_location (
 			"ec_orderstatus",
 			array(
 				"status_id" => "15",
-				"order_status" => "Direct Deposit Received",
+				"order_status" => "Bank Transfer Received", /* 6.0.5: was Direct Deposit Received */
 				"is_approved" => "1",
 				"color_code" => "#81D742",
 			)

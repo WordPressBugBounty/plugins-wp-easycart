@@ -11,6 +11,8 @@ $presets = $wizard->get_shipping_presets();
 $upsell  = $wizard->show_upsell();
 $symbol  = html_entity_decode( get_option( 'ec_option_currency' ) ? get_option( 'ec_option_currency' ) : '$' );
 $weight  = get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs';
+/* 6.0.5: the unit as people write it ( kg, lb ), not the option's value ( kgs, lbs ). */
+$weight  = ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'weight_unit' ) ) ? wp_easycart_packages::weight_unit( $weight ) : rtrim( $weight, 's' );
 $current = $wpdb->get_var( 'SELECT shipping_method FROM ec_setting LIMIT 1' );
 $counts  = $wizard->get_shipping_rate_counts();
 $map     = array( 'method' => 'static', 'price' => 'price', 'weight' => 'weight' );
@@ -24,8 +26,10 @@ if ( $ships_nothing ) {
 }
 
 $fmt = function( $n ) use ( $symbol ) {
-	return $symbol . number_format( (float) $n, 2 );
+	/* 6.0.5: the store's own format ( 93,00 € ). */
+	return function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( (float) $n ) : $symbol . number_format( (float) $n, 2 );
 };
+$ship_to = method_exists( $wizard, 'ship_to_state' ) ? $wizard->ship_to_state() : array( 'country' => '' );
 ?>
 <form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate" class="ecwz-form">
 	<?php wp_easycart_admin_verification()->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-shipping' ); ?>
@@ -78,8 +82,17 @@ $fmt = function( $n ) use ( $symbol ) {
 				<?php
 				/* 6.0.3: a UK store is offered Royal Mail first ( priced from Royal Mail's price lists, not quoted live ). */
 				$ecwz_uk = class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) && 'GB' === wp_easycart_carriers::store_country();
+				/* 6.0.5 ( admin review M10 ): the carriers that quote for this store's country first. */
+				$ecwz_country  = ( class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) ) ? wp_easycart_carriers::store_country() : '';
+				$ecwz_carriers = array(
+					'GB' => 'Royal Mail · DHL · UPS · FedEx',
+					'CA' => 'Canada Post · UPS · FedEx · DHL',
+					'AU' => 'Australia Post · DHL · UPS · FedEx',
+					'US' => 'UPS · USPS · FedEx · DHL',
+				);
+				$ecwz_carriers = isset( $ecwz_carriers[ $ecwz_country ] ) ? $ecwz_carriers[ $ecwz_country ] : ( '' === $ecwz_country ? 'UPS · USPS · FedEx · DHL · Royal Mail · Canada Post · Australia Post' : 'DHL · UPS · FedEx' );
 				?>
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub"><?php echo esc_html( $ecwz_uk ? 'Royal Mail · DHL · UPS · FedEx' : 'UPS · USPS · FedEx · DHL · Royal Mail · Canada Post · Australia Post' ); ?></span></div></div>
+				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub"><?php echo esc_html( $ecwz_carriers ); ?></span></div></div>
 				<p><?php echo esc_html( $ecwz_uk ? __( 'Royal Mail prices worked out from each parcel’s size, weight and destination, and live quotes from DHL, UPS and FedEx.', 'wp-easycart' ) : __( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ) ); ?></p>
 				<div class="ecwz-ccard-act">
 					<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
@@ -88,6 +101,23 @@ $fmt = function( $n ) use ( $symbol ) {
 			</div>
 			<?php } ?>
 		</div>
+
+		<?php if ( '' !== $ship_to['country'] ) { ?>
+		<?php /* 6.0.5 ( admin review M10 ): every country started switched on, Antarctica included. */ ?>
+		<fieldset class="ecwz-shipto" id="ecwz_ship_to">
+			<legend><?php esc_html_e( 'Where do you ship?', 'wp-easycart' ); ?></legend>
+			<label class="ecwz-vat-choice"><input type="radio" name="ship_to" value="country"<?php checked( 'country', $ship_to['current'] ); ?>> <span><b><?php echo esc_html( sprintf( /* translators: %s: the store's country. */ __( 'Only within %s', 'wp-easycart' ), $ship_to['name'] ) ); ?></b></span></label>
+			<?php if ( ! empty( $ship_to['region'] ) ) { ?>
+			<label class="ecwz-vat-choice"><input type="radio" name="ship_to" value="region"<?php checked( 'region', $ship_to['current'] ); ?>> <span><b><?php echo esc_html( sprintf( /* translators: %s: a region, e.g. Europe. */ __( 'Across %s', 'wp-easycart' ), $ship_to['region']['name'] ) ); ?></b> <?php echo esc_html( sprintf( /* translators: %d: how many countries. */ _n( '%d country', '%d countries', count( $ship_to['region']['countries'] ), 'wp-easycart' ), count( $ship_to['region']['countries'] ) ) ); ?></span></label>
+			<?php } ?>
+			<label class="ecwz-vat-choice"><input type="radio" name="ship_to" value="world"<?php checked( 'world', $ship_to['current'] ); ?>> <span><b><?php esc_html_e( 'Worldwide', 'wp-easycart' ); ?></b> <?php esc_html_e( 'Every country people live in.', 'wp-easycart' ); ?></span></label>
+			<?php if ( 'keep' === $ship_to['current'] ) { ?>
+			<?php /* 6.0.5: a list chosen under Countries & Regions matches none of the above: keep it ( "Worldwide" was ticked, so Continue opened every country ). */ ?>
+			<label class="ecwz-vat-choice"><input type="radio" name="ship_to" value="keep" checked> <span><b><?php esc_html_e( 'Keep the countries I ship to now', 'wp-easycart' ); ?></b> <?php echo esc_html( sprintf( /* translators: %d: how many countries. */ _n( '%d country, as set under Countries & Regions.', '%d countries, as set under Countries & Regions.', (int) $ship_to['count'], 'wp-easycart' ), (int) $ship_to['count'] ) ); ?></span></label>
+			<?php } ?>
+			<div class="ecwz-hint"><?php echo sprintf( esc_html__( 'Checkout offers only these countries for delivery. Fine-tune them later under %s.', 'wp-easycart' ), '<strong>' . esc_html__( 'Settings › Countries & Regions', 'wp-easycart' ) . '</strong>' ); ?></div>
+		</fieldset>
+		<?php } ?>
 	</div>
 
 	<?php $wizard->render_footer( wp_easycart_admin_setup_wizard::STEP_SHIPPING ); ?>

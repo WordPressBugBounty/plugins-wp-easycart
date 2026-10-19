@@ -61,6 +61,7 @@ class ec_cartitem {
 	public $grid_price_change;
 
 	public $vat_enabled;
+	public $tax_class = ''; /* 6.0.5: tax classes ( wp_easycart_tax_classes ) */
 
 	public $is_giftcard;
 	public $is_download;
@@ -212,6 +213,9 @@ class ec_cartitem {
 		$this->fulfillment_provider = ( isset( $cartitem_data->fulfillment_provider ) && is_string( $cartitem_data->fulfillment_provider ) ) ? $cartitem_data->fulfillment_provider : ''; /* 6.0.2 */
 
 		$this->advanced_options = $GLOBALS['ec_cart_data']->get_advanced_cart_options( $this->cartitem_id );
+		/* 6.0.5: a size add-on left empty ( kept as [ "", "" ] by WP EasyCart 6.0.4 and older ) is no choice: it is not priced, shown
+		   or recorded on the order. */
+		$this->advanced_options = wp_easycart_size_option::without_empty( $this->advanced_options );
 
 		// Offers v2 line attributes (columns exist in core schema; harmless when PRO absent).
 		$this->bundle_group_key = ( isset( $cartitem_data->bundle_group_key ) ) ? $cartitem_data->bundle_group_key : '';
@@ -640,23 +644,15 @@ class ec_cartitem {
 						$weight_multiplier = ( ( 0 == $weight_multiplier ) ? 1 : $weight_multiplier ) * $advanced_option_details->optionitem_weight_multiplier * $advanced_option->optionitem_value;
 					}
 				} else if ( 'dimensions1' == $advanced_option_data->option_type || 'dimensions2' == $advanced_option_data->option_type ) {
-					$dimensions = json_decode( $advanced_option->optionitem_value );
-					if ( 2 == count( $dimensions ) ) { 
-						if ( ! get_option( 'ec_option_enable_metric_unit_display' ) ) {
-							$cartitem_data->price = $cartitem_data->price * ( ( $dimensions[0] / 12 ) * ( $dimensions[1] / 12 ) );
-							$cartitem_data->weight = $cartitem_data->weight * ( ( $dimensions[0] / 12 ) * ( $dimensions[1] / 12 ) );
-						} else {
-							$cartitem_data->price = $cartitem_data->price * ( ( $dimensions[0] / 1000 ) * ( $dimensions[1] / 1000 ) );
-							$cartitem_data->weight = $cartitem_data->weight * ( ( $dimensions[0] / 1000 ) * ( $dimensions[1] / 1000 ) );
-						}
-					} else if ( 4 == count( $dimensions ) ) { 
-						if ( ! get_option( 'ec_option_enable_metric_unit_display' ) ) {
-							$cartitem_data->price = $cartitem_data->price * ( ( ( intval( $dimensions[0] ) + $this->get_dimension_decimal( $dimensions[1] ) ) / 12 ) * ( ( intval( $dimensions[2] ) + $this->get_dimension_decimal( $dimensions[3] ) ) / 12 ) );
-							$cartitem_data->weight = $cartitem_data->weight * ( ( ( intval( $dimensions[0] ) + $this->get_dimension_decimal( $dimensions[1] ) ) / 12 ) * ( ( intval( $dimensions[2] ) + $this->get_dimension_decimal( $dimensions[3] ) ) / 12 ) );
-						} else {
-							$cartitem_data->price = $cartitem_data->price * ( ( ( intval( $dimensions[0] ) + $this->get_dimension_decimal( $dimensions[1] ) ) / 1000 ) * ( ( intval( $dimensions[2] ) + $this->get_dimension_decimal( $dimensions[3] ) ) / 1000 ) );
-							$cartitem_data->weight = $cartitem_data->weight * ( ( ( intval( $dimensions[0] ) + $this->get_dimension_decimal( $dimensions[1] ) ) / 1000 ) * ( ( intval( $dimensions[2] ) + $this->get_dimension_decimal( $dimensions[3] ) ) / 1000 ) );
-						}
+					/* 6.0.5: the line is scaled by the size's area only when it is a size the store can sell ( wp_easycart_size_option::factor():
+					   the width and height each a positive number, with fractions the whole inches plus the fraction ). Anything else leaves the
+					   price and weight as they are: [ "", "" ] threw a TypeError on PHP 8 ( "" / 12 ) and made the line free on PHP 7, a size of
+					   0 made it free, and a negative side made it cost less than nothing. Such a row is already left out of the line's options
+					   above ( without_empty() ); this keeps any other caller of the loop from scaling by it. */
+					$size_factor = wp_easycart_size_option::factor( $advanced_option->optionitem_value );
+					if ( null !== $size_factor ) {
+						$cartitem_data->price = $cartitem_data->price * $size_factor;
+						$cartitem_data->weight = $cartitem_data->weight * $size_factor;
 					}
 				} else {
 					if ( 0 != $advanced_option_details->optionitem_price ) {
@@ -767,6 +763,7 @@ class ec_cartitem {
 		$this->handling_price = $cartitem_data->handling_price;
 		$this->handling_price_each = $cartitem_data->handling_price_each;
 
+		$this->tax_class = isset( $cartitem_data->tax_class ) ? (string) $cartitem_data->tax_class : '';
 		if ( $cartitem_data->vat_rate > 0 ) {
 			$this->vat_enabled = true;
 		} else {
@@ -831,44 +828,6 @@ class ec_cartitem {
 				$this->coupon_discount_line_total = round( $this->coupon_discount_total * $this->quantity, 2 );
 			}
 		}
-	}
-
-	private function get_dimension_decimal( $value ) {
-
-		if ( $value == '1/16' ) {
-			return .0625;
-		} else if ( $value == '1/8' ) {
-			return .1250;
-		} else if ( $value == '3/16' ) {
-			return .1875;
-		} else if ( $value == '1/4' ) {
-			return .2500;
-		} else if ( $value == '5/16' ) {
-			return .3125;
-		} else if ( $value == '3/8' ) {
-			return .3750;
-		} else if ( $value == '7/16' ) {
-			return .4375;
-		} else if ( $value == '1/2' ) {
-			return .5000;
-		} else if ( $value == '9/16' ) {
-			return .5625;
-		} else if ( $value == '5/8' ) {
-			return .6250;
-		} else if ( $value == '11/16' ) {
-			return .6875;
-		} else if ( $value == '3/4' ) {
-			return .7500;
-		} else if ( $value == '13/16' ) {
-			return .8125;
-		} else if ( $value == '7/8' ) {
-			return .8750;
-		} else if ( $value == '15/16' ) {
-			return .9375;
-		} else {
-			return 0;
-		}
-
 	}
 
 	public function display_cartitem_id() {

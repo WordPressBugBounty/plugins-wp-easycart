@@ -32,6 +32,12 @@
 .ecv2-order-dot { width:10px; height:10px; padding:0; border-radius:50%; border:2px solid var(--ecv2-blue, #2563eb); background:var(--ecv2-blue, #2563eb); cursor:pointer; display:inline-block; flex-shrink:0; vertical-align:middle; transition:all .15s ease; }
 .ecv2-order-dot:hover { transform:scale(1.25); }
 .ecv2-order-dot-viewed { background:transparent; border-color:var(--ecv2-g300, #d1d5db); }
+/* 6.0.5 ( admin review M14 ): a 24px target on phones, with the same 10px dot or ring drawn in its middle. */
+@media screen and ( max-width: 782px ) {
+	.ecv2-order-dot { width:24px; height:24px; border:0; background:radial-gradient( circle, var(--ecv2-blue, #2563eb) 0 5px, transparent 5.5px ); }
+	.ecv2-order-dot-viewed { background:radial-gradient( circle, transparent 0 3px, var(--ecv2-g300, #d1d5db) 3.5px 5px, transparent 5.5px ); }
+	.ecv2-order-dot:hover { transform:none; }
+}
 .ecv2-row-unviewed .ecv2-order-number,
 .ecv2-row-unviewed .ecv2-order-customer-name,
 .ecv2-row-unviewed .ecv2-order-total { font-weight:700; }
@@ -50,13 +56,13 @@
 .ecv2-table.ecv2-order-table { table-layout:fixed; }
 .ecv2-order-table .ecv2-col-check            { width:3%  !important; min-width:36px; }
 .ecv2-order-table .ecv2-col-order_number     { width:6%  !important; min-width:80px; }
-.ecv2-order-table .ecv2-col-order_date       { width:8%  !important; min-width:104px; }
+.ecv2-order-table .ecv2-col-order_date       { width:9%  !important; min-width:112px; }
 
-.ecv2-order-table .ecv2-col-billing_name     { width:23% !important; min-width:180px; }
+.ecv2-order-table .ecv2-col-billing_name     { width:20% !important; min-width:170px; }
 .ecv2-order-table .ecv2-col-item_count       { width:7%  !important; min-width:92px; }
 .ecv2-order-table .ecv2-col-grand_total      { width:8%  !important; min-width:110px; }
 .ecv2-order-table .ecv2-col-payment_gateway  { width:9%  !important; min-width:120px; }
-.ecv2-order-table .ecv2-col-orderstatus_id   { width:14% !important; min-width:176px; }
+.ecv2-order-table .ecv2-col-orderstatus_id   { width:16% !important; min-width:176px; }
 .ecv2-order-table .ecv2-col-tracking_number  { width:17% !important; min-width:200px; }
 .ecv2-order-table .ecv2-col-actions,
 .ecv2-order-table .ecv2-col-actions.ecv2-col-actions { width:5% !important; min-width:64px; }
@@ -146,10 +152,11 @@
 /* Status chip + inline menu                                            */
 /* ------------------------------------------------------------------ */
 .ecv2-order-status-wrap { position:relative; display:block; max-width:100%; }
-.ecv2-order-status-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border:1.5px solid var(--ecv2-g300, #d1d5db); border-radius:999px; background:#fff; font-size:12px; font-weight:500; color:var(--ecv2-g800, #1f2937); cursor:pointer; max-width:100%; box-sizing:border-box; transition:box-shadow .15s ease; }
+.ecv2-order-status-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border:1.5px solid var(--ecv2-g300, #d1d5db); border-radius:14px; text-align:left; background:#fff; font-size:12px; font-weight:500; color:var(--ecv2-g800, #1f2937); cursor:pointer; max-width:100%; box-sizing:border-box; transition:box-shadow .15s ease; }
 .ecv2-order-status-chip:hover { box-shadow:0 1px 6px rgba(0,0,0,.12); }
 .ecv2-order-status-swatch { width:9px; height:9px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.08); }
-.ecv2-order-status-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* 6.0.5: the status wraps onto a second line rather than ending in “…” ( “Order Confir…”, “Direct Deposi…” ): it is the one word on the row a merchant reads first. */
+.ecv2-order-status-label { min-width:0; overflow-wrap:anywhere; line-height:1.3; }
 .ecv2-order-status-caret { font-size:12px !important; width:12px !important; height:12px !important; color:var(--ecv2-g400, #9ca3af); flex-shrink:0; }
 .ecv2-order-status-saving .ecv2-order-status-chip { opacity:.5; pointer-events:none; }
 

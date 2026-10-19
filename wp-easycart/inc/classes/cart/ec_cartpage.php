@@ -353,12 +353,41 @@ class ec_cartpage {
 				break;
 			}
 		}
+		/* 6.0.5: a product that unlocks a page with WP EasyCart Limit Access needs an account, as a download does ( the page opens
+		   for the account that bought it ). has_downloads is what every checkout reads for "an account is needed". */
+		if ( ! $this->has_downloads && class_exists( 'wp_easycart_page_access' ) && wp_easycart_page_access::cart_unlocks_page( $this->cart->cart ) ) {
+			$this->has_downloads = true;
+		}
 
 		add_filter( 'wp_easycart_shipping_price_display', array( $this, 'apply_promotions_to_shipping' ) );
 
 		$this->cart_page = apply_filters( 'wp_easycart_cart_page_url', $this->cart_page );
 		$this->account_page = apply_filters( 'wp_easycart_account_page_url', $this->account_page );
 
+	}
+
+	/**
+	 * Whether this checkout needs an account ( a download, a page the purchase opens, no guest checkout ).
+	 *
+	 * @since 6.0.5
+	 * @return bool
+	 */
+	public function account_required() {
+		return class_exists( 'wp_easycart_checkout_signup' ) ? wp_easycart_checkout_signup::required( $this ) : ( $this->has_downloads || ! get_option( 'ec_option_allow_guest' ) );
+	}
+
+	/**
+	 * Whether the checkout waits for the email step: it needs an account, nobody is signed in and no email is locked for a purchase that
+	 * makes one ( wp_easycart_checkout_signup ). The address, shipping and payment parts are drawn only once it no longer waits.
+	 *
+	 * @since 6.0.5
+	 * @return bool
+	 */
+	public function account_waits() {
+		if ( class_exists( 'wp_easycart_checkout_signup' ) ) {
+			return wp_easycart_checkout_signup::waits( $this );
+		}
+		return ( $this->has_downloads || ! get_option( 'ec_option_allow_guest' ) ) && '' == $GLOBALS['ec_cart_data']->cart_data->user_id;
 	}
 
 	public function apply_promotions_to_shipping( $rate ) {
@@ -494,11 +523,13 @@ class ec_cartpage {
 			$GLOBALS['ec_cart_data']->cart_data->email = "guest";
 		}
 
+		wp_easycart_order_currency::push( isset( $order_id ) ? (int) $order_id : 0 ); /* 6.0.5: the order's currency */
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_success.php' ) )	{
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_success.php' );
 		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_success.php' );
 		}
+		wp_easycart_order_currency::pop();
 
 		// Update Cart Success Print Variable
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET success_page_shown = 1 WHERE ec_order.order_id = %d', $order_id ) );
@@ -608,8 +639,9 @@ class ec_cartpage {
 								window.location.reload(); /* confirmed: this page finishes the order */
 							}
 						} );
-					} catch( err ) {
-						alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+					} catch( err ) {';
+					echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::js() . wp_easycart_stripe_unavailable::call() : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+					echo '
 					}
 					</script>';
 				} else if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'alipay_handle_redirect' == $stripe_pi_response->next_action->type ) {
@@ -824,10 +856,12 @@ class ec_cartpage {
 			if ( $GLOBALS['ec_cart_data']->cart_data->is_guest != "" && $GLOBALS['ec_cart_data']->cart_data->is_guest )
 				$GLOBALS['ec_cart_data']->cart_data->email = "guest";
 
+			wp_easycart_order_currency::push( isset( $order_id ) ? (int) $order_id : 0 ); /* 6.0.5: the order's currency */
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_success.php' ) )	
 				include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_success.php' );
 			else
 				include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_success.php' );
+			wp_easycart_order_currency::pop();
 
 		} else if ( isset( $_GET['ec_page'] ) && $_GET['ec_page'] == "third_party" ) {
 			$order_id = (int) $_GET['order_id'];
@@ -1016,13 +1050,19 @@ class ec_cartpage {
 				}
 			}
 
+			if ( count( $products ) > 0 && class_exists( 'wp_easycart_subscription_levels' ) ) {
+				/* 6.0.5: a level ( or number of units ) chosen on a pricing table, kept for this product; the page sells the chosen level. */
+				wp_easycart_subscription_levels::from_request( $products[0] );
+				$products[0] = wp_easycart_subscription_levels::apply( $products[0] );
+			}
+
 			if ( count( $products ) > 0 ) {
 				$model_number = $products[0]['model_number'];
 				$subscription_found = true;
 				$product = new ec_product( $products[0], 0, 1, 0 );
 				$this->cart->cart = array( $product );
 
-				if ( !get_option( 'ec_option_subscription_one_only' ) && $GLOBALS['ec_cart_data']->cart_data->subscription_quantity != "" ) { 
+				if ( ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( $products[0] ) : ! get_option( 'ec_option_subscription_one_only' ) ) && $GLOBALS['ec_cart_data']->cart_data->subscription_quantity != "" ) { 
 					$subscription_quantity = $GLOBALS['ec_cart_data']->cart_data->subscription_quantity;
 				} else { 
 					$subscription_quantity = 1; 
@@ -1525,8 +1565,9 @@ class ec_cartpage {
 									window.location.reload(); /* confirmed: this page finishes the order */
 								}
 							} );
-						} catch( err ) {
-							alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+						} catch( err ) {';
+						echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::js() . wp_easycart_stripe_unavailable::call() : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+						echo '
 						}
 						</script>';
 					} else if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'alipay_handle_redirect' == $stripe_pi_response->next_action->type ) {
@@ -1883,6 +1924,48 @@ class ec_cartpage {
 		}
 
 		return ( isset( $_GET['ec_page'] ) && $_GET['ec_page'] == "checkout_info" );
+	}
+
+	/**
+	 * 6.0.5: Contact with the email first ( ec_checkout_account.php: the classic checkout's details page, and the one-page checkout when
+	 * the order needs an account; wp_easycart_checkout_signup ). A store copy in wp-easycart-data is used first.
+	 *
+	 * @since 6.0.5
+	 * @param string $layout classic | onepage.
+	 */
+	public function display_checkout_account( $layout = 'classic' ) {
+		if ( ! class_exists( 'wp_easycart_checkout_signup' ) ) {
+			return;
+		}
+		$cartpage    = $this;
+		$wpec_layout = ( 'onepage' === $layout ) ? 'onepage' : 'classic';
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_checkout_account.php' ) ) {
+			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_checkout_account.php' );
+		} else {
+			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_checkout_account.php' );
+		}
+	}
+
+	/**
+	 * 6.0.5: while the one-page checkout waits for the email step ( an order that needs an account ), a sketch of what follows it.
+	 *
+	 * @since 6.0.5
+	 */
+	public function display_checkout_account_waiting() {
+		$titles = array();
+		if ( get_option( 'ec_option_use_shipping' ) && $this->shipping_address_allowed && ( $this->cart->shippable_total_items > 0 || $this->order_totals->handling_total > 0 || $this->cart->excluded_shippable_total_items > 0 ) ) {
+			$titles[] = wp_easycart_language()->get_text( 'cart_shipping_information', 'cart_shipping_information_title' );
+		} else {
+			$titles[] = wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_title' );
+		}
+		$titles[] = wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_title' );
+		echo '<div class="ec_checkout_waiting" id="ec_checkout_waiting">';
+		echo '<p class="ec_checkout_waiting_note" role="note">' . wp_kses_post( wp_easycart_checkout_signup::text( 'subscription_email_preview', 'Enter your email above to continue.' ) ) . '</p>';
+		echo '<div class="ec_checkout_waiting_parts" aria-hidden="true">';
+		foreach ( $titles as $title ) {
+			echo '<div class="ec_checkout_waiting_part"><span class="ec_checkout_waiting_title">' . wp_kses_post( $title ) . '</span><span class="ec_checkout_waiting_field"></span><span class="ec_checkout_waiting_field ec_checkout_waiting_field_short"></span></div>';
+		}
+		echo '</div></div>';
 	}
 
 	public function display_page_one_form_start() {
@@ -3190,6 +3273,26 @@ class ec_cartpage {
 		return class_exists( 'wp_easycart_checkout_guard' ) && ! wp_easycart_checkout_guard::stripe_allowed();
 	}
 
+	/**
+	 * A payment Stripe started ( an id and a client secret ), else false. Stripe's refusal ( an error answer: a key it no longer takes,
+	 * an account that left the platform ) is kept for store managers ( wp_easycart_stripe_unavailable::note() ); a request that never
+	 * reached Stripe answers false and its connection error is already recorded. Before 6.0.5 an error answer was saved as the
+	 * session's payment ( empty id and secret, PHP notices ).
+	 *
+	 * @since 6.0.5
+	 * @param mixed $response What create_payment_intent() answered.
+	 * @return object|false
+	 */
+	private static function started_intent( $response ) {
+		if ( is_object( $response ) && ! empty( $response->id ) && ! empty( $response->client_secret ) ) {
+			return $response;
+		}
+		if ( is_object( $response ) && isset( $response->error ) && is_object( $response->error ) && ! empty( $response->error->message ) && class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+			wp_easycart_stripe_unavailable::note( $response->error->message );
+		}
+		return false;
+	}
+
 	public function get_stripe_intent_client_secret( $order_totals = false ) {
 		if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
 			if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
@@ -3214,7 +3317,7 @@ class ec_cartpage {
 			}
 			$cart_data = $this->mysqli->get_cart_data( $GLOBALS['ec_cart_data']->ec_cart_id );
 			if ( $cart_data->stripe_paymentintent_id == '' || $cart_data->stripe_pi_client_secret == '' ) {
-				$response = $stripe->create_payment_intent( $order_totals );
+				$response = self::started_intent( $stripe->create_payment_intent( $order_totals ) );
 				if ( $response ) {
 					$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = $response->id;
 					$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = $response->client_secret;
@@ -3235,7 +3338,7 @@ class ec_cartpage {
 					return '';
 				}
 				if ( ! $response || $response->status == 'succeeded' || $response->status == 'canceled' ) {
-					$response = $stripe->create_payment_intent( $order_totals );
+					$response = self::started_intent( $stripe->create_payment_intent( $order_totals ) );
 					if ( $response ) {
 						$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = $response->id;
 						$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = $response->client_secret;
@@ -3323,8 +3426,57 @@ class ec_cartpage {
 		return $response->client_secret;
 	}
 
+	/**
+	 * The country and currency of Square's Apple Pay / Google Pay payment request. A missing one is filled in and saved
+	 * ( ec_square::location_country() asks Square at most every 15 minutes; set_currency() ), so after the first page
+	 * both are option reads.
+	 *
+	 * @since 6.0.5
+	 * @return array country, currency ( '' when not known ).
+	 */
+	public function square_wallet_place() {
+		$place = array(
+			'country'  => '',
+			'currency' => '',
+		);
+		if ( class_exists( 'ec_square' ) && method_exists( 'ec_square', 'clean_country' ) ) {
+			$place['country'] = ec_square::clean_country( get_option( 'ec_option_square_location_country' ) );
+			if ( '' === $place['country'] || '' === (string) get_option( 'ec_option_square_currency' ) ) {
+				$square = new ec_square();
+				if ( '' === $place['country'] ) {
+					$place['country'] = $square->location_country();
+				}
+				if ( '' === (string) get_option( 'ec_option_square_currency' ) ) {
+					$square->set_currency();
+				}
+			}
+		}
+		$place['currency'] = strtoupper( trim( (string) get_option( 'ec_option_square_currency' ) ) );
+		if ( ! preg_match( '/^[A-Z]{3}$/', $place['currency'] ) ) {
+			$place['currency'] = '';
+		}
+		return $place;
+	}
+
+	/**
+	 * Whether this page offers Square's Apple Pay and Google Pay: the Digital wallets switch, the wallets allowed
+	 * ( wp_easycart_allow_paypal_express ), at least 50 cents to pay, and, since 6.0.5, a country and a currency for the
+	 * payment request. Without them Square refuses the request ( "Country code '' is not a valid ISO country code" ), so
+	 * the buttons are left out rather than started. Every wallet part of the Square script and its buttons asks this.
+	 *
+	 * @since 6.0.5
+	 * @return bool
+	 */
+	public function square_wallets_on() {
+		if ( ! get_option( 'ec_option_square_digital_wallet' ) || ! apply_filters( 'wp_easycart_allow_paypal_express', false ) || (int) ( $this->order_totals->get_converted_grand_total() * 100 ) < 50 ) {
+			return false;
+		}
+		$place = $this->square_wallet_place();
+		return ( '' !== $place['country'] && '' !== $place['currency'] );
+	}
+
 	public function print_square_payment_script( $is_payment = false ) {
-		if( ! $is_payment && ! get_option( 'ec_option_square_digital_wallet' ) ) {
+		if( ! $is_payment && ! $this->square_wallets_on() ) { /* 6.0.5: the wallets alone, and none can start */
 			return;
 		}
 	
@@ -3347,6 +3499,14 @@ class ec_cartpage {
 			/* 6.0.4: the card form's ZIP is not the billing address's ( [zip] = the billing ZIP ) */
 			'zip'    => html_entity_decode( wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'ec_errors', 'card_postal_mismatch' ) ), ENT_QUOTES, 'UTF-8' ),
 		);
+		/* 6.0.5 ( Matt: a Canadian address gave Square's card form "468" and then refused the US ZIP the card needed ): Square formats the
+		   card's postal code by the country that issued the card, so the billing postcode is filled in only where the card is most likely
+		   from the same country as the address: a US address, or the Square account's own country ( saved location country, else the
+		   store's; never a call to Square here ). */
+		$square_card_home = ( class_exists( 'ec_square' ) && method_exists( 'ec_square', 'clean_country' ) ) ? ec_square::clean_country( get_option( 'ec_option_square_location_country' ) ) : '';
+		if ( '' === $square_card_home && class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) ) {
+			$square_card_home = strtoupper( (string) wp_easycart_carriers::store_country() );
+		}
 		if ( '' === trim( $square_text['zip'] ) ) { /* the store's language data has no such phrase yet */
 			$square_text['zip'] = 'The ZIP / postal code in the card form must match your billing address ([zip]). Please change one of them so they match.';
 		}
@@ -3361,7 +3521,14 @@ class ec_cartpage {
 			'amount'   => number_format( (float) $this->order_totals->grand_total, 2, '.', '' ),
 		);
 		$wallet_totals  = $this->get_wallet_order_totals(); /* 6.0.2: Apple Pay and Google Pay are card payments ( Card flex fees ) */
-		$square_wallets = get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50;
+		$square_wallets = $this->square_wallets_on();
+		$square_place   = array(
+			'country'  => '',
+			'currency' => '',
+		);
+		if ( $square_wallets ) {
+			$square_place = $this->square_wallet_place(); /* 6.0.5: asked only when the wallets show ( it can ask Square ) */
+		}
 		echo '<div id="square-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
 			<style>
 			@keyframes rotation{
@@ -3463,6 +3630,8 @@ class ec_cartpage {
 			   the shopper has not typed one of their own, and a different one stops the payment before it is sent
 			   ( wpEasyCartSquareZipCheck(), the quiet "address" stage: the shopper reads why, nothing goes to the store\'s log ). */
 			var wpEasyCartSquareSavedZip = ' . wp_json_encode( (string) $GLOBALS['ec_cart_data']->cart_data->billing_zip ) . ';
+			var wpEasyCartSquareSavedCountry = ' . wp_json_encode( strtoupper( (string) ( isset( $GLOBALS['ec_cart_data']->cart_data->billing_country ) ? $GLOBALS['ec_cart_data']->cart_data->billing_country : '' ) ) ) . ';
+			var wpEasyCartSquareHome = ' . wp_json_encode( (string) $square_card_home ) . ';
 			var wpEasyCartSquareCardNow = null;
 			var wpEasyCartSquareZipGiven = "";
 			var wpEasyCartSquareZipTyped = null;
@@ -3485,12 +3654,43 @@ class ec_cartpage {
 				var key = String( zip || "" ).toUpperCase().replace( /[\s-]/g, "" );
 				return /^[0-9]{5}/.test( key ) ? key.substring( 0, 5 ) : key;
 			}
+			function wpEasyCartSquareBillingCountry() { /* 6.0.5: the billing country as the page shows it now, else the checkout\'s */
+				var val = function( id ) { var el = document.getElementById( id ); return ( el && "string" === typeof el.value ) ? el.value.trim().toUpperCase() : ""; };
+				var different = document.getElementById( "billing_address_type_different" );
+				if ( different && different.checked && document.getElementById( "ec_cart_billing_country" ) ) {
+					return val( "ec_cart_billing_country" );
+				}
+				if ( document.getElementById( "ec_cart_shipping_country" ) ) {
+					return val( "ec_cart_shipping_country" ); /* billing same as shipping */
+				}
+				if ( document.getElementById( "ec_cart_billing_country" ) ) {
+					return val( "ec_cart_billing_country" );
+				}
+				return wpEasyCartSquareSavedCountry;
+			}
+			function wpEasyCartSquareZipFits() { /* 6.0.5: fill in the billing postcode? Only where the card is most likely from the address\'s country */
+				var country = wpEasyCartSquareBillingCountry();
+				return "" === country || "US" === country || country === wpEasyCartSquareHome;
+			}
+			function wpEasyCartSquareZipKind( zip ) { /* 6.0.5: a US ZIP, other digits, or a postcode with letters ( Canada, the UK ) */
+				var key = wpEasyCartSquareZipKey( zip );
+				return /^[0-9]{5}$/.test( key ) ? "us" : ( /^[0-9]+$/.test( key ) ? "digits" : "letters" );
+			}
 			function wpEasyCartSquareFollowZip() {
 				if ( ! wpEasyCartSquareCardNow || "function" !== typeof wpEasyCartSquareCardNow.configure ) {
 					return;
 				}
-				var zip = wpEasyCartSquareBillingZip();
-				if ( ! zip || zip === wpEasyCartSquareZipGiven ) {
+				var zip = wpEasyCartSquareZipFits() ? wpEasyCartSquareBillingZip() : "";
+				if ( ! zip ) {
+					/* 6.0.5: an address in another country: take back a postcode the page filled in ( the shopper types the card\'s own ) */
+					if ( wpEasyCartSquareZipGiven && ( null === wpEasyCartSquareZipTyped || wpEasyCartSquareZipKey( wpEasyCartSquareZipTyped ) === wpEasyCartSquareZipKey( wpEasyCartSquareZipGiven ) ) ) {
+						wpEasyCartSquareZipGiven = "";
+						wpEasyCartSquareZipTyped = null;
+						Promise.resolve( wpEasyCartSquareCardNow.configure( { postalCode: "" } ) ).catch( function() {} );
+					}
+					return;
+				}
+				if ( zip === wpEasyCartSquareZipGiven ) {
 					return;
 				}
 				if ( wpEasyCartSquareZipTyped && wpEasyCartSquareZipKey( wpEasyCartSquareZipTyped ) !== wpEasyCartSquareZipKey( wpEasyCartSquareZipGiven ) ) {
@@ -3504,7 +3704,7 @@ class ec_cartpage {
 					}
 				} );
 			}
-			jQuery( document ).off( "change.wpecSquareZip input.wpecSquareZip" ).on( "change.wpecSquareZip input.wpecSquareZip", "#ec_cart_shipping_zip, #ec_cart_billing_zip, #billing_address_type_different, #billing_address_type_same", function() {
+			jQuery( document ).off( "change.wpecSquareZip input.wpecSquareZip" ).on( "change.wpecSquareZip input.wpecSquareZip", "#ec_cart_shipping_zip, #ec_cart_billing_zip, #ec_cart_shipping_country, #ec_cart_billing_country, #billing_address_type_different, #billing_address_type_same", function() {
 				clearTimeout( wpEasyCartSquareZipTimer );
 				wpEasyCartSquareZipTimer = setTimeout( wpEasyCartSquareFollowZip, 600 );
 			} );
@@ -3518,6 +3718,11 @@ class ec_cartpage {
 				if ( "" === card || "" === billing.trim() || wpEasyCartSquareZipKey( card ) === wpEasyCartSquareZipKey( billing ) ) {
 					return;
 				}
+				/* 6.0.5: a card from another country than the address asks for its own country\'s postcode ( a US card: a ZIP, for an address in
+				   Canada ); the card\'s bank checks it. Only two postcodes of one kind that differ are a mistake to stop. */
+				if ( ! wpEasyCartSquareZipFits() || wpEasyCartSquareZipKind( card ) !== wpEasyCartSquareZipKind( billing ) ) {
+					return;
+				}
 				var text = String( wpEasyCartSquareText.zip || "" ).split( "[zip]" ).join( billing.trim() );
 				throw wpEasyCartSquareProblem( "address", "The card form\'s postal code is not the billing address\'s", text );
 			}
@@ -3525,7 +3730,7 @@ class ec_cartpage {
 				try {
 					if ( jQuery( document.getElementById( "wp-easycart-square-card-container" ) ).length ) {
 						var wpEasyCartCardOptions = {};
-						wpEasyCartSquareZipGiven = wpEasyCartSquareBillingZip();
+						wpEasyCartSquareZipGiven = wpEasyCartSquareZipFits() ? wpEasyCartSquareBillingZip() : ""; /* 6.0.5: only where the card likely shares the address\'s country */
 						wpEasyCartSquareZipTyped = null;
 						if ( wpEasyCartSquareZipGiven ) {
 							wpEasyCartCardOptions.postalCode = wpEasyCartSquareZipGiven;
@@ -3578,20 +3783,42 @@ class ec_cartpage {
 					}
 				}';
 		}
-		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
+		if ( $this->square_wallets_on() ) {
+		/* 6.0.5: a wallet button shows only once Square started it ( Safari drew a black Apple Pay button that did nothing when Apple Pay
+		   could not start ), and the one-page checkout's Express checkout strip lays out the buttons that did ( wpeasycart_express_layout(),
+		   ec-checkout-onepage.js ). With neither and no PayPal there, the strip is left out. */
 		echo '
+				function wpEasyCartSquareWalletShown( id, ready ) {
+					const button = document.getElementById( id );
+					if ( ! button ) {
+						return;
+					}
+					button.hidden = ! ready;
+					button.classList.toggle( \'is-ready\', !! ready );
+				}
 				let wpEasyCartApplePay;
 				try {
 					wpEasyCartApplePay = await wpEasyCartInitializeApplePay( wpEasyCartSquarePayments );
 				} catch ( e ) {
 					console.error( \'Initializing Apple Pay failed\', e );
 				}
+				wpEasyCartSquareWalletShown( \'wp-easycart-square-apple-pay-button\', wpEasyCartApplePay !== undefined );
 				let wpEasyCartGooglePay;
 				try {
 					wpEasyCartGooglePay = await wpEasyCartInitializeGooglePay( wpEasyCartSquarePayments );
 				} catch ( e ) {
 					console.error( \'Initializing Google Pay failed\', e );
-				}';
+				}
+				wpEasyCartSquareWalletShown( \'wp-easycart-square-google-pay-button\', wpEasyCartGooglePay !== undefined );
+				( function() {
+					const strip = document.querySelector( \'.ec_cart_express_checkout\' );
+					if ( strip && wpEasyCartApplePay === undefined && wpEasyCartGooglePay === undefined && ! strip.querySelector( \'#paypal-button-container\' ) ) {
+						strip.style.display = \'none\';
+					}
+					if ( window.wpeasycart_express_layout ) {
+						window.wpeasycart_express_layout();
+					}
+				} )();';
 		}
 		/* 6.0.4: Square's own gift card field ( "Pay with Gift Card", ec_option_square_gift_cards, which no setting ever wrote ) is gone:
 		   a Square gift card goes in the gift card box and pays its share of any order ( WP EasyCart PRO's wp_easycart_square_giftcards_pro ). */
@@ -4009,9 +4236,9 @@ class ec_cartpage {
 		echo '
 					let lineItems = ' . wp_json_encode( $this->get_dynamic_square_line_items( $wallet_totals ) ) . ';
 					let total = { amount: \'' . esc_attr( number_format( (float) $wallet_totals->grand_total, 2, '.', '' ) ) . '\', label: \'Total\' }; /* 6.0.2: the order total ( the discount line is shown, not added ), as a card payment ( Card flex fees ) */
-					const paymentRequestDetails = {
-						countryCode: \'' . esc_attr( get_option( 'ec_option_square_location_country' ) ) . '\',
-						currencyCode: \'' . esc_attr( get_option( 'ec_option_square_currency' ) ) . '\',
+					const paymentRequestDetails = { /* 6.0.5: the location\'s country and currency, never \'\' ( square_wallet_place() ) */
+						countryCode: \'' . esc_attr( $square_place['country'] ) . '\',
+						currencyCode: \'' . esc_attr( $square_place['currency'] ) . '\',
 						lineItems: lineItems,
 						requestBillingContact: true,';
 		if ( ( ! $is_payment || wp_easycart_onepage_active() ) && get_option( 'ec_option_use_shipping' ) && $this->cart->shippable_total_items > 0 ) {
@@ -4093,7 +4320,7 @@ class ec_cartpage {
 						} );
 					return shippingResponse;
 				}';
-		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
+		if ( $this->square_wallets_on() ) {
 		echo '
 				async function wpEasyCartInitializeApplePay( payments ) {
 					const paymentRequest = wpEasyCartBuildPaymentRequest( payments );';
@@ -4122,8 +4349,19 @@ class ec_cartpage {
 		}
 		echo '
 					const wpEasyCartGooglePay = await payments.googlePay( paymentRequest );
-					/* 6.0.4: fill = the width of its place, as the Apple Pay button ( drawn without options it showed at Google\'s static size ). */
-					await wpEasyCartGooglePay.attach( \'#wp-easycart-square-google-pay-button\', { buttonSizeMode: \'fill\', buttonType: \'long\' } );
+					/* 6.0.4: fill = the width of its place, as the Apple Pay button ( drawn without options it showed at Google\'s static size ).
+					   6.0.5: in the Express checkout strip the logo only ( short ), with the strip\'s corners, as Apple Pay and PayPal beside it. */
+					const wpEasyCartGooglePayOptions = { buttonSizeMode: \'fill\', buttonType: \'long\' };
+					const wpEasyCartGooglePayHolder = document.getElementById( \'wp-easycart-square-google-pay-button\' );
+					const wpEasyCartGooglePayStrip = ( wpEasyCartGooglePayHolder && wpEasyCartGooglePayHolder.closest ) ? wpEasyCartGooglePayHolder.closest( \'.ec_cart_express_button_container\' ) : null;
+					if ( wpEasyCartGooglePayStrip ) {
+						wpEasyCartGooglePayOptions.buttonType = \'short\';
+						const wpEasyCartGooglePayRadius = parseInt( window.getComputedStyle( wpEasyCartGooglePayStrip ).getPropertyValue( \'--wpec-express-radius\' ), 10 );
+						if ( wpEasyCartGooglePayRadius >= 0 ) {
+							wpEasyCartGooglePayOptions.buttonRadius = wpEasyCartGooglePayRadius;
+						}
+					}
+					await wpEasyCartGooglePay.attach( \'#wp-easycart-square-google-pay-button\', wpEasyCartGooglePayOptions );
 					return wpEasyCartGooglePay;
 				}';
 		}
@@ -4159,7 +4397,7 @@ class ec_cartpage {
 				} );';
 			}
 		}
-		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
+		if ( $this->square_wallets_on() ) {
 		echo '
 				const wpEasyCartGooglePayButton = document.getElementById( \'wp-easycart-square-google-pay-button\' );
 				if ( wpEasyCartGooglePay !== undefined && wpEasyCartGooglePayButton ) {
@@ -4172,6 +4410,13 @@ class ec_cartpage {
 					wpEasyCartApplePayButton.addEventListener( \'click\', async function ( event ) {
 						await wpEasyCartHandlePaymentMethodSubmission( event, wpEasyCartApplePay );
 					} );
+					/* 6.0.5: Square\'s Apple Pay button is a styled div ( role button ): Enter and Space press it, as a button. */
+					wpEasyCartApplePayButton.addEventListener( \'keydown\', function ( event ) {
+						if ( \'Enter\' === event.key || \' \' === event.key || \'Spacebar\' === event.key ) {
+							event.preventDefault();
+							wpEasyCartApplePayButton.click();
+						}
+					} );
 				}';
 		}
 		echo '
@@ -4183,13 +4428,46 @@ class ec_cartpage {
 		</script>';
 	}
 
+	/**
+	 * One size for every button in the one-page checkout's Express checkout strip ( 6.0.5; ec_cart_information_v2.php prints it as
+	 * --wpec-express-height / --wpec-express-radius, which the Square, Stripe and PayPal scripts read there ). 48px is WooCommerce's
+	 * default and fits every provider's range ( Apple Pay 30px and up, Google Pay, Stripe 40–55px, PayPal 25–55px ); the corners follow
+	 * the PayPal button shape ( pill = half the height, else 4px, Apple's and PayPal's own ). Apple, Google and PayPal each ask for their
+	 * button at the same size as the other payment buttons.
+	 *
+	 * @since 6.0.5
+	 * @return array height, radius ( px ).
+	 */
+	public function express_button_style() {
+		/**
+		 * The height of the express checkout buttons, in px ( 40 to 55 ).
+		 *
+		 * @since 6.0.5
+		 * @param int $height 48.
+		 */
+		$height = max( 40, min( 55, (int) apply_filters( 'wp_easycart_express_button_height', 48 ) ) );
+		$radius = ( 'pill' === get_option( 'ec_option_paypal_button_shape' ) ) ? (int) floor( $height / 2 ) : 4;
+		/**
+		 * The corner radius of the express checkout buttons, in px ( 0 to half the height ).
+		 *
+		 * @since 6.0.5
+		 * @param int $radius 4, or half the height for pill PayPal buttons.
+		 * @param int $height The buttons' height.
+		 */
+		$radius = max( 0, min( (int) floor( $height / 2 ), (int) apply_filters( 'wp_easycart_express_button_radius', $radius, $height ) ) );
+		return array(
+			'height' => $height,
+			'radius' => $radius,
+		);
+	}
+
 	public function print_square_payment_express() {
 		if ( ! apply_filters( 'wpeasycart_express_checkout_allowed', true, 'square', $this ) ) { /* 6.0.2 */
 			return;
 		}
-		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
+		if ( $this->square_wallets_on() ) {
 			echo '<div class="wp-easycart-square-express-checkout">';
-				echo '<div id="wp-easycart-square-apple-pay-button"></div>';
+				echo '<div id="wp-easycart-square-apple-pay-button" role="button" tabindex="0" aria-label="Apple Pay"></div>'; /* 6.0.5: a keyboard button ( Square draws it with CSS on a div ) */
 				echo '<div id="wp-easycart-square-google-pay-button"></div>';
 			echo '</div>';
 		}
@@ -4214,8 +4492,8 @@ class ec_cartpage {
 			return;
 		}
 
-		if ( get_option( 'ec_option_square_digital_wallet' ) && apply_filters( 'wp_easycart_allow_paypal_express', false ) && (int) ( $this->order_totals->get_converted_grand_total() * 100 ) >= 50 ) {
-			echo '<div id="wp-easycart-square-apple-pay-button"></div>';
+		if ( $this->square_wallets_on() ) {
+			echo '<div id="wp-easycart-square-apple-pay-button" role="button" tabindex="0" aria-label="Apple Pay"></div>'; /* 6.0.5: a keyboard button ( Square draws it with CSS on a div ) */
 			echo '<div id="wp-easycart-square-google-pay-button"></div>';
 		}
 
@@ -4330,10 +4608,11 @@ class ec_cartpage {
 				var supported = [ 'ar','bg','cs','da','de','el','en','en-GB','es','es-419','et','fi','fil','fr','fr-CA','he','hr','hu','id','it','ja','ko','lt','lv','ms','mt','nb','nl','pl','pt','pt-BR','ro','ru','sk','sl','sv','th','tr','vi','zh','zh-HK','zh-TW' ];
 				var aliases = { 'no': 'nb', 'nn': 'nb', 'tl': 'fil', 'iw': 'he', 'in': 'id' };
 				var canonical = {};
-				var i;
-				for ( i = 0; i < supported.length; i++ ) {
-					canonical[ supported[ i ].toLowerCase() ] = supported[ i ];
-				}
+				/* 6.0.5: no less-than sign here. Block themes run wptexturize() over the page, which reads it as a tag and rewrites every
+				   double ampersand after it in this script, so the whole Stripe script failed ( the classic payment step, the subscription page ). */
+				supported.forEach( function( code ) {
+					canonical[ code.toLowerCase() ] = code;
+				} );
 				raw = String( raw || '' ).trim().replace( /_/g, '-' ).toLowerCase();
 				if ( canonical[ raw ] ) { return canonical[ raw ]; }
 				var base = raw.split( '-' )[ 0 ];
@@ -4366,15 +4645,26 @@ class ec_cartpage {
 		if ( '' === $wpec_client_secret && $this->stripe_held_by_protection() ) {
 			return; /* 6.0.2 checkout protection: the storefront script shows the pause or the human check instead */
 		}
-		echo "<script>
+		/* 6.0.5: Stripe started no payment ( the server could not reach it, or Stripe refused ): Stripe's email ( Link ) and address boxes
+		   still draw, in a group that needs no payment ( mode setup ), the card form's place says card payments can't be taken right now
+		   and Place order with the card stops there ( wp_easycart_stripe_unavailable ); other ways to pay go on. Before, Stripe's script
+		   threw on the empty client secret and nothing drew, the email and address boxes included. */
+		$stripe_down = ( '' === $wpec_client_secret );
+		$stripe_form = "( document.getElementById( 'ec_submit_order_form' ) || document.getElementById( 'wpeasycart_checkout_details_form' ) )";
+		echo '<script>';
+		echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+		echo "
 		try {
 			jQuery( document ).ready( function() {
+			try {
 				var clientSecret = '" . esc_attr( $wpec_client_secret ) . "';
 				const appearance = {
 					theme: '" . esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ) . "',
 				};
-				const options = {
-					clientSecret: clientSecret,
+				const options = {" . ( $stripe_down ? "
+					mode: 'setup',
+					currency: '" . esc_attr( strtolower( ( '' !== (string) get_option( 'ec_option_stripe_currency' ) ) ? (string) get_option( 'ec_option_stripe_currency' ) : 'usd' ) ) . "'," : "
+					clientSecret: clientSecret," ) . "
 					appearance: appearance,
 				};
 				const elements = stripe.elements( options );";
@@ -4400,19 +4690,35 @@ class ec_cartpage {
 			   group ( the single page without shipping, or the tabbed payment step with it ) gives Stripe the billing address itself. */
 			$tabbed = get_option( 'ec_option_onepage_checkout_tabbed' );
 			$billing_box_in_group = $stripe_address_enabled && ( ( ! $tabbed && ! $shipping_enabled ) || ( $tabbed && $shipping_enabled && $is_payment ) );
-			$this->print_stripe_script_payment_v2( $billing_box_in_group );
-			if ( $this->order_totals->grand_total > 0 ) {
-				$mount_items[] = 'paymentElement.mount( "#ec_stripe_card_row" );';
+			if ( $stripe_down ) {
+				if ( $this->order_totals->grand_total > 0 ) {
+					$mount_items[] = wp_easycart_stripe_unavailable::call( 'null', '#ec_stripe_card_row', $stripe_form );
+				}
+			} else {
+				$this->print_stripe_script_payment_v2( $billing_box_in_group );
+				if ( $this->order_totals->grand_total > 0 ) {
+					$mount_items[] = 'paymentElement.mount( "#ec_stripe_card_row" );';
+				}
 			}
 		}
 		foreach ( $mount_items as $mount_item ) {
 			echo '
 			' . $mount_item;
 		}
+		/* 6.0.5: a failure inside the ready callback is caught there ( the outer catch never saw it: jQuery throws it later ), and shoppers get
+		   the card form's message instead of the developer's alert. */
+		$stripe_catch = wp_easycart_stripe_unavailable::call( 'err', '#ec_stripe_card_row', $stripe_form );
 		echo '
+			} catch( err ) {
+				';
+		echo $stripe_catch; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+		echo '
+			}
 			} );
 		} catch( err ) {
-			alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+			';
+		echo $stripe_catch; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+		echo '
 		}
 		</script>';
 	}
@@ -4468,10 +4774,12 @@ class ec_cartpage {
 		$this->print_stripe_locale_mapper();
 		echo "
 		const billingOptions = {
-			clientSecret: clientSecret,
 			appearance: appearance,
 			locale: " . $this->get_stripe_element_locale_js() . "
 		};
+		if ( clientSecret ) {
+			billingOptions.clientSecret = clientSecret; /* 6.0.5: none when Stripe started no payment ( the address boxes need none ) */
+		}
 		const billingElements = stripe.elements( billingOptions );
 		const billingaddressElement = billingElements.create( 'address', {";
 		} else {
@@ -5091,6 +5399,9 @@ class ec_cartpage {
 				if ( '' === $client_secret && $this->stripe_held_by_protection() ) {
 					return false; /* 6.0.2 checkout protection: no wallet button while this shopper is paused or owes a human check */
 				}
+				if ( '' === $client_secret ) {
+					return false; /* 6.0.5: Stripe started no payment ( the server could not reach it, or Stripe refused ): a wallet could not pay */
+				}
 				if ( $is_payment ) {
 					echo '<div class="ec_cart_option_row" id="ec_apple_pay_row">
 						<label class="ec_cart_option_label" for="ec_payment_apple"><input type="radio" class="no_wrap" name="ec_cart_payment_selection" id="ec_payment_apple" value="apple_pay"';
@@ -5374,8 +5685,13 @@ class ec_cartpage {
 						jQuery( document.getElementById( \'stripe-success-cover\' ) ).fadeOut();
 					} );
 					var elements = stripe.elements();
+					/* 6.0.5: in the one-page checkout\'s Express checkout strip, the strip\'s height ( Stripe\'s own 40px elsewhere ). */
+					var wpec_pr_holder = document.getElementById( \'payment-request-button\' );
+					var wpec_pr_strip = ( wpec_pr_holder && wpec_pr_holder.closest ) ? wpec_pr_holder.closest( \'.ec_cart_express_button_container\' ) : null;
+					var wpec_pr_height = wpec_pr_strip ? ( parseInt( window.getComputedStyle( wpec_pr_strip ).getPropertyValue( \'--wpec-express-height\' ), 10 ) || 48 ) : 40;
 					var prButton = elements.create( \'paymentRequestButton\', {
-						paymentRequest: paymentRequest
+						paymentRequest: paymentRequest,
+						style: { paymentRequestButton: { height: wpec_pr_height + \'px\' } }
 					} );';
 				if ( get_option( 'ec_option_require_terms_agreement' ) ) {
 				echo '
@@ -5403,7 +5719,8 @@ class ec_cartpage {
 							ec_update_payment_display( \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-payment-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . '\' );';
 				}
 				echo '
-								wpec_button.mount( wpec_holder );';
+								wpec_button.mount( wpec_holder );
+								wpec_holder.className += \' is-ready\'; /* 6.0.5: the Express checkout strip shows the holder once a wallet is in it */';
 				if ( wp_easycart_onepage_active() ) {
 					echo '
 								jQuery( \'.ec_cart_express_checkout\' ).show();';
@@ -5421,12 +5738,19 @@ class ec_cartpage {
 									wpec_apple_form.style.display = \'none\';
 								}';
 				}
-				if ( wp_easycart_onepage_active() && 'paypal' != get_option( 'ec_option_payment_third_party' ) ) {
+				if ( wp_easycart_onepage_active() ) {
+					/* 6.0.5: left out when nothing else is in it ( it went by the PayPal setting, so a store whose PayPal buttons were not drawn
+					   there kept an empty Express checkout heading ). */
 					echo '
-								jQuery( \'.ec_cart_express_checkout\' ).hide();';
+								if ( ! document.querySelector( \'.ec_cart_express_checkout #paypal-button-container\' ) ) {
+									jQuery( \'.ec_cart_express_checkout\' ).hide();
+								}';
 				}
 				echo '
 								wpec_holder.style.display = \'none\';
+							}
+							if ( window.wpeasycart_express_layout ) {
+								window.wpeasycart_express_layout();
 							}
 						} );
 					} )( paymentRequest, prButton, document.getElementById( \'payment-request-button\' ) );
@@ -5751,6 +6075,10 @@ class ec_cartpage {
 
 	public function display_manual_payment_text() {
 		echo nl2br( esc_attr( wp_easycart_language()->convert_text( get_option( 'ec_option_direct_deposit_message' ) ) ) );
+		/* 6.0.5: the store's bank details, in the fields its country uses ( wp_easycart_bank_details ). */
+		if ( class_exists( 'wp_easycart_bank_details' ) ) {
+			echo wp_easycart_bank_details::html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- html() escapes every value.
+		}
 	}
 
 	public function use_third_party() {
@@ -6305,6 +6633,12 @@ class ec_cartpage {
 							if ( class_exists( 'wp_easycart_text_input_rules' ) ) {
 								$legacy_value = wp_easycart_text_input_rules::validate( $legacy_value, $optionset )['value']; /* 6.0.0 input rules */
 							}
+							/* 6.0.5: this form has no size boxes, but a size posted here is still read as a size: one that is not a positive
+							   number is refused, as get_advanced_option_vals() refuses it. */
+							if ( wp_easycart_size_option::is_size( $optionset->option_type ) && 'invalid' === wp_easycart_size_option::state( $legacy_value ) ) {
+								$this->option_input_errors[] = (int) $optionset->option_to_product_id;
+								$this->option_input_error_reasons[ (int) $optionset->option_to_product_id ] = 'size';
+							}
 							foreach( $optionitems as $optionitem ) {
 								$option_vals[] = array(
 									"option_id" => $optionset->option_id,
@@ -6323,6 +6657,12 @@ class ec_cartpage {
 							$file_upload_fields[ 'ec_option_' . (int) $optionset->option_id ] = $optionset; /* 6.0.0: the option set carries its allowed file types. */
 						}
 					}
+				}
+
+				/* 6.0.5: a size that is not a positive number stops the add, before anything is uploaded. */
+				if ( ! empty( $this->option_input_errors ) ) {
+					$this->reject_option_input( false );
+					return;
 				}
 
 				/* 6.0.0: a chosen file the store cannot accept stops the add, before the cart row exists. */
@@ -6544,24 +6884,34 @@ class ec_cartpage {
 				}
 
 			} else if ( $optionset->option_type == "dimensions1" || $optionset->option_type == "dimensions2" ) {
-				foreach( $optionitems as $optionitem ) {
-
-					if ( isset( $_POST['ec_option_' . (int) $optionset->option_id . '_width'] ) ) {
-						$vals = array();
-						$vals[] = sanitize_text_field( $_POST['ec_option_' . (int) $optionset->option_id . '_width'] );
-
-						if ( isset( $_POST['ec_option_' . (int) $optionset->option_id . '_sub_width'] ) ) {
-							$vals[] = sanitize_text_field( $_POST['ec_option_' . (int) $optionset->option_id . '_sub_width'] );
-
+				/* 6.0.5: a size is kept only when its width and height are each a positive number ( wp_easycart_size_option::state() ).
+				   The form posts the boxes of a size that is not required, or that conditional logic hides, empty: 6.0.4 kept [ "", "" ],
+				   which PHP 8 could not price ( "" / 12 ) and which made the line free on PHP 7 ( and for a size with fractions on any PHP ).
+				   An empty size is left out, as an empty text box is. A box holding 0, a negative number or words is no size the store can
+				   sell ( 6.0.4 scaled the price by it ): nothing is added, and the shopper is sent back to the product with the option's
+				   error text ( reject_option_input() ), as the product page's own check does. */
+				// phpcs:disable WordPress.Security.NonceVerification.Missing -- every caller ( add_to_cart_v3, subscribe_v3, send_inquiry ) verifies its form nonce first.
+				$size_key = 'ec_option_' . (int) $optionset->option_id;
+				if ( ! isset( $_POST[ $size_key . '_width' ] ) ) {
+					$size_key = 'ec_option_adv_' . (int) $optionset->option_to_product_id;
+				}
+				$vals = array();
+				if ( isset( $_POST[ $size_key . '_width' ] ) ) {
+					foreach ( array( '_width', '_sub_width', '_height', '_sub_height' ) as $size_part ) {
+						if ( isset( $_POST[ $size_key . $size_part ] ) ) {
+							$vals[] = sanitize_text_field( wp_unslash( $_POST[ $size_key . $size_part ] ) );
+						} elseif ( '_height' === $size_part ) {
+							$vals[] = '';
 						}
-
-						$vals[] = sanitize_text_field( $_POST['ec_option_' . (int) $optionset->option_id . '_height'] );
-
-						if ( isset( $_POST['ec_option_' . (int) $optionset->option_id . '_sub_height'] ) ) {
-							$vals[] = sanitize_text_field( $_POST['ec_option_' . (int) $optionset->option_id . '_sub_height'] );
-
-						}
-
+					}
+				}
+				// phpcs:enable WordPress.Security.NonceVerification.Missing
+				$size_state = wp_easycart_size_option::state( $vals );
+				if ( 'invalid' === $size_state ) {
+					$this->option_input_errors[] = (int) $optionset->option_to_product_id;
+					$this->option_input_error_reasons[ (int) $optionset->option_to_product_id ] = 'size';
+				} elseif ( 'size' === $size_state ) {
+					foreach ( $optionitems as $optionitem ) {
 						$option_vals[] = array(
 							"option_id" => (int) $optionset->option_id,
 							"option_label" => wp_easycart_escape_html( $optionset->option_label ),
@@ -6569,37 +6919,9 @@ class ec_cartpage {
 							"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
 							"option_type" => sanitize_text_field( $optionset->option_type ),
 							"optionitem_id" => (int) $optionitem->optionitem_id,
-							"optionitem_value" => json_encode( $vals ),
+							"optionitem_value" => wp_json_encode( $vals ),
 							"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
 						);
-
-					} else if ( isset( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_width'] ) ) {
-						$vals = array();
-						$vals[] = sanitize_text_field( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_width'] );
-
-						if ( isset( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_sub_width'] ) ) {
-							$vals[] = sanitize_text_field( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_sub_width'] );
-
-						}
-
-						$vals[] = sanitize_text_field( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_height'] );
-
-						if ( isset( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_sub_height'] ) ) {
-							$vals[] = sanitize_text_field( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id . '_sub_height'] );
-
-						}
-
-						$option_vals[] = array( 
-							"option_id" => (int) $optionset->option_id,
-							"option_label" => wp_easycart_escape_html( $optionset->option_label ),
-							"option_name" => sanitize_text_field( $optionset->option_name ),
-							"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
-							"option_type" => sanitize_text_field( $optionset->option_type ),
-							"optionitem_id" => (int) $optionitem->optionitem_id,
-							"optionitem_value" => json_encode( $vals ),
-							"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
-						);
-
 					}
 				}
 
@@ -6656,8 +6978,9 @@ class ec_cartpage {
 	}
 
 	/**
-	 * Nothing is added: a text / textarea option failed its input rules, or a chosen file
-	 * could not be uploaded. Sends the shopper back to the product with
+	 * Nothing is added: a text / textarea option failed its input rules, a chosen file
+	 * could not be uploaded, or a size is not a positive number ( 6.0.5, reason 'size': the row shows
+	 * the option's own error text ). Sends the shopper back to the product with
 	 * ?ec_option_error=<option_to_product_id> ( and ec_option_error_reason ), which
 	 * ec-text-input-rules.js uses to show that option's error text. AJAX adds ( noredirect ) just stop.
 	 *
@@ -6675,7 +6998,7 @@ class ec_cartpage {
 		$return_url = $return_url ? wp_validate_redirect( $return_url, $fallback ) : $fallback;
 		$return_url = remove_query_arg( array( 'ec_option_error', 'ec_option_error_reason', 'ec_store_success', 'model' ), $return_url );
 		$args       = array( 'ec_option_error' => $option_ids[0] );
-		if ( isset( $this->option_input_error_reasons[ $option_ids[0] ] ) && in_array( $this->option_input_error_reasons[ $option_ids[0] ], array( 'min_length', 'file_type', 'file_size', 'file_upload' ), true ) ) {
+		if ( isset( $this->option_input_error_reasons[ $option_ids[0] ] ) && in_array( $this->option_input_error_reasons[ $option_ids[0] ], array( 'min_length', 'file_type', 'file_size', 'file_upload', 'size' ), true ) ) {
 			$args['ec_option_error_reason'] = $this->option_input_error_reasons[ $option_ids[0] ];
 		}
 		wp_safe_redirect( add_query_arg( $args, $return_url ) );
@@ -7773,9 +8096,12 @@ class ec_cartpage {
 
 		$model_number = sanitize_text_field( $_POST['model_number'] );
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
+		$this->guard_subscription_options( $products[0] ); /* 6.0.3: the first order records this product's own choices only */
+		if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+			$products[0] = wp_easycart_subscription_levels::apply( $products[0] ); /* 6.0.5: the level bought ( its price and name ) */
+		}
 		$product = new ec_product( $products[0] );
 		$this->cart->cart = array( $product );
-		$this->guard_subscription_options( $products[0] ); /* 6.0.3: the first order records this product's own choices only */
 		$subscription_cart = array();
 
 		$subscription_row = $this->mysqli->get_subscription_row( (int) $_POST['subscription_id'] );
@@ -8126,9 +8452,12 @@ class ec_cartpage {
 		global $wpdb;
 		$model_number = sanitize_text_field( $_POST['model_number'] );
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
+		$this->guard_subscription_options( $products[0] ); /* 6.0.3: this product's own choices only; missing ones stop it at subscription_errors() below */
+		if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+			$products[0] = wp_easycart_subscription_levels::apply( $products[0] ); /* 6.0.5: the level chosen ( its price, its own Stripe price below ) */
+		}
 		$product = new ec_product( $products[0] );
 		$this->cart->cart = array( $product );
-		$this->guard_subscription_options( $products[0] ); /* 6.0.3: this product's own choices only; missing ones stop it at subscription_errors() below */
 		$subscription_cart = array();
 
 		$quantity = 1;
@@ -8426,17 +8755,40 @@ class ec_cartpage {
 
 		// 6.0.4: what the shopper typed is unslashed ( WordPress adds slashes to $_POST: "O'Neil" was saved as "O\'Neil" ).
 		// CREATE ACCOUNT IF NEEDED
-		if ( isset( $_POST['create_account'] ) ) {
+		/* 6.0.5: a new subscriber who chooses a password after paying ( wp_easycart_subscription_signup, the page posts wpec_signup_later ):
+		   the account is made here with the email this session locked and a password nobody is told; they set their own on the page they
+		   land on, or later with Forgot your password. A posted email that is not the locked one stops here, before anything is charged. */
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- ec_ajax_get_stripe_create_subscription() checks the nonce before it calls this.
+		$wpec_account_password = isset( $_POST['create_account']['password'] ) ? $_POST['create_account']['password'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
+		$wpec_account_email    = isset( $_POST['billing_details']['email'] ) ? sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ) : '';
+		$wpec_account_later    = false;
+		$wpec_account_asked    = isset( $_POST['wpec_signup_later'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['wpec_signup_later'] ) );
+		$wpec_account_posted   = isset( $_POST['create_account'] );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		if ( ! $wpec_account_posted && $wpec_account_asked && ! $GLOBALS['ec_cart_data']->cart_data->user_id && class_exists( 'wp_easycart_subscription_signup' ) ) {
+			$wpec_account_email = wp_easycart_subscription_signup::purchase_email( $wpec_account_email );
+			if ( is_wp_error( $wpec_account_email ) ) {
+				return array(
+					'error' => array(
+						'id'      => $wpec_account_email->get_error_code(),
+						'message' => $wpec_account_email->get_error_message(),
+					),
+				);
+			}
+			$wpec_account_password = wp_generate_password( 32, false );
+			$wpec_account_later    = true;
+		}
+		if ( $wpec_account_posted || $wpec_account_later ) {
 
-			if ( wp_easycart_wordpress_users::email_taken( sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ) ) ) {
+			if ( wp_easycart_wordpress_users::email_taken( $wpec_account_email ) ) {
 				return array( 'error' => array( 
 					'id'		=> 'user_create_error',
 					'message'	=> wp_easycart_language()->get_text( "ec_errors", "email_exists_error" )
 				) );
 
 			} else {
-				$password = wp_easycart_hash_password( $_POST['create_account']['password'] ); // XSS OK. Password Hashed Immediately
-				$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['create_account']['password'] ); // XSS OK. Password should not be hashed.
+				$password = wp_easycart_hash_password( $wpec_account_password ); // XSS OK. Password Hashed Immediately
+				$password = apply_filters( 'wpeasycart_password_hash', $password, $wpec_account_password ); // XSS OK. Password should not be hashed.
 
 				$billing_id = $this->mysqli->insert_address( 
 					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), 
@@ -8465,7 +8817,7 @@ class ec_cartpage {
 				);
 
 				$user_id = $this->mysqli->insert_user( 
-					sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ),
+					$wpec_account_email,
 					$password,
 					sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ),
 					sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ),
@@ -8482,10 +8834,10 @@ class ec_cartpage {
 				$this->mysqli->update_address_user_id( $billing_id, $user_id );
 				$this->mysqli->update_address_user_id( $shipping_id, $user_id );
 
-				do_action( 'wpeasycart_account_added', $user_id, sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ), $_POST['create_account']['password'], 'subscription' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
+				do_action( 'wpeasycart_account_added', $user_id, $wpec_account_email, $wpec_account_password, 'subscription' );
 
 				// WordPress User Sync 1.x: the WordPress user ( 2.0 makes it on wpeasycart_account_added ).
-				wp_easycart_wordpress_users::legacy_account_created( $user_id, sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) ), $_POST['create_account']['password'], sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
+				wp_easycart_wordpress_users::legacy_account_created( $user_id, $wpec_account_email, $wpec_account_password, sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
 				// Send registration email if needed
 				if ( get_option( 'ec_option_send_signup_email' ) ) {
@@ -8497,7 +8849,7 @@ class ec_cartpage {
 					$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 					$headers[] = "X-Mailer: PHP/" . phpversion();
 
-					$message = wp_easycart_account_register_admin_email_html( $email ); // 6.0.0: shared email design.
+					$message = wp_easycart_account_register_admin_email_html( $wpec_account_email ); // 6.0.0: shared email design ( 6.0.5: it named an undefined $email ).
 
 					if ( get_option( 'ec_option_use_wp_mail' ) ) {
 						wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language()->get_text( "account_register", "account_register_email_title" ), $message, implode("\r\n", $headers) );
@@ -8512,12 +8864,15 @@ class ec_cartpage {
 
 				$GLOBALS['ec_cart_data']->cart_data->is_guest = false;
 				$GLOBALS['ec_cart_data']->cart_data->user_id = $user_id;
-				$GLOBALS['ec_cart_data']->cart_data->email = sanitize_email( wp_unslash( $_POST['billing_details']['email'] ) );
+				$GLOBALS['ec_cart_data']->cart_data->email = $wpec_account_email;
 				$GLOBALS['ec_cart_data']->cart_data->username = sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] . ' ' . $_POST['billing_details']['last_name'] ) );
 				$GLOBALS['ec_cart_data']->cart_data->first_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['first_name'] ) );
 				$GLOBALS['ec_cart_data']->cart_data->last_name = sanitize_text_field( wp_unslash( $_POST['billing_details']['last_name'] ) );
 
 				$GLOBALS['ec_user'] = new ec_user( "" );
+				if ( $wpec_account_later ) {
+					wp_easycart_subscription_signup::mark_pending( $user_id ); /* 6.0.5: this session may set the password */
+				}
 			}
 
 		} else { // Customer already exists, lets update their billing address
@@ -8775,6 +9130,7 @@ class ec_cartpage {
 			array(
 				'amount'      => $stripe_unit_price,
 				'option_item' => $override_option_item,
+				'level'       => (string) $product->usage_level, /* 6.0.5 */
 			)
 		);
 		if ( ! $stripe_price_id ) {
@@ -8813,6 +9169,17 @@ class ec_cartpage {
 		}
 
 		$subscription_id = $this->mysqli->insert_stripe_subscription( $stripe_response, $product, $GLOBALS['ec_user'], NULL, $quantity );
+		if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+			wp_easycart_subscription_levels::record( $subscription_id, $product, $quantity ); /* 6.0.5: the level ( or units ) it bills */
+		}
+		/* 6.0.5: the subscription keeps the card it was bought with, and the account's last card is that card too ( Stripe's customer
+		 * default was set to it above ). Before, only a paid first invoice wrote the account card, so a free trial showed the old one. */
+		if ( isset( $wpec_attached ) && is_object( $wpec_attached ) && ! is_wp_error( $wpec_attached ) && class_exists( 'wp_easycart_subscription_cards' ) ) {
+			$wpec_card = wp_easycart_subscription_cards::record_payment_method( $subscription_id, $wpec_attached );
+			if ( $wpec_card && '' !== $wpec_card['last4'] ) {
+				$this->mysqli->update_user_default_card( $GLOBALS['ec_user'], new ec_credit_card( $wpec_card['brand'], '', $wpec_card['last4'], $wpec_card['exp_month'], $wpec_card['exp_year'], '' ) );
+			}
+		}
 		do_action( 'wp_easycart_subscription_started', $subscription_id );
 
 		/* 6.0.2: submit_stripe_quick_subscription_payment() records the first payment only for this subscription and its invoice's PaymentIntent. */
@@ -10143,6 +10510,17 @@ class ec_cartpage {
 				$GLOBALS['ec_cart_data']->cart_data->guest_key = "";
 			}
 
+			/* 6.0.5: an order that needs an account, while new customers choose the password after paying: unless the account is made here,
+			   the email is the one this session locked, and the account is made when the order is placed ( wp_easycart_checkout_signup ). */
+			if ( ! $create_account && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && class_exists( 'wp_easycart_checkout_signup' ) && wp_easycart_checkout_signup::later() && $this->account_required() ) {
+				$wpec_locked_email = wp_easycart_checkout_signup::locked_email();
+				if ( '' === $wpec_locked_email || 0 !== strcasecmp( trim( (string) $GLOBALS['ec_cart_data']->cart_data->email ), $wpec_locked_email ) ) {
+					$GLOBALS['ec_cart_data']->save_session_to_db();
+					header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_info', array( 'ec_cart_error' => 'account_required' ) ) ) );
+					return;
+				}
+			}
+
 			do_action( 'wpeasycart_save_checkout_info_process' );
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -10160,7 +10538,11 @@ class ec_cartpage {
 
 			} else {
 				if ( $create_account ) {
-					if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['ec_contact_email'] ) ) ) {
+					if ( class_exists( 'wp_easycart_email_lookups' ) && ! wp_easycart_email_lookups::allow( sanitize_email( wp_unslash( $_POST['ec_contact_email'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- process_save_checkout_info() checked the form's nonce before this helper.
+						/* 6.0.5: too many emails looked up from this browser or address: nothing made, nothing said about this one */
+						$GLOBALS['ec_cart_data']->save_session_to_db();
+						header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_info', array( 'ec_cart_error' => 'email_busy' ) ) ) );
+					} else if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['ec_contact_email'] ) ) ) {
 						do_action( 'wpeasycart_cart_updated' );
 						$GLOBALS['ec_cart_data']->save_session_to_db();
 						header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_info', array( 'ec_cart_error' => 'email_exists' ) ) ) );
@@ -10413,6 +10795,11 @@ class ec_cartpage {
 
 		$user_error = false;
 		if ( isset( $_POST['ec_contact_email'] ) ) {
+			if ( class_exists( 'wp_easycart_email_lookups' ) && ! wp_easycart_email_lookups::allow( sanitize_email( wp_unslash( $_POST['ec_contact_email'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- process_insert_subscription() checked the form's nonce before this helper.
+				/* 6.0.5: too many emails looked up from this browser or address: nothing made, nothing said about this one */
+				header( 'location: ' . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $model_number ), 'ec_cart_error' => 'email_busy' ) ) ) );
+				die();
+			}
 			$user_error = wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['ec_contact_email'] ) );
 		}
 
@@ -10675,6 +11062,9 @@ class ec_cartpage {
 
 				$GLOBALS['ec_user']->setup_billing_info_data( $billing_first_name, $billing_last_name, $billing_address, $billing_address2, $billing_city, $billing_state, $billing_country, $billing_zip, $billing_phone, $billing_company_name );
 				$GLOBALS['ec_user']->setup_shipping_info_data( $shipping_first_name, $shipping_last_name, $shipping_address, $shipping_address2, $shipping_city, $shipping_state, $shipping_country, $shipping_zip, $shipping_phone, $shipping_company_name );
+				if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+					$products[0] = wp_easycart_subscription_levels::apply( $products[0] ); /* 6.0.5 */
+				}
 				$product = new ec_product( $products[0] );
 				$quantity = 1;
 				if ( isset( $_POST['ec_quantity'] ) )
@@ -10770,7 +11160,7 @@ class ec_cartpage {
 
 							if ( $card_result ) { //Card Submitted Successfully
 								/* 6.0.3: the Stripe price is checked against the product before it is used ( wp_easycart_subscription_prices ). */
-								wp_easycart_subscription_prices::ensure( $product, $stripe );
+								wp_easycart_subscription_prices::ensure( $product, $stripe, array( 'level' => (string) $product->usage_level ) );
 
 								if ( $product->is_shippable ) {
 									$ship_price_total = $product->price * $quantity;
@@ -10835,6 +11225,9 @@ class ec_cartpage {
 
 								if ( $stripe_response ) { // Subscription added successfully
 									$subscription_id = $this->mysqli->insert_stripe_subscription( $stripe_response, $product, $GLOBALS['ec_user'], $card, $quantity );
+									if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+										wp_easycart_subscription_levels::record( $subscription_id, $product, $quantity ); /* 6.0.5 */
+									}
 									$subscription_row = $this->mysqli->get_subscription_row( $subscription_id );
 									$coupon_promocode_id = "";
 									if ( isset( $coupon_row ) && $coupon_row ) {

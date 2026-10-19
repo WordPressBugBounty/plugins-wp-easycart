@@ -156,6 +156,7 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_currency');							array_push($this->wp_option_defaults, '$' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_currency_symbol_location');			array_push($this->wp_option_defaults, '1' );
+		array_push($this->wp_option_names, 'ec_option_currency_symbol_space');			array_push($this->wp_option_defaults, '0' ); /* 6.0.5 */
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_currency_negative_location');			array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -256,6 +257,7 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_show_coupons');						array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_show_coupon_message');				array_push($this->wp_option_defaults, '0' );
+		array_push($this->wp_option_names, 'ec_option_show_discount_codes');				array_push($this->wp_option_defaults, '1' ); /* 6.0.5: discount codes on receipts and documents ( FREE #497 ) */
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_match_store_meta');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -275,7 +277,7 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_addtocart_return_to_product');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_exchange_rates');						array_push($this->wp_option_defaults, 'EUR=.73,GBP=.6,JPY=101.9' );
+		array_push($this->wp_option_names, 'ec_option_exchange_rates');						array_push($this->wp_option_defaults, '' ); /* 6.0.5: no rates until the store adds its own */
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_require_email_validation');			array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');

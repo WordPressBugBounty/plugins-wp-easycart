@@ -131,6 +131,7 @@ class ec_cart_data {
 	}
 
 	public function checkout_session_complete() {
+		$old_cart_id = isset( $this->ec_cart_id ) ? (string) $this->ec_cart_id : ''; /* 6.0.5 */
 		$is_guest = $this->cart_data->is_guest;
 		$guest_key = $this->cart_data->guest_key;
 		$user_id = $this->cart_data->user_id;
@@ -197,6 +198,15 @@ class ec_cart_data {
 			$this->cart_data->tip_amount = "0.000";
 		}
 		$this->save_session_to_db( );
+
+		/**
+		 * The order is placed and the shopper has a new checkout session ( what was tied to the old one can follow ).
+		 *
+		 * @since 6.0.5
+		 * @param string $old_cart_id The session that placed the order.
+		 * @param string $new_cart_id The session that follows.
+		 */
+		do_action( 'wp_easycart_checkout_session_renewed', $old_cart_id, (string) $this->ec_cart_id );
 	}
 
 	public function generate_new_cart_id() {

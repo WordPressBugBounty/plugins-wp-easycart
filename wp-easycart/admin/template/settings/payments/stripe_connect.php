@@ -312,7 +312,7 @@ $ec_stripe_families = array(
 		'desc'    => __( 'Shoppers split the price into installments; you are paid in full.', 'wp-easycart' ),
 		'methods' => array(
 			'stripe_use_affirm'   => array( 'Affirm', array( 'USD' ), array( 'US' ) ),
-			'stripe_use_afterpay' => array( 'Afterpay', array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR' ), array( 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB', 'US' ) ),
+			'stripe_use_afterpay' => array( class_exists( 'wp_easycart_admin_payment_v2' ) ? wp_easycart_admin_payment_v2::afterpay_name() : 'Afterpay', array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR' ), array( 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB', 'US' ) ),
 			'stripe_use_klarna'   => array( 'Klarna', array( 'EUR', 'USD', 'GBP', 'DKK', 'SEK', 'NOK' ), array( 'AT', 'BE', 'DK', 'EE', 'FI', 'FR', 'GR', 'DE', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'ES', 'SE', 'GB', 'US' ) ),
 		),
 	),
@@ -324,10 +324,8 @@ $ec_stripe_families = array(
 			'stripe_use_blik'       => array( 'BLIK', array( 'PLN' ), array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE' ) ),
 			'stripe_use_eps'        => array( 'EPS', array( 'EUR' ), $ec_stripe_wide ),
 			'stripe_use_fpx'        => array( 'FPX', array( 'MYR' ), array( 'MY' ) ),
-			'stripe_use_giropay'    => array( 'giropay', array( 'EUR' ), $ec_stripe_wide ),
 			'stripe_use_ideal'      => array( 'iDEAL', array( 'EUR' ), $ec_stripe_wide ),
 			'stripe_use_p24'        => array( 'Przelewy24', array( 'EUR', 'PLN' ), $ec_stripe_wide ),
-			'stripe_use_sofort'     => array( 'Sofort', array( 'EUR' ), $ec_stripe_wide ),
 		),
 	),
 	'stripe_bank_debits'       => array(
@@ -350,7 +348,7 @@ $ec_stripe_families = array(
 	),
 );
 /* Every option ec_admin_save_stripe_connect_options() posts for a method: saved off here. */
-$ec_stripe_method_options = array( 'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_link', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay', 'ec_option_stripe_wechat', 'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps', 'ec_option_stripe_fpx', 'ec_option_stripe_giropay', 'ec_option_stripe_enable_ideal', 'ec_option_stripe_p24', 'ec_option_stripe_sofort', 'ec_option_stripe_bacs', 'ec_option_stripe_becs', 'ec_option_stripe_sepa', 'ec_option_stripe_pix', 'ec_option_stripe_paynow', 'ec_option_stripe_promptpay', 'ec_option_stripe_boleto', 'ec_option_stripe_konbini', 'ec_option_stripe_oxxo', 'ec_option_stripe_disable_wallet_first' );
+$ec_stripe_method_options = array( 'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_link', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay', 'ec_option_stripe_wechat', 'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps', 'ec_option_stripe_fpx', 'ec_option_stripe_enable_ideal', 'ec_option_stripe_p24', 'ec_option_stripe_bacs', 'ec_option_stripe_becs', 'ec_option_stripe_sepa', 'ec_option_stripe_pix', 'ec_option_stripe_paynow', 'ec_option_stripe_promptpay', 'ec_option_stripe_boleto', 'ec_option_stripe_konbini', 'ec_option_stripe_oxxo', 'ec_option_stripe_disable_wallet_first' );
 
 $ec_stripe_onepage = function_exists( 'wp_easycart_onepage_active' ) ? wp_easycart_onepage_active() : (bool) get_option( 'ec_option_onepage_checkout' );
 ?>
@@ -478,6 +476,19 @@ $ec_stripe_onepage = function_exists( 'wp_easycart_onepage_active' ) ? wp_easyca
 						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
 					</div>
 					<?php
+					/* 6.0.5 ( admin review M8 ): the families and methods shoppers in the store's country use come first. */
+					if ( class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'sort_stripe_families' ) ) {
+						$ec_stripe_families = wp_easycart_admin_payment_v2::sort_stripe_families(
+							$ec_stripe_families,
+							function ( $id, $family ) {
+								return array_keys( $family['methods'] );
+							}
+						);
+						$ec_stripe_local = wp_easycart_admin_payment_v2::stripe_local_methods();
+						foreach ( $ec_stripe_families as $ec_stripe_family_id => $ec_stripe_family ) {
+							$ec_stripe_families[ $ec_stripe_family_id ]['methods'] = array_intersect_key( $ec_stripe_family['methods'], array_flip( $ec_stripe_local ) ) + $ec_stripe_family['methods'];
+						}
+					}
 					foreach ( $ec_stripe_families as $ec_stripe_family_id => $ec_stripe_family ) {
 						$ec_stripe_family_cur = array();
 						$ec_stripe_family_cty = array();

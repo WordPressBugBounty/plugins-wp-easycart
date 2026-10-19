@@ -147,89 +147,270 @@
 	};
 
 	/* =====================================================================
-	   STEP 1 — location, currency, tax preview
+	   STEP 1 — location, currency, language, tax preview
 	   ===================================================================== */
+	function json( id ) {
+		try { return JSON.parse( ( byId( id ) || {} ).textContent || '{}' ) || {}; } catch ( e ) { return {}; }
+	}
+
 	function initLocation() {
-		var country = byId( 'ecwz_country' ), state = byId( 'ecwz_state' ), locale = byId( 'wp_easycart_locale' ), currency = byId( 'wp_easycart_currency' );
+		var country = byId( 'ecwz_country' ), state = byId( 'ecwz_state' ), stateWrap = byId( 'ecwz_state_wrap' ), locale = byId( 'wp_easycart_locale' ), currency = byId( 'wp_easycart_currency' );
 		if ( ! country || ! locale ) { return; }
 
-		var meta = {};
-		try { meta = JSON.parse( ( byId( 'ecwz_locale_meta' ) || {} ).textContent || '{}' ); } catch ( e ) {}
+		var meta = json( 'ecwz_locale_meta' ), decimals = json( 'ecwz_currency_decimals' ), states = json( 'ecwz_states' );
+		var ready = false; /* changes the merchant makes ( not the page setting itself up ) turn tax on */
 
 		function selectedOption( sel ) { return sel.options[ sel.selectedIndex ] || null; }
+		function hasSelect2( el ) { return $.fn.select2 && $( el ).hasClass( 'select2-hidden-accessible' ); }
 
+		/* 6.0.5: the state / province list holds only the chosen country's, after "Choose your state" ( it held every US state and
+		   Canadian province, the other country's greyed out in the select2 list, and picked the first, Alabama or Alberta ). The state
+		   saved for this country comes back when the country does. */
 		function refreshStates() {
-			var cc = country.value, hasStates = false, first = null;
-			if ( ! state ) { return; }
-			for ( var i = 0; i < state.options.length; i++ ) {
-				var o = state.options[ i ], match = ( o.getAttribute( 'data-country' ) === cc );
-				o.hidden = ! match; o.disabled = ! match;
-				if ( match ) { hasStates = true; if ( ! first ) { first = o; } }
+			var cc = country.value, list = states[ cc ] || null;
+			if ( ! state || ! stateWrap ) { return false; }
+			if ( ! list ) {
+				stateWrap.hidden = true;
+				state.value = '';
+				return false;
 			}
-			if ( hasStates ) {
-				var cur = selectedOption( state );
-				if ( ! cur || cur.getAttribute( 'data-country' ) !== cc ) { state.value = first.value; }
-				state.style.display = '';
-				if ( $.fn.select2 && $( state ).hasClass( 'select2-hidden-accessible' ) ) { $( state ).next( '.select2-container' ).show(); $( state ).trigger( 'change.select2' ); }
-			} else {
-				state.style.display = 'none';
-				if ( $.fn.select2 && $( state ).hasClass( 'select2-hidden-accessible' ) ) { $( state ).next( '.select2-container' ).hide(); }
+			if ( state.getAttribute( 'data-for' ) !== cc ) {
+				var keep = ( country.getAttribute( 'data-saved' ) === cc ) ? ( state.getAttribute( 'data-saved' ) || '' ) : '';
+				var none = state.querySelector( 'option[data-none]' );
+				state.innerHTML = '';
+				if ( none ) {
+					none.textContent = none.getAttribute( 'CA' === cc ? 'data-ca' : 'data-us' ) || none.textContent;
+					state.appendChild( none );
+				}
+				for ( var i = 0; i < list.length; i++ ) {
+					var o = document.createElement( 'option' );
+					o.value = list[ i ][ 0 ];
+					o.textContent = list[ i ][ 1 ];
+					state.appendChild( o );
+				}
+				state.value = keep || '';
+				state.setAttribute( 'data-for', cc );
+				if ( hasSelect2( state ) ) { $( state ).trigger( 'change.select2' ); }
 			}
-			return hasStates;
+			stateWrap.hidden = false;
+			return true;
+		}
+
+		function stateError( show ) {
+			var err = byId( 'ecwz_state_error' );
+			if ( ! err || ! state ) { return; }
+			err.hidden = ! show;
+			err.textContent = show ? ( err.getAttribute( 'CA' === country.value ? 'data-ca' : 'data-us' ) || '' ) : '';
+			state.setAttribute( 'aria-invalid', show ? 'true' : 'false' );
+			$( state ).next( '.select2-container' ).toggleClass( 'ecwz-invalid', !! show );
+		}
+
+		function units() {
+			var m = meta[ country.value ] || {};
+			var w = byId( 'ecwz_weight_unit' ), d = byId( 'ecwz_size_unit' );
+			if ( w ) { w.textContent = w.getAttribute( 'data-' + ( m.w || 'lb' ) ) || w.textContent; }
+			if ( d ) { d.textContent = d.getAttribute( 'data-' + ( m.d || 'in' ) ) || d.textContent; }
 		}
 
 		function compose() {
 			var cc = country.value, hasStates = refreshStates();
-			locale.value = hasStates && state ? cc + '_' + state.value : cc;
-			var m = meta[ cc ];
-			var w = byId( 'ecwz_weight_unit' );
-			if ( w ) { w.textContent = m ? m.w : 'lbs'; }
+			locale.value = ( hasStates && state && state.value ) ? cc + '_' + state.value : cc;
+			if ( state && state.value ) { stateError( false ); }
+			units();
 			refreshTax();
 			refreshPreview();
 		}
 
 		function applyCurrencyForCountry() {
-			var o = selectedOption( country ), cur = o ? o.getAttribute( 'data-currency' ) : '';
-			if ( cur && currency ) {
+			var m = meta[ country.value ] || {}, o = selectedOption( country ), cur = m.c || ( o ? o.getAttribute( 'data-currency' ) : '' );
+			if ( cur && currency && currency.querySelector( 'option[value="' + cur + '"]' ) ) {
 				currency.value = cur;
-				if ( $.fn.select2 && $( currency ).hasClass( 'select2-hidden-accessible' ) ) { $( currency ).trigger( 'change.select2' ); }
+				if ( hasSelect2( currency ) ) { $( currency ).trigger( 'change.select2' ); }
 			}
 		}
 
 		function refreshPreview() {
 			var prev = byId( 'ecwz_currency_preview' );
 			if ( ! prev || ! currency ) { return; }
-			var m = meta[ country.value ] || { pos: 'left', th: ',', dec: '.', n: 2 };
-			var o = selectedOption( currency ), sym = o ? ( o.getAttribute( 'data-symbol' ) || '' ) : '';
-			var num = ( 1234.56 ).toFixed( m.n ).replace( '.', m.dec );
+			var m = meta[ country.value ] || { pos: 'left', th: ',', dec: '.' };
+			var o = selectedOption( currency ), sym = o ? ( o.getAttribute( 'data-symbol' ) || '' ) : '', cur = currency.value;
+			/* The currency's decimals ( yen none, dinars three ); the country's own currency keeps the country's ( forints none ). */
+			var n = ( undefined !== decimals[ cur ] ) ? decimals[ cur ] : ( ( cur === m.c && undefined !== m.n ) ? m.n : 2 );
+			var num = ( 1234.56 ).toFixed( n ).replace( '.', m.dec || '.' );
 			num = num.replace( /\B(?=(\d{3})+(?!\d))/g, m.th );
-			prev.textContent = ( 'left' === m.pos ) ? sym + num : num + ' ' + sym;
+			/* 6.0.5: as the wizard saves it: left | left_space | right | right_space ( a non-breaking space ). */
+			var gap = /_space$/.test( String( m.pos ) ) ? '\u00a0' : '';
+			prev.textContent = ( 0 === String( m.pos ).indexOf( 'left' ) ) ? sym + gap + num : num + gap + sym;
+		}
+
+		/* 6.0.5: the recommended tax settings for the country and choices ( wp_easycart_tax_setup, AJAX ecv2_tax_setup_preview ). */
+		var taxTimer = null, taxSeq = 0;
+		function previewTax() {
+			var sum = byId( 'ecwz_tax_summary' );
+			if ( ! sum || ! sum.getAttribute( 'data-ajax' ) ) { return; }
+			clearTimeout( taxTimer );
+			sum.setAttribute( 'aria-busy', 'true' );
+			taxTimer = setTimeout( function() {
+				var inc = byId( 'ecwz_tax_included' ), eu = document.querySelector( 'input[name="eu_vat"]:checked' ), pst = byId( 'ecwz_canada_pst' );
+				var st = ( state && stateWrap && ! stateWrap.hidden ) ? state.value : '';
+				var input = [ 'state:' + st, 'included:' + ( inc && ! inc.checked ? '0' : '1' ), 'eu:' + ( eu ? eu.value : 'home' ), 'pst:' + ( pst && pst.checked ? 'all' : 'home' ) ].join( '|' );
+				var seq = ++taxSeq;
+				$.post( sum.getAttribute( 'data-ajax' ), { action: 'ecv2_tax_setup_preview', nonce: sum.getAttribute( 'data-nonce' ), country: country.value, input: input, context: 'wizard' } ).done( function( r ) {
+					if ( seq === taxSeq && r && r.success && r.data ) { sum.innerHTML = r.data.html; }
+				} ).always( function() { if ( seq === taxSeq ) { sum.removeAttribute( 'aria-busy' ); } } );
+			}, 150 );
 		}
 
 		function refreshTax() {
 			var cb = byId( 'wp_easycart_sales_tax' ), box = byId( 'wp_easycart_wizard_tax_info' );
 			if ( ! cb || ! box ) { return; }
-			var rows = box.querySelectorAll( '.wp_easycart_wizard_tax_row' ), shown = 0;
-			for ( var i = 0; i < rows.length; i++ ) {
-				var on = rows[ i ].classList.contains( 'wp_easycart_wizard_tax_' + locale.value );
-				rows[ i ].style.display = on ? '' : 'none';
-				if ( on ) { shown++; }
+			box.classList.toggle( 'is-off', ! cb.checked );
+			/* VAT / GST countries say whether prices include it; EU countries how other EU customers are charged; Canada where PST is collected. */
+			var vat = byId( 'ecwz_vat' ), m = meta[ country.value ] || {};
+			if ( vat ) {
+				vat.hidden = ! m.v;
+				var t = vat.querySelector( '[data-ecwz-vat="included"]' );
+				if ( t ) { t.textContent = ( 'GST' === m.v ) ? t.getAttribute( 'data-gst' ) : t.getAttribute( 'data-vat' ); }
+				var eu = byId( 'ecwz_eu_vat' );
+				if ( eu ) { eu.hidden = ! m.eu; }
 			}
-			var none = byId( 'ecwz_tax_none' ), table = box.querySelector( 'table' );
-			if ( none ) { none.style.display = shown ? 'none' : ''; }
-			if ( table ) { table.style.display = shown ? '' : 'none'; }
-			box.style.display = cb.checked ? '' : 'none';
+			var ca = byId( 'ecwz_canada' );
+			if ( ca ) { ca.hidden = ( 'CA' !== country.value ); }
+			/* 6.0.5: the row is named for the country's own tax ( wp_easycart_tax_setup::own_tax_name() ). */
+			var title = byId( 'ecwz_tax_title' );
+			if ( title ) {
+				var key = ( 'US' === country.value ) ? 'us' : ( 'CA' === country.value ? 'ca' : ( 'GST' === m.v ? 'gst' : ( m.v ? 'vat' : 'other' ) ) );
+				title.textContent = title.getAttribute( 'data-' + key ) || title.textContent;
+			}
+			previewTax();
 		}
 
-		$( country ).on( 'change', function() { applyCurrencyForCountry(); compose(); } );
-		if ( state ) { $( state ).on( 'change', compose ); }
+		/* 6.0.5: a change to the country, state or a tax choice means the tax should follow it: "Update my tax settings to these" turns
+		   on ( coming back and choosing another country kept the old country's tax, the switch being off once tax was set up ). */
+		function touched() {
+			var cb = byId( 'wp_easycart_sales_tax' );
+			if ( ready && cb && ! cb.checked ) {
+				cb.checked = true;
+			}
+			refreshTax();
+		}
+
+		$( document ).on( 'change', '#ecwz_tax_included, input[name="eu_vat"], #ecwz_canada_pst', touched );
+		$( country ).on( 'change', function() { applyCurrencyForCountry(); compose(); touched(); } );
+		if ( state ) { $( state ).on( 'change', function() { compose(); touched(); } ); }
 		if ( currency ) { $( currency ).on( 'change', refreshPreview ); }
 		$( byId( 'wp_easycart_sales_tax' ) ).on( 'change', refreshTax );
+
+		/* A US or Canadian store's tax needs its state or province: asked for here, before anything is saved. */
+		$( byId( 'wpeasycart_admin_setup_wizard_form' ) ).on( 'submit', function( e ) {
+			var cb = byId( 'wp_easycart_sales_tax' );
+			if ( state && stateWrap && ! stateWrap.hidden && ! state.value && cb && cb.checked ) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				stateError( true );
+				if ( hasSelect2( state ) ) { $( state ).select2( 'open' ); } else { state.focus(); }
+				stateWrap.scrollIntoView( { behavior: 'smooth', block: 'center' } );
+				return false;
+			}
+		} );
 
 		if ( $.fn.select2 ) {
 			$( '.ecwz-select2' ).each( function() { $( this ).select2( { width: '100%' } ); } );
 		}
+		if ( state ) { state.setAttribute( 'data-for', country.value ); }
 		compose();
+		ready = true;
+	}
+
+	/* =====================================================================
+	   LEAVING A STEP ( 6.0.5 )
+	   Back, a step in the stepper and the summary's Edit links went to another step and threw away what was changed on this one, and
+	   Save & exit was a link that saved nothing. Save & exit now saves ( a submit button, wizard_goto=exit ); a link to another step
+	   with changes on the page asks: save and go ( wizard_goto=<step> ), go without saving, or stay. Other links get the browser's own
+	   "Leave site?" while there are changes.
+	   ===================================================================== */
+	function initLeaveGuard() {
+		var form = byId( 'wpeasycart_admin_setup_wizard_form' ), goto = byId( 'ecwz_goto' );
+		if ( ! form || ! goto ) { return; }
+		var start = null, leaving = false;
+		/* The Connect terms save themselves as they are ticked ( Connect leaves the page before the form is sent ). */
+		function snap() { return $( form ).find( ':input' ).not( '#ecwz_goto, [name="wizard_goto"], [type="submit"], [name="accept_terms"]' ).serialize(); }
+		function dirty() { return null !== start && ! leaving && snap() !== start; }
+		start = snap();
+
+		$( form ).on( 'submit', function( e ) {
+			if ( ! e.isDefaultPrevented() ) { leaving = true; }
+		} );
+		window.addEventListener( 'beforeunload', function( e ) {
+			if ( dirty() ) { e.preventDefault(); e.returnValue = ''; }
+		} );
+
+		function submitTo( step ) {
+			goto.value = String( step );
+			if ( form.requestSubmit ) {
+				form.requestSubmit();
+			} else {
+				$( form ).trigger( 'submit' );
+			}
+			/* A check on the page ( the state ) stopped it: stay, nothing saved. */
+			setTimeout( function() { if ( ! leaving ) { goto.value = ''; } }, 0 );
+		}
+
+		/* Connecting a gateway and Skip setup leave on purpose ( a gateway comes back to this step ). */
+		$( document ).on( 'click', '.ecwz-connect, .ecwz-skip', function( e ) {
+			if ( ! e.isDefaultPrevented() && 'true' !== this.getAttribute( 'aria-disabled' ) ) { leaving = true; }
+		} );
+		$( document ).on( 'click', 'a[data-ecwz-goto]', function( e ) {
+			if ( ! dirty() || e.ctrlKey || e.metaKey || e.shiftKey ) { return; }
+			e.preventDefault();
+			var link = this, to = link.getAttribute( 'data-ecwz-goto' );
+			askToSave( link, function( choice ) {
+				if ( 'save' === choice ) {
+					submitTo( to );
+				} else if ( 'leave' === choice ) {
+					leaving = true;
+					window.location.href = link.href;
+				}
+			} );
+		} );
+	}
+
+	/** The "Save your changes?" dialog: answers save | leave | stay. */
+	function askToSave( from, done ) {
+		var old = byId( 'ecwz_leave' );
+		if ( old ) { old.parentNode.removeChild( old ); }
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'ecwz-modal';
+		wrap.id = 'ecwz_leave';
+		wrap.innerHTML = '<div class="ecwz-modal-card" role="dialog" aria-modal="true" aria-labelledby="ecwz_leave_title" aria-describedby="ecwz_leave_text">'
+			+ '<h3 id="ecwz_leave_title"></h3><p id="ecwz_leave_text"></p>'
+			+ '<div class="ecwz-modal-act"><button type="button" class="ecwz-btn ecwz-btn-ghost" data-a="stay"></button><span class="ecwz-grow"></span>'
+			+ '<button type="button" class="ecwz-btn" data-a="leave"></button><button type="button" class="ecwz-btn ecwz-btn-primary" data-a="save"></button></div></div>';
+		wrap.querySelector( 'h3' ).textContent = t( 'leave_title', 'Save your changes on this step?' );
+		wrap.querySelector( 'p' ).textContent = t( 'leave_text', 'You changed something here. Save it before you go, or leave this step as it was.' );
+		wrap.querySelector( '[data-a="stay"]' ).textContent = t( 'leave_stay', 'Stay here' );
+		wrap.querySelector( '[data-a="leave"]' ).textContent = t( 'leave_discard', 'Don\u2019t save' );
+		wrap.querySelector( '[data-a="save"]' ).textContent = t( 'leave_save', 'Save and go' );
+		( byId( 'ecwz' ) || document.body ).appendChild( wrap );
+		var buttons = wrap.querySelectorAll( 'button' );
+		function close( choice ) {
+			document.removeEventListener( 'keydown', keys, true );
+			if ( wrap.parentNode ) { wrap.parentNode.removeChild( wrap ); }
+			if ( 'stay' === choice && from && from.focus ) { from.focus(); }
+			done( choice );
+		}
+		function keys( e ) {
+			if ( 'Escape' === e.key ) { e.preventDefault(); close( 'stay' ); return; }
+			if ( 'Tab' === e.key ) {
+				var list = Array.prototype.slice.call( buttons ), i = list.indexOf( document.activeElement );
+				e.preventDefault();
+				list[ ( i + ( e.shiftKey ? list.length - 1 : 1 ) ) % list.length ].focus();
+			}
+		}
+		$( wrap ).on( 'click', 'button', function() { close( this.getAttribute( 'data-a' ) ); } );
+		$( wrap ).on( 'click', function( e ) { if ( e.target === wrap ) { close( 'stay' ); } } );
+		document.addEventListener( 'keydown', keys, true );
+		wrap.querySelector( '[data-a="save"]' ).focus();
 	}
 
 	/* =====================================================================
@@ -335,6 +516,7 @@
 		initPayments();
 		initShipping();
 		initFinish();
+		initLeaveGuard(); /* last: the page has set itself up */
 	} );
 
 })( jQuery );

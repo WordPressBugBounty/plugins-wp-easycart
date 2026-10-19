@@ -164,9 +164,11 @@ function ec_admin_save_cart_options() {
 			</div>
 
 			<div class="ec_cart_price_row ec_cart_price_row_subscription_title">
-				<div class="ec_cart_price_row_label"><?php echo wp_easycart_escape_html( $product->title ); ?></div>
+				<div class="ec_cart_price_row_label"><?php echo wp_easycart_escape_html( class_exists( 'wp_easycart_subscription_choices' ) ? wp_easycart_subscription_choices::title( $product ) : $product->title ); ?></div>
 				<div class="ec_cart_price_row_total" id="ec_cart_subtotal_mobile"><?php echo esc_attr( $product->get_price_formatted( $subscription_quantity, $product->price ) ); ?></div>
 			</div>
+			<?php /* 6.0.5: the plan's choices under the item ( billing, the usage level ), each a line that opens a list: wp_easycart_subscription_choices. */ ?>
+			<?php do_action( 'wpeasycart_subscription_summary_choices', $product, 'mobile' ); ?>
 
 			<?php if ( $this->subscription_option1 != 0 ) { ?>
 			<div class="ec_cart_price_row ec_cart_price_row_subscription_option1">
@@ -239,18 +241,21 @@ function ec_admin_save_cart_options() {
 				foreach( $subscription_advanced_options_display as $option ) { ?>
 				<div class="ec_cart_price_row ec_cart_price_row_subscription_adv_option">
 					<div class="ec_cart_price_row_label"><?php echo esc_attr( $option['option_label'] ); ?></div>
-					<div class="ec_cart_price_row_total"><?php 
-					if ( $option['option_type'] == 'dimensions1' ) {
-						echo esc_attr( $option['optionitem_value'][0] ); 
-						if ( !get_option( 'ec_option_enable_metric_unit_display' ) ) { 
-							echo "\"";
+					<div class="ec_cart_price_row_total"><?php
+					if ( 'dimensions1' === $option['option_type'] || 'dimensions2' === $option['option_type'] ) {
+						/* 6.0.5: a size is kept as JSON ( 24" x 36" is ["24","36"] ): written as the cart writes it. */
+						if ( class_exists( 'wp_easycart_size_option' ) ) {
+							echo esc_attr( wp_easycart_size_option::text( $option['optionitem_value'] ) );
+						} else {
+							$wpeasycart_size_values = is_array( $option['optionitem_value'] ) ? $option['optionitem_value'] : json_decode( (string) $option['optionitem_value'], true );
+							$wpeasycart_size_values = is_array( $wpeasycart_size_values ) ? array_values( $wpeasycart_size_values ) : array();
+							$wpeasycart_size_mark   = get_option( 'ec_option_enable_metric_unit_display' ) ? '' : '"';
+							if ( 2 === count( $wpeasycart_size_values ) ) {
+								echo esc_attr( $wpeasycart_size_values[0] . $wpeasycart_size_mark . ' x ' . $wpeasycart_size_values[1] . $wpeasycart_size_mark );
+							} elseif ( 4 === count( $wpeasycart_size_values ) ) {
+								echo esc_attr( $wpeasycart_size_values[0] . ' ' . $wpeasycart_size_values[1] . $wpeasycart_size_mark . ' x ' . $wpeasycart_size_values[2] . ' ' . $wpeasycart_size_values[3] . $wpeasycart_size_mark );
+							}
 						}
-						echo " x " . esc_attr( $option['optionitem_value'][1] ); 
-						if ( !get_option( 'ec_option_enable_metric_unit_display' ) ) { 
-							echo "\"";
-						}
-					} else if ( $option['option_type'] == 'dimensions2' ) {
-						echo esc_attr( $option['optionitem_value'][0] . " " . $option['optionitem_value'][1] . "\" x " . $option['optionitem_value'][2] . " " . $option['optionitem_value'][3] ) . "\"";
 					} else {
 						echo esc_attr( $option['optionitem_value'] ); 
 					} 
@@ -351,7 +356,7 @@ function ec_admin_save_cart_options() {
 			</div>
 			<?php }?>
 
-			<?php if ( !get_option( 'ec_option_subscription_one_only' ) ) { ?>
+			<?php if ( ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( $product ) : ! get_option( 'ec_option_subscription_one_only' ) ) ) { /* 6.0.5: a price per seat is sold by quantity */ ?>
 			<form action="<?php echo esc_attr( $this->cart_page ); ?>" method="POST" enctype="multipart/form-data" class="ec_add_to_cart_form">
 			<input type="hidden" name="ec_cart_form_action" value="process_update_subscription_quantity" />
 			<input type="hidden" name="ec_cart_form_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-subscription-update-item-' . $product->product_id ) ); ?>" />
@@ -395,8 +400,17 @@ function ec_admin_save_cart_options() {
 		<?php }?>
 
 		<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id ) { ?>
-		
-		<?php /* 6.0.3: every wait on this page looks like the payment card ( .wpec-busy in ec-store.css ); the position stays inline for store copies of ec-store.css from before it. */ ?>
+		<?php
+		/* 6.0.5: the email first ( Matt: after Sign up a shopper who is not signed in found an almost empty page ). The email decides what
+		   comes next: the password of the account it has ( #ec_user_login_form, the page's own sign in ), a password for a new account
+		   ( #ec_user_contact_form, Create account ), or, with "New subscribers choose a password after paying", nothing: the email is locked
+		   and the checkout below opens ( #ec_subscription_after_account; the account is made when they pay ). Until then the checkout is
+		   drawn blurred and out of reach. Change takes the lock away. Class wp_easycart_subscription_signup, ec-store.js wpeasycart_subscription_*. */
+		$wpec_signup       = wp_easycart_subscription_signup::page_state();
+		$wpec_signup_email = (string) $wpec_signup['email'];
+		$wpec_signup_mark  = ( '' !== $wpec_signup_email ) ? ( function_exists( 'mb_substr' ) ? mb_strtoupper( mb_substr( $wpec_signup_email, 0, 1, 'UTF-8' ), 'UTF-8' ) : strtoupper( substr( $wpec_signup_email, 0, 1 ) ) ) : '';
+		?>
+
 		<div id="ec_cart_create_account_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
 			<div class="wpec-busy-card" role="status" aria-live="polite">
 				<span class="wpec-busy-spinner" aria-hidden="true"></span>
@@ -404,126 +418,139 @@ function ec_admin_save_cart_options() {
 			</div>
 		</div>
 
-		<div class="ec_cart_header ec_top" id="ec_user_logged_out_header">
-			<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_new_customer_title' ); ?><span class="ec_cart_login_header_link"><span id="ec_user_login_link"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_already_have_account2' ); ?><a href="#" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_link"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_already_have_account_login' ); ?></a></span><a href="#" style="display:none;" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_cancel_link"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_new_customer_return_link' ); ?></a></span>
-		</div>
-		
-		<div id="ec_user_contact_form">
-			<div class="ec_cart_error" id="ec_subscription_email_exists" style="display:none;">
-				<div>
-					<?php echo wp_easycart_language( )->get_text( "ec_errors", "register_email_error" ); ?>
-				</div>
+		<div class="ec_subscription_account" id="ec_subscription_account" data-state="<?php echo $wpec_signup['locked'] ? 'later' : 'email'; ?>" data-later="<?php echo $wpec_signup['later'] ? '1' : '0'; ?>" data-nonce="<?php echo esc_attr( $wpec_signup['nonce'] ); ?>">
+			<div class="ec_cart_header ec_top" id="ec_user_logged_out_header">
+				<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_title' ) ); ?>
 			</div>
 
-			<div class="ec_cart_input_row">
-				<label for="ec_contact_email"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_email' ); ?>*</label>
-				<?php $this->ec_cart_display_contact_email_input(); ?>
+			<div class="ec_cart_input_row ec_subscription_email_entry">
+				<label for="ec_contact_email"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_email' ) ); ?>*</label>
+				<div class="ec_subscription_email_field">
+					<input type="email" name="ec_contact_email" id="ec_contact_email" class="ec_cart_contact_information_input_text" value="<?php echo esc_attr( $wpec_signup_email ); ?>" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" aria-describedby="ec_subscription_email_hint"<?php echo $wpec_signup['locked'] ? ' readonly' : ''; ?> />
+					<button type="button" class="ec_cart_button ec_subscription_email_continue" id="ec_subscription_email_continue"><?php echo esc_html( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_continue', 'Continue' ) ) ); ?></button>
+				</div>
 				<div class="ec_cart_error_row" id="ec_contact_email_error">
 					<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_valid' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_email' ); ?>
 				</div>
+				<div class="ec_cart_error_row ec_subscription_email_busy" id="ec_subscription_email_busy" role="alert"></div>
+				<p class="ec_subscription_account_hint" id="ec_subscription_email_hint"><?php echo wp_kses_post( wp_easycart_subscription_signup::text( 'subscription_email_hint', 'Start with your email. If you already have an account, we’ll ask for your password.' ) ); ?></p>
 			</div>
 
-			<?php if ( get_option( 'ec_option_use_contact_name' ) ) { ?>
-			<div class="ec_cart_input_row">
-				<div class="ec_cart_input_left_half">
-					<label for="ec_contact_first_name"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>*</label>
-					<?php $this->ec_cart_display_contact_first_name_input(); ?>
-					<div class="ec_cart_error_row" id="ec_contact_first_name_error">
-						<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>
+			<?php /* The email once settled, with Change ( the signed-in card's look, ec-store.css .ec_cart_signed_in_v2 ); the line under it says what comes next. */ ?>
+			<div class="ec_cart_input_row ec_cart_signed_in_v2 ec_subscription_email_locked" id="ec_subscription_email_locked">
+				<span class="ec_cart_signed_in_avatar ec_subscription_email_mark" aria-hidden="true"><?php echo esc_html( $wpec_signup_mark ); ?></span>
+				<span class="ec_cart_signed_in_who">
+					<span class="ec_cart_signed_in_name ec_subscription_email_value"><?php echo esc_html( $wpec_signup_email ); ?></span>
+					<span class="ec_cart_signed_in_email ec_subscription_account_note" aria-live="polite" data-note-existing="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_existing', 'Welcome back. Enter your password to sign in.' ) ) ); ?>" data-note-new="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_new', 'Create a password for your new account.' ) ) ); ?>" data-note-later="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_later', 'You’ll choose a password for your account after checkout.' ) ) ); ?>"><?php echo $wpec_signup['locked'] ? esc_html( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_later', 'You’ll choose a password for your account after checkout.' ) ) ) : ''; ?></span>
+				</span>
+				<span class="ec_cart_signed_in_switch"><a href="#" role="button" class="ec_cart_login_header_link ec_subscription_email_change" id="ec_subscription_email_change"><?php echo esc_html( wp_strip_all_tags( wp_easycart_subscription_signup::text( 'subscription_email_change', 'Change' ) ) ); ?></a></span>
+			</div>
+
+			<?php /* A new email that needs its password now: the fields Create account always asked for ( the email is the one above ). */ ?>
+			<div id="ec_user_contact_form">
+				<div class="ec_cart_error" id="ec_subscription_email_exists" style="display:none;">
+					<div>
+						<?php echo wp_easycart_language( )->get_text( "ec_errors", "register_email_error" ); ?>
 					</div>
 				</div>
-				<div class="ec_cart_input_right_half">
-					<label for="ec_contact_last_name"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>*</label>
-					<?php $this->ec_cart_display_contact_last_name_input(); ?>
-					<div class="ec_cart_error_row" id="ec_contact_last_name_error">
-						<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>
+
+				<?php if ( get_option( 'ec_option_use_contact_name' ) ) { ?>
+				<div class="ec_cart_input_row">
+					<div class="ec_cart_input_left_half">
+						<label for="ec_contact_first_name"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>*</label>
+						<?php $this->ec_cart_display_contact_first_name_input(); ?>
+						<div class="ec_cart_error_row" id="ec_contact_first_name_error">
+							<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>
+						</div>
+					</div>
+					<div class="ec_cart_input_right_half">
+						<label for="ec_contact_last_name"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>*</label>
+						<?php $this->ec_cart_display_contact_last_name_input(); ?>
+						<div class="ec_cart_error_row" id="ec_contact_last_name_error">
+							<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>
+						</div>
 					</div>
 				</div>
-			</div>
-			<?php }?>
+				<?php }?>
 
-			<div class="ec_cart_input_row">
-				<?php do_action( 'wpeasycart_pre_password_display' ); ?>
-				<label for="ec_contact_password"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_password' ); ?>*</label>
-				<?php $this->ec_cart_display_contact_password_input(); ?>
-				<div class="ec_cart_error_row" id="ec_contact_password_error">
-					<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_length_error' ); ?>
+				<div class="ec_cart_input_row">
+					<?php do_action( 'wpeasycart_pre_password_display' ); ?>
+					<label for="ec_contact_password"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_password' ); ?>*</label>
+					<?php $this->ec_cart_display_contact_password_input(); ?>
+					<div class="ec_cart_error_row" id="ec_contact_password_error">
+						<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_length_error' ); ?>
+					</div>
+				</div>
+
+				<?php if( wp_easycart_recaptcha_ready() ){ ?>
+					<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
+					<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
+				<?php }?>
+
+				<div class="ec_cart_button_row">
+					<div class="ec_cart_button" id="ec_address_save" onclick="return subscription_create_account( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-subscription-create-account-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_create_account' )?></div>
+					<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
+				</div>
+
+				<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready() ){ ?>
+					<script type="text/javascript">
+						if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
+							var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
+								'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
+								'callback' : wpeasycart_register_recaptcha_callback
+							});
+						}
+					</script>
+				<?php }?>
+			</div>
+
+			<div id="ec_cart_login_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+				<div class="wpec-busy-card" role="status" aria-live="polite">
+					<span class="wpec-busy-spinner" aria-hidden="true"></span>
+					<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'login_please_wait' ); ?></span>
 				</div>
 			</div>
 
-			<?php if( wp_easycart_recaptcha_ready() ){ ?>
-				<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
-				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
-			<?php }?>
+			<?php /* An email that has an account: its password, then the page's own sign in ( the form posts with ec_login_selector ticked ). */ ?>
+			<div id="ec_user_login_form">
+				<input type="checkbox" name="ec_login_selector" id="ec_login_selector" value="1" style="display:none" />
+				<input type="hidden" id="ec_cart_login_email" name="ec_cart_login_email" value="<?php echo esc_attr( $wpec_signup_email ); ?>" />
+				<div class="ec_cart_error_row" id="ec_cart_login_email_error">
+					<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_email_label' ); ?>
+				</div>
 
-			<div class="ec_cart_button_row">
-				<div class="ec_cart_button" id="ec_address_save" onclick="return subscription_create_account( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-subscription-create-account-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_create_account' )?></div>
-				<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
+				<div class="ec_cart_input_row">
+					<?php do_action( 'wpeasycart_pre_login_password_display' ); ?>
+					<label for="ec_cart_login_password"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_password_label' ); ?>*</label>
+					<input type="password" id="ec_cart_login_password" name="ec_cart_login_password" autocomplete="current-password" />
+				</div>
+				<div class="ec_cart_error_row" id="ec_cart_login_password_error">
+					<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_password_label' ); ?>
+				</div>
+
+				<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
+					<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />
+					<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_recaptcha"></div>
+				<?php }?>
+
+				<div class="ec_cart_button_row ec_cart_login_actions_v2">
+					<input type="hidden" name="ec_cart_subscription" value="<?php echo esc_attr( $product->model_number ); ?>" />
+					<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'account_login', 'account_login_forgot_password_link' ) ); ?></a>
+					<input type="submit" value="<?php echo esc_attr( wp_easycart_language()->get_text( 'cart_login', 'cart_login_button' ) ); ?>" class="ec_cart_button" onclick="return ec_validate_cart_login();" />
+				</div>
+
+				<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
+					<script type="text/javascript">
+						if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
+							var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
+								'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
+								'callback' : wpeasycart_login_recaptcha_callback
+							});
+						}
+					</script>
+				<?php }?>
+
 			</div>
-
-			<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready() ){ ?>
-				<script type="text/javascript">
-					if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
-						var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
-							'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
-							'callback' : wpeasycart_register_recaptcha_callback
-						});
-					}
-				</script>
-			<?php }?>
-		</div>
-
-		<div id="ec_cart_login_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
-			<div class="wpec-busy-card" role="status" aria-live="polite">
-				<span class="wpec-busy-spinner" aria-hidden="true"></span>
-				<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'login_please_wait' ); ?></span>
-			</div>
-		</div>
-
-		<div id="ec_user_login_form">
-			<input type="checkbox" name="ec_login_selector" id="ec_login_selector" value="1" style="display:none" />
-			<div class="ec_cart_input_row">
-				<label for="ec_cart_login_email"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_email_label' ); ?>*</label>
-				<input type="text" id="ec_cart_login_email" name="ec_cart_login_email" />
-			</div>
-			<div class="ec_cart_error_row" id="ec_cart_login_email_error">
-				<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_email_label' ); ?>
-			</div>
-
-			<div class="ec_cart_input_row">
-				<?php do_action( 'wpeasycart_pre_login_password_display' ); ?>
-				<label for="ec_cart_login_password"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_password_label' ); ?>*</label>
-				<input type="password" id="ec_cart_login_password" name="ec_cart_login_password" />
-			</div>
-			<div class="ec_cart_error_row" id="ec_cart_login_password_error">
-				<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_password_label' ); ?>
-			</div>
-
-			<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
-				<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />
-				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_recaptcha"></div>
-			<?php }?>
-
-			<div class="ec_cart_button_row">
-				<input type="hidden" name="ec_cart_subscription" value="<?php echo esc_attr( $product->model_number ); ?>" />
-				<input type="submit" value="<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_button' ); ?>" class="ec_cart_button" onclick="return ec_validate_cart_login();" />
-			</div>
-
-			<div class="ec_cart_input_row">
-				<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language()->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
-			</div>
-
-			<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
-				<script type="text/javascript">
-					if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
-						var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
-							'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
-							'callback' : wpeasycart_login_recaptcha_callback
-						});
-					}
-				</script>
-			<?php }?>
-
 		</div>
 
 		<div id="ec_user_logged_in_form" style="display:none;">
@@ -531,9 +558,15 @@ function ec_admin_save_cart_options() {
 				<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_title' ); ?>
 			</div>
 
-			<div class="ec_cart_input_row">
-				<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_text' ); ?> <span id="ec_cart_user_logged_in_name"></span>, <a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider . "ec_cart_action=logout&subscription=" . $product->model_number ); ?>"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_logout_link' ); ?></a> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_text2' ); ?>
-			</div>
+			<?php /* 6.0.5: the signed-in card, empty until ec-store.js fills it in once the shopper makes an account here
+			   ( wpeasycart_signed_in_card(); the name keeps its id ). */
+			wp_easycart_signed_in_card(
+				array(
+					'logout_url' => $this->cart_page . $this->permalink_divider . 'ec_cart_action=logout&subscription=' . $product->model_number,
+					'name_id'    => 'ec_cart_user_logged_in_name',
+					'user'       => null,
+				)
+			); ?>
 		</div>
 
 		<?php } else { // close section for NON logged in user ?>
@@ -542,9 +575,12 @@ function ec_admin_save_cart_options() {
 			<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_title' ); ?>
 		</div>
 
-		<div class="ec_cart_input_row">
-			<?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_text' ); ?> <?php echo esc_attr( $GLOBALS['ec_user']->first_name ); ?> <?php echo esc_attr( $GLOBALS['ec_user']->last_name ); ?>, <a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider . "ec_cart_action=logout&subscription=" . $product->model_number ); ?>"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_logout_link' ); ?></a> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_account_information_text2' ); ?>
-		</div>
+		<?php /* 6.0.5: who is signed in as a card ( wp_easycart_signed_in_card() ), as on the one-page checkout. */
+		wp_easycart_signed_in_card(
+			array(
+				'logout_url' => $this->cart_page . $this->permalink_divider . 'ec_cart_action=logout&subscription=' . $product->model_number,
+			)
+		); ?>
 
 		<?php }?>
 
@@ -555,38 +591,108 @@ function ec_admin_save_cart_options() {
 			</div>
 		</div>
 
-		<div id="ec_cart_billing_locked" class="ec_cart_address_display ec_cart_address_display_billing"<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || '' == $GLOBALS['ec_cart_data']->cart_data->billing_first_name || '' == $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 || '' == $GLOBALS['ec_cart_data']->cart_data->billing_city ) { ?> style="display:none"<?php }?>>
+		<?php
+		/* 6.0.5: an account, or an email locked for a purchase that makes one, has a checkout; a shopper still at the email step sees it
+		   blurred, with the billing fields drawn and a sketch of the payment card ( the class wp_easycart_subscription_signup ). */
+		$wpec_sub_account = ( '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) || ( class_exists( 'wp_easycart_subscription_signup' ) && '' !== wp_easycart_subscription_signup::locked_email() );
+		$wpec_sub_billing = ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_first_name && '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 && '' != $GLOBALS['ec_cart_data']->cart_data->billing_city );
+		$wpec_sub_waits   = ! $wpec_sub_account && class_exists( 'wp_easycart_subscription_signup' );
+		$wpec_sub_short   = class_exists( 'wp_easycart_subscription_short' ) && wp_easycart_subscription_short::applies( $product ); /* 6.0.5: the name, the place and the payment on one screen */
+		$wpec_sub_guest   = ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id ) && class_exists( 'wp_easycart_subscription_signup' ); /* Change can blur it again: the note and the sketch are there for every guest */
+		?>
+		<?php if ( class_exists( 'wp_easycart_subscription_short' ) && method_exists( 'wp_easycart_subscription_short', 'print_manager_note' ) ) { wp_easycart_subscription_short::print_manager_note( $product ); } /* 6.0.5: why the short form is not used here, for store managers ( above the blur, which an email step may hold ) */ ?>
+		<div class="ec_subscription_after_account" id="ec_subscription_after_account"<?php echo $wpec_sub_waits ? ' data-locked="1"' : ''; ?>>
+			<?php if ( $wpec_sub_guest ) { ?>
+			<p class="ec_subscription_preview_note" role="note"><?php echo wp_kses_post( wp_easycart_subscription_signup::text( 'subscription_email_preview', 'Enter your email above to continue.' ) ); ?></p>
+			<?php } ?>
+			<div class="ec_subscription_preview_body"<?php echo $wpec_sub_waits ? ' inert aria-hidden="true"' : ''; ?>>
+
+
+		<div id="ec_cart_billing_locked" class="ec_cart_address_display ec_cart_address_display_billing"<?php if ( ! $wpec_sub_account || ! $wpec_sub_billing || $wpec_sub_short ) { ?> style="display:none"<?php }?>>
 			<div class="ec_cart_address_display_header">
 				<?php echo wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_title' ); ?>
 			</div>
-			<div class="ec_cart_address_display_line" id="ec_cart_billing_address_display"><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->billing_last_name ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_company_name ) ? $GLOBALS['ec_cart_data']->cart_data->billing_company_name . ', ' : '' ) ); ?><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 ) ? $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 . ', ' : '' ) ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_city ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_state ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_zip ); ?>, <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_country ); ?><?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_phone ) ? ', ' . $GLOBALS['ec_cart_data']->cart_data->billing_phone : '' ) ); ?></div>
+			<div class="ec_cart_address_display_line" id="ec_cart_billing_address_display"><?php echo esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'billing', array( 'phone' => true ) ) ); /* 6.0.5: in the country's order */ ?></div>
 			<div class="ec_cart_address_change"><a href="#" onclick="return ec_cart_toggle_address_edit();">Change Address</a></div>
 		</div>
 
 		<?php if( get_option( 'ec_option_collect_shipping_for_subscriptions' ) && get_option( 'ec_option_use_shipping' ) && $product->is_shippable ){ ?>
 			<?php if ( $GLOBALS['ec_cart_data']->cart_data->shipping_selector != "" && $GLOBALS['ec_cart_data']->cart_data->shipping_selector == "true" ) { ?>
-			<div id="ec_cart_shipping_locked" class="ec_cart_address_display"<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || '' == $GLOBALS['ec_cart_data']->cart_data->billing_first_name || '' == $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 || '' == $GLOBALS['ec_cart_data']->cart_data->billing_city ) { ?> style="display:none"<?php }?>>
+			<div id="ec_cart_shipping_locked" class="ec_cart_address_display"<?php if ( ! $wpec_sub_account || ! $wpec_sub_billing ) { ?> style="display:none"<?php }?>>
 				<div class="ec_cart_address_display_header">
 					<?php echo wp_easycart_language()->get_text( 'cart_shipping_information', 'cart_shipping_information_title' ); ?>
 				</div>
-				<div class="ec_cart_address_display_line" id="ec_cart_shipping_address_display"><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->shipping_last_name ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_company_name ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_company_name . ', ' : '' ) ); ?><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1 ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 . ', ' : '' ) ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_city ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_state ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_zip ); ?>, <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_country ); ?><?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_phone ) ? ', ' . $GLOBALS['ec_cart_data']->cart_data->shipping_phone : '' ) ); ?></div>
+				<div class="ec_cart_address_display_line" id="ec_cart_shipping_address_display"><?php echo esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'shipping', array( 'phone' => true ) ) ); /* 6.0.5: in the country's order */ ?></div>
 				<div class="ec_cart_address_change"><a href="#" onclick="return ec_cart_toggle_address_edit();">Change Address</a></div>
 			</div>
 			<?php } else { ?>
-			<div id="ec_cart_shipping_locked" class="ec_cart_address_display"<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || '' == $GLOBALS['ec_cart_data']->cart_data->billing_first_name || '' == $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 || '' == $GLOBALS['ec_cart_data']->cart_data->billing_city ) { ?> style="display:none"<?php }?>>
+			<div id="ec_cart_shipping_locked" class="ec_cart_address_display"<?php if ( ! $wpec_sub_account || ! $wpec_sub_billing ) { ?> style="display:none"<?php }?>>
 				<div class="ec_cart_address_display_header">
 					<?php echo wp_easycart_language()->get_text( 'cart_shipping_information', 'cart_shipping_information_title' ); ?>
 				</div>
-				<div class="ec_cart_address_display_line" id="ec_cart_shipping_address_display"><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->billing_last_name ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_company_name ) ? $GLOBALS['ec_cart_data']->cart_data->billing_company_name . ', ' : '' ) ); ?><?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 ); ?>, <?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 ) ? $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 . ', ' : '' ) ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_city ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_state ); ?> <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_zip ); ?>, <?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_country ); ?><?php echo esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_phone ) ? ', ' . $GLOBALS['ec_cart_data']->cart_data->billing_phone : '' ) ); ?></div>
+				<div class="ec_cart_address_display_line" id="ec_cart_shipping_address_display"><?php echo esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'billing', array( 'phone' => true ) ) ); /* 6.0.5: in the country's order */ ?></div>
 				<div class="ec_cart_address_change"><a href="#" onclick="return ec_cart_toggle_address_edit();">Change Address</a></div>
 			</div>
 			<?php }?>
 		<?php }?>
 		
-		<div id="ec_cart_billing_form"<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || ( '' != $GLOBALS['ec_cart_data']->cart_data->user_id && '' != $GLOBALS['ec_cart_data']->cart_data->billing_first_name && '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 && '' != $GLOBALS['ec_cart_data']->cart_data->billing_city ) ) { ?> style="display:none"<?php }?>>
+		<div id="ec_cart_billing_form"<?php if ( $wpec_sub_account && $wpec_sub_billing && ! $wpec_sub_short ) { ?> style="display:none"<?php }?><?php echo $wpec_sub_short ? wp_easycart_subscription_short::form_attributes( $product ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- form_attributes() escapes each value. ?>>
 			<div class="ec_cart_header">
 				<?php echo wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_title' ); ?>
 			</div>
+
+			<?php if ( $wpec_sub_short ) { ?>
+			<?php /* 6.0.5: the short form ( wp_easycart_subscription_short ): the name, then the country, the state or province where the country
+			   has a list and the postcode where it uses one; the parts it does not ask for are hidden fields holding what the session or the
+			   account has. The payment is below it on the same screen ( no Save & Continue ); the totals follow the place as it is typed. */ ?>
+			<div class="ec_cart_input_row">
+				<div class="ec_cart_input_left_half">
+					<label for="ec_cart_billing_first_name"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_first_name' ) ); ?>*</label>
+					<?php $this->display_billing_input( 'first_name' ); ?>
+					<div class="ec_cart_error_row" id="ec_cart_billing_first_name_error">
+						<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) ); ?> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_first_name' ) ); ?>
+					</div>
+				</div>
+				<div class="ec_cart_input_right_half">
+					<label for="ec_cart_billing_last_name"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_last_name' ) ); ?>*</label>
+					<?php $this->display_billing_input( 'last_name' ); ?>
+					<div class="ec_cart_error_row" id="ec_cart_billing_last_name_error">
+						<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) ); ?> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_last_name' ) ); ?>
+					</div>
+				</div>
+			</div>
+			<div class="ec_cart_input_row ec_subscription_short_place">
+				<div class="ec_subscription_short_cell ec_subscription_short_country">
+					<label for="ec_cart_billing_country"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_country' ) ); ?>*</label>
+					<?php $this->display_billing_input( 'country' ); ?>
+					<div class="ec_cart_error_row" id="ec_cart_billing_country_error">
+						<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_select_your' ) ); ?> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_country' ) ); ?>
+					</div>
+				</div>
+				<div class="ec_subscription_short_cell ec_subscription_short_state">
+					<label for="ec_cart_billing_state"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_state' ) ); ?><span id="ec_billing_state_required">*</span></label>
+					<?php $this->display_billing_input( 'state' ); ?>
+					<div class="ec_cart_error_row" id="ec_cart_billing_state_error">
+						<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) ); ?> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_state' ) ); ?>
+					</div>
+				</div>
+				<div class="ec_subscription_short_cell ec_subscription_short_zip">
+					<label for="ec_cart_billing_zip"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_zip' ) ); ?>*</label>
+					<?php $this->display_billing_input( 'zip' ); ?>
+					<div class="ec_cart_error_row" id="ec_cart_billing_zip_error">
+						<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) ); ?> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_zip' ) ); ?>
+					</div>
+				</div>
+			</div>
+			<script>if ( 'function' === typeof wpeasycart_subscription_short_place ) { wpeasycart_subscription_short_place(); }</script>
+			<?php if ( get_option( 'ec_option_collect_vat_registration_number' ) ) { ?>
+			<div class="ec_cart_input_row">
+				<label for="ec_cart_billing_vat_registration_number"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ); ?></label>
+				<?php $this->display_vat_registration_number_input(); ?>
+			</div>
+			<?php }?>
+			<?php wp_easycart_subscription_short::print_kept_fields(); ?>
+			<?php } else { ?>
 
 			<?php if ( get_option( 'ec_option_display_country_top' ) ) { ?>
 			<div class="ec_cart_input_row">
@@ -781,14 +887,25 @@ function ec_admin_save_cart_options() {
 			</div>
 
 			<?php } // Close if use shipping ?>
+
+			<?php } // Close the full address ( 6.0.5: the short form above in its place ) ?>
 				
-			<div class="ec_cart_button_row">
+			<div class="ec_cart_button_row"<?php echo $wpec_sub_short ? ' hidden' : ''; ?>>
 				<div class="ec_cart_button" id="ec_address_save" onclick="return update_subscription_totals( '<?php echo esc_attr( $product->product_id ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-subscription-tax-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_subscription_addresss_continue' )?></div>
 				<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
 			</div>
 		</div>
 		
-		<div id="ec_cart_subscription_end_form"<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id || '' == $GLOBALS['ec_cart_data']->cart_data->billing_first_name || '' == $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 || '' == $GLOBALS['ec_cart_data']->cart_data->billing_city ) ) { ?> style="display:none"<?php }?>>
+		<?php if ( $wpec_sub_guest && ! $wpec_sub_short ) { ?>
+		<?php /* A sketch of the payment card under the blur ( nothing to fill in yet; the short form draws the real one ). */ ?>
+		<div class="ec_subscription_preview_payment" aria-hidden="true">
+			<div class="ec_cart_header"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_title' ) ); ?></div>
+			<div class="ec_subscription_preview_field"><span></span><span></span><span></span></div>
+			<div class="ec_subscription_preview_button"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_submit_order_button' ) ); ?></div>
+		</div>
+		<?php } ?>
+
+		<div id="ec_cart_subscription_end_form"<?php if ( ! $wpec_sub_short && ( ! $wpec_sub_account || ! $wpec_sub_billing ) ) { ?> style="display:none"<?php }?>>
 
 			<?php if ( get_option( 'ec_option_user_order_notes' ) ) { ?>
 			<div class="ec_cart_header">
@@ -853,6 +970,11 @@ function ec_admin_save_cart_options() {
 					$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 					?>
 					jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
+					<?php
+					if ( class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+						echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+					}
+					?>
 					<?php
 					/* 6.0.3: Stripe's Payment Element, as in the regular checkout ( the store's theme, layout and language ); the card it
 					   makes is saved for the subscription. A store whose Stripe class is too old keeps the card field below. */
@@ -1066,12 +1188,12 @@ function ec_admin_save_cart_options() {
 								var wpec_billing = {
 									name: name,
 									address: {
-										line1: address1,
-										line2: address2,
-										city: city,
-										state: state,
-										postal_code: zip,
-										country: country
+										line1: address1 || '',
+										line2: address2 || '',
+										city: city || '',
+										state: state || '',
+										postal_code: zip || '',
+										country: country || ''
 									}
 								};
 								if ( email ) {
@@ -1153,6 +1275,7 @@ function ec_admin_save_cart_options() {
 											vat_registration_number: vat_registration_number,
 											is_subscriber: is_subscriber,
 											stripeToken: token.id,
+											wpec_signup_later: ( 'later' === jQuery( document.getElementById( 'ec_subscription_account' ) ).attr( 'data-state' ) ) ? 1 : 0, /* 6.0.5: the purchase makes the account */
 											nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-create-subscription-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
 										};
 										var card_info = {
@@ -1263,7 +1386,7 @@ function ec_admin_save_cart_options() {
 							}
 						} );
 					}catch( err ) {
-						alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+						<?php echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::call( 'err', '#ec_stripe_card_row', 'null' ) : 'console.error( err );'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script. ?>
 					}
 				</script>
 
@@ -1340,13 +1463,13 @@ function ec_admin_save_cart_options() {
 
 			<?php if ( get_option( 'ec_option_show_subscriber_feature' ) ) { ?>
 			<div class="ec_cart_input_row ec_agreement_section">
-				<label class="ec_subscription_choice" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" value="1" /> <span><?php echo wp_easycart_language()->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
+				<label class="ec_subscription_choice ec_cart_check_label ec_agree_box" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" value="1" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language()->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 			</div>
 			<?php }?>
 
 			<?php if ( get_option( 'ec_option_require_terms_agreement' ) ) { ?>
 			<div class="ec_cart_input_row ec_agreement_section">
-				<label class="ec_subscription_choice" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1" /> <span><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
+				<label class="ec_subscription_choice ec_cart_check_label ec_agree_box" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 			</div>
 			<?php } else { ?>
 				<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -1365,6 +1488,9 @@ function ec_admin_save_cart_options() {
 
 		</div>
 
+			</div>
+		</div>
+
 		<?php $this->display_subscription_form_end(); ?>
 
 	</div>
@@ -1376,9 +1502,11 @@ function ec_admin_save_cart_options() {
 		</div>
 
 		<div class="ec_cart_price_row ec_cart_price_row_subscription_title">
-			<div class="ec_cart_price_row_label"><?php echo wp_easycart_escape_html( $product->title ); ?></div>
+			<div class="ec_cart_price_row_label"><?php echo wp_easycart_escape_html( class_exists( 'wp_easycart_subscription_choices' ) ? wp_easycart_subscription_choices::title( $product ) : $product->title ); ?></div>
 			<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo esc_attr( $product->get_price_formatted( $subscription_quantity, $product->price ) ); ?></div>
 		</div>
+		<?php /* 6.0.5: the plan's choices under the item: wp_easycart_subscription_choices. */ ?>
+		<?php do_action( 'wpeasycart_subscription_summary_choices', $product, 'desktop' ); ?>
 
 		<?php if ( $this->subscription_option1 != 0 ) { ?>
 		<div class="ec_cart_price_row ec_cart_price_row_subscription_option1">
@@ -1450,18 +1578,21 @@ function ec_admin_save_cart_options() {
 			foreach( $subscription_advanced_options_display as $option ) { ?>
 			<div class="ec_cart_price_row ec_cart_price_row_subscription_adv_option">
 				<div class="ec_cart_price_row_label"><?php echo esc_attr( $option['option_label'] ); ?></div>
-				<div class="ec_cart_price_row_total"><?php 
-				if ( $option['option_type'] == 'dimensions1' ) {
-					echo esc_attr( $option['optionitem_value'][0] ); 
-					if ( !get_option( 'ec_option_enable_metric_unit_display' ) ) { 
-						echo "\"";
+				<div class="ec_cart_price_row_total"><?php
+				if ( 'dimensions1' === $option['option_type'] || 'dimensions2' === $option['option_type'] ) {
+					/* 6.0.5: a size is kept as JSON ( 24" x 36" is ["24","36"] ): written as the cart writes it. */
+					if ( class_exists( 'wp_easycart_size_option' ) ) {
+						echo esc_attr( wp_easycart_size_option::text( $option['optionitem_value'] ) );
+					} else {
+						$wpeasycart_size_values = is_array( $option['optionitem_value'] ) ? $option['optionitem_value'] : json_decode( (string) $option['optionitem_value'], true );
+						$wpeasycart_size_values = is_array( $wpeasycart_size_values ) ? array_values( $wpeasycart_size_values ) : array();
+						$wpeasycart_size_mark   = get_option( 'ec_option_enable_metric_unit_display' ) ? '' : '"';
+						if ( 2 === count( $wpeasycart_size_values ) ) {
+							echo esc_attr( $wpeasycart_size_values[0] . $wpeasycart_size_mark . ' x ' . $wpeasycart_size_values[1] . $wpeasycart_size_mark );
+						} elseif ( 4 === count( $wpeasycart_size_values ) ) {
+							echo esc_attr( $wpeasycart_size_values[0] . ' ' . $wpeasycart_size_values[1] . $wpeasycart_size_mark . ' x ' . $wpeasycart_size_values[2] . ' ' . $wpeasycart_size_values[3] . $wpeasycart_size_mark );
+						}
 					}
-					echo " x " . esc_attr( $option['optionitem_value'][1] ); 
-					if ( !get_option( 'ec_option_enable_metric_unit_display' ) ) { 
-						echo "\"";
-					}
-				} else if ( $option['option_type'] == 'dimensions2' ) {
-					echo esc_attr( $option['optionitem_value'][0] . " " . $option['optionitem_value'][1] . "\" x " . $option['optionitem_value'][2] . " " . $option['optionitem_value'][3] ) . "\"";
 				} else {
 					echo esc_attr( $option['optionitem_value'] ); 
 				} 
@@ -1562,7 +1693,7 @@ function ec_admin_save_cart_options() {
 		</div>
 		<?php }?>
 
-		<?php if ( !get_option( 'ec_option_subscription_one_only' ) ) { ?>
+		<?php if ( ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( $product ) : ! get_option( 'ec_option_subscription_one_only' ) ) ) { /* 6.0.5: a price per seat is sold by quantity */ ?>
 		<form action="<?php echo esc_attr( $this->cart_page ); ?>" method="POST" enctype="multipart/form-data" class="ec_add_to_cart_form">
 		<input type="hidden" name="ec_cart_form_action" value="process_update_subscription_quantity" />
 		<input type="hidden" name="ec_cart_form_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-subscription-update-item-' . $product->product_id ) ); ?>" />

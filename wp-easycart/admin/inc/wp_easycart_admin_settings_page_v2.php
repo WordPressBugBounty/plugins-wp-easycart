@@ -482,24 +482,35 @@ class wp_easycart_admin_settings_page_v2 {
 	}
 
 	/**
-	 * The settings search box: every declared setting, section, page ( classic ones too ) and the
-	 * items other modules add through wp_easycart_settings_search_items ( payment gateways … ).
-	 * Shown on the Settings home, in the header of every declared page and above classic settings pages.
+	 * 6.0.5: the line on the Settings home that opens the one admin search ( wp_easycart_admin_search, which finds every
+	 * setting with its value ). The settings search boxes of 6.0.0 ( large on the home, compact in every page header ) are
+	 * gone; 'compact' prints nothing.
 	 *
 	 * @since 6.0.0
-	 * @param string $variant 'large' ( home ) or 'compact' ( page headers ).
-	 * @param string $current Slug of the page being viewed, so results on it scroll instead of reloading.
+	 * @param string $variant 'large' ( home ) or 'compact' ( nothing ).
+	 * @param string $current Not used since 6.0.5.
 	 */
 	public static function print_search( $variant = 'compact', $current = '' ) {
-		static $n = 0;
-		$n++;
-		$menu_id = 'ecst_search_menu_' . $n;
+		/* 6.0.5: one search for the whole admin ( wp_easycart_admin_search ): the Settings home says how to open it, and a
+		   settings page has the header's box. $current is no longer used. */
+		unset( $current );
+		if ( 'large' !== $variant ) {
+			return;
+		}
+		$mac = isset( $_SERVER['HTTP_USER_AGENT'] ) && false !== stripos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'Mac' );
 		?>
-		<div class="ecst-search<?php echo 'large' === $variant ? ' is-large' : ' is-compact'; ?>" data-ecst-search data-current="<?php echo esc_attr( $current ); ?>">
-			<span class="dashicons dashicons-search" aria-hidden="true"></span>
-			<input type="search" class="ecst-search-input" placeholder="<?php echo esc_attr( 'large' === $variant ? __( 'Search all settings, gateways and pages…', 'wp-easycart' ) : __( 'Search all settings…', 'wp-easycart' ) ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Search all settings', 'wp-easycart' ); ?>" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="<?php echo esc_attr( $menu_id ); ?>" />
-			<kbd aria-hidden="true">/</kbd>
-			<div class="ecst-search-menu" id="<?php echo esc_attr( $menu_id ); ?>" role="listbox" hidden></div>
+		<div class="ecst-search-hint">
+			<button type="button" data-wpec-search-open="" aria-haspopup="dialog">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+				<span><?php esc_html_e( 'Search every setting, page and order…', 'wp-easycart' ); ?></span>
+				<kbd data-wpec-search-kbd><?php echo esc_html( $mac ? '⌘ K' : 'Ctrl K' ); ?></kbd>
+			</button>
+			<span>
+			<?php
+			/* translators: 1: the search key ( ⌘K or Ctrl K ), 2: the slash key. */
+			echo esc_html( sprintf( __( 'Press %1$s or %2$s anywhere in WP EasyCart.', 'wp-easycart' ), $mac ? '⌘K' : 'Ctrl K', '/' ) );
+			?>
+			</span>
 		</div>
 		<?php
 	}
@@ -538,7 +549,6 @@ class wp_easycart_admin_settings_page_v2 {
 					<?php endif; ?>
 				</div>
 				<div class="ecv2-page-header-right ecst-header-right">
-					<?php self::print_search( 'compact', $page['slug'] ); ?>
 					<span class="ecv2-chip ecv2-chip-green ecst-status" id="ecst_status"><?php esc_html_e( 'All changes saved', 'wp-easycart' ); ?></span>
 				</div>
 			</div>
@@ -548,8 +558,24 @@ class wp_easycart_admin_settings_page_v2 {
 			<?php do_action( 'wp_easycart_settings_page_before', $page ); ?>
 
 			<div class="ecst-body">
+				<?php
+				/* 6.0.5: sections declared with 'fold' => true come last, inside one closed group ( the page's 'fold_title' ): the Taxes page
+				   folds the tax systems a store does not use. */
+				$lead_sections = array();
+				$fold_sections = array();
+				foreach ( $page['sections'] as $section ) {
+					if ( ! empty( $section['fold'] ) ) {
+						$fold_sections[] = $section;
+					} else {
+						$lead_sections[] = $section;
+					}
+				}
+				$fold_title = ! empty( $page['fold_title'] ) ? (string) $page['fold_title'] : __( 'More settings', 'wp-easycart' );
+				$fold_hint  = ! empty( $page['fold_hint'] ) ? (string) $page['fold_hint'] : '';
+				?>
 				<nav class="ecst-secnav" id="ecst_secnav" aria-label="<?php esc_attr_e( 'Sections', 'wp-easycart' ); ?>">
-					<?php foreach ( $page['sections'] as $section ) : ?>
+					<?php foreach ( array_merge( $lead_sections, $fold_sections ) as $nav_i => $section ) : ?>
+						<?php if ( $fold_sections && count( $lead_sections ) === $nav_i ) : ?><span class="ecst-secnav-more"><?php echo esc_html( $fold_title ); ?></span><?php endif; ?>
 						<?php $glyph = wp_easycart_admin_settings_icons::for_section( $page, $section, 'ecst-ic-svg' ); ?>
 						<a href="#ecst-sec-<?php echo esc_attr( $section['slug'] ); ?>" data-sec="<?php echo esc_attr( $section['slug'] ); ?>">
 							<span class="ecst-secnav-ic<?php echo 'mark' === $glyph['type'] ? ' is-mark' : ''; ?>"><?php echo $glyph['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG / escaped lettermark from wp_easycart_admin_settings_icons. ?></span>
@@ -562,9 +588,17 @@ class wp_easycart_admin_settings_page_v2 {
 				</nav>
 
 				<div class="ecst-content">
-					<?php foreach ( $page['sections'] as $section ) : ?>
+					<?php foreach ( $lead_sections as $section ) : ?>
 						<?php self::render_section( $page, $section, $page_locked ); ?>
 					<?php endforeach; ?>
+					<?php if ( $fold_sections ) : ?>
+						<details class="ecst-more" id="ecst_more">
+							<summary class="ecst-more-summary"><span class="ecst-more-title"><?php echo esc_html( $fold_title ); ?></span><?php if ( '' !== $fold_hint ) : ?><span class="ecst-more-hint"><?php echo esc_html( $fold_hint ); ?></span><?php endif; ?><span class="ecst-more-n"><?php echo esc_html( number_format_i18n( count( $fold_sections ) ) ); ?></span></summary>
+							<?php foreach ( $fold_sections as $section ) : ?>
+								<?php self::render_section( $page, $section, $page_locked ); ?>
+							<?php endforeach; ?>
+						</details>
+					<?php endif; ?>
 					<?php do_action( 'wp_easycart_settings_page_after_sections', $page ); ?>
 				</div>
 			</div>
@@ -696,6 +730,9 @@ class wp_easycart_admin_settings_page_v2 {
 		foreach ( $section['actions'] as $action ) {
 			$in = isset( $action['drawer'] ) ? (string) $action['drawer'] : '';
 			if ( '' === $drawer ? ( '' !== $in && in_array( $in, $drawers, true ) ) : ( $in !== $drawer ) ) {
+				continue;
+			}
+			if ( ! empty( $action['inline'] ) ) { // 6.0.5: the section's render prints it.
 				continue;
 			}
 			$action_locked = $section_locked || wp_easycart_admin_settings_registry::is_locked( $action );

@@ -334,6 +334,62 @@
                     "title": "Restricted Store, Signed In Without Access",
                     "value": "Uw account heeft nog geen toegang tot de winkel."
                 },
+                "page_access_signin_notice": {
+                    "title": "Limit Access, Sign In To Open A Page",
+                    "value": "Log in om [title] te openen."
+                },
+                "page_access_title": {
+                    "title": "Limit Access, Members Only Heading",
+                    "value": "[title] is alleen voor leden"
+                },
+                "page_access_products": {
+                    "title": "Limit Access, Any One Product Opens It",
+                    "value": "Een van deze geeft toegang:"
+                },
+                "page_access_products_all": {
+                    "title": "Limit Access, Every Product Needed",
+                    "value": "Uw account heeft elk van deze nodig:"
+                },
+                "page_access_contact": {
+                    "title": "Limit Access, No Access ( Contact Us )",
+                    "value": "Uw account heeft geen toegang tot deze pagina. Denkt u dat dit wel zo zou moeten zijn, neem dan contact met ons op."
+                },
+                "page_access_buy": {
+                    "title": "Limit Access, Buy Button",
+                    "value": "Kopen"
+                },
+                "page_access_subscribe": {
+                    "title": "Limit Access, Subscribe Button",
+                    "value": "Abonneren"
+                },
+                "page_access_open": {
+                    "title": "Limit Access, Open The Page",
+                    "value": "[title] openen"
+                },
+                "page_access_back": {
+                    "title": "Limit Access, Back To The Store",
+                    "value": "Terug naar de winkel"
+                },
+                "page_access_account": {
+                    "title": "Limit Access, My Account Link",
+                    "value": "Mijn account"
+                },
+                "page_access_excerpt": {
+                    "title": "Limit Access, Members Only Content",
+                    "value": "Deze inhoud is alleen voor leden."
+                },
+                "page_access_your_pages": {
+                    "title": "Limit Access, My Account Pages You Can Open",
+                    "value": "Pagina's die u kunt openen"
+                },
+                "page_access_order_opens": {
+                    "title": "Limit Access, Order Confirmation Pages Opened",
+                    "value": "Uw bestelling geeft toegang tot:"
+                },
+                "page_access_order_pending": {
+                    "title": "Limit Access, Order Confirmation Pages Opened Once Paid",
+                    "value": "Zodra uw betaling is voltooid, geeft uw bestelling toegang tot:"
+                },
                 "product_page_start_trial_1": {
                     "title": "Start Your Trial Text Part 1",
                     "value": "Begin je"
@@ -516,6 +572,18 @@
                 "product_details_sign_up_now": {
                     "title": "Meld je nu aan tekst",
                     "value": "MELD JE NU AAN"
+                },
+                "product_details_prior_price": {
+                    "title": "Product Details, Lowest Price In The Last 30 Days",
+                    "value": "Laagste prijs van de afgelopen 30 dagen: [price]"
+                },
+                "product_details_unit_price": {
+                    "title": "Product Details, Unit Price",
+                    "value": "[price] / [unit]"
+                },
+                "product_details_unit_item": {
+                    "title": "Product Details, Unit Price Per Item",
+                    "value": "stuk"
                 },
                 "product_details_inquiry_title": {
                     "title": "Inquiry Title",
@@ -2060,6 +2128,102 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Je hebt dit item al gekocht. Ga naar uw account om uw actieve abonnementen te bekijken."
 				},
+				"subscription_email_continue":{
+					"title":"Subscription Page, Email Continue Button ( 6.0.5 )",
+					"value":"Doorgaan"
+				},
+				"subscription_email_change":{
+					"title":"Subscription Page, Change the Email Link ( 6.0.5 )",
+					"value":"Wijzigen"
+				},
+				"subscription_email_hint":{
+					"title":"Subscription Page, Email First Hint ( 6.0.5 )",
+					"value":"Begin met uw e-mailadres. Hebt u al een account, dan vragen we om uw wachtwoord."
+				},
+				"subscription_email_existing":{
+					"title":"Subscription Page, Email Has An Account ( 6.0.5 )",
+					"value":"Welkom terug. Voer uw wachtwoord in om in te loggen."
+				},
+				"subscription_email_new":{
+					"title":"Subscription Page, New Email Needs A Password ( 6.0.5 )",
+					"value":"Maak een wachtwoord aan voor uw nieuwe account."
+				},
+				"subscription_email_later":{
+					"title":"Subscription Page, Password After Checkout Note ( 6.0.5 )",
+					"value":"U kiest na het afrekenen een wachtwoord voor uw account."
+				},
+				"subscription_email_preview":{
+					"title":"Subscription Page, Checkout Waits For The Email ( 6.0.5 )",
+					"value":"Voer hierboven uw e-mailadres in om door te gaan."
+				},
+				"subscription_email_busy":{
+					"title":"Subscription Page, Too Many Email Checks ( 6.0.5 )",
+					"value":"Te veel pogingen. Wacht een paar minuten en probeer het opnieuw."
+				},
+				"subscription_email_changed":{
+					"title":"Subscription Page, Email Changed Before Paying ( 6.0.5 )",
+					"value":"Uw e-mailadres is gewijzigd. Bevestig het opnieuw voordat u betaalt."
+				},
+				"subscription_set_password_title":{
+					"title":"After Purchase, Set A Password Title ( 6.0.5 )",
+					"value":"Stel een wachtwoord in voor uw account"
+				},
+				"subscription_set_password_text":{
+					"title":"After Purchase, Set A Password Text ( 6.0.5 )",
+					"value":"Uw account gebruikt [email]. Kies een wachtwoord zodat u kunt inloggen en uw abonnement kunt beheren."
+				},
+				"subscription_set_password_button":{
+					"title":"After Purchase, Save The Password Button ( 6.0.5 )",
+					"value":"Wachtwoord opslaan"
+				},
+				"subscription_set_password_saved":{
+					"title":"After Purchase, Password Saved ( 6.0.5 )",
+					"value":"Uw wachtwoord is opgeslagen."
+				},
+				"subscription_set_password_later":{
+					"title":"After Purchase, Set The Password Later ( 6.0.5 )",
+					"value":"U kunt het ook later instellen via Wachtwoord vergeten op de inlogpagina."
+				},
+				"subscription_set_password_short":{
+					"title":"After Purchase, Password Too Short ( 6.0.5 )",
+					"value":"Gebruik minstens [count] tekens."
+				},
+				"subscription_set_password_failed":{
+					"title":"After Purchase, Password Not Saved ( 6.0.5 )",
+					"value":"Uw wachtwoord kon niet worden opgeslagen. Probeer het opnieuw."
+				},
+				"checkout_email_hint":{
+					"title":"Checkout, Email First Hint When The Order Needs An Account ( 6.0.5 )",
+					"value":"Voor uw bestelling is een account nodig. Begin met uw e-mailadres: hebt u er al een, dan vragen we om uw wachtwoord."
+				},
+				"checkout_email_known":{
+					"title":"Checkout, The Email Has An Account ( 6.0.5 )",
+					"value":"U hebt al een account met dit e-mailadres. Log in om sneller af te rekenen."
+				},
+				"checkout_email_suggest":{
+					"title":"Checkout, Did You Mean This Email ( 6.0.5 )",
+					"value":"Bedoelde u [email]?"
+				},
+				"checkout_password_show":{
+					"title":"Checkout, Show The Password Button ( 6.0.5 )",
+					"value":"Tonen"
+				},
+				"checkout_password_hide":{
+					"title":"Checkout, Hide The Password Button ( 6.0.5 )",
+					"value":"Verbergen"
+				},
+				"checkout_account_required":{
+					"title":"Checkout, The Order Needs An Account Error ( 6.0.5 )",
+					"value":"Voor deze bestelling is een account nodig. Vul bovenaan het afrekenen uw e-mailadres in om verder te gaan."
+				},
+				"checkout_set_password_text":{
+					"title":"After An Order, Set A Password Text ( 6.0.5 )",
+					"value":"Uw account gebruikt [email]. Kies een wachtwoord zodat u kunt inloggen en uw bestellingen en downloads kunt bekijken."
+				},
+				"checkout_email_check":{
+					"title":"Checkout, Email First Human Check ( 6.0.5 )",
+					"value":"Om accounts te beschermen, vragen we u deze korte controle te voltooien om verder te gaan."
+				},
 				"subscription_change_existing":{
 					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
 					"value":"U hebt al een abonnement op dit plan. Wijzig het via uw account in plaats van een tweede te kopen."
@@ -2091,6 +2255,18 @@
 				"subscription_choose_options_link":{
 					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
 					"value":"Opties kiezen"
+				},
+				"subscription_level_choose":{
+					"title":"Subscription Page, Usage Level Question ( 6.0.5 )",
+					"value":"Hoeveel [unit] heeft u nodig?"
+				},
+				"subscription_level_update":{
+					"title":"Subscription Page, Update the Usage Level Button ( 6.0.5 )",
+					"value":"Bijwerken"
+				},
+				"subscription_units_range":{
+					"title":"Subscription Page, Amount Not In The Plan ( 6.0.5 )",
+					"value":"Kies een aantal dat dit abonnement bevat."
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2251,6 +2427,10 @@
                 "cart_billing_information_vat_registration_number": {
                     "title": "Cart, Billing, VAT Registration Number Label",
                     "value": "BTW registratie nummer"
+                },
+                "cart_billing_information_vat_reverse_charge": {
+                    "title": "Cart, Billing Information, VAT Reverse Charge",
+                    "value": "Btw verlegd"
                 }
             }
         },
@@ -2463,7 +2643,7 @@
                 },
                 "cart_payment_information_third_party_second": {
                     "title": "Winkelmand, Betaalinformatie, Third Party Tekst, Deel 2",
-                    "value": "wanneer u op verzend order klikt om uw betaling af te ronden."
+                    "value": "wanneer u op bestellen en betalen klikt om uw betaling af te ronden."
                 },
                 "cart_payment_information_apple_pay": {
                     "title": "Cart, Payment Information, Mobile Payment Label",
@@ -2503,7 +2683,7 @@
                 },
                 "cart_payment_information_checkout_text": {
                     "title": "Winkelmand, Betaalinformatie, Afrekenen Text",
-                    "value": "Door het verzenden van uw order, gaat u akkoord met onze [terms]Algemene Voorwaarden[\/terms] en [privacy]Privacy Policy[\/privacy] van onze webwinkel.<br \/>Na het klikken op verzend order is het bestelproces voltooid.<br \/>Alvast bedankt voor uw bestelling!"
+                    "value": "Door het plaatsen van uw bestelling gaat u akkoord met onze [terms]Algemene Voorwaarden[/terms] en [privacy]Privacy Policy[/privacy] van onze webwinkel.<br />Na het klikken op bestellen en betalen is het bestelproces voltooid.<br />Alvast bedankt voor uw bestelling!"
                 },
                 "cart_payment_information_review_checkout_text": {
                     "title": "Cart, Payment Information, Review Checkout Text",
@@ -2515,7 +2695,7 @@
                 },
                 "cart_payment_information_submit_order_button": {
                     "title": "Winkelmand, Betaalinformatie, Verzend Order Button",
-                    "value": "VERZEND ORDER"
+                    "value": "BESTELLEN EN BETALEN"
                 },
                 "cart_payment_information_cancel_order_button": {
                     "title": "Cart, Payment Information, Cancel Order Button",
@@ -2660,6 +2840,10 @@
 				"choose_location":{
 					"title":"Cart, Preorder Pickup Location Choose",
 					"value":"Kies locatie"
+				},
+				"stripe_unavailable":{
+					"title":"Cart, Card Payments Unavailable",
+					"value":"We kunnen op dit moment geen kaartbetalingen verwerken. Probeer het over een paar minuten opnieuw, of neem contact met ons op als het probleem zich blijft voordoen."
 				}
             }
         },
@@ -4099,6 +4283,14 @@
                     "title": "Account, Orders Status, Direct Deposit Received",
                     "value": "Betaald"
                 },
+                "order_status_awaiting_bank_transfer": {
+                    "title": "Account, Orders Status, Awaiting Bank Transfer",
+                    "value": "Wacht op bankoverschrijving"
+                },
+                "order_status_bank_transfer_received": {
+                    "title": "Account, Orders Status, Bank Transfer Received",
+                    "value": "Bankoverschrijving ontvangen"
+                },
                 "order_status_refunded_order": {
                     "title": "Account, Orders Status, Refunded Order",
                     "value": "Order terugbetaald"
@@ -4323,6 +4515,78 @@
                 "subscription_details_card_notice": {
                     "title": "Account, Subscription Details, Card Change Notice",
                     "value": "Uw volgende betaling wordt van de nieuwe kaart afgeschreven."
+                },
+                "subscription_details_card_expires": {
+                    "title": "Account, Subscription Details, Card Expiry Date ( 6.0.5 )",
+                    "value": "Verloopt [date]"
+                },
+                "subscription_details_card_expired": {
+                    "title": "Account, Subscription Details, Card Expired ( 6.0.5 )",
+                    "value": "Verlopen [date]"
+                },
+                "subscription_details_card_updated": {
+                    "title": "Account, Subscription Details, Payment Method Updated ( 6.0.5 )",
+                    "value": "Uw betaalmethode is bijgewerkt."
+                },
+                "subscription_details_card_updated_many": {
+                    "title": "Account, Subscription Details, Payment Method Updated For Several Subscriptions ( 6.0.5 )",
+                    "value": "Uw betaalmethode is bijgewerkt voor [count] abonnementen."
+                },
+                "subscription_details_card_failed": {
+                    "title": "Account, Subscription Details, Payment Method Not Changed For Some ( 6.0.5 )",
+                    "value": "Uw betaalmethode kon niet worden gewijzigd voor [titles]. Open dat abonnement om het opnieuw te proberen."
+                },
+                "subscription_details_card_apply": {
+                    "title": "Account, Subscription Details, Use This Card For ( 6.0.5 )",
+                    "value": "Deze kaart gebruiken voor"
+                },
+                "subscription_details_card_apply_this": {
+                    "title": "Account, Subscription Details, This Subscription Only ( 6.0.5 )",
+                    "value": "Alleen dit abonnement"
+                },
+                "subscription_details_card_apply_some": {
+                    "title": "Account, Subscription Details, This And Chosen Subscriptions ( 6.0.5 )",
+                    "value": "Dit abonnement en andere die ik kies"
+                },
+                "subscription_details_card_apply_all": {
+                    "title": "Account, Subscription Details, All My Subscriptions ( 6.0.5 )",
+                    "value": "Al mijn abonnementen ([count])"
+                },
+                "subscription_details_card_apply_others": {
+                    "title": "Account, Subscription Details, Your Other Subscriptions ( 6.0.5 )",
+                    "value": "Uw andere abonnementen"
+                },
+                "subscription_details_card_apply_none": {
+                    "title": "Account, Subscription Details, Choose Another Subscription ( 6.0.5 )",
+                    "value": "Kies ten minste één ander abonnement, of kies Alleen dit abonnement."
+                },
+                "subscription_details_payments_more": {
+                    "title": "Account, Subscription Details, Load More Payments ( 6.0.5 )",
+                    "value": "Meer laden"
+                },
+                "subscription_details_payments_shown": {
+                    "title": "Account, Subscription Details, Payments Shown ( 6.0.5 )",
+                    "value": "[shown] van [total] betalingen weergegeven"
+                },
+                "subscription_details_view_all_orders": {
+                    "title": "Account, Subscription Details, View All Orders ( 6.0.5 )",
+                    "value": "Alle bestellingen bekijken"
+                },
+                "subscription_level_change": {
+                    "title": "Subscription Details, Change The Usage Level ( 6.0.5 )",
+                    "value": "[unit] wijzigen"
+                },
+                "subscription_level_current": {
+                    "title": "Subscription Details, The Usage Level It Has ( 6.0.5 )",
+                    "value": "huidig"
+                },
+                "subscription_level_hint": {
+                    "title": "Subscription Details, When A Usage Level Change Starts ( 6.0.5 )",
+                    "value": "Een hoger aantal gaat nu in en de rest van deze periode wordt vandaag in rekening gebracht. Een lager aantal gaat in bij uw volgende verlenging."
+                },
+                "subscription_level_hint_up": {
+                    "title": "Subscription Details, When A Higher Usage Level Starts ( 6.0.5 )",
+                    "value": "Een hoger aantal gaat nu in en de rest van deze periode wordt vandaag in rekening gebracht."
                 },
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
@@ -5795,6 +6059,18 @@
                 "sending": {
                     "title": "Account: Sending",
                     "value": "Verzenden…"
+                },
+                "create_account_question": {
+                    "title": "Sign in: No account yet",
+                    "value": "Nog geen account?"
+                },
+                "signed_in_not_you": {
+                    "title": "Signed in: Not you",
+                    "value": "Niet jij?"
+                },
+                "signed_in_sign_out": {
+                    "title": "Signed in: Sign out",
+                    "value": "Uitloggen"
                 }
             }
         },
@@ -6102,6 +6378,116 @@
                 "code": {
                     "title": "Do Not Change",
                     "value": "NL"
+                }
+            }
+        },
+        "address_labels": {
+            "label": "Address Labels",
+            "options": {
+                "region_state": {
+                    "title": "Address, Region label: State",
+                    "value": "Staat"
+                },
+                "region_county": {
+                    "title": "Address, Region label: County",
+                    "value": "Graafschap"
+                },
+                "region_province": {
+                    "title": "Address, Region label: Province",
+                    "value": "Provincie"
+                },
+                "region_state_territory": {
+                    "title": "Address, Region label: State or territory",
+                    "value": "Staat of territorium"
+                },
+                "region_region": {
+                    "title": "Address, Region label: Region",
+                    "value": "Regio"
+                },
+                "region_prefecture": {
+                    "title": "Address, Region label: Prefecture",
+                    "value": "Prefectuur"
+                },
+                "postal_postcode": {
+                    "title": "Address, Postcode label: Postcode",
+                    "value": "Postcode"
+                },
+                "postal_postal_code": {
+                    "title": "Address, Postcode label: Postal code",
+                    "value": "Postcode"
+                },
+                "postal_eircode": {
+                    "title": "Address, Postcode label: Eircode",
+                    "value": "Eircode"
+                },
+                "postal_cep": {
+                    "title": "Address, Postcode label: CEP",
+                    "value": "CEP"
+                },
+                "postal_pin": {
+                    "title": "Address, Postcode label: PIN code",
+                    "value": "PIN-code"
+                }
+            }
+        },
+        "bank_details": {
+            "label": "Bank Details ( Bill Later )",
+            "options": {
+                "bank_details_title": {
+                    "title": "Bank Details, Title",
+                    "value": "Bankgegevens"
+                },
+                "bank_details_holder": {
+                    "title": "Bank Details, Account Name",
+                    "value": "Rekeninghouder"
+                },
+                "bank_details_bank": {
+                    "title": "Bank Details, Bank",
+                    "value": "Bank"
+                },
+                "bank_details_iban": {
+                    "title": "Bank Details, IBAN",
+                    "value": "IBAN"
+                },
+                "bank_details_bic": {
+                    "title": "Bank Details, BIC / SWIFT",
+                    "value": "BIC / SWIFT"
+                },
+                "bank_details_sort_code": {
+                    "title": "Bank Details, Sort Code ( UK )",
+                    "value": "Sort code"
+                },
+                "bank_details_account": {
+                    "title": "Bank Details, Account Number",
+                    "value": "Rekeningnummer"
+                },
+                "bank_details_bsb": {
+                    "title": "Bank Details, BSB ( Australia )",
+                    "value": "BSB"
+                },
+                "bank_details_routing": {
+                    "title": "Bank Details, Routing Number ( US )",
+                    "value": "Routingnummer"
+                },
+                "bank_details_institution": {
+                    "title": "Bank Details, Institution Number ( Canada )",
+                    "value": "Instellingsnummer"
+                },
+                "bank_details_transit": {
+                    "title": "Bank Details, Transit Number ( Canada )",
+                    "value": "Transitnummer"
+                },
+                "bank_details_interac": {
+                    "title": "Bank Details, Interac e-Transfer ( Canada )",
+                    "value": "Interac e-Transfer"
+                },
+                "bank_details_reference": {
+                    "title": "Bank Details, Payment Reference",
+                    "value": "Betalingskenmerk"
+                },
+                "bank_details_order": {
+                    "title": "Bank Details, Payment Reference Value ( [order_id] = the order number )",
+                    "value": "Bestelling [order_id]"
                 }
             }
         }

@@ -548,13 +548,18 @@
 			var $block = $( block );
 			var strike = $block.children( '.ec_offer_price_strike' );
 			var preview = $block.children( '.ec_offer_price_preview' );
+			/* 6.0.5: a store that shows the lowest price of the last 30 days strikes the price before the offer, never the list price. */
+			var strikeBase = '1' === block.getAttribute( 'data-wpec-strike-base' );
 			if ( preview.length ) {
 				strike.text( money( price ) ).prop( 'hidden', ! on );
 				preview.text( money( offered ) );
+				if ( strikeBase ) {
+					$block.children( '.ec_product_old_price_ele' ).prop( 'hidden', on );
+				}
 			} else {
 				/* VAT rows: ec-store.js wrote the price before offers into the price; the struck price is the regular price. */
 				var list = Number( block.getAttribute( 'data-wpec-list-price' ) ) || 0;
-				var regular = on ? Math.max( list, price ) : list;
+				var regular = on ? ( strikeBase ? price : Math.max( list, price ) ) : list;
 				$block.children( '.ec_product_sale_price_ele, .ec_product_price_ele' ).first().text( money( offered ) );
 				$block.children( '.ec_product_old_price_ele' ).text( money( regular ) ).prop( 'hidden', ! ( regular > offered ) );
 			}
@@ -567,7 +572,7 @@
 			var price = Number( state.price );
 			var rules = Offers.rules( line );
 			var offered = ( null === rules ) ? price : Offers.price( rules, price );
-			var regular = Math.max( Number( line.getAttribute( 'data-wpec-list-price' ) ) || 0, price );
+			var regular = ( '1' === line.getAttribute( 'data-wpec-strike-base' ) && offered < price - 0.000001 ) ? price : Math.max( Number( line.getAttribute( 'data-wpec-list-price' ) ) || 0, price ); /* 6.0.5 */
 			var amount = regular - offered;
 			var vatRow = $( widget ).children( '.ec_details_vat_price' ).get( 0 );
 			var text = '';

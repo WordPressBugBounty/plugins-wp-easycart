@@ -66,7 +66,8 @@ class wp_easycart_admin_upsell {
 		if ( ! function_exists( 'wp_easycart_admin_license' ) ) {
 			return null;
 		}
-		$ld = wp_easycart_admin_license()->license_data;
+		/* 6.0.5 ( admin review M13 ): only this site's license ( wp_easycart_admin_edition ); another site's registration is not ours to renew. */
+		$ld = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_data() : wp_easycart_admin_license()->license_data;
 		if ( ! $ld || ! empty( $ld->is_trial ) || empty( $ld->support_end_date ) ) {
 			return null;
 		}
@@ -74,18 +75,11 @@ class wp_easycart_admin_upsell {
 		$days  = self::days_until( $end );
 		$model = strtolower( trim( (string) ( isset( $ld->model_number ) ? $ld->model_number : '' ) ) );
 		$prem  = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::is_premium() : ( 'ec410' === $model );
-		$info  = get_option( 'wp_easycart_license_info' );
-		$key   = ( is_array( $info ) && isset( $info['transaction_key'] ) ) ? $info['transaction_key'] : '';
-		$url   = $prem ? 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/' : 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/';
-		if ( '' !== $key ) {
-			$url .= '?transaction_key=' . rawurlencode( $key );
-		}
-		/* 6.0.4: a license on AutoPay renews itself ( no countdown ), and a missed payment is fixed in the WP EasyCart account. */
+		/* 6.0.4: a license on AutoPay renews itself ( no countdown ), and a missed payment is fixed in the WP EasyCart account.
+		   6.0.5: every license renews there ( a key bought before AutoPay turns AutoPay on; the one-time renewals are retired ). */
 		$auto  = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_auto_renew() );
 		$elite = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_elite() );
-		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
-			$url = wp_easycart_admin_edition::renew_url();
-		}
+		$url   = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::renew_url() : 'https://www.wpeasycart.com/my-account/';
 		$tone = 'ok';
 		if ( $days <= 0 ) {
 			$tone = 'lapsed';
@@ -857,26 +851,20 @@ class wp_easycart_admin_upsell {
 	}
 
 	public static function plan_url( $plan, $context = 'default' ) {
-		/* A registered license changes the destination: a lapsed paid license renews ( or upgrades to
-		 * Premium ), an ended trial converts. Either way the key rides along so the store account
-		 * gets credit and nothing has to be re-entered. */
+		/* A registered license changes the destination: a lapsed paid license renews in the WP EasyCart account ( where a Pro
+		 * license can also change its plan to Premium ), an ended trial chooses a plan on the pricing page. 6.0.5: the one-time
+		 * renewal and trial upgrade products are retired with the AutoPay plans. */
 		if ( function_exists( 'wp_easycart_admin_license' ) ) {
-			$ld   = wp_easycart_admin_license()->license_data;
-			$info = get_option( 'wp_easycart_license_info' );
-			$key  = ( is_array( $info ) && isset( $info['transaction_key'] ) ) ? $info['transaction_key'] : '';
+			$ld = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_data() : wp_easycart_admin_license()->license_data; /* 6.0.5: this site's license only */
 			if ( $ld && ! empty( $ld->support_end_date ) && self::days_until( strtotime( $ld->support_end_date ) ) <= 0 ) {
 				if ( ! empty( $ld->is_trial ) ) {
-					return 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=' . ( 'premium' === $plan ? 'premium' : 'professional' );
+					return class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::trial_url( $plan ) : self::PRICING_URL;
 				}
-				$prem = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::is_premium() : ( 'ec410' === strtolower( trim( (string) ( isset( $ld->model_number ) ? $ld->model_number : '' ) ) ) );
-				if ( 'premium' === $plan || $prem ) {
-					return 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $key );
-				}
-				return 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . rawurlencode( $key );
+				return class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::renew_url() : 'https://www.wpeasycart.com/my-account/';
 			}
 		}
-		/* 6.0.2: Premium goes to the upgrade at the Pro discount for a licensed Pro store, the trial upgrade for a trial,
-		   and premium-support-extensions for everyone else ( wp_easycart_admin_edition::premium_offer() ). */
+		/* 6.0.2: Premium goes to the store's own Premium offer ( wp_easycart_admin_edition::premium_offer(): the account's Change plan
+		   for a licensed Pro store, the pricing page for a trial and everyone else ). */
 		if ( 'premium' === $plan && class_exists( 'wp_easycart_admin_edition' ) ) {
 			return apply_filters( 'wp_easycart_upgrade_premium_url', wp_easycart_admin_edition::premium_url() );
 		}

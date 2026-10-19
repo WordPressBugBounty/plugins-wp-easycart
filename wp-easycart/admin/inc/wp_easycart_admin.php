@@ -150,7 +150,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			) ){
 				// Setup Basic Variables for Admin Design
 				$this->month_sales_total = $this->get_month_sales_total( );
-				$this->month_name = date( 'F' );
+				$this->month_name = wp_date( 'F' );
 				$this->month_percentage_change = $this->get_month_percentage_change( );
 				$this->month_goal_total = number_format( (float) get_option( 'ec_option_admin_sales_goal' ), 2, '.', '' );
 				if ( $this->month_goal_total < .01 ) {
@@ -185,9 +185,14 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'pro_install_messages' ) ); // 6.0.2
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'pro_install_success_message' ) ); // 6.0.2
 			add_action( 'wp_dashboard_setup', array( $this, 'add_ec_nag_widget' ) );
+			/* 6.0.5 ( admin review M12 ): WordPress's own menu folds to icons on EasyCart screens, beside EasyCart's menu. */
+			add_filter( 'admin_body_class', array( $this, 'wp_menu_body_class' ) );
+			add_action( 'in_admin_header', array( $this, 'wp_menu_open_script' ), 0 );
 
 			// Hook Actions
 			add_action( 'admin_init', array( $this, 'create_user_role' ) );
+			/* 6.0.5: a symbol the setup wizard saved as an HTML entity ( &pound; ) is saved as characters. */
+			add_action( 'admin_init', array( 'ec_currency', 'repair_saved_symbol' ), 1 );
 			add_filter( 'ure_capabilities_groups_tree', array( $this, 'add_user_role_editor_group' ) );
 			add_filter( 'ure_custom_capability_groups', array( $this, 'add_user_role_editor_cap_to_group' ), 10, 2 );
 			add_action( 'admin_init', array( $this, 'save_perpage' ) );
@@ -317,6 +322,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return;
 			}
 			if( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ){
+				/* 6.0.5: the rebuilt box saves through wp_easycart_page_access::save_rule() ( the new rule and the six keys 6.0.4 reads ). */
+				if ( class_exists( 'wp_easycart_admin_page_access' ) && wp_easycart_admin_page_access::save_box( $post_id ) ) {
+					return;
+				}
 				if( array_key_exists( 'wpeasycart_restrict_product_id', $_POST ) ){
 					$wpeasycart_restrict_product_id = array( );
 					if( is_array( $_POST['wpeasycart_restrict_product_id'] ) ){
@@ -389,12 +398,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		public function page_lock_meta( $post_type, $post ){
-			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && ( $post_type == 'page' || $post_type == 'post' || $post_type == 'ec_store' ) ){
+			/* 6.0.5: every public post type ( wp_easycart_page_access::post_types(), filter wp_easycart_page_access_post_types ), not only pages,
+			   posts and product pages: courses, lessons and other membership content live in post types of their own. */
+			$lock_types = class_exists( 'wp_easycart_page_access' ) ? wp_easycart_page_access::post_types() : array( 'page', 'post', 'ec_store' );
+			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && in_array( $post_type, $lock_types, true ) ){
 				add_meta_box( 
 					'wp-easycart-product-lock',
 					__( 'WP EasyCart Limit Access', 'wp-easycart' ),
 					array( $this, 'load_page_lock_meta_box' ),
-					array( 'page', 'post', 'ec_store' ),
+					$post_type,
 					'side',
 					'default'
 				);
@@ -402,6 +414,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		public function load_page_lock_meta_box( $post ){
+			/* 6.0.5: the rebuilt box ( wp_easycart_admin_page_access ): one switch, plain choices, defaults that need no address. */
+			if ( class_exists( 'wp_easycart_admin_page_access' ) && class_exists( 'wp_easycart_page_access' ) ) {
+				wp_easycart_admin_page_access::print_box( $post );
+				return;
+			}
 			global $wpdb;
 			wp_nonce_field( 'wp_easycart_page_lock_' . $post->ID, 'wp_easycart_page_lock_nonce' );
 			$user_roles = $wpdb->get_results( "SELECT role_label FROM ec_role ORDER BY role_label ASC" );
@@ -515,6 +532,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		 *   @type string $placeholder Search box placeholder.
 		 *   @type string $on_change   Global JS function to call after a change.
 		 *   @type string $class       Extra classes for the search input.
+		 *   @type int    $exclude     Mode page ( 6.0.5, Limit Access ): a post left out of the results.
+		 *   @type bool   $any         Mode page: drafts and private posts too.
 		 * }
 		 */
 		public static function print_picker( $args ) {
@@ -529,12 +548,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'placeholder' => '',
 				'on_change'   => '',
 				'class'       => '',
+				'exclude'     => 0,
+				'any'         => false,
 			) );
-			$mode  = ( 'user' === $a['mode'] ) ? 'user' : 'product';
+			/* 6.0.5: mode page searches posts of every type Limit Access covers ( ecv2_page_access_search ). */
+			$mode  = in_array( $a['mode'], array( 'user', 'page' ), true ) ? $a['mode'] : 'product';
 			$id    = ( '' !== $a['id'] ) ? $a['id'] : 'wpec-pick-' . $mode . '-' . wp_rand( 1000, 999999 );
-			$nonce = ( 'user' === $mode ) ? wp_create_nonce( 'wp-easycart-order-details' ) : '';
+			$nonce = ( 'user' === $mode ) ? wp_create_nonce( 'wp-easycart-order-details' ) : ( 'page' === $mode ? wp_create_nonce( 'wp-easycart-ecv2-page-access' ) : '' );
 
-			echo '<div class="wpec-pick" id="' . esc_attr( $id ) . '" data-mode="' . esc_attr( $mode ) . '" data-multiple="' . ( $a['multiple'] ? '1' : '0' ) . '" data-name="' . esc_attr( $a['name'] ) . '" data-target="' . esc_attr( $a['target'] ) . '" data-nonce="' . esc_attr( $nonce ) . '" data-onchange="' . esc_attr( $a['on_change'] ) . '" data-empty="' . esc_attr__( 'No matches.', 'wp-easycart' ) . '" data-remove="' . esc_attr__( 'Remove', 'wp-easycart' ) . '">';
+			echo '<div class="wpec-pick" id="' . esc_attr( $id ) . '" data-mode="' . esc_attr( $mode ) . '" data-multiple="' . ( $a['multiple'] ? '1' : '0' ) . '" data-name="' . esc_attr( $a['name'] ) . '" data-target="' . esc_attr( $a['target'] ) . '" data-nonce="' . esc_attr( $nonce ) . '" data-onchange="' . esc_attr( $a['on_change'] ) . '" data-exclude="' . esc_attr( (int) $a['exclude'] ) . '" data-any="' . ( $a['any'] ? '1' : '0' ) . '" data-empty="' . esc_attr__( 'No matches.', 'wp-easycart' ) . '" data-remove="' . esc_attr__( 'Remove', 'wp-easycart' ) . '">';
 			echo '<div class="wpec-pick-chips">';
 			foreach ( (array) $a['selected'] as $value => $label ) {
 				echo '<span class="wpec-pick-chip" data-id="' . esc_attr( $value ) . '"><span>' . esc_html( $label ) . '</span><button type="button" class="wpec-pick-x" aria-label="' . esc_attr__( 'Remove', 'wp-easycart' ) . '">&times;</button>';
@@ -581,7 +603,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 	function init( root ) {
 		if ( root.wpecPickReady ) { return; }
 		root.wpecPickReady = true;
-		var mode = root.getAttribute( 'data-mode' ), multiple = root.getAttribute( 'data-multiple' ) === '1', name = root.getAttribute( 'data-name' ) || '', target = root.getAttribute( 'data-target' ) || '', nonce = root.getAttribute( 'data-nonce' ) || '', onchange = root.getAttribute( 'data-onchange' ) || '';
+		var mode = root.getAttribute( 'data-mode' ), multiple = root.getAttribute( 'data-multiple' ) === '1', name = root.getAttribute( 'data-name' ) || '', target = root.getAttribute( 'data-target' ) || '', nonce = root.getAttribute( 'data-nonce' ) || '', onchange = root.getAttribute( 'data-onchange' ) || '', exclude = root.getAttribute( 'data-exclude' ) || '0', any = root.getAttribute( 'data-any' ) === '1';
 		var chips = root.querySelector( '.wpec-pick-chips' ), input = root.querySelector( '.wpec-pick-input' ), results = root.querySelector( '.wpec-pick-results' ), timer = null, seq = 0;
 		function ids() { var out = []; chips.querySelectorAll( '.wpec-pick-chip' ).forEach( function( c ) { out.push( String( c.getAttribute( 'data-id' ) ) ); } ); return out; }
 		function sync() {
@@ -593,12 +615,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( target ) { var t = document.getElementById( target ); if ( t ) { var list = ids(); t.value = list.length ? list[ 0 ] : '0'; } }
 			if ( onchange && typeof window[ onchange ] === 'function' ) { window[ onchange ](); }
 		}
-		function add( id, label ) {
+		function add( id, label, limited ) {
 			if ( ! multiple ) { chips.innerHTML = ''; }
 			if ( ids().indexOf( String( id ) ) !== -1 ) { return; }
 			var chip = document.createElement( 'span' );
 			chip.className = 'wpec-pick-chip';
 			chip.setAttribute( 'data-id', id );
+			if ( limited ) { chip.setAttribute( 'data-limited', '1' ); }
 			chip.innerHTML = '<span>' + esc( label ) + '</span><button type="button" class="wpec-pick-x" aria-label="' + esc( root.getAttribute( 'data-remove' ) ) + '">&times;</button>' + ( name ? '<input type="hidden" name="' + esc( name ) + '" value="' + esc( id ) + '" />' : '' );
 			chips.appendChild( chip );
 			sync();
@@ -609,7 +632,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			items.forEach( function( it ) {
 				var b = document.createElement( 'button' );
 				b.type = 'button'; b.className = 'wpec-pick-item';
-				b.setAttribute( 'data-id', it.id ); b.setAttribute( 'data-label', it.label );
+				b.setAttribute( 'data-id', it.id ); b.setAttribute( 'data-label', it.label ); b.setAttribute( 'data-limited', it.limited ? '1' : '0' );
 				b.innerHTML = esc( it.label ) + ( it.meta ? ' <small>' + esc( it.meta ) + '</small>' : '' );
 				results.appendChild( b );
 			} );
@@ -618,6 +641,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		function search( q ) {
 			var my = ++seq, body;
 			if ( mode === 'user' ) { body = 'action=ec_admin_ajax_get_order_users&q=' + encodeURIComponent( q ) + '&wp_easycart_nonce=' + encodeURIComponent( nonce ); }
+			else if ( mode === 'page' ) { body = 'action=ecv2_page_access_search&q=' + encodeURIComponent( q ) + '&nonce=' + encodeURIComponent( nonce ) + '&exclude=' + encodeURIComponent( exclude ) + ( any ? '&any=1' : '' ); }
 			else { body = 'action=ec_admin_ajax_ecv2_product_search&page=1&q=' + encodeURIComponent( q ); }
 			var xhr = new XMLHttpRequest();
 			xhr.open( 'POST', ajaxUrl() );
@@ -627,13 +651,14 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				var d = {}, items = [];
 				try { d = JSON.parse( xhr.responseText ); } catch ( e ) { d = {}; }
 				if ( mode === 'user' ) { ( d.items || [] ).forEach( function( u ) { if ( String( u.id ) !== '0' ) { items.push( { id: u.id, label: u.text } ); } } ); }
+				else if ( mode === 'page' ) { ( d.items || [] ).forEach( function( p ) { items.push( { id: p.id, label: p.label, meta: p.meta || '', limited: !! p.limited } ); } ); }
 				else { ( d.results || [] ).forEach( function( p ) { items.push( { id: p.id, label: p.title || p.text, meta: p.sku || '' } ); } ); }
 				render( items.slice( 0, 20 ) );
 			};
 			xhr.send( body );
 		}
 		chips.addEventListener( 'click', function( e ) { var x = e.target.closest( '.wpec-pick-x' ); if ( ! x ) { return; } var chip = x.closest( '.wpec-pick-chip' ); chip.parentNode.removeChild( chip ); sync(); } );
-		results.addEventListener( 'click', function( e ) { var b = e.target.closest( '.wpec-pick-item' ); if ( ! b ) { return; } add( b.getAttribute( 'data-id' ), b.getAttribute( 'data-label' ) ); results.hidden = true; input.value = ''; } );
+		results.addEventListener( 'click', function( e ) { var b = e.target.closest( '.wpec-pick-item' ); if ( ! b ) { return; } add( b.getAttribute( 'data-id' ), b.getAttribute( 'data-label' ), b.getAttribute( 'data-limited' ) === '1' ); results.hidden = true; input.value = ''; } );
 		input.addEventListener( 'input', function() { clearTimeout( timer ); var q = input.value.trim(); timer = setTimeout( function() { search( q ); }, 250 ); } );
 		input.addEventListener( 'focus', function() { if ( results.children.length ) { results.hidden = false; } else { search( input.value.trim() ); } } );
 		input.addEventListener( 'keydown', function( e ) { if ( e.key === 'Escape' ) { results.hidden = true; } } );
@@ -2037,6 +2062,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( ! $fh ) {
 				return false;
 			}
+			wp_easycart_admin_csv_bom( $fh, 'report_' . $type ); /* 6.0.5 */
 			fputcsv( $fh, $keys, ',', '"', '\\' );
 			fclose( $fh );
 
@@ -2659,24 +2685,24 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						$labels2[] = date( 'h:00 l', strtotime( '+' . $i . ' hour', strtotime( $start_date2 ) ) );
 
 					}else if( $range == 'daily' ){
-						$labels[] = ( $i % 2 ) ? date( 'M d', strtotime( '+' . $i . ' day', strtotime( $start_date ) ) ) : '';
-						$labels1[] = date( 'M d', strtotime( '+' . $i . ' day', strtotime( $start_date ) ) );
-						$labels2[] = date( 'M d', strtotime( '+' . $i . ' day', strtotime( $start_date2 ) ) );
+						$labels[] = ( $i % 2 ) ? wp_easycart_admin_date( strtotime( '+' . $i . ' day', strtotime( $start_date ) ), 'day' ) : '';
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' day', strtotime( $start_date ) ), 'day' );
+						$labels2[] = wp_easycart_admin_date( strtotime( '+' . $i . ' day', strtotime( $start_date2 ) ), 'day' );
 
 					}else if( $range == 'weekly' ){
-						$labels[] = date( 'M d, Y', strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ) );
-						$labels2[] = date( 'M d, Y', strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date2 ) ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ), 'date' );
+						$labels2[] = wp_easycart_admin_date( strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date2 ) ) ), 'date' );
 
 					}else if( $range == 'monthly' ){
-						$labels[] = date( 'M d, Y', strtotime( '+' . $i . ' month', strtotime( $start_date ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( '+' . $i . ' month', strtotime( $start_date ) ) );
-						$labels2[] = date( 'M d, Y', strtotime( '+' . $i . ' month', strtotime( $start_date2 ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( '+' . $i . ' month', strtotime( $start_date ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' month', strtotime( $start_date ) ), 'date' );
+						$labels2[] = wp_easycart_admin_date( strtotime( '+' . $i . ' month', strtotime( $start_date2 ) ), 'date' );
 
 					}else if( $range == 'yearly' ){
-						$labels[] = date( 'M d, Y', strtotime( '+' . $i . ' year', strtotime( $start_date ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( '+' . $i . ' year', strtotime( $start_date ) ) );
-						$labels2[] = date( 'M d, Y', strtotime( '+' . $i . ' year', strtotime( $start_date2 ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( '+' . $i . ' year', strtotime( $start_date ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' year', strtotime( $start_date ) ), 'date' );
+						$labels2[] = wp_easycart_admin_date( strtotime( '+' . $i . ' year', strtotime( $start_date2 ) ), 'date' );
 
 					}
 				}
@@ -2685,7 +2711,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'labels'	=> $labels,
 					'datasets'	=> array( 
 						(object) array(
-							'label'	=> $chart_label . " " . date( 'M, d', strtotime( $start_date ) ) . ' - ' . date( 'M, d Y', strtotime( $end_date ) ),
+							'label'	=> $chart_label . " " . wp_easycart_admin_date( strtotime( $start_date ), 'day' ) . ' - ' . wp_easycart_admin_date( strtotime( $end_date ), 'date' ),
 							'backgroundColor' => $this->hex2rgba( get_option( 'ec_option_admin_color' ), .15 ),
 							'borderColor'   => $this->hex2rgba( get_option( 'ec_option_admin_color' ), .8 ),
 							'borderWidth'	=> 1,
@@ -2693,7 +2719,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 							'datalabels' => $labels1
 						),
 						(object) array(
-							'label'	=> $chart_label . " " . date( 'M, d', strtotime( $start_date2 ) ) . ' - ' . date( 'M, d Y', strtotime( $end_date2 ) ),
+							'label'	=> $chart_label . " " . wp_easycart_admin_date( strtotime( $start_date2 ), 'day' ) . ' - ' . wp_easycart_admin_date( strtotime( $end_date2 ), 'date' ),
 							'backgroundColor' => 'rgba( 0, 0, 0, .05 )',
 							'borderColor'   => 'rgba( 0, 0, 0, .2 )',
 							'borderWidth'	=> 1,
@@ -2718,20 +2744,20 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						$labels1[] = date( 'h:00 l', strtotime( '+' . $i . ' hour', strtotime( $start_date ) ) );
 
 					}else if( $range == 'daily' ){
-						$labels[] = ( $i % 2 ) ? date( 'M d', strtotime( '+' . $i . ' day', strtotime( $start_date ) ) ) : '';
-						$labels1[] = date( 'M d', strtotime( '+' . $i . ' day', strtotime( $start_date ) ) );
+						$labels[] = ( $i % 2 ) ? wp_easycart_admin_date( strtotime( '+' . $i . ' day', strtotime( $start_date ) ), 'day' ) : '';
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' day', strtotime( $start_date ) ), 'day' );
 
 					}else if( $range == 'weekly' ){
-						$labels[] = date( 'M d, Y', strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( 'sunday last week', strtotime( '+' . ($i*7) . ' day', strtotime( $start_date ) ) ), 'date' );
 
 					}else if( $range == 'monthly' ){
-						$labels[] = date( 'M d, Y', strtotime( '+' . $i . ' month', strtotime( $start_date ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( '+' . $i . ' month', strtotime( $start_date ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( '+' . $i . ' month', strtotime( $start_date ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' month', strtotime( $start_date ) ), 'date' );
 
 					}else if( $range == 'yearly' ){
-						$labels[] = date( 'M d, Y', strtotime( '+' . $i . ' year', strtotime( $start_date ) ) );
-						$labels1[] = date( 'M d, Y', strtotime( '+' . $i . ' year', strtotime( $start_date ) ) );
+						$labels[] = wp_easycart_admin_date( strtotime( '+' . $i . ' year', strtotime( $start_date ) ), 'date' );
+						$labels1[] = wp_easycart_admin_date( strtotime( '+' . $i . ' year', strtotime( $start_date ) ), 'date' );
 
 					}
 				}
@@ -2740,7 +2766,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'labels'	=> $labels,
 					'datasets'	=> array( 
 						(object) array(
-							'label'	=> $chart_label . " " . date( 'M, d', strtotime( $start_date ) ) . ' - ' . date( 'M, d', strtotime( $end_date ) ),
+							'label'	=> $chart_label . " " . wp_easycart_admin_date( strtotime( $start_date ), 'day' ) . ' - ' . wp_easycart_admin_date( strtotime( $end_date ), 'day' ),
 							'backgroundColor' => $this->hex2rgba( get_option( 'ec_option_admin_color' ), .15 ),
 							'borderColor'   => $this->hex2rgba( get_option( 'ec_option_admin_color' ), .8 ),
 							'borderWidth'	=> 1,
@@ -2780,35 +2806,25 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			if( function_exists( 'wp_easycart_admin_license' ) ){
 				$license = wp_easycart_admin_license( )->license_check();
-				$license_data = wp_easycart_admin_license( )->license_data;
+				if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+					wp_easycart_admin_edition::reset();
+				}
+				/* 6.0.5 ( admin review M13 ): this site's license only ( wp_easycart_admin_edition ). */
+				$license_data = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_data() : wp_easycart_admin_license( )->license_data;
 				$license_info = get_option( 'wp_easycart_license_info' );
 			}
+			$license_badge = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_badge() : null;
 
-			if( function_exists( 'wp_easycart_admin_license' ) && ( !wp_easycart_admin_license( )->active_license || $license_data->is_trial ) ){
+			if( function_exists( 'wp_easycart_admin_license' ) && ( !wp_easycart_admin_license( )->active_license || ( $license_data && ! empty( $license_data->is_trial ) ) || $license_badge ) ){
 				$registration_count = 1;
 				$registration_label = sprintf( __( 'Registration %s', 'wp-easycart' ), "<span class='update-plugins count-$registration_count' title='" . __( 'License', 'wp-easycart' ) . "'><span class='update-count'>" . number_format_i18n($registration_count) . "</span></span>" );
-				$license_label = sprintf( __( 'Store Status %s', 'wp-easycart' ), "<span class='update-plugins count-$registration_count' title='" . __( 'License', 'wp-easycart' ) . "'><span class='update-count'>" . number_format_i18n($registration_count) . "</span></span>" );
 			} else {
 				$registration_count = 0;
 				$registration_label = sprintf( __( 'Registration %s', 'wp-easycart' ), "<span class='update-plugins count-$registration_count' title='" . __( 'License', 'wp-easycart' ) . "'><span class='update-count'>" . number_format_i18n($registration_count) . "</span></span>" );
-
-				if( function_exists( 'wp_easycart_admin_license' ) ){
-					$test_now = time( );
-					$test_expiration = strtotime( $license_data->support_end_date );
-					$test_diff = $test_expiration - $test_now;
-					$days_left = round( $test_diff / ( 60 * 60 * 24 ) );
-					$days_left = ( $days_left < 0 ) ? 0 : $days_left; // No Negative
-					/* 6.0.4: a license on AutoPay renews itself; only a missed payment ( past its date ) needs the badge. */
-					$auto_renew = ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_auto_renew() );
-					if( $days_left < 70 && ! ( $auto_renew && $days_left > 0 ) ){
-						$license_label = sprintf( __( 'Store Status %s', 'wp-easycart' ), "<span class='update-plugins count-1' title='" . __( 'License', 'wp-easycart' ) . "'><span class='update-count'>" . number_format_i18n(1) . "</span></span>" );
-					}else{
-						$license_label = __( 'Store Status', 'wp-easycart' );
-					}
-				}else{
-					$license_label = __( 'Store Status', 'wp-easycart' );
-				}
 			}
+			/* 6.0.5 ( admin review M13 ): the license count is on Registration ( above, from the same answer as the EasyCart menu's
+			   badge ); Store Status carries none. */
+			$license_label = __( 'Store Status', 'wp-easycart' );
 
 			//new unread order notification
 			$orders_count = $this->new_unviewed_orders;
@@ -2913,10 +2929,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 
 			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_reports' ) ) && function_exists( 'wp_easycart_admin_license' ) ) {
+				$license_view = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_view() : null;
 				if( isset( $license_data->is_trial ) && $license_data->is_trial ){
 					$this->add_license_menu_item( 'wp-easycart-license-manage-trial', __( 'Upgrade to Premium', 'wp-easycart' ), '#c0fc14' );
 
-				}else if( isset( $license_data->support_end_date ) && time( ) > strtotime( $license_data->support_end_date ) ){ // Expired
+				}else if( isset( $license_data->support_end_date ) && ( $license_view ? $license_view['lapsed'] : time( ) > strtotime( $license_data->support_end_date ) ) ){ // Expired
 					$this->add_license_menu_item( 'wp-easycart-license-renew', __( 'RENEW LICENSE', 'wp-easycart' ), '#ffa800' );
 
 				}else if( isset( $license_data->support_end_date ) && $license_data->model_number == 'ec400' ){ // Pro User
@@ -3070,34 +3087,28 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		/**
-		 * Where a license menu item goes: the pricing page, the trial's upgrade, the renewal of the store's own license, or the
-		 * Pro-to-Premium upgrade; '' for any other page. A lapsed Premium license ( ec410 ) renews Premium and any other license
-		 * renews Pro, as the Registration page says ( 6.0.3: the menu tested for ec400, so other Pro codes were sent to Premium ).
+		 * Where a license menu item goes: the pricing page, the trial's upgrade, the renewal of the store's own license, or its
+		 * Premium upgrade; '' for any other page. 6.0.5: a renewal or a Pro license's upgrade goes to the WP EasyCart account and a
+		 * trial to the pricing page ( wp_easycart_admin_edition::renew_url() / trial_url() / premium_url() ): the one-time
+		 * renewal, trial upgrade and Pro-to-Premium products are retired with the AutoPay plans.
 		 *
 		 * @since 6.0.3
 		 * @param string $slug Page slug.
 		 * @return string
 		 */
 		public function license_menu_url( $slug ) {
-			$license_info = get_option( 'wp_easycart_license_info' );
-			$key          = ( is_array( $license_info ) && isset( $license_info['transaction_key'] ) ) ? (string) $license_info['transaction_key'] : '';
-			$keyed        = ( '' !== $key ) ? '?transaction_key=' . rawurlencode( $key ) : '';
+			$edition = class_exists( 'wp_easycart_admin_edition' );
 			if ( 'wp-easycart-premium' === $slug ) {
 				return 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 			}
 			if ( 'wp-easycart-license-manage-trial' === $slug ) {
-				return 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=Premium';
-			}
-			if ( 'wp-easycart-license-renew' === $slug && class_exists( 'wp_easycart_admin_edition' ) ) {
-				return wp_easycart_admin_edition::renew_url(); /* 6.0.4: Premium and Elite AutoPay keys, and the account for AutoPay */
+				return $edition ? wp_easycart_admin_edition::trial_url( 'premium' ) : 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 			}
 			if ( 'wp-easycart-license-renew' === $slug ) {
-				$license_data = function_exists( 'wp_easycart_admin_license' ) ? wp_easycart_admin_license()->license_data : null;
-				$model        = ( is_object( $license_data ) && isset( $license_data->model_number ) ) ? strtolower( trim( (string) $license_data->model_number ) ) : '';
-				return 'https://www.wpeasycart.com/products/' . ( 'ec410' === $model ? 'wp-easycart-premium-support-extensions/' : 'wp-easycart-professional-support-upgrades/' ) . $keyed;
+				return $edition ? wp_easycart_admin_edition::renew_url() : 'https://www.wpeasycart.com/my-account/';
 			}
-			if ( 'wp-easycart-license-upgrade' === $slug && class_exists( 'wp_easycart_admin_edition' ) ) {
-				/* 6.0.2: a licensed Pro store upgrades at the Pro discount ( wp_easycart_admin_edition::premium_offer() ). */
+			if ( 'wp-easycart-license-upgrade' === $slug && $edition ) {
+				/* 6.0.2: the store's own Premium offer ( wp_easycart_admin_edition::premium_offer() ). */
 				return wp_easycart_admin_edition::premium_url();
 			}
 			return '';
@@ -3241,12 +3252,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$ecst_subpage = ''; // Until the wizard is finished, Initial Setup still means the wizard.
 				$ecst_owner   = '';
 			}
-			if ( class_exists( 'wp_easycart_admin_settings_page_v2' ) && wp_easycart_admin_settings_page_v2::is_classic_settings_screen() ) {
-				// Classic settings pages keep their own header; the settings-wide search sits just above it.
-				echo '<div class="ecv2-wrap ecst-wrap ecst-global-search">';
-				wp_easycart_admin_settings_page_v2::print_search( 'compact', $ecst_subpage );
-				echo '</div>';
-			}
+			/* 6.0.5: classic settings pages no longer print a settings search above their header: the header's search box
+			   ( wp_easycart_admin_search ) finds every setting. */
 			if ( 'home' === $ecst_subpage && class_exists( 'wp_easycart_admin_settings_home' ) ) {
 				wp_easycart_admin_settings_home::render();
 			} else if ( '' !== $ecst_subpage && class_exists( 'wp_easycart_admin_settings_registry' ) && wp_easycart_admin_settings_registry::has( $ecst_subpage ) ) {
@@ -3340,6 +3347,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_easycart_admin_user_role( )->load_user_role_list( );
 			}else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "subscribers" ){
 				wp_easycart_admin_subscribers( )->load_subscriber_list( );
+			}else if( isset( $_GET['subpage'] ) && 'limit-access' === $_GET['subpage'] && class_exists( 'wp_easycart_admin_page_access' ) ){
+				wp_easycart_admin_page_access::print_screen(); /* 6.0.5: Users › Limit Access */
 			}else{
 				wp_easycart_admin_users( )->load_users_list( );
 			}
@@ -3435,11 +3444,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return __( 'WP EasyCart Downloads', 'wp-easycart' );
 
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "accounts" ) ) {
-				return __( 'WP EasyCart User Accounts', 'wp-easycart' );
+				return __( 'WP EasyCart Customers', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "user-roles" ) {
 				return __( 'WP EasyCart User Roles', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "subscribers" ) {
 				return __( 'WP EasyCart Subscribers', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "limit-access" ) {
+				return __( 'WP EasyCart Limit Access', 'wp-easycart' );
 
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "offers" ) ) {
 				return __( 'WP EasyCart Offers', 'wp-easycart' );
@@ -3636,6 +3647,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				if( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-dashboard' ){
 					wp_register_script( 'wp_easycart_moment_js', plugins_url( 'wp-easycart/admin/js/moment.min.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_moment_js' );
+					/* 6.0.5: WordPress's month and weekday names and first day of the week, as WordPress's own moment has. */
+					if ( class_exists( 'wp_easycart_dates' ) && '' !== wp_easycart_dates::moment_locale_script() ) {
+						wp_add_inline_script( 'wp_easycart_moment_js', wp_easycart_dates::moment_locale_script() );
+					}
 
 					wp_register_script( 'wp_easycart_charts_js', plugins_url( 'wp-easycart/admin/js/Chart.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_charts_js' );
@@ -3841,7 +3856,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						'lossy_media_confirm' => sprintf( __( 'Saving will remove %1$s from this product and keep only the first two images. This cannot be undone without %2$s. Save anyway?', 'wp-easycart' ), '%s', ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
 					) );
 
-					wp_add_inline_script( 'wp-easycart-products-details-v2', 'window.wpeasycart_ecdv2_currency = ' . wp_json_encode( get_option( 'ec_option_currency_symbol', '$' ) ) . ';', 'before' );
+					wp_add_inline_script( 'wp-easycart-products-details-v2', 'window.wpeasycart_ecdv2_currency = ' . wp_json_encode( wp_easycart_admin_money_format() ) . ';', 'before' );
 
 					// Unified Create / Quick Edit product slideout.
 					wp_register_style( 'wp_easycart_product_slideout_v2_css', plugins_url( 'wp-easycart/admin/css/product-slideout-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
@@ -3850,7 +3865,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					wp_enqueue_script( 'wp_easycart_product_slideout_v2_js' );
 					$this->enqueue_option_set_slideout_assets();
 					wp_localize_script( 'wp_easycart_product_slideout_v2_js', 'ecpsv2_vars', array(
-						'currency'     => get_option( 'ec_option_currency_symbol', '$' ),
+						'currency'     => wp_easycart_admin_money_format()['symbol'],
+						'money'        => wp_easycart_admin_money_format(),
+						'weight_unit'  => wp_easycart_admin_weight_unit(),
 						'decimals'     => (int) $GLOBALS['currency']->get_decimal_length(),
 						'is_pro'       => ( '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) ),
 						'variants_pro' => ( function_exists( 'ecv2_is_variant_tracking_enabled' ) && ecv2_is_variant_tracking_enabled() ),
@@ -3934,9 +3951,18 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					array(
 						'sections' => __( 'Sections', 'wp-easycart' ),
 						'close'    => __( 'Close', 'wp-easycart' ),
+						/* translators: %s: a row's name, e.g. an order number or a product title. */
+						'select_row' => __( 'Select %s', 'wp-easycart' ),
+						'select'     => __( 'Select this row', 'wp-easycart' ),
 					)
 				);
 				wp_enqueue_script( 'wp_easycart_shell_v2_js' );
+				/* 6.0.5: the one admin search ( header box, ⌘K / Ctrl K, "/" ): wp_easycart_admin_search. */
+				if ( class_exists( 'wp_easycart_admin_search' ) && wp_easycart_admin_search::can_search() ) {
+					wp_enqueue_style( 'wp_easycart_admin_search_v2_css', plugins_url( 'wp-easycart/admin/css/admin-search-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_shell_v2_css' ), EC_CURRENT_VERSION );
+					wp_enqueue_script( 'wp_easycart_admin_search_v2_js', plugins_url( 'wp-easycart/admin/js/admin-search-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+					wp_localize_script( 'wp_easycart_admin_search_v2_js', 'wpEasyCartSearch', wp_easycart_admin_search::config() );
+				}
 				/* 6.0.2: the V2 lists' Columns chooser ( wp_easycart_admin_table_v2::print_columns_control() ). Its styles are in admin-v2.css. */
 				wp_register_script( 'wp_easycart_list_columns_v2_js', plugins_url( 'wp-easycart/admin/js/list-columns-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
 				wp_enqueue_script( 'wp_easycart_list_columns_v2_js' );
@@ -3993,6 +4019,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			// V2 Product List JS.
 			wp_register_script( 'wp_easycart_admin_product_v2_js', plugins_url( 'wp-easycart/admin/js/products-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
 			wp_enqueue_script( 'wp_easycart_admin_product_v2_js' );
+			if ( class_exists( 'wp_easycart_admin_js_text' ) ) {
+				wp_easycart_admin_js_text::attach( 'wp_easycart_admin_product_v2_js', 'products' ); /* 6.0.5: its words ( admin review M17 ) */
+			}
 
 			// V2 Nonces
 			wp_localize_script( 'wp_easycart_admin_product_v2_js', 'ecv2_nonces', array(
@@ -4222,6 +4251,40 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			$ec_admin_page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
 			return ( 0 === strpos( $ec_admin_page, 'wp-easycart' ) || 'ec_adminv2' == $ec_admin_page );
+		}
+
+		/**
+		 * Whether WordPress's menu is folded to icons on this EasyCart screen ( 6.0.5, admin review M12: two menus took about 400px
+		 * at 1440px ). Each person's choice is kept in WordPress's own user setting wpecmfold ( f folded, the default, or o open ),
+		 * set when they use WordPress's Collapse button on an EasyCart screen ( admin-frame-v2.js ); the rest of wp-admin keeps its
+		 * own setting. Filter wp_easycart_admin_fold_wp_menu.
+		 *
+		 * @return bool|null null off EasyCart screens
+		 */
+		public function wp_menu_folded() {
+			if ( ! $this->is_easycart_admin_page() ) {
+				return null;
+			}
+			$choice = function_exists( 'get_user_setting' ) ? (string) get_user_setting( 'wpecmfold', 'f' ) : 'f';
+			return (bool) apply_filters( 'wp_easycart_admin_fold_wp_menu', 'o' !== $choice );
+		}
+
+		/** admin_body_class: folded ( WordPress's own folded menu ) on EasyCart screens unless the person opened it there. */
+		public function wp_menu_body_class( $classes ) {
+			$folded = $this->wp_menu_folded();
+			if ( true === $folded ) {
+				$classes .= ' folded wpec-wp-menu-folded';
+			} elseif ( false === $folded ) {
+				$classes .= ' wpec-wp-menu-open';
+			}
+			return $classes;
+		}
+
+		/** WordPress adds folded itself for a person who folds it everywhere: on EasyCart screens their open choice wins. */
+		public function wp_menu_open_script() {
+			if ( false === $this->wp_menu_folded() && function_exists( 'get_user_setting' ) && 'f' === get_user_setting( 'mfold' ) ) {
+				echo '<script>document.body.classList.remove( "folded" );</script>';
+			}
 		}
 
 		/** Fired at priority 5 on wp_easycart_admin_messages (see admin-frame.php). */
@@ -4458,6 +4521,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						$item_tone = $tone;
 					}
 					if ( '' !== trim( $text ) ) {
+						/* 6.0.5: a result of what the person just did always shows ( never folded under Notices ). */
+						$args['class'] = trim( ( isset( $args['class'] ) ? (string) $args['class'] : '' ) . ' ecsh-result' );
 						echo self::notice_html( $item_tone, $text, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
 					}
 				}
@@ -4562,7 +4627,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$lead  = __( 'When it does:', 'wp-easycart' );
 			} else {
 				$title = sprintf( __( 'Support & updates end in %1$d days ( %2$s ).', 'wp-easycart' ), $r['days'], $r['end_fmt'] );
-				$lead  = __( 'Renewing now adds a full year on top — nothing is lost by renewing early. If it lapses:', 'wp-easycart' );
+				/* 6.0.5: a key bought before AutoPay renews by turning AutoPay on in the WP EasyCart account ( the one-time renewal is retired ). */
+				$lead  = __( 'Turn on AutoPay in your WP EasyCart account and your license renews by itself. If it lapses:', 'wp-easycart' );
 			}
 			echo '<div class="ecv2-renewal-notice is-' . esc_attr( $r['tone'] ) . ( 'lapsed' !== $r['tone'] ? ' has-stakes' : '' ) . '" id="ecv2_renewal_notice">';
 			echo '<span class="ecv2-renewal-icon"><span class="dashicons ' . ( 'lapsed' === $r['tone'] ? 'dashicons-lock' : 'dashicons-clock' ) . '"></span></span>';
@@ -4694,9 +4760,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			wp_register_script( 'wp_easycart_option_set_slideout_v2_js', plugins_url( 'wp-easycart/admin/js/option-set-slideout-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable', 'wp_easycart_admin_js' ), EC_CURRENT_VERSION, true );
 			wp_enqueue_script( 'wp_easycart_option_set_slideout_v2_js' );
 			wp_localize_script( 'wp_easycart_option_set_slideout_v2_js', 'ecosv2_vars', array(
-				'currency'            => get_option( 'ec_option_currency_symbol', '$' ),
+				'currency'            => wp_easycart_admin_money_format()['symbol'],
+				'money'               => wp_easycart_admin_money_format(),
 				'decimals'            => (int) $GLOBALS['currency']->get_decimal_length(),
-				'weight_unit'         => get_option( 'ec_option_weight_unit', 'lb' ),
+				'weight_unit'         => wp_easycart_admin_weight_unit(),
 				'reload_after_create' => ( isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'option', 'optionitems' ), true ) ),
 				/* Option Sets screens: after "Create option set" go straight to the full editor for the new set. */
 				'edit_after_create'   => ( isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'option', 'optionitems' ), true ) ), // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput -- read-only page check against a fixed list.
@@ -4710,6 +4777,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'label_custom'    => __( 'Custom label.', 'wp-easycart' ),
 					/* translators: %1 = product title, %2 = slot number. */
 					'sub_product'     => __( 'It will be added to <strong>%1</strong> as slot %2. Reusable on any other product too.', 'wp-easycart' ),
+					/* translators: %1 = product title. */
+					'sub_product_mod' => __( 'It will be added to <strong>%1</strong> as a modifier. Reusable on any other product too.', 'wp-easycart' ),
+					'modifier'        => __( 'Modifier', 'wp-easycart' ),
 					'this_product'    => __( 'this product', 'wp-easycart' ),
 					'choice_name'     => __( 'Choice name', 'wp-easycart' ),
 					'one_choice'      => __( '1 choice', 'wp-easycart' ),
@@ -5923,6 +5993,124 @@ if ( ! function_exists( 'wp_easycart_admin_notice_html' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_admin_csv_bom' ) ) {
+	/**
+	 * Starts a CSV file with the UTF-8 byte order mark. Excel reads a CSV without it as Windows-1252, so every character
+	 * outside plain English came out garbled ( an en dash "–" as "â€“", a customer's report on the products export ). Every
+	 * WP EasyCart importer skips the mark ( products, the import preview, inventory, subscribers ).
+	 *
+	 * @since 6.0.5
+	 * @param resource $handle The open CSV stream or file, before its first row.
+	 * @param string   $export Which export: products, orders, accounts, inventory, subscribers, report_order, report_tax.
+	 */
+	function wp_easycart_admin_csv_bom( $handle, $export ) {
+		/**
+		 * Whether a CSV export starts with the UTF-8 byte order mark.
+		 *
+		 * @since 6.0.5
+		 * @param bool   $bom    Write the mark ( true ).
+		 * @param string $export Which export.
+		 */
+		if ( $handle && apply_filters( 'wp_easycart_csv_export_bom', true, $export ) ) {
+			fwrite( $handle, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- the export's own stream.
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_money_format' ) ) {
+	/**
+	 * How the store writes an amount, for admin scripts that format prices in the browser ( the product drawers, the option
+	 * set drawer, the product editor, WP EasyCart PRO's offer builder ). The keys cover both readers: products-details-v2.js
+	 * ( symbol, decimals, dec, thou, left ) and orders-details-v2.js ( symbol, before, negBefore, decimals, dec, group, code ).
+	 * 6.0.5: the drawers read ec_option_currency_symbol, which nothing saves, so every store saw "$" and a point.
+	 *
+	 * @since 6.0.5
+	 * @return array
+	 */
+	function wp_easycart_admin_money_format() {
+		$symbol   = '$';
+		$before   = true;
+		$neg      = true;
+		$decimals = 2;
+		$dec      = '.';
+		$group    = ',';
+		$code     = '';
+		$space    = false;
+		if ( class_exists( 'ec_currency' ) && isset( ec_currency::$static_symbol ) ) {
+			$space    = ! empty( ec_currency::$static_symbol_space );
+			$symbol   = (string) ec_currency::$static_symbol;
+			$before   = (bool) ec_currency::$static_symbol_location;
+			$neg      = (bool) ec_currency::$static_negative_location;
+			$decimals = max( 0, (int) ec_currency::$static_decimal_length );
+			$dec      = (string) ec_currency::$static_decimal_symbol;
+			$group    = (string) ec_currency::$static_grouping_symbol;
+			$code     = ec_currency::$static_show_currency_code ? (string) ec_currency::$static_currency_code : '';
+		} elseif ( function_exists( 'get_option' ) && '' !== (string) get_option( 'ec_option_currency', '' ) ) {
+			$symbol = html_entity_decode( (string) get_option( 'ec_option_currency' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ); /* 6.0.5 ( FREE #333 ) */
+		}
+		$format = array(
+			'symbol'    => $symbol,
+			'before'    => $before ? 1 : 0,
+			'left'      => $before,
+			'negBefore' => $neg ? 1 : 0,
+			'decimals'  => $decimals,
+			'dec'       => '' === $dec ? '.' : $dec,
+			'group'     => $group,
+			'thou'      => $group,
+			'code'      => $code,
+			'space'     => $space ? 1 : 0, /* 6.0.5: a non-breaking space between the symbol and the amount */
+		);
+		/**
+		 * The store's amount format as admin scripts receive it.
+		 *
+		 * @since 6.0.5
+		 * @param array $format symbol, before, left, negBefore, decimals, dec, group, thou, code, space.
+		 */
+		return apply_filters( 'wp_easycart_admin_money_format', $format );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_weight_unit' ) ) {
+	/**
+	 * The unit product weights are entered in, as the admin labels it: 'lb', 'kg', 'oz' or 'g' ( wp_easycart_packages::units(), which
+	 * reads ec_option_paypal_weight_unit ). 6.0.5: the option set drawer read ec_option_weight_unit, which nothing saves.
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	function wp_easycart_admin_weight_unit() {
+		if ( class_exists( 'wp_easycart_packages' ) ) {
+			$units = wp_easycart_packages::units();
+			return isset( $units['weight'] ) ? (string) $units['weight'] : 'lb';
+		}
+		$unit = function_exists( 'get_option' ) ? (string) get_option( 'ec_option_paypal_weight_unit' ) : '';
+		return ( 'kgs' === $unit || 'kg' === $unit ) ? 'kg' : 'lb';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_money_text' ) ) {
+	/**
+	 * An amount written the store's way, as plain text ( for hints, labels and placeholders: "€0,00 price", "e.g. 90 € – 99 €" ).
+	 *
+	 * @since 6.0.5
+	 * @param float $amount   Amount.
+	 * @param int   $decimals Decimals ( null = the store's ).
+	 * @return string
+	 */
+	function wp_easycart_admin_money_text( $amount, $decimals = null ) {
+		if ( class_exists( 'ec_currency' ) && isset( ec_currency::$static_symbol ) && null !== ec_currency::$static_decimal_length ) {
+			$keep = ec_currency::$static_decimal_length;
+			if ( null !== $decimals ) {
+				ec_currency::$static_decimal_length = (int) $decimals;
+			}
+			$text = (string) ec_currency::get_currency_display( (float) $amount, false );
+			ec_currency::$static_decimal_length = $keep;
+			return html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
+		}
+		return '$' . number_format( (float) $amount, null === $decimals ? 2 : (int) $decimals );
+	}
+}
+
 add_action( 'wp_ajax_ec_admin_ajax_allow_tracking', 'ec_admin_ajax_allow_tracking' );
 function ec_admin_ajax_allow_tracking() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-tracking' ) ) {
@@ -6089,5 +6277,5 @@ function wp_easycart_ecv2_save_order_date() {
 	$storage_ts = $local_ts - $date_diff;
 	$wpdb->update( 'ec_order', array( 'order_date' => date( 'Y-m-d H:i:s', $storage_ts ) ), array( 'order_id' => $order_id ), array( '%s' ), array( '%d' ) );
 	do_action( 'wp_easycart_admin_order_date_updated', $order_id, $storage_ts );
-	wp_send_json_success( array( 'display' => date( 'M j Y ' . get_option( 'time_format' ), $local_ts ) ) );
+	wp_send_json_success( array( 'display' => wp_easycart_admin_date( $local_ts, 'date_time' ) ) );
 }

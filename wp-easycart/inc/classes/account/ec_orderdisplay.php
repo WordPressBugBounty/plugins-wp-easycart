@@ -2,6 +2,8 @@
 class ec_orderdisplay {
 	protected $mysqli;							// ec_db structure
 
+	/** 6.0.5: the currency the order was placed in ( JSON, wp_easycart_order_currency ). */
+	public $currency_format = '';
 	public $order_id; 							// INT
 	public $order_date; 						// TIMESTAMP
 	public $orderstatus_id;						// INT
@@ -117,7 +119,8 @@ class ec_orderdisplay {
 		$this->mysqli = new ec_db( );
 		$this->user =& $GLOBALS['ec_user'];
 		if ( $order_row ) {
-			$this->order_id = $order_row->order_id; 
+			$this->order_id = $order_row->order_id;
+			$this->currency_format = isset( $order_row->currency_format ) ? (string) $order_row->currency_format : ''; /* 6.0.5 */
 			$this->order_date = $order_row->order_date; 
 			$this->orderstatus_id = $order_row->orderstatus_id;
 			$this->order_status = $order_row->order_status; 
@@ -334,19 +337,19 @@ class ec_orderdisplay {
 			}
 		}
 		$sub_total = apply_filters( 'wp_easycart_order_display_sub_total', $sub_total, $this->sub_total, $this->orderdetails );
-		echo esc_attr( $this->currency->get_currency_display( $sub_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $sub_total ) );
 	}
 
 	public function display_tip_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->tip_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->tip_total ) );
 	}
 
 	public function display_shipping_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->shipping_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->shipping_total ) );
 	}
 
 	public function display_tax_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->tax_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->tax_total ) );
 	}
 
 	public function has_duty( ){
@@ -357,7 +360,7 @@ class ec_orderdisplay {
 	}
 
 	public function display_duty_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->duty_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->duty_total ) );
 	}
 
 	public function has_vat( ){
@@ -368,19 +371,19 @@ class ec_orderdisplay {
 	}
 
 	public function display_vat_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->vat_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->vat_total ) );
 	}
 
 	public function display_gst_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->gst_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->gst_total ) );
 	}
 
 	public function display_pst_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->pst_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->pst_total ) );
 	}
 
 	public function display_hst_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->hst_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->hst_total ) );
 	}
 
 	public function has_refund( ){
@@ -391,15 +394,15 @@ class ec_orderdisplay {
 	}
 
 	public function display_refund_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->refund_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->refund_total ) );
 	}
 
 	public function display_discount_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->discount_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->discount_total ) );
 	}
 
 	public function display_grand_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->grand_total ) );
+		echo esc_attr( wp_easycart_order_currency::money( $this, $this->grand_total ) );
 	}
 
 	public function display_order_date( $date_format = "" ){
@@ -454,11 +457,22 @@ class ec_orderdisplay {
 	}
 
 	public function display_order_promocode( ){
-		$output_value = $this->promo_code;
-		if ( get_option( 'ec_option_show_coupon_message' ) && '' != $this->promo_code_message ) {
-			$output_value = $this->promo_code_message;
+		echo esc_attr( $this->promocode_text( 'account' ) );
+	}
+
+	/**
+	 * The order's coupon as a customer-facing page prints it: the code, or the coupon's message ( "Show the coupon's message
+	 * instead of its code" ), and with discount codes hidden ( 6.0.5 ) the message, else ''.
+	 *
+	 * @since 6.0.5
+	 * @param string $context Where it prints ( see wp_easycart_order_discounts::show_codes() ).
+	 * @return string
+	 */
+	public function promocode_text( $context = 'account' ) {
+		if ( class_exists( 'wp_easycart_order_discounts' ) && method_exists( 'wp_easycart_order_discounts', 'coupon_text' ) ) {
+			return wp_easycart_order_discounts::coupon_text( $this->promo_code, $this->promo_code_message, $context );
 		}
-		echo esc_attr( $output_value );
+		return ( get_option( 'ec_option_show_coupon_message' ) && '' != $this->promo_code_message ) ? (string) $this->promo_code_message : (string) $this->promo_code; // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- string from the database.
 	}
 
 	public function display_order_giftcard( ){
@@ -767,13 +781,15 @@ class ec_orderdisplay {
 		if ( null === $document_fields && class_exists( 'wp_easycart_documents' ) ) {
 			$document_fields = wp_easycart_documents::resolve( 'receipt', '', array(), (int) $this->order_id ); /* 6.0.2: a document rule or the gift profile may pick it */
 		}
-		ob_start();
+		ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php' ) ) {
 			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php';
 		} else {
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_receipt.php';
 		}
-		return (string) ob_get_clean();
+		$html = (string) ob_get_clean();
+		wp_easycart_order_currency::pop();
+		return $html;
 	}
 
 	/**
@@ -784,14 +800,14 @@ class ec_orderdisplay {
 	 */
 	private function receipt_template_vars() {
 		$tax_struct = new ec_tax( 0,0,0, "", "");
-		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
-		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
-		$tip = $GLOBALS['currency']->get_currency_display( $this->tip_total );
-		$tax = $GLOBALS['currency']->get_currency_display( $this->tax_total );
+		$total = wp_easycart_order_currency::money( $this, $this->grand_total );
+		$subtotal = wp_easycart_order_currency::money( $this, $this->sub_total );
+		$tip = wp_easycart_order_currency::money( $this, $this->tip_total );
+		$tax = wp_easycart_order_currency::money( $this, $this->tax_total );
 		$has_duty = ( $this->duty_total > 0 );
-		$duty = $GLOBALS['currency']->get_currency_display( $this->duty_total );
-		$vat = $GLOBALS['currency']->get_currency_display( $this->vat_total );
-		$shipping = $GLOBALS['currency']->get_currency_display( $this->shipping_total );
+		$duty = wp_easycart_order_currency::money( $this, $this->duty_total );
+		$vat = wp_easycart_order_currency::money( $this, $this->vat_total );
+		$shipping = wp_easycart_order_currency::money( $this, $this->shipping_total );
 		if ( $this->vat_rate > 0 ) {
 			$vat_rate_formatted = $vat_rate = $this->vat_rate;
 		} else if ( ( $this->grand_total - $this->vat_total ) > 0 ) {
@@ -835,8 +851,8 @@ class ec_orderdisplay {
 			'pst_rate'          => $this->pst_rate,
 			'hst'               => $this->hst_total,
 			'hst_rate'          => $this->hst_rate,
-			'discount'          => $GLOBALS['currency']->get_currency_display( $this->discount_total ),
-			'refund'            => $GLOBALS['currency']->get_currency_display( $this->refund_total ),
+			'discount'          => wp_easycart_order_currency::money( $this, $this->discount_total ),
+			'refund'            => wp_easycart_order_currency::money( $this, $this->refund_total ),
 			'email_logo_url'    => get_option( 'ec_option_email_logo' ),
 			'store_page'        => $store_page,
 			'permalink_divider' => substr_count( (string) $store_page, '?' ) ? '&' : '?',
@@ -1017,14 +1033,14 @@ class ec_orderdisplay {
 		}
 
 		$tax_struct = new ec_tax( 0,0,0, "", "");
-		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
-		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
-		$tip = $GLOBALS['currency']->get_currency_display( $this->tip_total );
-		$tax = $GLOBALS['currency']->get_currency_display( $this->tax_total );
+		$total = wp_easycart_order_currency::money( $this, $this->grand_total );
+		$subtotal = wp_easycart_order_currency::money( $this, $this->sub_total );
+		$tip = wp_easycart_order_currency::money( $this, $this->tip_total );
+		$tax = wp_easycart_order_currency::money( $this, $this->tax_total );
 		if( $this->duty_total > 0 ){ $has_duty = true; }else{ $has_duty = false; }
-		$duty = $GLOBALS['currency']->get_currency_display( $this->duty_total );
-		$vat = $GLOBALS['currency']->get_currency_display( $this->vat_total );
-		$shipping = $GLOBALS['currency']->get_currency_display( $this->shipping_total );
+		$duty = wp_easycart_order_currency::money( $this, $this->duty_total );
+		$vat = wp_easycart_order_currency::money( $this, $this->vat_total );
+		$shipping = wp_easycart_order_currency::money( $this, $this->shipping_total );
 		if( $this->vat_rate > 0 )
 			$vat_rate = number_format( $this->vat_rate, 0, '', '' );
 		else if( ( $this->grand_total - $this->vat_total ) > 0 )
@@ -1038,7 +1054,7 @@ class ec_orderdisplay {
 		$hst = $this->hst_total;
 		$hst_rate = $this->hst_rate;
 
-		$discount = $GLOBALS['currency']->get_currency_display( $this->discount_total );
+		$discount = wp_easycart_order_currency::money( $this, $this->discount_total );
 
 		$email_logo_url = get_option( 'ec_option_email_logo' );
 
@@ -1065,21 +1081,21 @@ class ec_orderdisplay {
 		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 		$headers[] = "X-Mailer: PHP/".phpversion();
 
-		ob_start();
+		ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 		$is_admin = false;
 		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_invoice.php' ) )	
 			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_invoice.php';	
 		else
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_invoice.php';
-		$message = ob_get_clean();
+		$message = ob_get_clean(); wp_easycart_order_currency::pop();
 
-		ob_start();
+		ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 		$is_admin = true;
 		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_invoice.php' ) )	
 			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_invoice.php';	
 		else
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_invoice.php';
-		$admin_message = ob_get_clean();
+		$admin_message = ob_get_clean(); wp_easycart_order_currency::pop();
 
 		$attachments = array( );
 		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
@@ -1182,18 +1198,18 @@ class ec_orderdisplay {
 
 	public function send_refund_email( $admin_only = false ) {
 		$tax_struct = new ec_tax( 0,0,0, "", "");
-		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
-		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
-		$tip = $GLOBALS['currency']->get_currency_display( $this->tip_total );
-		$tax = $GLOBALS['currency']->get_currency_display( $this->tax_total );
+		$total = wp_easycart_order_currency::money( $this, $this->grand_total );
+		$subtotal = wp_easycart_order_currency::money( $this, $this->sub_total );
+		$tip = wp_easycart_order_currency::money( $this, $this->tip_total );
+		$tax = wp_easycart_order_currency::money( $this, $this->tax_total );
 		if ( $this->duty_total > 0 ) {
 			$has_duty = true;
 		} else {
 			$has_duty = false;
 		}
-		$duty = $GLOBALS['currency']->get_currency_display( $this->duty_total );
-		$vat = $GLOBALS['currency']->get_currency_display( $this->vat_total );
-		$shipping = $GLOBALS['currency']->get_currency_display( $this->shipping_total );
+		$duty = wp_easycart_order_currency::money( $this, $this->duty_total );
+		$vat = wp_easycart_order_currency::money( $this, $this->vat_total );
+		$shipping = wp_easycart_order_currency::money( $this, $this->shipping_total );
 		if ( $this->vat_rate > 0 ) {
 			$vat_rate_formatted = $vat_rate = $this->vat_rate;
 		} else if( ( $this->grand_total - $this->vat_total ) > 0 ) {
@@ -1218,8 +1234,8 @@ class ec_orderdisplay {
 		$hst = $this->hst_total;
 		$hst_rate = $this->hst_rate;
 
-		$discount = $GLOBALS['currency']->get_currency_display( $this->discount_total );
-		$refund = $GLOBALS['currency']->get_currency_display( $this->refund_total );
+		$discount = wp_easycart_order_currency::money( $this, $this->discount_total );
+		$refund = wp_easycart_order_currency::money( $this, $this->refund_total );
 
 		$email_logo_url = get_option( 'ec_option_email_logo' );
 
@@ -1246,26 +1262,26 @@ class ec_orderdisplay {
 		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 		$headers[] = "X-Mailer: PHP/".phpversion();
 
-		ob_start();
+		ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 		$is_admin = false;
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php' ) ) {
 			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php';	
 		} else {
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_refund.php';
 		}
-		$message = ob_get_clean();
+		$message = ob_get_clean(); wp_easycart_order_currency::pop();
 		$message = apply_filters( 'wpeasycart_refund_email_customer_content', $message, $this->order_id );
 		$customer_title = wp_easycart_language( )->get_text( "cart_success", "cart_refund_email_title" );
 		$customer_title= apply_filters( 'wpeasycart_refund_email_customer_title', $customer_title, $this->order_id );
 
-		ob_start();
+		ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 		$is_admin = true;
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php' ) ) {
 			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php';
 		} else {
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_refund.php';
 		}
-		$admin_message = ob_get_clean();
+		$admin_message = ob_get_clean(); wp_easycart_order_currency::pop();
 		$admin_message = apply_filters( 'wpeasycart_refund_email_admin_content', $admin_message, $this->order_id );
 		$admin_title = wp_easycart_language( )->get_text( "cart_success", "cart_refund_email_title" );
 		$admin_title= apply_filters( 'wpeasycart_refund_email_admin_title', $admin_title, $this->order_id );
@@ -1433,13 +1449,13 @@ class ec_orderdisplay {
 				$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 				$headers[] = "X-Mailer: PHP/" . phpversion( );
 
-				ob_start();
+				ob_start(); wp_easycart_order_currency::push( $this ); /* 6.0.5: the order's currency */
 				if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_giftcard.php' ) )	
 					include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_giftcard.php';
 				else
 					include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_giftcard.php';
 
-				$message = ob_get_clean();
+				$message = ob_get_clean(); wp_easycart_order_currency::pop();
 
 				/* 6.0.2: only addresses that can take mail ( see send_email_receipt() ). */
 				$subject  = wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" );

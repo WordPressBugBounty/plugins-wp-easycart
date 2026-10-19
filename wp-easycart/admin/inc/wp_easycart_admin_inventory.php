@@ -433,6 +433,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 
 			$output = fopen( 'php://output', 'w' );
 
+			wp_easycart_admin_csv_bom( $output, 'inventory' ); /* 6.0.5: Excel reads the file as UTF-8; the inventory import skips the mark */
 			fputcsv( $output, array_values( self::export_header() ), ',', '"', '\\' );
 
 			/* Optional: only items that track stock ( the ones an import can change ). Nonce checked in process_export_inventory(). */

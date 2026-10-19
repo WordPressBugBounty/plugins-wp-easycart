@@ -156,6 +156,10 @@ jQuery( document ).ready( function( ){
 				if ( attributes.membership_roles && String( attributes.membership_roles ) !== '' ) {
 					membershipAttributes += ' userroles="' + attributes.membership_roles + '"';
 				}
+				/* 6.0.5: any signed-in customer, written only when ticked ( so blocks saved before still match ). */
+				if ( '1' === String( attributes.membership_signed_in || '' ) ) {
+					membershipAttributes += ' signedin="1"';
+				}
 				return '[ec_membership' + membershipAttributes + ']MEMBER CONTENT HERE[/ec_membership][ec_membership_alt' + membershipAttributes + ']NON-MEMBER NOTICE HERE[/ec_membership_alt]';
 			
 			}else{
@@ -302,6 +306,11 @@ jQuery( document ).ready( function( ){
 		var WPEasyCartShortcodeAttributes = jQuery.extend( {}, WPEasyCartShortcodeAttributesV1, {
 			membership_roles: {
 				type: 'select',
+				default: '',
+			},
+			/* 6.0.5: any signed-in customer ( [ec_membership signedin="1"] ). */
+			membership_signed_in: {
+				type: 'string',
 				default: '',
 			},
 			/* 6.0.3: the plan group of [ec_plan_table]. */
@@ -597,6 +606,9 @@ jQuery( document ).ready( function( ){
 					props.setAttributes( { membership_products: changedVal } );
 				}
 
+				function onChangeMembershipSignedIn( checked ){
+					props.setAttributes( { membership_signed_in: checked ? '1' : '' } );
+				}
 				function onChangeMembershipRoles( changedVal ){
 					props.setAttributes( { membership_roles: changedVal } );
 				}
@@ -1213,6 +1225,16 @@ jQuery( document ).ready( function( ){
 							label: wp_easycart_admin_block_language['purchase-required-2'],
 							value: attributes.membership_products,
 							onChange: onChangeMembershipProducts
+						}
+					),
+					/* 6.0.5: any signed-in customer gets the member content ( the shortcode's signedin ). */
+					focus && el(
+						CheckboxControl,
+						{
+							className: ( ( attributes.shortcode_type != 'ec_membership' ) ? 'hidden ' : '' ) + 'wp-easycart-membership-shortcode wp-easycart-block-item',
+							label: wp_easycart_admin_block_language['membership-signed-in'] || 'Any signed-in customer',
+							checked: '1' === String( attributes.membership_signed_in || '' ),
+							onChange: onChangeMembershipSignedIn
 						}
 					),
 					/* 6.0.2: user roles that also get access ( the shortcode's userroles ), saved only when some are chosen. */

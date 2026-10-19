@@ -32,7 +32,7 @@ $upgrade = apply_filters( 'wp_easycart_admin_upgrade_url', 'https://www.wpeasyca
 						<div class="ecrq-step"><b><?php esc_html_e( 'Trigger', 'wp-easycart' ); ?></b><small><?php esc_html_e( 'when an order reaches', 'wp-easycart' ); ?></small>
 							<div class="ecrq-statuses">
 							<?php foreach ( $this->statuses as $st ) { ?>
-								<label class="ecrq-status"><input type="checkbox" class="ecrq-status-cb" value="<?php echo (int) $st->status_id; ?>"<?php checked( in_array( (int) $st->status_id, array_map( 'intval', $s['request_statuses'] ), true ) ); ?>> <?php echo esc_html( $st->order_status ); ?></label>
+								<label class="ecrq-status"><input type="checkbox" class="ecrq-status-cb" value="<?php echo (int) $st->status_id; ?>"<?php checked( in_array( (int) $st->status_id, array_map( 'intval', $s['request_statuses'] ), true ) ); ?>> <?php echo esc_html( wp_easycart_order_status_label( $st ) ); ?></label>
 							<?php } ?>
 							</div>
 						</div>

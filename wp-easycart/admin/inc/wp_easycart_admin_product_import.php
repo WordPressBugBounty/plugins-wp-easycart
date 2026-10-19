@@ -198,6 +198,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_import' ) ) :
 			foreach ( self::side_columns() as $name ) {
 				$map[ $name ] = 'side';
 			}
+			/* 6.0.5: Yoast SEO's meta description, which the export adds while Yoast is active ( written to the product's page ). */
+			$map[ wp_easycart_admin_products::YOAST_DESCRIPTION_COLUMN ] = 'side';
 			return $map;
 		}
 
@@ -580,6 +582,10 @@ if ( ! class_exists( 'wp_easycart_admin_product_import' ) ) :
 			if ( $strip_models ) {
 				/* translators: %d is a count of rows. */
 				$warnings[] = sprintf( _n( '%d model_number contains punctuation that will be stripped on import ( only letters, numbers, dashes, underscores and slashes are kept ).', '%d model_numbers contain punctuation that will be stripped on import ( only letters, numbers, dashes, underscores and slashes are kept ).', $strip_models, 'wp-easycart' ), $strip_models );
+			}
+			if ( isset( $seen_h[ wp_easycart_admin_products::YOAST_DESCRIPTION_COLUMN ] ) && ! defined( 'WPSEO_VERSION' ) ) {
+				/* translators: %s is the column name. */
+				$warnings[] = sprintf( __( 'The “%s” column is for Yoast SEO, which is not active on this site. It is saved, but nothing uses it until Yoast SEO is active.', 'wp-easycart' ), wp_easycart_admin_products::YOAST_DESCRIPTION_COLUMN );
 			}
 			if ( 0 === $total ) {
 				$blocking[] = __( 'The file has no product rows under the header.', 'wp-easycart' );

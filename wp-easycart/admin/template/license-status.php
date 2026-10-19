@@ -24,9 +24,10 @@ $is_trial      = false;
 $is_elite      = false;
 $is_auto       = false;
 $renew_url     = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-$upgrade_url   = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
+$upgrade_url   = 'https://www.wpeasycart.com/premium/';
 $transaction_key = '';
-if ( function_exists( 'wp_easycart_admin_license' ) ) {
+/* 6.0.5 ( admin review M13 ): this site's license only ( wp_easycart_admin_edition ); none reads as the free edition. */
+if ( function_exists( 'wp_easycart_admin_license' ) && ( ! class_exists( 'wp_easycart_admin_edition' ) || null !== wp_easycart_admin_edition::license_data() ) ) {
 	$license_data    = wp_easycart_admin_license()->license_data;
 	$license_info    = get_option( 'wp_easycart_license_info' );
 	$transaction_key = ( is_array( $license_info ) && isset( $license_info['transaction_key'] ) ) ? $license_info['transaction_key'] : '';
@@ -40,14 +41,15 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 	/* Any other active, non-trial license is PRO — don't depend on the exact model code. */
 	$is_pro          = ( ! $is_premium && ! $is_trial );
 	if ( $is_trial ) {
-		$renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key;
-		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium';
+		/* 6.0.5: a trial chooses a plan on the pricing page ( the one-time trial upgrade is retired ). */
+		$renew_url   = wp_easycart_admin_edition::trial_url( 'pro' );
+		$upgrade_url = wp_easycart_admin_edition::trial_url( 'premium' );
 	} else {
-		$renew_url   = wp_easycart_admin_edition::renew_url(); // 6.0.4: the account for AutoPay, the pricing page for Elite, else the Pro or Premium renewal.
-		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
+		$renew_url   = wp_easycart_admin_edition::renew_url(); // The WP EasyCart account ( 6.0.5: every paid license ).
+		$upgrade_url = wp_easycart_admin_edition::premium_url();
 	}
 }
-/* 6.0.2: one rule for Premium links ( the Pro discount, the trial upgrade, or premium-support-extensions ). */
+/* 6.0.2: one rule for Premium links ( 6.0.5: the account's Change plan for a Pro license, else the pricing page ). */
 if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 	$upgrade_url = wp_easycart_admin_edition::premium_url();
 }
@@ -101,7 +103,7 @@ if ( $is_free ) {
 			: ( $is_elite ? __( 'Elite license active', 'wp-easycart' ) : ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'Pro license active', 'wp-easycart' ) ) ),
 		'text' => $soon
 			/* translators: 1: support end date, 2: plan name, Pro or Premium. */
-			? sprintf( __( 'Support & updates end %1$s. Renew now and a full year is added on top — nothing is lost by renewing early. Let it lapse and the %2$s panels lock, the 2%% gateway fee returns, and updates stop.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ), $ecss_plan )
+			? sprintf( __( 'Support & updates end %1$s. Turn on AutoPay in your WP EasyCart account and your license renews by itself. Let it lapse and the %2$s panels lock, the 2%% gateway fee returns, and updates stop.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ), $ecss_plan )
 			: sprintf( _n( '%d day of support and updates remaining.', '%d days of support and updates remaining.', $days_left, 'wp-easycart' ), $days_left ),
 		'cta' => array( $renew_url, $soon ? __( 'Renew now', 'wp-easycart' ) : __( 'Renew', 'wp-easycart' ), $soon ? 'primary' : '' ), 'cta2' => $is_premium ? null : array( $upgrade_url, __( 'Upgrade to Premium', 'wp-easycart' ), '' ) );
 }
@@ -190,8 +192,8 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Store status', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="https://www.wpeasycart.com/professional-edition-ecommerce/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Pro', 'wp-easycart' ); ?></a>
-			<a href="https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Premium', 'wp-easycart' ); ?></a>
+			<a href="https://www.wpeasycart.com/pro/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Pro', 'wp-easycart' ); ?></a>
+			<a href="https://www.wpeasycart.com/premium/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Premium', 'wp-easycart' ); ?></a>
 		</div>
 	</div>
 

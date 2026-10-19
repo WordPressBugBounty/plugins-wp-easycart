@@ -1252,6 +1252,12 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-yoast-preview-desc { font-size:13px; line-height:1.5; color:#4d5156; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .ecdv2-yoast-foot { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--ecv2-g600); line-height:1.45; }
 .ecdv2-yoast-foot .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; flex-shrink:0; }
+/* 6.0.5: WP EasyCart's older description under Yoast SEO's card ( print_seo_fallback_v2() ). The second card of the Search engines
+   tab, so it keeps its title on screen ( the tab names only the first ) and a line above it. */
+.ecdv2-seo-fallback-actions { margin-top:8px; }
+.ecdv2-tabset-pane > .ecdv2-card.ecdv2-seo-fallback { border-top:1px solid var(--ecv2-g100); }
+.ecdv2-tabset-pane > .ecdv2-card.ecdv2-seo-fallback > .ecdv2-card-header { flex-wrap:wrap; }
+.ecdv2-tabset-pane > .ecdv2-card.ecdv2-seo-fallback > .ecdv2-card-header > .ecdv2-card-title { position:static !important; width:auto; height:auto; margin:0; overflow:visible; clip:auto; white-space:normal; }
 
 /* Search & AI card ( SEO tab, 6.0.2 ) */
 .ecdv2-sai { display:grid; grid-template-columns:minmax(0, 1.3fr) minmax(0, 1fr); gap:16px; align-items:start; }
@@ -1839,23 +1845,59 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-activity-loading,
 .ecdv2-product .ecdv2-panel[data-ecdv2-mode] > #ecdv2_activity_content > .ecdv2-activity-empty { margin:16px 18px; }
 
-/* Pricing: switches closer together, the tax switches side by side, no box around a choice that is locked */
-.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-grid > .ecdv2-toggle-row,
-.ecdv2-product .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row { padding-top:3px; padding-bottom:3px; }
+/* Pricing: switches closer together, no box around a choice that is locked */
+.ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-grid > .ecdv2-toggle-row { padding-top:3px; padding-bottom:3px; }
 .ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup { padding:0; border:0; border-radius:0; background:transparent; }
 .ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup-title { margin:0 0 8px; font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ecv2-g700); }
 .ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup-body { gap:10px; }
+/* 6.0.5 ( admin review M16 ): the unit price fields side by side, their hint and what shoppers see. */
+.ecdv2-subgroup-hint { margin:-2px 0 10px; }
+.ecdv2-subgroup-row > .ecdv2-subgroup-body { display:grid; grid-template-columns:repeat( auto-fit, minmax( 150px, 1fr ) ); align-items:end; }
+.ecdv2-subgroup-row > .ecdv2-subgroup-body > .ecdv2-unit-preview { grid-column:1 / -1; }
+.ecdv2-unit-preview { margin:0; font-size:12.5px; color:var(--ecv2-g700); font-variant-numeric:tabular-nums; }
 .ecdv2-product .ecdv2-card[data-ecdv2-section="pricing"] .ecdv2-subgroup:has(> .ecdv2-subgroup-body > .ecdv2-field > .ecdv2-gate) > .ecdv2-subgroup-title { display:none; }
-.ecdv2-product .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid { row-gap:8px; }
-.ecdv2-product.ecdv2-w3 .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row,
-.ecdv2-product.ecdv2-w2 .ecdv2-card[data-ecdv2-section="tax"] .ecdv2-grid > .ecdv2-toggle-row { grid-column:auto; }
+/* Tax ( 6.0.5 ): its own section, laid out as Shipping: what the store charges, the switch of the tax it charges ( green while on ),
+   the rate with what a shopper pays, the tax service's code, and the taxes the store does not charge folded away. */
+.ecdv2-tax { display:flex; flex-direction:column; gap:14px; padding:16px 18px 8px; }
+.ecdv2-product .ecdv2-tax .ecdv2-card { margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.ecdv2-product .ecdv2-tax .ecdv2-card > .ecdv2-card-body { padding:0; }
+.ecdv2-product .ecdv2-tax .ecdv2-grid { row-gap:8px; }
+.ecdv2-product .ecdv2-tax .ecdv2-grid > .ecdv2-toggle-row { grid-column:1 / -1; }
+.ecdv2-product .ecdv2-tax .ecdv2-field select:not([multiple]) { max-width:420px; }
+.ecdv2-tax-store { display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px 12px; padding:12px 14px; border:1px solid #dbeafe; border-radius:8px; background:#f5f9ff; }
+.ecdv2-tax-store.is-warn { border-color:#fde68a; background:#fffbeb; }
+.ecdv2-tax-store-icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#dbeafe; color:#1e40af; }
+.ecdv2-tax-store.is-warn .ecdv2-tax-store-icon { background:#fef3c7; color:#92400e; }
+.ecdv2-tax-store-text { display:flex; flex:1 1 260px; flex-direction:column; gap:2px; min-width:0; }
+.ecdv2-tax-store-text b { font-size:13.5px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-tax-store-text span { font-size:13px; line-height:1.5; color:var(--ecv2-g700); }
+.ecdv2-tax-store > .ecv2-btn { flex:none; align-self:center; }
+.ecdv2-tax-kind { display:flex; flex-direction:column; }
+.ecdv2-product .ecdv2-tax-master .ecdv2-toggle-row { padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:8px; background:var(--ecv2-g50); transition:background var(--ecv2-tr), border-color var(--ecv2-tr); }
+.ecdv2-product .ecdv2-tax-master.is-on .ecdv2-toggle-row { border-color:#bbf7d0; background:#f0fdf4; }
+.ecdv2-product .ecdv2-tax-master .ecdv2-toggle-label { font-size:14px; font-weight:650; color:var(--ecv2-g900); }
+.ecdv2-product .ecdv2-tax-master .ecdv2-toggle-desc { font-size:12.5px; }
+.ecdv2-product .ecdv2-tax .ecdv2-tax-rate { margin:10px 0 0 22px; padding:2px 0 4px 16px; border-left:2px solid var(--ecv2-g200); border-top:0; }
+.ecdv2-tax-note { margin:8px 0 0; padding:8px 12px; border-radius:6px; background:var(--ecv2-g50); font-size:13px; line-height:1.5; color:var(--ecv2-g700); font-variant-numeric:tabular-nums; }
+.ecdv2-tax-hint { margin:8px 0 0; padding:8px 12px; border-radius:6px; background:#fffbeb; font-size:12.5px; line-height:1.5; color:#92400e; }
+.ecdv2-tax-hint a { color:inherit; font-weight:600; }
+.ecdv2-tax-rates-link { margin-top:8px; }
+.ecdv2-tax-off { display:flex; gap:10px; padding:12px 14px; border-radius:8px; background:var(--ecv2-g50); color:var(--ecv2-g700); font-size:13px; line-height:1.5; }
+.ecdv2-tax-off .dashicons { flex:none; color:var(--ecv2-g500); }
+.ecdv2-product .ecdv2-tax > .ecdv2-group { padding:14px 0 6px; border-top:1px solid #eef0f2; }
+.ecdv2-product .ecdv2-tax > .ecdv2-disclosure:not([open]) { padding-bottom:6px; }
+.ecdv2-product .ecdv2-tax .ecdv2-group .ecdv2-card > .ecdv2-card-body { padding:10px 0 0; }
+.ecdv2-tax-other .ecdv2-tax-kind { padding-top:6px; }
+.ecdv2-tax-off[hidden], .ecdv2-tax-rate[hidden], .ecdv2-tax-note[hidden], .ecdv2-tax-hint[hidden] { display:none !important; }
 
-/* The summary column's Tax card: one row, a button to the Tax card in Pricing */
+/* The summary column's Tax card: one row, a button to the Tax section ( 6.0.5: amber while the store charges no tax ) */
 .ecdv2-side-row { padding:10px 12px; }
 .ecdv2-side-row-go { display:flex; align-items:center; gap:8px; width:100%; margin:0; padding:0; border:0; background:none; text-align:left; font:inherit; color:inherit; cursor:pointer; }
 .ecdv2-side-row-go:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:3px; border-radius:6px; }
 .ecdv2-side-row-icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; background:#dbeafe; color:#1e40af; }
 .ecdv2-side-row.is-off .ecdv2-side-row-icon { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecdv2-side-row.is-warn .ecdv2-side-row-icon { background:#fef3c7; color:#92400e; }
+.ecdv2-side-row.is-warn .ecdv2-side-row-text span { color:#92400e; }
 .ecdv2-side-row-text { display:flex; flex:1 1 auto; flex-direction:column; min-width:0; }
 .ecdv2-side-row-text b { font-size:13.5px; font-weight:650; color:var(--ecv2-g900); }
 .ecdv2-side-row-text span { font-size:12px; line-height:1.4; color:var(--ecv2-g500); }
@@ -1944,3 +1986,39 @@ html.ecdv2-side-locked .select2-container--open { z-index:100001; }
 /* The ⋯ menu: toward the side with room ( place_menu() ) */
 .ecdv2-menu { min-width:240px; }
 .ecdv2-menu.is-left { right:auto; left:0; }
+
+/* 6.0.5: the lowest price of the last 30 days ( wp_easycart_admin_price_history ) */
+.ecdv2-prior-card .ecdv2-prior-status { margin:0 0 10px; font-size:13px; line-height:1.5; }
+.ecdv2-prior-card .ecdv2-prior-missing { margin:0 0 12px; }
+.ecdv2-prior-card .ecdv2-prior-form[hidden] { display:none; }
+.ecdv2-prior-card .ecdv2-prior-actions { flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px; }
+.ecdv2-prior-card .ecdv2-prior-msg.is-error { color:var(--ecv2-danger); }
+
+/* ==================================================================
+   6.0.5 ( Matt: the type lived only in the summary column ): the type section opens with a bar that says what the product is
+   ( Change type brings the summary column's Product type card into view and highlights it ), and lists the limited pages its
+   buyers can open ( Pages it opens; for a subscription even when there are none, with a way to limit one ).
+================================================================== */
+.ecdv2-type-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px; margin:0 0 16px; padding:14px 16px; border:1px solid var(--ecv2-g200); border-radius:10px; background:var(--ecv2-primary-light); }
+.ecdv2-type-bar-icon { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:40px; height:40px; border-radius:10px; background:#fff; box-shadow:0 1px 2px rgba(17,24,39,.08); color:var(--ecv2-primary); font-size:20px; }
+.ecdv2-type-bar-icon::before { width:20px; height:20px; }
+.ecdv2-type-bar-text { display:flex; flex-direction:column; flex:1 1 220px; min-width:0; gap:1px; }
+.ecdv2-type-bar-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-type-bar-name { font-size:15px; font-weight:600; line-height:1.35; color:var(--ecv2-g900); }
+.ecdv2-type-bar-help { font-size:12.5px; line-height:1.45; color:var(--ecv2-g600); }
+.ecdv2-type-bar .ecdv2-type-bar-change { flex:0 0 auto; margin-inline-start:auto; background:#fff; }
+.ecdv2-access-pages .ecdv2-card-body > p { margin:0 0 10px; font-size:13px; line-height:1.5; color:var(--ecv2-g600); }
+.ecdv2-access-pages .ecdv2-card-body > p:last-child { margin-bottom:0; }
+.ecdv2-access-pages .ecdv2-access-note { padding:8px 10px; border-radius:var(--ecv2-r); background:var(--ecv2-amber-light); color:#78350f; }
+.ecdv2-access-list { display:grid; gap:8px; margin:0 0 12px; padding:0; list-style:none; }
+.ecdv2-access-item { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin:0; padding:10px 12px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; }
+.ecdv2-access-icon { flex:0 0 auto; color:var(--ecv2-primary); font-size:16px; width:16px; height:16px; }
+.ecdv2-access-main { display:flex; flex-direction:column; flex:1 1 200px; min-width:0; }
+.ecdv2-access-title { font-size:13.5px; font-weight:600; color:var(--ecv2-g900); text-decoration:none; overflow-wrap:anywhere; }
+.ecdv2-access-title:hover, .ecdv2-access-title:focus { color:var(--ecv2-primary-hover); text-decoration:underline; }
+.ecdv2-access-more { font-size:12px; color:var(--ecv2-g500); }
+.ecdv2-access-state { flex:0 0 auto; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; line-height:1.6; background:var(--ecv2-g100); color:var(--ecv2-g600); }
+.ecdv2-access-state.is-on { background:#ecfdf5; color:#047857; }
+.ecdv2-access-state.is-problem { background:#fef2f2; color:#b91c1c; }
+.ecdv2-access-edit { flex:0 0 auto; font-size:12.5px; }
+.ecdv2-product[data-ecdv2-type]:not([data-ecdv2-type="subscription"]) #ecdv2_access_pages[data-has-pages="0"] { display:none; }

@@ -182,137 +182,12 @@
 			window.ecsh_video_open( $( this ).attr( 'data-ecsh-video' ), $( this ).text() );
 		} );
 
-		/* ---------- Command palette: jump to admin pages/sections or search docs ----------
-		   Index comes from wp_easycart_shell_output_search_index() (capability-
-		   gated, filterable). Section entries carry &ecshs=<label>; on arrival
-		   the block below scrolls to the matching section header. The topbar
-		   form remains a working no-JS docs search. */
-		var $palette = $( '#ecsh_palette' );
-		if ( $palette.length ) {
-			var $pInput   = $( '#ecsh_palette_input' );
-			var $pResults = $( '#ecsh_palette_results' );
-			var pIndex    = ( 'undefined' !== typeof window.wpEasyCartShellSearchIndex ) ? window.wpEasyCartShellSearchIndex : [];
-			var pSelected = 0;
-			var pItems    = [];
-
-			function paletteOpen() {
-				$palette.prop( 'hidden', false );
-				$pInput.val( '' );
-				paletteRender( '' );
-				setTimeout( function() { $pInput.trigger( 'focus' ); }, 10 );
-			}
-			function paletteClose() {
-				$palette.prop( 'hidden', true );
-			}
-			function paletteScore( item, q ) {
-				var label = item.label.toLowerCase(), kw = ( item.kw || '' ).toLowerCase(), group = ( item.group || '' ).toLowerCase();
-				if ( 0 === label.indexOf( q ) ) { return 3; }
-				if ( -1 !== label.indexOf( q ) ) { return 2; }
-				/* every query word must appear somewhere in label+kw+group */
-				var hay = label + ' ' + kw + ' ' + group, words = q.split( /\s+/ ), ok = true;
-				for ( var i = 0; i < words.length; i++ ) {
-					if ( words[ i ] && -1 === hay.indexOf( words[ i ] ) ) { ok = false; break; }
-				}
-				return ok ? 1 : 0;
-			}
-			function paletteRender( q ) {
-				q = $.trim( q ).toLowerCase();
-				var matches = [];
-				if ( '' === q ) {
-					/* Empty query: top-level destinations as quick links */
-					matches = $.grep( pIndex, function( it ) { return '' === ( it.group || '' ); } );
-				} else {
-					$.each( pIndex, function( _, it ) {
-						var s = paletteScore( it, q );
-						if ( s > 0 ) { matches.push( { s: s, it: it } ); }
-					} );
-					matches.sort( function( a, b ) { return b.s - a.s; } );
-					matches = $.map( matches.slice( 0, 8 ), function( m ) { return m.it; } );
-				}
-				pItems = matches.slice( 0 );
-				pSelected = 0;
-
-				var html = '';
-				if ( q && 0 === matches.length ) {
-					html += '<div class="ecsh-palette-empty">' + window.wpEasyCartShellNoResultsLabel + ' &ldquo;' + $( '<i>' ).text( q ).html() + '&rdquo;</div>';
-				}
-				$.each( matches, function( i, it ) {
-					html += '<button type="button" class="ecsh-palette-item" data-i="' + i + '">'
-						+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>'
-						+ '<span>' + $( '<i>' ).text( it.label ).html() + '</span>'
-						+ ( it.group ? '<span class="ecsh-palette-group">' + $( '<i>' ).text( it.group ).html() + '</span>' : '' )
-						+ '</button>';
-				} );
-				/* Docs search is always the final row */
-				html += '<button type="button" class="ecsh-palette-item ecsh-palette-item-docs" data-docs="1">'
-					+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>'
-					+ '<span>' + window.wpEasyCartShellDocsSearchLabel + ( q ? ' &ldquo;' + $( '<i>' ).text( q ).html() + '&rdquo;' : '\u2026' ) + '</span>'
-					+ '</button>';
-				$pResults.html( html );
-				paletteHighlight();
-			}
-			function paletteHighlight() {
-				var $rows = $pResults.find( '.ecsh-palette-item' );
-				$rows.removeClass( 'ecsh-selected' );
-				var $row = $rows.eq( pSelected );
-				$row.addClass( 'ecsh-selected' );
-				if ( $row.length && $row[0].scrollIntoView ) { $row[0].scrollIntoView( { block: 'nearest' } ); }
-			}
-			function paletteGo( idx ) {
-				var $rows = $pResults.find( '.ecsh-palette-item' );
-				var $row  = $rows.eq( idx );
-				if ( $row.data( 'docs' ) ) {
-					var q = $.trim( $pInput.val() );
-					window.open( 'https://docs.wpeasycart.com/?s=' + encodeURIComponent( q ), '_blank' );
-					paletteClose();
-					return;
-				}
-				var it = pItems[ $row.data( 'i' ) ];
-				if ( ! it ) { return; }
-				var target = it.url;
-				var section = null;
-				var m = target.match( /[?&]ecshs=([^&]+)/ );
-				if ( m ) { section = decodeURIComponent( m[1] ); }
-				/* Same page+subpage: jump in place instead of reloading */
-				if ( section ) {
-					var base = target.replace( /&ecshs=[^&]+/, '' ).replace( /^admin\.php\?/, '' );
-					var here = window.location.search.replace( /^\?/, '' );
-					if ( 0 === here.indexOf( base ) && ecshJumpToSection( section ) ) {
-						paletteClose();
-						return;
-					}
-				}
-				window.location.href = target;
-			}
-
-			$( document ).on( 'focus click', '.ecsh-tb-search input', function( e ) {
-				e.preventDefault();
-				$( this ).trigger( 'blur' );
-				paletteOpen();
-			} );
-			$( document ).on( 'submit', '.ecsh-tb-search', function( e ) { e.preventDefault(); paletteOpen(); } );
-			$( document ).on( 'click', '.ecsh-tb-search-btn', paletteOpen );
-			$( document ).on( 'click', '.ecsh-palette-backdrop', paletteClose );
-			$( document ).on( 'keydown', function( e ) {
-				if ( ( e.metaKey || e.ctrlKey ) && 'k' === String( e.key ).toLowerCase() ) {
-					e.preventDefault();
-					if ( $palette.prop( 'hidden' ) ) { paletteOpen(); } else { paletteClose(); }
-				}
-				if ( 'Escape' === e.key && ! $palette.prop( 'hidden' ) ) { paletteClose(); }
-			} );
-			$pInput.on( 'input', function() { paletteRender( this.value ); } );
-			$pInput.on( 'keydown', function( e ) {
-				var count = $pResults.find( '.ecsh-palette-item' ).length;
-				if ( 'ArrowDown' === e.key ) { e.preventDefault(); pSelected = Math.min( pSelected + 1, count - 1 ); paletteHighlight(); }
-				else if ( 'ArrowUp' === e.key ) { e.preventDefault(); pSelected = Math.max( pSelected - 1, 0 ); paletteHighlight(); }
-				else if ( 'Enter' === e.key ) { e.preventDefault(); paletteGo( pSelected ); }
-			} );
-			$( document ).on( 'click', '.ecsh-palette-item', function() { paletteGo( $pResults.find( '.ecsh-palette-item' ).index( this ) ); } );
-		}
+		/* 6.0.5: the command palette became the one admin search ( admin-search-v2.js ), which also opens from the header box. */
 
 		/* ---------- Section jump: scroll + highlight a section header ----------
 		   Matches by text across the shared legacy header classes and common
 		   v2/page headings, so no anchors are needed in templates. */
+		window.ecshJumpToSection = ecshJumpToSection; /* 6.0.5: for admin-search-v2.js */
 		function ecshJumpToSection( label ) {
 			var needle = $.trim( label ).toLowerCase();
 			var $target = null;
@@ -693,17 +568,26 @@
 	} );
 } )( jQuery );
 
-/* ---------- The EasyCart menu folded to icons ( 6.0.4 ) ----------
+/* ---------- The EasyCart menu folded to icons ( 6.0.4, narrow screens 6.0.5 ) ----------
    A screen that asks for room ( filter wp_easycart_admin_frame_fold: the product editor ) prints .ecsh-sb-foldable and a fold
    button at the foot of the menu. The button switches .ecsh-sb-mini, gives each icon its label as a tooltip, tells the page
-   ( event ecsh:menu-fold, true = folded ) and remembers the choice through the screen's own AJAX action ( menu = mini | full ). */
+   ( event ecsh:menu-fold, true = folded ) and remembers the choice through the screen's own AJAX action ( menu = mini | full ).
+   6.0.5: from 783 to 1100px wide ( a tablet held upright, a small window ) every screen gets the icon rail ( .ecsh-sb-narrow ):
+   a 240px menu left lists about 520px, so order statuses read "Ord…" and columns fell off the edge. There the button opens the
+   full menu over the page ( .ecsh-sb-peek; a click outside it, Escape or the button again closes it ) and saves nothing. */
 ( function( $ ) {
 	'use strict';
 	$( function() {
-		var $app = $( '.ecsh-app.ecsh-sb-foldable' ).first();
+		var $app = $( '.ecsh-app' ).first();
 		var $btn = $app.find( '.ecsh-sb-fold' ).first();
 		if ( ! $app.length || ! $btn.length ) {
 			return;
+		}
+		var foldable = $app.hasClass( 'ecsh-sb-foldable' );
+		var saved = 'true' === $btn.attr( 'aria-pressed' ); /* the saved choice ( the class may already be the narrow rail's ) */
+		var mq = window.matchMedia ? window.matchMedia( '(min-width: 783px) and (max-width: 1100px)' ) : null;
+		function narrow() {
+			return !! ( mq && mq.matches );
 		}
 		function titles( on ) {
 			$app.find( '.ecsh-sb-item > a, .ecsh-sb-store' ).each( function() {
@@ -717,21 +601,182 @@
 				}
 			} );
 		}
-		function paint( on ) {
+		function paint() {
+			var is_narrow = narrow();
+			var peek = is_narrow && $app.hasClass( 'ecsh-sb-peek' );
+			var on = is_narrow ? ! peek : ( foldable && saved );
+			var was = $app.hasClass( 'ecsh-sb-mini' );
 			var label = on ? $btn.attr( 'data-label-open' ) : $btn.attr( 'data-label-fold' );
-			$app.toggleClass( 'ecsh-sb-mini', on );
-			$btn.attr( { 'aria-pressed': on ? 'true' : 'false', title: label } ).find( '.ecsh-sb-fold-text' ).text( label );
-			titles( on );
-			$( document ).trigger( 'ecsh:menu-fold', [ on ] );
-		}
-		paint( $app.hasClass( 'ecsh-sb-mini' ) );
-		$btn.on( 'click', function() {
-			var on = ! $app.hasClass( 'ecsh-sb-mini' );
-			var url = ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl;
-			paint( on );
-			if ( url ) {
-				$.post( url, { action: $btn.attr( 'data-fold-action' ), nonce: $btn.attr( 'data-fold-nonce' ), menu: on ? 'mini' : 'full' } );
+			$app.toggleClass( 'ecsh-sb-narrow', is_narrow ).toggleClass( 'ecsh-sb-mini', on );
+			if ( ! is_narrow ) {
+				$app.removeClass( 'ecsh-sb-peek' );
 			}
+			$btn.attr( { 'aria-pressed': on ? 'true' : 'false', 'aria-expanded': is_narrow ? ( peek ? 'true' : 'false' ) : null, title: label } ).find( '.ecsh-sb-fold-text' ).text( label );
+			titles( on );
+			if ( was !== on ) {
+				$( document ).trigger( 'ecsh:menu-fold', [ on ] );
+			}
+		}
+		function peek( open ) {
+			$app.toggleClass( 'ecsh-sb-peek', open );
+			paint();
+			if ( ! open ) {
+				$btn.trigger( 'focus' );
+			}
+		}
+		paint();
+		$( document ).trigger( 'ecsh:menu-fold', [ $app.hasClass( 'ecsh-sb-mini' ) ] );
+		$btn.on( 'click', function() {
+			var url;
+			if ( narrow() ) {
+				peek( ! $app.hasClass( 'ecsh-sb-peek' ) );
+				return;
+			}
+			if ( ! foldable ) {
+				return;
+			}
+			saved = ! saved;
+			paint();
+			url = ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl;
+			if ( url && $btn.attr( 'data-fold-action' ) ) {
+				$.post( url, { action: $btn.attr( 'data-fold-action' ), nonce: $btn.attr( 'data-fold-nonce' ), menu: saved ? 'mini' : 'full' } );
+			}
+		} );
+		$( document ).on( 'click', function( e ) {
+			if ( $app.hasClass( 'ecsh-sb-peek' ) && ! $( e.target ).closest( '.ecsh-sidebar' ).length ) {
+				peek( false );
+			}
+		} ).on( 'keydown', function( e ) {
+			if ( 'Escape' === e.key && $app.hasClass( 'ecsh-sb-peek' ) ) {
+				peek( false );
+			}
+		} );
+		if ( mq ) {
+			if ( mq.addEventListener ) {
+				mq.addEventListener( 'change', paint );
+			} else if ( mq.addListener ) {
+				mq.addListener( paint );
+			}
+		}
+	} );
+} )( jQuery );
+
+/* 6.0.5 ( admin review M11 ): one banner a screen. The shell's notices ( wp_easycart_admin_messages, the review card above the
+   lists ) are counted: the most urgent shows ( none on an edit screen ), the rest wait closed under it, opened from the header's
+   Notices button. A result of what the person just did ( .ecsh-result ) always shows. */
+( function() {
+	'use strict';
+	function init() {
+	var box = document.getElementById( 'ecsh_notices' ), more = document.getElementById( 'ecsh_notices_more' ), btn = document.getElementById( 'ecsh_notices_btn' );
+	if ( ! box || ! more || ! btn ) { return; }
+	var URGENT = '.wpec-pro-notice--danger, .ecv2-flash.is-error, .notice-error, .error, .is-error, [role="alert"], .ecv2-renewal-notice.is-lapsed';
+	function shown( el ) {
+		if ( ! el || 1 !== el.nodeType || /^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT)$/.test( el.tagName ) ) { return false; }
+		if ( el.classList.contains( 'ecsh-result' ) || el.hasAttribute( 'data-ecsh-keep' ) || el.hidden ) { return false; }
+		if ( 'none' === window.getComputedStyle( el ).display ) { return false; }
+		return '' !== String( el.textContent || '' ).replace( /\s+/g, '' ) || !! el.querySelector( 'img, svg' );
+	}
+	function urgent( el ) { return el.matches( URGENT ) || !! el.querySelector( '.wpec-pro-notice--danger' ); }
+	var found = [];
+	Array.prototype.forEach.call( box.children, function( el ) { if ( shown( el ) ) { found.push( el ); } } );
+	Array.prototype.forEach.call( document.querySelectorAll( '.ecsh-content .ecv2-review-prompt' ), function( el ) {
+		if ( shown( el ) && found.indexOf( el ) < 0 ) { found.push( el ); }
+	} );
+	var list = found.filter( urgent ).concat( found.filter( function( el ) { return ! urgent( el ); } ) );
+	var keep = '1' === box.getAttribute( 'data-edit' ) ? 0 : 1;
+	if ( list.length <= keep ) { return; }
+	var lead = keep ? list[0] : null;
+	if ( lead && lead.parentNode !== box ) { box.insertBefore( lead, box.firstChild ); }
+	list.forEach( function( el ) { if ( el !== lead ) { more.appendChild( el ); } } );
+	function paint() {
+		var n = 0, hot = false;
+		Array.prototype.forEach.call( more.children, function( el ) {
+			if ( shown( el ) ) { n++; hot = hot || urgent( el ); }
+		} );
+		if ( btn.hidden !== ( 0 === n ) ) { btn.hidden = ( 0 === n ); }
+		btn.classList.toggle( 'is-urgent', hot );
+		var count = btn.querySelector( '.ecsh-tb-notices-n' );
+		if ( count && count.textContent !== String( n ) ) { count.textContent = String( n ); }
+		if ( 0 === n && ! more.hidden ) { more.hidden = true; btn.setAttribute( 'aria-expanded', 'false' ); }
+	}
+	paint();
+	btn.addEventListener( 'click', function() {
+		var open = more.hidden;
+		more.hidden = ! open;
+		btn.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+		if ( open ) {
+			more.scrollIntoView( { block: 'start' } );
+			var first = more.querySelector( 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])' );
+			if ( first ) { first.focus( { preventScroll: true } ); }
+		}
+	} );
+	if ( window.MutationObserver ) {
+		new MutationObserver( paint ).observe( more, { childList: true, subtree: true, attributes: true, attributeFilter: [ 'style', 'class' ] } );
+	}
+	}
+	if ( 'loading' === document.readyState ) { document.addEventListener( 'DOMContentLoaded', init ); } else { init(); }
+} )();
+
+/* 6.0.5 ( admin review M12 ): WordPress's Collapse menu button on an EasyCart screen keeps the choice for EasyCart screens
+   ( user setting wpecmfold, read by wp_easycart_admin::wp_menu_folded() ); the rest of wp-admin keeps its own ( mfold ). */
+( function( $ ) {
+	'use strict';
+	$( function() {
+		if ( ! $( document.body ).is( '.wpec-wp-menu-folded, .wpec-wp-menu-open' ) || 'function' !== typeof window.setUserSetting ) { return; }
+		var global = 'function' === typeof window.getUserSetting ? window.getUserSetting( 'mfold' ) : '';
+		$( '#collapse-button' ).on( 'click.wpec-menu', function() {
+			window.setTimeout( function() {
+				window.setUserSetting( 'wpecmfold', $( document.body ).hasClass( 'folded' ) ? 'f' : 'o' );
+				if ( global ) {
+					window.setUserSetting( 'mfold', global );
+				} else if ( 'function' === typeof window.deleteUserSetting ) {
+					window.deleteUserSetting( 'mfold' );
+				}
+			}, 0 );
 		} );
 	} );
 } )( jQuery );
+
+/* 6.0.5 ( admin review M14 ): a list's tick boxes and switches carry no words of their own; each gets one from its row ( "Select
+   Order #1024", "Visible: Classic Tee" ), in every list however it is drawn, and again when a list draws new rows. */
+( function() {
+	'use strict';
+	var L = window.ecv2_shell_lang || {};
+	function rowName( row ) {
+		var pick = row.querySelector( '.ecv2-link-primary, .ecv2-row-title, a[href]:not([href="#"]):not(.ecv2-row-action-link)' );
+		var text = pick ? pick.textContent : '';
+		return String( text || '' ).replace( /\s+/g, ' ' ).trim().slice( 0, 60 );
+	}
+	function headerOf( cell ) {
+		var table = cell.closest( 'table' );
+		if ( ! table || cell.cellIndex < 0 ) { return ''; }
+		var th = table.querySelectorAll( 'thead th' )[ cell.cellIndex ];
+		return th ? String( th.textContent || '' ).replace( /\s+/g, ' ' ).trim() : '';
+	}
+	function unnamed( input ) {
+		return ! input.getAttribute( 'aria-label' ) && ! input.getAttribute( 'aria-labelledby' ) && ! ( input.labels && input.labels.length );
+	}
+	function label( root ) {
+		Array.prototype.forEach.call( ( root || document ).querySelectorAll( '.ecv2-row-check' ), function( box ) {
+			if ( ! unnamed( box ) ) { return; }
+			var row = box.closest( 'tr, .ecv2-row, .ecv2-card' ), name = row ? rowName( row ) : '';
+			box.setAttribute( 'aria-label', name ? String( L.select_row || 'Select %s' ).replace( '%s', name ) : ( L.select || 'Select this row' ) );
+		} );
+		Array.prototype.forEach.call( ( root || document ).querySelectorAll( 'td .ecv2-toggle input[type="checkbox"]' ), function( box ) {
+			if ( ! unnamed( box ) ) { return; }
+			var cell = box.closest( 'td' ), row = box.closest( 'tr' ), head = cell ? headerOf( cell ) : '', name = row ? rowName( row ) : '';
+			if ( head || name ) { box.setAttribute( 'aria-label', ( head && name ) ? head + ': ' + name : ( head || name ) ); }
+		} );
+	}
+	function start() {
+		label( document );
+		if ( ! window.MutationObserver ) { return; }
+		var queued = false;
+		new MutationObserver( function() {
+			if ( queued ) { return; }
+			queued = true;
+			window.requestAnimationFrame( function() { queued = false; label( document ); } );
+		} ).observe( document.body, { childList: true, subtree: true } );
+	}
+	if ( 'loading' === document.readyState ) { document.addEventListener( 'DOMContentLoaded', start ); } else { start(); }
+} )();

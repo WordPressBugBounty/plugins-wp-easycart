@@ -141,7 +141,7 @@ class wp_easycart_admin_payment_v2 {
 		$free = array(
 			'stripe_connect' => array( 'label' => 'Stripe', 'role' => 'live', 'connect' => true, 'docs' => 'stripe', 'desc' => __( 'Cards, Apple Pay, Google Pay, Link and local payment methods, entered on your checkout page.', 'wp-easycart' ), 'keywords' => array( 'stripe connect', 'apple pay', 'google pay', 'klarna', 'affirm' ) ),
 			'square'         => array( 'label' => 'Square', 'role' => 'live', 'connect' => true, 'docs' => 'square', 'desc' => __( 'Cards on your site, with your Square items brought into your store in a few clicks.', 'wp-easycart' ), 'keywords' => array( 'square', 'pos', 'sync' ) ),
-			'paypal'         => array( 'label' => 'PayPal', 'role' => 'third_party', 'connect' => true, 'docs' => 'paypal', 'desc' => __( 'PayPal, Venmo and Pay Later buttons. No SSL certificate required.', 'wp-easycart' ), 'keywords' => array( 'paypal', 'venmo', 'pay later', 'express' ) ),
+			'paypal'         => array( 'label' => 'PayPal', 'role' => 'third_party', 'connect' => true, 'docs' => 'paypal', 'desc' => self::paypal_text( 'long' ), 'keywords' => array( 'paypal', 'venmo', 'pay later', 'express' ) ),
 			'manual'         => array( 'label' => __( 'Bill later', 'wp-easycart' ), 'role' => 'manual', 'drawer' => false, 'docs' => 'manual', 'desc' => __( 'The order is placed and you collect payment yourself: bank transfer, cheque, pay on pickup.', 'wp-easycart' ), 'keywords' => array( 'manual', 'direct deposit', 'offline', 'invoice' ) ),
 			'amazonpay'      => array( 'label' => 'Amazon Pay', 'role' => 'wallet', 'pro' => true, 'enable_key' => 'ec_option_amazonpay_enable', 'docs' => 'amazonpay', 'desc' => __( 'Shoppers pay with the address and card stored in their Amazon account.', 'wp-easycart' ), 'creds' => array( 'ec_option_amazonpay_store_id', 'ec_option_amazonpay_merchant_id', 'ec_option_amazonpay_public_key', 'ec_option_amazonpay_private_key' ), 'test' => 'ec_option_amazonpay_is_sandbox', 'facts' => array( 'ec_option_amazonpay_merchant_id' => __( 'Merchant ID', 'wp-easycart' ), 'ec_option_amazonpay_region' => __( 'Region', 'wp-easycart' ), 'ec_option_amazonpay_currency' => __( 'Currency', 'wp-easycart' ) ) ),
 		);
@@ -204,7 +204,7 @@ class wp_easycart_admin_payment_v2 {
 		$notes = array(
 			'stripe_connect'            => __( 'Cards, Apple Pay, Google Pay and Link', 'wp-easycart' ),
 			'square'                    => __( 'Cards, plus your Square items brought into your store', 'wp-easycart' ),
-			'paypal'                    => __( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' ),
+			'paypal'                    => self::paypal_text(),
 			'amazonpay'                 => __( 'Shoppers pay with their Amazon account', 'wp-easycart' ),
 			'authorize'                 => __( 'United States, Canada, UK, Europe, Australia', 'wp-easycart' ),
 			'beanstream'                => __( 'Canada', 'wp-easycart' ),
@@ -253,6 +253,13 @@ class wp_easycart_admin_payment_v2 {
 		}
 		/* 6.0.3: gateways a WP EasyCart PRO older than this does not have ( its settings form and payment code are missing ). */
 		$catalog['paytrace']['min_version'] = '6.0.2';
+		/* 6.0.5 ( admin review M8 ): the countries a gateway takes payments for stores in ( none = everywhere ), so the list leads with
+		 * what works where the store is and folds the rest away ( available_in(), render_more() ). */
+		foreach ( self::gateway_countries() as $key => $countries ) {
+			if ( isset( $catalog[ $key ] ) ) {
+				$catalog[ $key ]['countries'] = $countries;
+			}
+		}
 		$catalog = apply_filters( 'wp_easycart_payment_gateway_catalog', $catalog );
 		$pro_active = self::pro_active();
 		$clean = array();
@@ -279,6 +286,7 @@ class wp_easycart_admin_payment_v2 {
 				'keywords'    => array(),
 				'note'        => '',
 				'min_version' => '',
+				'countries'   => array(),
 			) );
 			if ( ! in_array( $gw['role'], array( 'live', 'third_party', 'manual', 'wallet' ), true ) ) {
 				$gw['role'] = 'live';
@@ -302,6 +310,7 @@ class wp_easycart_admin_payment_v2 {
 			$gw['key']     = $key;
 			$gw['creds']   = array_values( (array) $gw['creds'] );
 			$gw['facts']   = (array) $gw['facts'];
+			$gw['countries'] = array_values( array_filter( array_map( 'strtoupper', array_map( 'strval', (array) $gw['countries'] ) ), array( __CLASS__, 'is_country_code' ) ) );
 			$clean[ $key ] = $gw;
 		}
 		self::$catalog = $clean;
@@ -324,7 +333,7 @@ class wp_easycart_admin_payment_v2 {
 				'square'         => __( 'Cards on your site, with your Square items brought into your store in a few clicks.', 'wp-easycart' ),
 			),
 			'third_party' => array(
-				'paypal' => __( 'PayPal, Venmo and Pay Later buttons that shoppers already know.', 'wp-easycart' ),
+				'paypal' => self::paypal_text( 'partner' ),
 			),
 		);
 		$list = isset( $partners[ $role ] ) ? $partners[ $role ] : array();
@@ -332,7 +341,7 @@ class wp_easycart_admin_payment_v2 {
 		$clean = array();
 		foreach ( (array) $list as $key => $benefit ) {
 			$gw = self::gateway( $key );
-			if ( $gw && $gw['role'] === $role ) {
+			if ( $gw && $gw['role'] === $role && self::available_in( $gw ) ) {
 				$clean[ $gw['key'] ] = (string) $benefit;
 			}
 		}
@@ -462,7 +471,14 @@ class wp_easycart_admin_payment_v2 {
 				self::fact( $s, __( 'Merchant name', 'wp-easycart' ), get_option( 'ec_option_square_merchant_name' ) );
 				$location = (string) get_option( $s['test'] ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' );
 				self::fact( $s, __( 'Location', 'wp-easycart' ), ( '' === $location || '0' === $location ) ? __( 'Default location', 'wp-easycart' ) : $location );
-				self::fact( $s, __( 'Digital wallets', 'wp-easycart' ), get_option( 'ec_option_square_digital_wallet' ) ? __( 'Apple / Google Pay on', 'wp-easycart' ) : __( 'Off', 'wp-easycart' ) );
+				$wallets = get_option( 'ec_option_square_digital_wallet' ) ? __( 'Apple / Google Pay on', 'wp-easycart' ) : __( 'Off', 'wp-easycart' );
+				/* 6.0.5: on a live store the line says whether Apple Pay is set up on the domain ( wp_easycart_square_apple_pay ). */
+				$s['apple_pay'] = class_exists( 'wp_easycart_square_apple_pay' ) ? wp_easycart_square_apple_pay::status() : array( 'tone' => 'none' );
+				if ( 'ok' === $s['apple_pay']['tone'] ) { /* a problem shows in the line's state and its status block */
+					/* translators: %s: Apple Pay's state, "Apple Pay ready". */
+					$wallets = sprintf( __( 'Google Pay on · %s', 'wp-easycart' ), $s['apple_pay']['short'] );
+				}
+				self::fact( $s, __( 'Digital wallets', 'wp-easycart' ), $wallets );
 				self::fact( $s, __( 'Access renews', 'wp-easycart' ), get_option( $s['test'] ? 'ec_option_square_sandbox_token_expires' : 'ec_option_square_token_expires' ) );
 				break;
 
@@ -640,7 +656,7 @@ class wp_easycart_admin_payment_v2 {
 			'ec_option_stripe_enable_apple_pay' => __( 'Apple / Google Pay', 'wp-easycart' ),
 			'ec_option_stripe_link'             => 'Link',
 			'ec_option_stripe_affirm'           => 'Affirm',
-			'ec_option_stripe_afterpay'         => 'Afterpay',
+			'ec_option_stripe_afterpay'         => self::afterpay_name(),
 			'ec_option_stripe_klarna'           => 'Klarna',
 			'ec_option_stripe_alipay'           => 'Alipay',
 			'ec_option_stripe_grabpay'          => 'GrabPay',
@@ -649,10 +665,8 @@ class wp_easycart_admin_payment_v2 {
 			'ec_option_stripe_blik'             => 'BLIK',
 			'ec_option_stripe_eps'              => 'EPS',
 			'ec_option_stripe_fpx'              => 'FPX',
-			'ec_option_stripe_giropay'          => 'giropay',
 			'ec_option_stripe_enable_ideal'     => 'iDEAL',
 			'ec_option_stripe_p24'              => 'Przelewy24',
-			'ec_option_stripe_sofort'           => 'Sofort',
 			'ec_option_stripe_bacs'             => 'Bacs',
 			'ec_option_stripe_becs'             => 'BECS',
 			'ec_option_stripe_sepa'             => 'SEPA',
@@ -921,6 +935,8 @@ class wp_easycart_admin_payment_v2 {
 				'terms_accept'     => __( 'Accept and continue', 'wp-easycart' ),
 				'older_show'       => __( 'Show older gateways', 'wp-easycart' ),
 				'older_hide'       => __( 'Hide older gateways', 'wp-easycart' ),
+				'other_show'       => __( 'Show older gateways and those for other countries', 'wp-easycart' ),
+				'other_hide'       => __( 'Hide older gateways and those for other countries', 'wp-easycart' ),
 				/* translators: %s: what was typed in the gateway search. */
 				'no_match'         => __( 'No gateway matches “%s”.', 'wp-easycart' ),
 				'rec_done'         => __( 'Every recommended gateway is already on. Choose All to see the rest.', 'wp-easycart' ),
@@ -941,15 +957,334 @@ class wp_easycart_admin_payment_v2 {
 	 * @return array gateway keys
 	 */
 	public static function recommended() {
-		$keys = apply_filters( 'wp_easycart_payment_recommended_gateways', array( 'stripe_connect', 'square', 'paypal', 'amazonpay', 'authorize' ) );
+		/* 6.0.5 ( admin review M8 ): only gateways that take payments where the store is, then the store country's own favourites. */
+		$keys = array( 'stripe_connect', 'square', 'paypal', 'amazonpay' );
+		foreach ( self::local_favorites() as $key ) {
+			$keys[] = $key;
+		}
+		$keys = apply_filters( 'wp_easycart_payment_recommended_gateways', $keys );
 		$keep = array();
 		foreach ( (array) $keys as $key ) {
 			$key = sanitize_key( (string) $key );
-			if ( '' !== $key && self::gateway( $key ) && ! in_array( $key, $keep, true ) ) {
+			if ( '' !== $key && self::gateway( $key ) && self::available_in( $key ) && ! in_array( $key, $keep, true ) ) {
 				$keep[] = $key;
 			}
 		}
 		return $keep;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Gateways by country ( 6.0.5, admin review M8 and L3 )               */
+	/* ------------------------------------------------------------------ */
+
+	/** A two-letter country code. */
+	public static function is_country_code( $code ) {
+		return (bool) preg_match( '/^[A-Z]{2}$/', (string) $code );
+	}
+
+	/** The store's country ( Settings › Store details, else the setup wizard's ), or '' when it is not known. */
+	public static function store_country() {
+		return class_exists( 'wp_easycart_carriers' ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+	}
+
+	/** A country's name ( the store's list ), or its code. */
+	public static function country_name( $code ) {
+		return class_exists( 'wp_easycart_address' ) && method_exists( 'wp_easycart_address', 'country_name' ) ? wp_easycart_address::country_name( $code ) : (string) $code;
+	}
+
+	/**
+	 * The countries each gateway takes payments for stores in. A gateway not listed works everywhere ( Stripe, PayPal, Braintree … ).
+	 * Filter wp_easycart_payment_gateway_countries.
+	 *
+	 * @return array gateway key => ISO codes
+	 */
+	public static function gateway_countries() {
+		$eu = array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE' );
+		$map = array(
+			/* Square sellers: https://squareup.com/help/us/en/article/5244 ( eight countries ). */
+			'square'                    => array( 'US', 'CA', 'GB', 'AU', 'JP', 'IE', 'FR', 'ES' ),
+			'amazonpay'                 => array( 'US', 'GB', 'DE', 'FR', 'IT', 'ES', 'AT', 'BE', 'CY', 'DK', 'HU', 'IE', 'LU', 'NL', 'PT', 'SE', 'CH', 'JP' ),
+			'authorize'                 => array_merge( array( 'US', 'CA', 'GB', 'AU', 'CH', 'NO' ), $eu ),
+			'beanstream'                => array( 'CA' ),
+			'cardpointe'                => array( 'US' ),
+			'virtualmerchant'           => array( 'US', 'CA' ),
+			'eway'                      => array( 'AU', 'NZ' ),
+			'firstdata'                 => array( 'US' ),
+			'goemerchant'               => array( 'US' ),
+			'intuit'                    => array( 'US' ),
+			'moneris_ca'                => array( 'CA' ),
+			'moneris_us'                => array( 'US' ),
+			'nmi'                       => array( 'US', 'CA' ),
+			'sagepay'                   => array( 'GB', 'IE' ),
+			'sagepayus'                 => array( 'US' ),
+			'paymentexpress'            => array( 'NZ', 'AU' ),
+			'paypoint'                  => array( 'GB' ),
+			'paytrace'                  => array( 'US' ),
+			'realex'                    => array( 'IE', 'GB' ),
+			'securepay'                 => array( 'AU' ),
+			'securenet'                 => array( 'US' ),
+			'cashfree'                  => array( 'IN' ),
+			'dwolla_thirdparty'         => array( 'US' ),
+			'nets'                      => array( 'DK', 'NO', 'SE', 'FI' ),
+			'payfast_thirdparty'        => array( 'ZA' ),
+			'payfort'                   => array( 'AE', 'SA', 'EG', 'JO', 'KW', 'QA', 'BH', 'OM', 'LB' ),
+			'paymentexpress_thirdparty' => array( 'NZ', 'AU' ),
+			'realex_thirdparty'         => array( 'IE', 'GB' ),
+			'redsys'                    => array( 'ES' ),
+			'sagepay_paynow_za'         => array( 'ZA' ),
+		);
+		/**
+		 * The countries each gateway takes payments for stores in ( none = everywhere ).
+		 *
+		 * @since 6.0.5
+		 * @param array $map gateway key => ISO codes.
+		 */
+		return (array) apply_filters( 'wp_easycart_payment_gateway_countries', $map );
+	}
+
+	/**
+	 * Whether a gateway takes payments for a store in this country ( the store's when null; a store whose country is not known
+	 * sees every gateway ).
+	 *
+	 * @param string|array $gw      Gateway key or catalog entry.
+	 * @param string|null  $country ISO code.
+	 * @return bool
+	 */
+	public static function available_in( $gw, $country = null ) {
+		if ( ! is_array( $gw ) ) {
+			$gw = self::gateway( $gw );
+		}
+		if ( ! $gw ) {
+			return false;
+		}
+		$country = strtoupper( (string) ( null === $country ? self::store_country() : $country ) );
+		if ( empty( $gw['countries'] ) || ! self::is_country_code( $country ) ) {
+			return true;
+		}
+		return in_array( $country, (array) $gw['countries'], true );
+	}
+
+	/** Whether a gateway is made for the store's country ( it lists countries and the store's is one ). */
+	public static function is_local( $gw, $country = null ) {
+		if ( ! is_array( $gw ) ) {
+			$gw = self::gateway( $gw );
+		}
+		$country = strtoupper( (string) ( null === $country ? self::store_country() : $country ) );
+		return $gw && ! empty( $gw['countries'] ) && in_array( $country, (array) $gw['countries'], true );
+	}
+
+	/**
+	 * The gateways stores in a country choose most, after Stripe, Square, PayPal and Amazon Pay ( the Recommended filter and the
+	 * setup wizard's Pro line ). Filter wp_easycart_payment_local_gateways.
+	 *
+	 * @param string|null $country ISO code ( the store's when null ).
+	 * @return array gateway keys
+	 */
+	public static function local_favorites( $country = null ) {
+		$country = strtoupper( (string) ( null === $country ? self::store_country() : $country ) );
+		$map     = array(
+			'CA' => array( 'moneris_ca', 'beanstream' ),
+			'AU' => array( 'eway', 'securepay' ),
+			'NZ' => array( 'eway', 'paymentexpress' ),
+			'ES' => array( 'redsys', 'authorize' ),
+			'ZA' => array( 'payfast_thirdparty', 'sagepay_paynow_za' ),
+			'IN' => array( 'cashfree' ),
+			'DK' => array( 'nets', 'authorize' ),
+			'NO' => array( 'nets', 'authorize' ),
+			'SE' => array( 'nets', 'authorize' ),
+			'FI' => array( 'nets', 'authorize' ),
+		);
+		foreach ( array( 'AE', 'SA', 'EG', 'JO', 'KW', 'QA', 'BH', 'OM', 'LB' ) as $gulf ) {
+			$map[ $gulf ] = array( 'payfort' );
+		}
+		$keys = isset( $map[ $country ] ) ? $map[ $country ] : array( 'authorize' );
+		/**
+		 * The gateways stores in a country choose most ( after Stripe, Square, PayPal and Amazon Pay ).
+		 *
+		 * @since 6.0.5
+		 * @param array  $keys    Gateway keys.
+		 * @param string $country ISO code or ''.
+		 */
+		return array_values( array_map( 'sanitize_key', array_map( 'strval', (array) apply_filters( 'wp_easycart_payment_local_gateways', $keys, $country ) ) ) );
+	}
+
+	/**
+	 * Up to three gateways WP EasyCart PRO adds, the store country's first ( the setup wizard's Pro line ).
+	 *
+	 * @param int $limit How many.
+	 * @return array labels
+	 */
+	public static function pro_examples( $limit = 3 ) {
+		$names = array();
+		$short = array( 'braintree' => 'Braintree', 'paymentexpress' => 'Windcave', 'nmi' => 'NMI' );
+		foreach ( array_merge( self::local_favorites(), array( 'authorize', 'braintree', 'nmi' ) ) as $key ) {
+			$gw = self::gateway( $key );
+			if ( $gw && $gw['pro'] && self::available_in( $gw ) && ! isset( $names[ $key ] ) && count( $names ) < $limit ) {
+				$names[ $key ] = isset( $short[ $key ] ) ? $short[ $key ] : preg_replace( '/\s*\(.*\)$/', '', $gw['label'] );
+			}
+		}
+		$names = array_values( $names );
+		return $names;
+	}
+
+	/** How many more WP EasyCart PRO gateways there are, in tens ( "30+" ). */
+	public static function pro_more_count( $shown ) {
+		$count = 0;
+		foreach ( self::catalog() as $key => $gw ) {
+			if ( $gw['pro'] && 'custom' !== $key && 'custom_thirdparty' !== $key ) {
+				++$count;
+			}
+		}
+		return max( 0, (int) floor( ( $count - (int) $shown ) / 10 ) * 10 );
+	}
+
+	/**
+	 * What the PayPal buttons offer where the store is: Venmo only in the US, Pay Later where PayPal offers it.
+	 *
+	 * @param string      $kind    short ( a line ) | long ( with no SSL needed ) | partner.
+	 * @param string|null $country ISO code ( the store's when null ).
+	 * @return string
+	 */
+	public static function paypal_text( $kind = 'short', $country = null ) {
+		$country = strtoupper( (string) ( null === $country ? self::store_country() : $country ) );
+		if ( '' === $country || 'US' === $country ) {
+			$texts = array(
+				'short'   => __( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' ),
+				'long'    => __( 'PayPal, Venmo and Pay Later buttons. No SSL certificate required.', 'wp-easycart' ),
+				'partner' => __( 'PayPal, Venmo and Pay Later buttons that shoppers already know.', 'wp-easycart' ),
+			);
+		} elseif ( in_array( $country, array( 'GB', 'DE', 'FR', 'IT', 'ES', 'AU' ), true ) ) {
+			$texts = array(
+				'short'   => __( 'PayPal and Pay Later buttons', 'wp-easycart' ),
+				'long'    => __( 'PayPal and Pay Later buttons. No SSL certificate required.', 'wp-easycart' ),
+				'partner' => __( 'PayPal and Pay Later buttons that shoppers already know.', 'wp-easycart' ),
+			);
+		} else {
+			$texts = array(
+				'short'   => __( 'PayPal checkout buttons', 'wp-easycart' ),
+				'long'    => __( 'PayPal checkout buttons. No SSL certificate required.', 'wp-easycart' ),
+				'partner' => __( 'PayPal checkout buttons that shoppers already know.', 'wp-easycart' ),
+			);
+		}
+		return isset( $texts[ $kind ] ) ? $texts[ $kind ] : $texts['short'];
+	}
+
+	/**
+	 * Afterpay's name where the business is: Clearpay in the UK ( Stripe's country, else the store's ).
+	 *
+	 * @param string|null $country ISO code.
+	 * @return string
+	 */
+	public static function afterpay_name( $country = null ) {
+		if ( null === $country ) {
+			$country = strtoupper( (string) get_option( 'ec_option_stripe_company_country', '' ) );
+			if ( ! self::is_country_code( $country ) ) {
+				$country = self::store_country();
+			}
+		}
+		return 'GB' === strtoupper( (string) $country ) ? 'Clearpay' : 'Afterpay';
+	}
+
+	/**
+	 * The Stripe payment methods shoppers in a country use most ( the panels' rows, by element id ), the most used first.
+	 * Filter wp_easycart_stripe_local_methods.
+	 *
+	 * @param string|null $country ISO code ( the store's when null ).
+	 * @return array row ids, e.g. stripe_use_ideal
+	 */
+	public static function stripe_local_methods( $country = null ) {
+		$country = strtoupper( (string) ( null === $country ? self::store_country() : $country ) );
+		$map     = array(
+			'US' => array( 'stripe_use_affirm', 'stripe_use_klarna', 'stripe_use_afterpay' ),
+			'CA' => array( 'stripe_use_afterpay' ),
+			'GB' => array( 'stripe_use_klarna', 'stripe_use_afterpay', 'stripe_use_bacs' ),
+			'IE' => array( 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'AU' => array( 'stripe_use_afterpay', 'stripe_use_becs' ),
+			'NZ' => array( 'stripe_use_afterpay' ),
+			'NL' => array( 'stripe_use_ideal', 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'BE' => array( 'stripe_use_bancontact', 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'AT' => array( 'stripe_use_eps', 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'DE' => array( 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'FR' => array( 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'ES' => array( 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'IT' => array( 'stripe_use_klarna', 'stripe_use_sepa' ),
+			'PL' => array( 'stripe_use_blik', 'stripe_use_p24' ),
+			'MY' => array( 'stripe_use_fpx', 'stripe_use_grabpay' ),
+			'SG' => array( 'stripe_use_paynow', 'stripe_use_grabpay' ),
+			'TH' => array( 'stripe_use_promptpay' ),
+			'BR' => array( 'stripe_use_pix' ),
+			'HK' => array( 'stripe_use_alipay', 'stripe_use_wechatpay' ),
+		);
+		foreach ( array( 'DK', 'SE', 'NO', 'FI' ) as $nordic ) {
+			$map[ $nordic ] = array( 'stripe_use_klarna' );
+		}
+		foreach ( array( 'PT', 'GR', 'LU', 'EE', 'LV', 'LT', 'SK', 'SI', 'MT', 'CY' ) as $euro ) {
+			$map[ $euro ] = array( 'stripe_use_sepa' );
+		}
+		$rows = isset( $map[ $country ] ) ? $map[ $country ] : array();
+		/**
+		 * The Stripe payment methods shoppers in a country use most.
+		 *
+		 * @since 6.0.5
+		 * @param array  $rows    Row ids ( stripe_use_ideal … ).
+		 * @param string $country ISO code or ''.
+		 */
+		return array_values( (array) apply_filters( 'wp_easycart_stripe_local_methods', $rows, $country ) );
+	}
+
+	/** A Stripe method row's name ( Afterpay by country ). */
+	public static function stripe_method_label( $row_id ) {
+		$labels = array(
+			'stripe_use_affirm'     => 'Affirm',
+			'stripe_use_afterpay'   => self::afterpay_name(),
+			'stripe_use_klarna'     => 'Klarna',
+			'stripe_use_bacs'       => __( 'Bacs Direct Debit', 'wp-easycart' ),
+			'stripe_use_becs'       => __( 'BECS Direct Debit', 'wp-easycart' ),
+			'stripe_use_sepa'       => __( 'SEPA Direct Debit', 'wp-easycart' ),
+			'stripe_use_ideal'      => 'iDEAL',
+			'stripe_use_bancontact' => 'Bancontact',
+			'stripe_use_eps'        => 'EPS',
+			'stripe_use_blik'       => 'BLIK',
+			'stripe_use_p24'        => 'Przelewy24',
+			'stripe_use_fpx'        => 'FPX',
+			'stripe_use_grabpay'    => 'GrabPay',
+			'stripe_use_paynow'     => 'PayNow',
+			'stripe_use_promptpay'  => 'PromptPay',
+			'stripe_use_pix'        => 'Pix',
+			'stripe_use_alipay'     => 'Alipay',
+			'stripe_use_wechatpay'  => 'WeChat Pay',
+		);
+		return isset( $labels[ $row_id ] ) ? $labels[ $row_id ] : (string) $row_id;
+	}
+
+	/**
+	 * Stripe's method families, the ones holding a method shoppers in the store's country use first ( the panels' order ).
+	 *
+	 * @param array $families family id => anything; rows found through $methods_of.
+	 * @param callable $methods_of family id => row ids.
+	 * @return array the same families, reordered
+	 */
+	public static function sort_stripe_families( $families, $methods_of ) {
+		$local = self::stripe_local_methods();
+		if ( ! $local ) {
+			return $families;
+		}
+		$first = array();
+		$rest  = array();
+		foreach ( $families as $id => $family ) {
+			$hit = false;
+			foreach ( (array) call_user_func( $methods_of, $id, $family ) as $row ) {
+				if ( in_array( $row, $local, true ) ) {
+					$hit = true;
+				}
+			}
+			if ( $hit ) {
+				$first[ $id ] = $family;
+			} else {
+				$rest[ $id ] = $family;
+			}
+		}
+		return $first + $rest;
 	}
 
 	/**
@@ -979,6 +1314,11 @@ class wp_easycart_admin_payment_v2 {
 			case 'connected':
 				if ( 'manual' === $gw['role'] ) {
 					return array( 'dot' => 'on', 'text' => __( 'On', 'wp-easycart' ), 'detail' => self::line_detail( $key, $s, $gw ) );
+				}
+				if ( ! $s['test'] && ! empty( $s['apple_pay'] ) && in_array( $s['apple_pay']['tone'], array( 'warn', 'bad' ), true ) ) {
+					/* 6.0.5: Apple Pay is not set up on a live Square store. */
+					/* translators: %s: Apple Pay's state, e.g. "Apple Pay not set up". */
+					return array( 'dot' => 'warn', 'text' => sprintf( __( 'Connected · Live · %s', 'wp-easycart' ), $s['apple_pay']['short'] ), 'detail' => self::line_detail( $key, $s, $gw ) );
 				}
 				return array( 'dot' => $s['test'] ? 'test' : 'on', 'text' => $s['test'] ? __( 'Connected · Test mode', 'wp-easycart' ) : __( 'Connected · Live', 'wp-easycart' ), 'detail' => self::line_detail( $key, $s, $gw ) );
 			case 'incomplete':
@@ -1252,6 +1592,12 @@ class wp_easycart_admin_payment_v2 {
 				self::render_menu( 'ecpay_menu_' . $role, $menu_label, $items );
 				?>
 			</div>
+			<?php
+			/* 6.0.5: Apple Pay on a live Square store, when something needs doing or is being checked. */
+			if ( 'square' === $key && $s['enabled'] && ! $s['test'] && class_exists( 'wp_easycart_square_apple_pay' ) ) {
+				wp_easycart_square_apple_pay::print_status( 'line' );
+			}
+			?>
 		</div>
 		<?php
 	}
@@ -1365,14 +1711,27 @@ class wp_easycart_admin_payment_v2 {
 				$locked++;
 			}
 		}
-		/* Recommended first ( in their order ), then the rest in catalog order. */
+		/* Recommended first ( in their order ), then gateways made for the store's country, then the rest in catalog order. 6.0.5:
+		 * a gateway that does not take payments where the store is folds away with the older ones ( away ). */
 		$sorted = array();
 		foreach ( $rec as $key ) {
 			if ( isset( $tiles[ $key ] ) ) {
 				$sorted[ $key ] = $tiles[ $key ];
 			}
 		}
-		$tiles   = $sorted + $tiles;
+		foreach ( $tiles as $key => $gw ) {
+			if ( ! isset( $sorted[ $key ] ) && self::is_local( $gw ) ) {
+				$sorted[ $key ] = $gw;
+			}
+		}
+		$tiles = $sorted + $tiles;
+		$away  = array();
+		foreach ( $tiles as $key => $gw ) {
+			if ( ! self::available_in( $gw ) ) {
+				$away[ $key ] = true;
+			}
+		}
+		$tiles   = array_diff_key( $tiles, $away ) + array_intersect_key( $tiles, $away );
 		$filters = array(
 			'recommended' => __( 'Recommended', 'wp-easycart' ),
 			'live'        => __( 'Card payments', 'wp-easycart' ),
@@ -1381,7 +1740,7 @@ class wp_easycart_admin_payment_v2 {
 			'all'         => __( 'All', 'wp-easycart' ),
 		);
 		?>
-		<div class="ecpay-catalog" id="ecpay_catalog" data-filter="recommended">
+		<div class="ecpay-catalog" id="ecpay_catalog" data-filter="recommended"<?php echo $away ? ' data-away="1"' : ''; ?>>
 			<?php if ( ! $tiles ) : ?>
 				<div class="ecpay-cat-empty"><?php esc_html_e( 'Every gateway is already active.', 'wp-easycart' ); ?></div>
 			<?php else : ?>
@@ -1418,7 +1777,7 @@ class wp_easycart_admin_payment_v2 {
 				<?php endif; ?>
 				<div class="ecpay-tiles" id="ecpay_tiles" role="list">
 					<?php foreach ( $tiles as $key => $gw ) : ?>
-						<?php self::render_tile( $key, $gw, $gate, in_array( $key, $rec, true ), isset( $older[ $key ] ) ); ?>
+						<?php self::render_tile( $key, $gw, $gate, in_array( $key, $rec, true ), isset( $older[ $key ] ), isset( $away[ $key ] ) ); ?>
 					<?php endforeach; ?>
 				</div>
 				<div class="ecpay-older-row">
@@ -1443,7 +1802,7 @@ class wp_easycart_admin_payment_v2 {
 	}
 
 	/** One gateway in the list: logo, name, one short line, and the action that fits its state. */
-	private static function render_tile( $key, $gw, $gate, $is_rec, $is_older ) {
+	private static function render_tile( $key, $gw, $gate, $is_rec, $is_older, $is_away = false ) {
 		$s       = self::status( $key );
 		$note    = self::tile_note( $gw );
 		$classes = array( 'ecpay-tile' );
@@ -1452,11 +1811,15 @@ class wp_easycart_admin_payment_v2 {
 		}
 		$search = strtolower( $gw['label'] . ' ' . $note . ' ' . implode( ' ', (array) $gw['keywords'] ) . ' ' . $key );
 		?>
-		<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" role="listitem" data-gateway="<?php echo esc_attr( $key ); ?>" data-role="<?php echo esc_attr( $gw['role'] ); ?>"<?php echo $is_rec ? ' data-rec="1"' : ''; ?><?php echo $is_older ? ' data-older="1"' : ''; ?> data-search="<?php echo esc_attr( $search ); ?>">
+		<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" role="listitem" data-gateway="<?php echo esc_attr( $key ); ?>" data-role="<?php echo esc_attr( $gw['role'] ); ?>"<?php echo $is_rec ? ' data-rec="1"' : ''; ?><?php echo ( $is_older || $is_away ) ? ' data-older="1"' : ''; ?><?php echo $is_away ? ' data-away="1"' : ''; ?> data-search="<?php echo esc_attr( $search ); ?>">
 			<?php self::render_logo( $key, $gw ); ?>
 			<div class="ecpay-tile-text">
 				<b><?php echo esc_html( $gw['label'] ); ?><?php if ( $is_rec && ! $s['locked'] ) : ?> <span class="ecpay-rec"><?php esc_html_e( 'Recommended', 'wp-easycart' ); ?></span><?php endif; ?></b>
 				<?php if ( '' !== $note ) : ?><span><?php echo esc_html( $note ); ?></span><?php endif; ?>
+				<?php if ( $is_away ) : ?>
+					<?php /* translators: %s: the store's country. */ ?>
+					<span class="ecpay-tile-away"><?php echo esc_html( sprintf( __( 'Not offered to stores in %s', 'wp-easycart' ), self::country_name( self::store_country() ) ) ); ?></span>
+				<?php endif; ?>
 				<?php if ( ! $s['locked'] && 'update' !== $s['state'] && $s['ready'] ) : ?>
 					<span class="ecpay-tile-state"><?php echo esc_html( $s['test'] ? __( 'Set up with test keys, off', 'wp-easycart' ) : __( 'Set up, off', 'wp-easycart' ) ); ?></span>
 				<?php endif; ?>
@@ -1560,12 +1923,38 @@ class wp_easycart_admin_payment_v2 {
 			$text = __( 'The gateway did not finish connecting. Try again.', 'wp-easycart' );
 			$tone = 'warning';
 		}
-		if ( '' === $text ) {
+		/**
+		 * The message the Payments page shows when a gateway's connection link comes back here. WP EasyCart PRO words what
+		 * Intuit Payments' links did ( renew, disconnect, connect, with Intuit's reason ): its panel is drawn in the drawer by
+		 * AJAX, so only this page sees the codes.
+		 *
+		 * @since 6.0.5
+		 * @param array $flash text ( '' = none ), tone ( success | warning | error | info ), actions, detail ( one more sentence ).
+		 */
+		$flash = apply_filters(
+			'wp_easycart_admin_payment_flash',
+			array(
+				'text'    => $text,
+				'tone'    => $tone,
+				'actions' => $actions,
+				'detail'  => '',
+			)
+		);
+		if ( ! is_array( $flash ) || empty( $flash['text'] ) ) {
 			return;
 		}
 		/* 6.0.4: the admin's own notice ( icon, accent bar, dismiss ), inset like the notices above and below it; it was a plain grey bar
 		   running edge to edge. */
-		echo wp_easycart_admin::notice_html( $tone, $text, array( 'actions' => $actions, 'class' => 'ecpay-flash' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
+		$html = wp_easycart_admin::notice_html(
+			isset( $flash['tone'] ) ? (string) $flash['tone'] : 'info',
+			(string) $flash['text'],
+			array(
+				'actions' => isset( $flash['actions'] ) ? (array) $flash['actions'] : array(),
+				'detail'  => isset( $flash['detail'] ) ? (string) $flash['detail'] : '',
+				'class'   => 'ecpay-flash',
+			)
+		);
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -2335,6 +2724,81 @@ class wp_easycart_admin_payment_v2 {
 		) );
 	}
 
+	/**
+	 * The Bill later drawer's bank details: an account type ( the store's country's until it picks one ) and its fields
+	 * ( wp_easycart_bank_details::schemes() ); settings-payment-v2.js shows the type's fields in its order.
+	 *
+	 * @since 6.0.5
+	 */
+	public static function print_bank_fields() {
+		if ( ! class_exists( 'wp_easycart_bank_details' ) ) {
+			return;
+		}
+		$saved   = wp_easycart_bank_details::get();
+		$schemes = wp_easycart_bank_details::schemes();
+		$names   = array(
+			'uk'    => __( 'United Kingdom: sort code and account number', 'wp-easycart' ),
+			'iban'  => __( 'IBAN: Europe and other IBAN countries', 'wp-easycart' ),
+			'au'    => __( 'Australia: BSB and account number', 'wp-easycart' ),
+			'nz'    => __( 'New Zealand: account number', 'wp-easycart' ),
+			'us'    => __( 'United States: routing and account number', 'wp-easycart' ),
+			'ca'    => __( 'Canada: Interac e-Transfer or transit and account number', 'wp-easycart' ),
+			'other' => __( 'Another country: account number and SWIFT', 'wp-easycart' ),
+		);
+		$fields  = array(
+			'holder'      => array( __( 'Account name', 'wp-easycart' ), '' ),
+			'bank'        => array( __( 'Bank name', 'wp-easycart' ), '' ),
+			'iban'        => array( __( 'IBAN', 'wp-easycart' ), 'DE89 3704 0044 0532 0130 00' ),
+			'bic'         => array( __( 'BIC / SWIFT', 'wp-easycart' ), 'DEUTDEFF' ),
+			'sort_code'   => array( __( 'Sort code', 'wp-easycart' ), '12-34-56' ),
+			'account'     => array( __( 'Account number', 'wp-easycart' ), '' ),
+			'bsb'         => array( __( 'BSB', 'wp-easycart' ), '062-000' ),
+			'routing'     => array( __( 'Routing number', 'wp-easycart' ), '' ),
+			'institution' => array( __( 'Institution number', 'wp-easycart' ), '' ),
+			'transit'     => array( __( 'Transit number', 'wp-easycart' ), '' ),
+			'interac'     => array( __( 'Interac e-Transfer email', 'wp-easycart' ), '' ),
+		);
+		$optional = array(
+			'uk'    => array( 'iban', 'bic' ),
+			'ca'    => array( 'interac', 'holder', 'institution', 'transit', 'account' ),
+			'other' => array( 'iban', 'bic', 'bank' ),
+			'iban'  => array( 'bic', 'bank' ),
+			'au'    => array( 'bank' ),
+			'nz'    => array( 'bank' ),
+			'us'    => array( 'bank' ),
+		);
+		?>
+		<fieldset class="ecpay-bank" id="ecpay_bank" data-order="<?php echo esc_attr( wp_json_encode( $schemes ) ); ?>" data-optional="<?php echo esc_attr( wp_json_encode( $optional ) ); ?>">
+			<legend class="ecdv2-label"><?php esc_html_e( 'Bank details', 'wp-easycart' ); ?></legend>
+			<span class="ecdv2-field-desc"><?php esc_html_e( 'Listed under your instructions at checkout, on the order confirmation, in invoice emails and on the pay link page, with the order number as the payment reference. Leave them empty to use your instructions alone.', 'wp-easycart' ); ?></span>
+			<div class="ecdv2-field ecdv2-field-full">
+				<label class="ecdv2-label" for="ecpay_bank_scheme"><?php esc_html_e( 'Account type', 'wp-easycart' ); ?></label>
+				<select class="ecv2-input" id="ecpay_bank_scheme">
+					<?php foreach ( $names as $scheme => $name ) : ?>
+						<option value="<?php echo esc_attr( $scheme ); ?>"<?php selected( $saved['scheme'], $scheme ); ?>><?php echo esc_html( $name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+			<div class="ecpay-bank-fields">
+				<?php foreach ( $fields as $field => $field_info ) : ?>
+					<?php $in = array(); ?>
+					<?php
+					foreach ( $schemes as $scheme => $list ) {
+						if ( in_array( $field, $list, true ) ) {
+							$in[] = $scheme;
+						}
+					}
+					?>
+					<div class="ecdv2-field ecdv2-field-full ecpay-bank-field" data-field="<?php echo esc_attr( $field ); ?>" data-schemes="<?php echo esc_attr( implode( ' ', $in ) ); ?>"<?php echo in_array( $field, $schemes[ $saved['scheme'] ], true ) ? '' : ' hidden'; ?>>
+						<label class="ecdv2-label" for="ecpay_bank_<?php echo esc_attr( $field ); ?>"><?php echo esc_html( $field_info[0] ); ?> <span class="ecpay-bank-optional"<?php echo in_array( $field, $optional[ $saved['scheme'] ], true ) ? '' : ' hidden'; ?>><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
+						<input type="<?php echo 'interac' === $field ? 'email' : 'text'; ?>" class="ecv2-input ecpay-bank-in" id="ecpay_bank_<?php echo esc_attr( $field ); ?>" data-bank="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( wp_easycart_bank_details::display( $field, $saved[ $field ] ) ); ?>" placeholder="<?php echo esc_attr( $field_info[1] ); ?>" autocomplete="off" spellcheck="false" />
+					</div>
+				<?php endforeach; ?>
+			</div>
+		</fieldset>
+		<?php
+	}
+
 	/** GET → { html, title, docs } : the small V2 form for the Bill later wording. */
 	public static function ajax_manual_form() {
 		ecv2_settings_guard();
@@ -2344,7 +2808,7 @@ class wp_easycart_admin_payment_v2 {
 		<div class="ecpay-manual-form" id="ecpay_manual_form">
 			<div class="ecdv2-field ecdv2-field-full">
 				<label class="ecdv2-label" for="ecpay_manual_title"><?php esc_html_e( 'Bill later option name', 'wp-easycart' ); ?></label>
-				<input type="text" class="ecv2-input" id="ecpay_manual_title" value="<?php echo esc_attr( self::manual_title() ); ?>" placeholder="<?php esc_attr_e( 'Bill me later', 'wp-easycart' ); ?>" autocomplete="off" />
+				<input type="text" class="ecv2-input" id="ecpay_manual_title" value="<?php echo esc_attr( self::manual_title() ); ?>" placeholder="<?php esc_attr_e( 'Pay by bank transfer', 'wp-easycart' ); ?>" autocomplete="off" />
 				<span class="ecdv2-field-desc"><?php esc_html_e( 'What the pay-later choice is called on the checkout page and the receipt, in the store language.', 'wp-easycart' ); ?></span>
 			</div>
 			<div class="ecdv2-field ecdv2-field-full">
@@ -2352,6 +2816,7 @@ class wp_easycart_admin_payment_v2 {
 				<textarea class="ecv2-input" id="ecpay_manual_message" rows="7" placeholder="<?php esc_attr_e( 'Please transfer the order total to …', 'wp-easycart' ); ?>"><?php echo esc_textarea( (string) get_option( 'ec_option_direct_deposit_message' ) ); ?></textarea>
 				<span class="ecdv2-field-desc"><?php esc_html_e( 'Shown at checkout and on the receipt when they choose to pay later: bank details, where to send a cheque, pickup notes.', 'wp-easycart' ); ?></span>
 			</div>
+			<?php self::print_bank_fields(); /* 6.0.5: bank details in the fields the store's country uses */ ?>
 			<?php /* 6.0.2: Bill later for chosen customer roles only ( ec_option_manual_payment_roles ) */ ?>
 			<?php $manual_roles = self::manual_roles(); ?>
 			<div class="ecdv2-field ecdv2-field-full">
@@ -2390,6 +2855,14 @@ class wp_easycart_admin_payment_v2 {
 		if ( ! empty( $_POST['roles_sent'] ) ) {
 			$roles = isset( $_POST['roles'] ) ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['roles'] ) ) : array();
 		}
+		/* 6.0.5: the bank details ( checked first, so a mistyped IBAN saves nothing ) */
+		if ( class_exists( 'wp_easycart_bank_details' ) && isset( $_POST['bank_scheme'] ) ) {
+			$bank   = isset( $_POST['bank'] ) && is_array( $_POST['bank'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['bank'] ) ) : array();
+			$banked = wp_easycart_bank_details::save( sanitize_key( wp_unslash( $_POST['bank_scheme'] ) ), $bank );
+			if ( is_wp_error( $banked ) ) {
+				wp_send_json_error( array( 'message' => $banked->get_error_message(), 'field' => 'ecpay_bank_' . $banked->get_error_code() ) );
+			}
+		}
 		$result  = self::save_manual( $title, $message, $roles );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
@@ -2426,6 +2899,32 @@ class wp_easycart_admin_payment_v2 {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
 		wp_send_json_success( array( 'message' => $result, 'sections' => self::sections_html() ) );
+	}
+
+	/**
+	 * POST run=check|replace, where=line|drawer → Apple Pay's domain set-up for a live Square store runs now
+	 * ( wp_easycart_square_apple_pay::run(); replace also puts Square's file over another payment service's ). Answers the
+	 * status block for where it was asked and the redrawn sections ( the Square line follows ).
+	 *
+	 * @since 6.0.5
+	 */
+	public static function ajax_square_apple_pay() {
+		ecv2_settings_guard();
+		if ( ! class_exists( 'wp_easycart_square_apple_pay' ) || ! wp_easycart_square_apple_pay::live() ) {
+			wp_send_json_error( array( 'message' => __( 'Apple Pay is set up for a live Square account. Connect your live account and take live payments first.', 'wp-easycart' ) ) );
+		}
+		$run   = isset( $_POST['run'] ) ? sanitize_key( wp_unslash( $_POST['run'] ) ) : 'check';
+		$where = ( isset( $_POST['where'] ) && 'line' === sanitize_key( wp_unslash( $_POST['where'] ) ) ) ? 'line' : 'drawer';
+		wp_easycart_square_apple_pay::run( 'replace' === $run );
+		$status = wp_easycart_square_apple_pay::status();
+		wp_send_json_success(
+			array(
+				'message'  => $status['title'],
+				'tone'     => $status['tone'],
+				'html'     => wp_easycart_square_apple_pay::status_html( $where ),
+				'sections' => self::sections_html(),
+			)
+		);
 	}
 
 	/**
@@ -2490,5 +2989,6 @@ add_action( 'wp_ajax_ecv2_payment_manual_form', array( 'wp_easycart_admin_paymen
 add_action( 'wp_ajax_ecv2_payment_manual_save', array( 'wp_easycart_admin_payment_v2', 'ajax_manual_save' ) );
 add_action( 'wp_ajax_ecv2_payment_toggle', array( 'wp_easycart_admin_payment_v2', 'ajax_toggle' ) );
 add_action( 'wp_ajax_ecv2_payment_test_off', array( 'wp_easycart_admin_payment_v2', 'ajax_test_off' ) );
+add_action( 'wp_ajax_ecv2_payment_square_apple_pay', array( 'wp_easycart_admin_payment_v2', 'ajax_square_apple_pay' ) );
 
 endif;

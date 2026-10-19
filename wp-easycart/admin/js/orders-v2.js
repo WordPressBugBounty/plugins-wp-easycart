@@ -1579,6 +1579,9 @@ jQuery( function( $ ) {
 	/* Ctrl K / Cmd K: the list's search ( the order screen's Find ). */
 	$( document ).on( 'keydown', function( ev ) {
 		if ( ( ev.ctrlKey || ev.metaKey ) && ! ev.altKey && ! ev.shiftKey && 'k' === String( ev.key ).toLowerCase() ) {
+			if ( window.wpecSearch ) {
+				return; /* 6.0.5: the one admin search answers Ctrl / ⌘ K ( it finds orders too ) */
+			}
 			var $search = $( '#ecv2-search-input' ).filter( ':visible' ).first();
 			if ( $search.length && ! $( 'body' ).hasClass( 'ecv2-qe-open' ) ) {
 				ev.preventDefault();

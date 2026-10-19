@@ -438,7 +438,8 @@ if ( ! class_exists( 'wp_easycart_store_schema' ) ) :
 				'oz'  => 'ONZ',
 				'g'   => 'GRM',
 			);
-			$unit      = strtolower( (string) get_option( 'ec_option_weight', 'lbs' ) );
+			/* 6.0.5: the unit weights are entered in ( wp_easycart_packages::units(); ec_option_weight is never saved, so a kg store said LBR ). */
+			$unit      = class_exists( 'wp_easycart_packages' ) ? wp_easycart_packages::units()['weight'] : strtolower( (string) get_option( 'ec_option_paypal_weight_unit', 'lbs' ) );
 			$unit_code = isset( $unit_map[ $unit ] ) ? $unit_map[ $unit ] : 'LBR';
 			$default   = self::day_range( (string) get_option( 'ec_option_shipping_transit_days', '' ) );
 			$services  = array();

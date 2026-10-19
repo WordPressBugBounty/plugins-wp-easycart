@@ -434,7 +434,7 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 	.ec_details_mobile_title_area{ display:block; }
 	.ec_details_images, .ec_details_right, .ec_details_customer_reviews_left, .ec_details_customer_reviews_form, .ec_details_customer_review_date{ float:left; margin-left:0px; width:100%; }
 	.ec_details_right{ padding-left:0px; }
-	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_details_rating{ display:none; }
+	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_product_prior_price, .ec_details_right > form > .ec_details_rating{ display:none; }
 	.ec_details_customer_review_list{ width:100%; }
 	<?php }?>
 	
@@ -473,7 +473,7 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 	.ec_details_mobile_title_area{ display:block; }
 	.ec_details_images, .ec_details_right, .ec_details_customer_reviews_left, .ec_details_customer_reviews_form, .ec_details_customer_review_date{ float:left; margin-left:0px; width:100%; }
 	.ec_details_right{ padding-left:0px; }
-	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_details_rating{ display:none; }
+	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_product_prior_price, .ec_details_right > form > .ec_details_rating{ display:none; }
 	.ec_details_customer_review_list{ width:100%; }
 	<?php }?>
 	
@@ -512,7 +512,7 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 	.ec_details_mobile_title_area{ display:block; }
 	.ec_details_images, .ec_details_right, .ec_details_customer_reviews_left, .ec_details_customer_reviews_form, .ec_details_customer_review_date{ float:left; margin-left:0px; width:100%; }
 	.ec_details_right{ padding-left:0px; }
-	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_details_rating{ display:none; }
+	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_product_prior_price, .ec_details_right > form > .ec_details_rating{ display:none; }
 	.ec_details_customer_review_list{ width:100%; }
 	<?php }?>
 	
@@ -551,7 +551,7 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 	.ec_details_mobile_title_area{ display:block; }
 	.ec_details_images, .ec_details_right, .ec_details_customer_reviews_left, .ec_details_customer_reviews_form, .ec_details_customer_review_date{ float:left; margin-left:0px; width:100%; }
 	.ec_details_right{ padding-left:0px; }
-	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_details_rating{ display:none; }
+	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_product_prior_price, .ec_details_right > form > .ec_details_rating{ display:none; }
 	.ec_details_customer_review_list{ width:100%; }
 	<?php }?>
 	
@@ -604,7 +604,7 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 	.ec_details_mobile_title_area{ display:block; }
 	.ec_details_images, .ec_details_right, .ec_details_customer_reviews_left, .ec_details_customer_reviews_form, .ec_details_customer_review_date{ float:left; margin-left:0px; width:100%; }
 	.ec_details_right{ padding-left:0px; }
-	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_details_rating{ display:none; }
+	.ec_details_right > form > .ec_details_breadcrumbs.ec_small, .ec_details_right > form > .ec_details_title, .ec_details_right > form > .ec_title_divider, .ec_details_right > form > .ec_details_price, .ec_details_right > form > .ec_product_prior_price, .ec_details_right > form > .ec_details_rating{ display:none; }
 	.ec_details_customer_review_list{ width:100%; }
 	<?php }?>
 	

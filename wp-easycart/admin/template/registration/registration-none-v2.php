@@ -91,7 +91,7 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 		<div class="ecreg-path">
 			<span class="dashicons dashicons-cart ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Buy a license', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Pro includes every paid feature plus a year of priority support and updates. Premium adds every extension.', 'wp-easycart' ); ?></p>
+			<p><?php esc_html_e( 'Pro includes every paid feature plus priority support and updates, billed yearly or monthly. Premium adds every extension.', 'wp-easycart' ); ?></p>
 			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_pricing ); ?>" target="_blank"><?php esc_html_e( 'See plans & pricing', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
 			<span class="ecreg-path-fine"><?php esc_html_e( 'Your key arrives by email; come back here to enter it.', 'wp-easycart' ); ?></span>
 		</div>

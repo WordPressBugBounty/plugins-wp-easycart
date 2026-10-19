@@ -264,7 +264,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 			if ( $ec_invoice_offer['amount'] <= 0 ) { continue; }
 	?>
 	<div class="ec_cart_price_row ec_offer_totals_row">
-		<div class="ec_cart_price_row_label"><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_invoice_offer['label'] ); ?><?php if ( '' != $ec_invoice_offer['code'] ) { echo ' (' . esc_attr( $ec_invoice_offer['code'] ) . ')'; } ?></div>
+		<div class="ec_cart_price_row_label"><span class="dashicons dashicons-tag"></span> <?php echo esc_html( wp_easycart_order_discounts::display_label( $ec_invoice_offer, 'invoice' ) ); ?></div>
 		<div class="ec_cart_price_row_total">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_invoice_offer['amount'] ) ); ?></div>
 	</div>
 	<?php } } ?>
@@ -713,7 +713,15 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 				?>
 				<?php $stripe_payment_intent_client_secret = $this->get_stripe_intent_client_secret( $invoice ); ?>
 				jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
-				try {
+				<?php
+				if ( class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+					echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+					/* 6.0.5: Stripe started no payment and checkout protection did not hold it back: the card form's place says so. */
+					if ( '' === $stripe_payment_intent_client_secret && ! ( method_exists( $this, 'stripe_held_by_protection' ) && $this->stripe_held_by_protection() ) ) {
+						echo wp_easycart_stripe_unavailable::call( 'null', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_order_form' )" ) . ' if ( false ) '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script.
+					}
+				}
+				?>try {
 					var clientSecret = '<?php echo esc_attr( $stripe_payment_intent_client_secret ); ?>';
 					var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
 					var elements = stripe.elements( );
@@ -883,7 +891,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 						}
 					} );
 				}catch( err ){
-					alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+					<?php echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::call( 'err', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_order_form' )" ) : 'console.error( err );'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script. ?>
 				}
 			</script>
 
@@ -1033,6 +1041,11 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 					jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).show( );
 					ec_hide_error( 'ec_submit_order' );
 				}
+				<?php
+				if ( class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+					echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+				}
+				?>
 				try {
 					var elements = stripe.elements( );
 					var style = {
@@ -1091,7 +1104,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 						}
 					});
 				}catch( err ){
-					alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+					<?php echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::call( 'err', '#ideal-bank-element', 'null' ) : 'console.error( err );'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script. ?>
 				}
 			</script>
 
@@ -1122,7 +1135,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 
 	<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section" id="ec_terms_agreement_row">
-		<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?>
+		<label class="ec_cart_check_label ec_agree_box" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 	</div>
 	<?php }else{ ?>
 		<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -1130,8 +1143,7 @@ if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice
 
 	<?php if( get_option( 'ec_option_show_subscriber_feature' ) && ( !$GLOBALS['ec_user']->user_id || !$GLOBALS['ec_user']->is_subscriber ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section"<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?> style="margin-top:-10px;"<?php }?>>
-		<input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
-		<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?>
+		<label class="ec_cart_check_label ec_agree_box" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 	</div>
 	<?php }?>
 

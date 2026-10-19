@@ -50,14 +50,20 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 		 * @return ec_stripe|ec_stripe_connect|false False when the store doesn't take payments through Stripe.
 		 */
 		public static function gateway() {
-			$method = (string) get_option( 'ec_option_payment_process_method' );
+			$method  = (string) get_option( 'ec_option_payment_process_method' );
+			$gateway = false;
 			if ( 'stripe' === $method && class_exists( 'ec_stripe' ) ) {
-				return new ec_stripe();
+				$gateway = new ec_stripe();
+			} elseif ( 'stripe_connect' === $method && class_exists( 'ec_stripe_connect' ) ) {
+				$gateway = new ec_stripe_connect();
 			}
-			if ( 'stripe_connect' === $method && class_exists( 'ec_stripe_connect' ) ) {
-				return new ec_stripe_connect();
-			}
-			return false;
+			/**
+			 * The gateway subscription prices and the store's plan changes use ( tests hand in a fake ).
+			 *
+			 * @since 6.0.5
+			 * @param ec_stripe|ec_stripe_connect|false $gateway The store's Stripe class.
+			 */
+			return apply_filters( 'wp_easycart_subscription_prices_gateway', $gateway );
 		}
 
 		/**
@@ -234,6 +240,8 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 		 *     Optional.
 		 *     @type float|null  $amount      The amount to bill when it isn't the product's price ( a modifier's new price ).
 		 *     @type object|null $option_item The modifier item whose new price this is ( optionitem_id, option_id, optionitem_name ).
+		 *     @type string      $level       6.0.5: a usage level of the product ( wp_easycart_subscription_levels ): its own flat price,
+		 *                                    kept per level and mode ( ec_product.usage_stripe ).
 		 * }
 		 * @return string|false The Stripe price id, or false when Stripe could not be reached or refused.
 		 */
@@ -258,9 +266,12 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 				array(
 					'amount'      => null,
 					'option_item' => null,
+					'level'       => '',
 				),
 				(array) $args
 			);
+			/* 6.0.5: a usage level bills its own price, one Stripe price per level on the product's Stripe product. */
+			$level = ( '' !== (string) $args['level'] && class_exists( 'wp_easycart_subscription_levels' ) ) ? wp_easycart_subscription_levels::find( wp_easycart_subscription_levels::of( (int) $row->product_id ), (string) $args['level'] ) : null;
 			$ids  = self::stored( $row );
 
 			$stripe_product = ( '' !== $ids['product'] ) ? self::fetch_product( $stripe, $ids['product'] ) : false;
@@ -304,6 +315,10 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 			$amount    = ( null === $args['amount'] ) ? (float) $row->price : (float) $args['amount'];
 			$option    = ( is_object( $args['option_item'] ) ) ? $args['option_item'] : null;
 			$candidate = ( $option ) ? self::override_price_id( $row->product_id, $option ) : $ids['price'];
+			if ( $level && ! $option ) {
+				$amount    = (float) $level['price'];
+				$candidate = wp_easycart_subscription_levels::stripe_price_id( (int) $row->product_id, (string) $level['id'], self::is_sandbox() );
+			}
 			if ( '' !== $candidate ) {
 				$price = $stripe->get_price( $candidate );
 				if ( self::matches( $price, $amount, $period, $length, $ids['product'] ) ) {
@@ -315,6 +330,8 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 			$title = $row->title;
 			if ( $option && isset( $option->optionitem_name ) && '' !== (string) $option->optionitem_name ) {
 				$title .= ' ' . $option->optionitem_name;
+			} elseif ( $level ) {
+				$title = wp_easycart_subscription_levels::title( $title, wp_easycart_subscription_levels::label( wp_easycart_subscription_levels::of( (int) $row->product_id ), $level ) );
 			}
 			$new = $stripe->insert_price( self::stripe_object( $row, $amount, $period, $length, $ids['product'], $title ) );
 			if ( ! is_object( $new ) || empty( $new->id ) ) {
@@ -322,6 +339,8 @@ if ( ! class_exists( 'wp_easycart_subscription_prices' ) ) :
 			}
 			if ( $option ) {
 				self::store_override( $row->product_id, $option, (string) $new->id );
+			} elseif ( $level ) {
+				wp_easycart_subscription_levels::store_stripe_price( (int) $row->product_id, (string) $level['id'], self::is_sandbox(), (string) $new->id );
 			} else {
 				self::store( $row->product_id, array( 'price' => (string) $new->id ) );
 			}
@@ -1035,11 +1054,15 @@ if ( ! function_exists( 'wp_easycart_change_subscription_plan' ) ) {
 			array(
 				'source' => 'customer',
 				'user'   => null,
+				'level'  => '', /* 6.0.5: the usage level to move to ( '' = keep, or the nearest the product sells ) */
 			),
 			(array) $args
 		);
 		$ec_db        = new ec_db(); /* sets ec_db's database handle for its static calls */
 		$subscription = ec_db::get_subscription_row( (int) $subscription_id );
+		if ( $subscription && class_exists( 'wp_easycart_subscription_levels' ) ) {
+			wp_easycart_subscription_levels::fill( $subscription );
+		}
 		if ( ! $subscription || 'stripe' !== (string) $subscription->subscription_type || '' === (string) $subscription->stripe_subscription_id ) {
 			return new WP_Error( 'subscription', 'Only Stripe subscriptions can change product.' );
 		}
@@ -1071,9 +1094,16 @@ if ( ! function_exists( 'wp_easycart_change_subscription_plan' ) ) {
 		$item    = wp_easycart_subscription_prices::main_item_object( $live, (int) $subscription->product_id );
 		$item_id = ( $item && isset( $item->id ) ) ? (string) $item->id : '';
 
+		/* 6.0.5: the level it moves to, with its own price. */
+		$level = class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::resolve( (int) $product->product_id, (string) $args['level'], $subscription ) : null;
+		if ( $level ) {
+			$product->price = (float) $level['price'];
+		}
+		$same_level = ( ! $level || (string) $level['id'] === ( isset( $subscription->usage_level ) ? (string) $subscription->usage_level : '' ) );
+
 		/* Only the quantity changes: the subscriber keeps the price they pay now ( a price raised since is for new subscribers ). */
 		$price_id = '';
-		if ( (int) $product->product_id === (int) $subscription->product_id && $item && isset( $item->price->id ) && '' !== (string) $item->price->id ) {
+		if ( (int) $product->product_id === (int) $subscription->product_id && $same_level && $item && isset( $item->price->id ) && '' !== (string) $item->price->id ) {
 			$price_id                         = (string) $item->price->id;
 			$product->stripe_default_price_id = $price_id;
 			if ( '' === (string) $product->stripe_product_id && isset( $item->price->product ) ) {
@@ -1081,7 +1111,7 @@ if ( ! function_exists( 'wp_easycart_change_subscription_plan' ) ) {
 			}
 		}
 		if ( '' === $price_id ) {
-			$price_id = wp_easycart_subscription_prices::ensure( $product, $stripe );
+			$price_id = wp_easycart_subscription_prices::ensure( $product, $stripe, array( 'level' => $level ? (string) $level['id'] : '' ) );
 		}
 		if ( ! $price_id ) {
 			return new WP_Error( 'price', 'Stripe could not make a price for the product.' );
@@ -1105,6 +1135,9 @@ if ( ! function_exists( 'wp_easycart_change_subscription_plan' ) ) {
 			ec_db::update_subscription( (int) $subscription->subscription_id, $args['user'], $product, null, $quantity );
 		} else {
 			ec_db::upgrade_subscription( (int) $subscription->subscription_id, $product, $quantity );
+		}
+		if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+			wp_easycart_subscription_levels::after_change( (int) $subscription->subscription_id, $product, $quantity, $level );
 		}
 
 		$previous_period = (string) $subscription->payment_period . '/' . (int) $subscription->payment_length;
@@ -1136,6 +1169,8 @@ if ( ! function_exists( 'wp_easycart_change_subscription_plan' ) ) {
 				'source'                 => (string) $args['source'],
 				'stripe_subscription_id' => (string) $subscription->stripe_subscription_id,
 				'stripe_price_id'        => $price_id,
+				'level'                  => $level ? (string) $level['id'] : '', /* 6.0.5 */
+				'previous_level'         => isset( $subscription->usage_level ) ? (string) $subscription->usage_level : '',
 			)
 		);
 		return true;

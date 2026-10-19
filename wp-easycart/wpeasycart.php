@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 6.0.4
+ * Version: 6.0.5
  * Requires at least: 6.5
  * Requires PHP: 7.3
  * Author: WP EasyCart
@@ -19,7 +19,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 6.0.4
+ * @version 6.0.5
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -28,9 +28,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '6_0_4' );
+define( 'EC_CURRENT_VERSION', '6_0_5' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '124' );
+define( 'EC_UPGRADE_DB', '132' );
 
 /*
  * Gateway notifications ( webhooks ): Square ( 6.0.1 ), PayPal ( 6.0.2 ).
@@ -774,7 +774,10 @@ function ec_activate() {
 
 	update_option( 'ec_option_is_installed', '1' );
 
-	if ( '&#36;' == get_option( 'ec_option_currency' ) ) {
+	/* 6.0.5: any symbol saved as an HTML entity ( &#36;, &pound;, &euro; ) is saved as characters. */
+	if ( class_exists( 'ec_currency' ) && method_exists( 'ec_currency', 'repair_saved_symbol' ) ) {
+		ec_currency::repair_saved_symbol();
+	} elseif ( '&#36;' == get_option( 'ec_option_currency' ) ) {
 		update_option( 'ec_option_currency', '$' );
 	}
 	
@@ -969,6 +972,13 @@ function ec_uninstall() {
 	delete_option( 'wp_easycart_tracking_activated' );
 	delete_option( 'wp_easycart_installed_at' );
 	delete_option( 'wp_easycart_cli_used' ); // 6.0.4: when a wp easycart command last ran ( wp_easycart_cli::used() ).
+	/* 6.0.5: Fit the cart to your theme's content area, its measurement and the recommendation put away, so a store installed again
+	   starts as a new store ( wp_easycart_cart_fit::seed_new_store() ). */
+	if ( class_exists( 'wp_easycart_cart_fit' ) && method_exists( 'wp_easycart_cart_fit', 'uninstall' ) ) {
+		wp_easycart_cart_fit::uninstall();
+	} else {
+		delete_option( 'ec_option_cart_fit' );
+	}
 	wp_clear_scheduled_hook( 'wp_easycart_tracking_flush' );
 	wp_clear_scheduled_hook( 'wp_easycart_tracking_checkin' );
 }
@@ -980,7 +990,7 @@ function wpeasycart_update_check() {
 		$wpoptions->add_options();
 		wp_easycart_language()->update_language_data();
 		update_option( 'ec_option_wpoptions_version', EC_CURRENT_VERSION );
-		update_option( 'ec_option_language_sections_rev', '6.0.4-cart-stock-limit' );
+		update_option( 'ec_option_language_sections_rev', '6.0.5-usage-levels' );
 		/* 6.0.2: a store that chose to share usage data before sending came back queues its setup once ( catch_up() ). 6.0.3: an
 		   update event with a fresh check-in ( not on a first install, which has no version before ). */
 		add_option( 'wp_easycart_installed_at', 0, '', false ); /* 0: installed before 6.0.3 recorded it */
@@ -990,7 +1000,7 @@ function wpeasycart_update_check() {
 				wp_easycart_admin_tracking::instance()->updated( $ec_tracking_from, EC_CURRENT_VERSION );
 			}
 		}
-	} else if ( '6.0.4-cart-stock-limit' != get_option( 'ec_option_language_sections_rev' ) ) {
+	} else if ( '6.0.5-usage-levels' != get_option( 'ec_option_language_sections_rev' ) ) {
 		/* 6.0.2: new phrases reach stores that already merged a 6.0.2 build: the one-page checkout's ( cart_onepage ), then
 		   the order payments ones ( documents: pay_paid_label, pay_balance_label, account_pay_balance ), then the Elementor
 		   upgrade's: the sections elementor_templates, elementor_product, elementor_product_info, elementor_shop,
@@ -1027,11 +1037,25 @@ function wpeasycart_update_check() {
 		   account_dashboard_welcome, _welcome_no_name; 6.0.4 ), then the card form's ZIP check ( ec_errors: card_postal_mismatch, 6.0.4 ), then
 		   corrected German receipt closing line and guest checkout messages ( ec_language::replaced_phrases(), 6.0.4 ), then the gift card box's
 		   used-up card ( cart_coupons: cart_giftcard_used, 6.0.4 ), then the cart's quantity limits ( cart: cartitem_stock_limit,
-		   cartitem_stock_limit_cart, cartitem_stock_limit_hidden, cartitem_max_limit, cartitem_min_limit, 6.0.4 ).
+		   cartitem_stock_limit_cart, cartitem_stock_limit_hidden, cartitem_max_limit, cartitem_min_limit, 6.0.4 ), then Limit Access
+		   ( product_page: page_access_signin_notice, _title, _products, _products_all, _contact, _buy, _subscribe, _open, _back, _account,
+		   _excerpt, 6.0.5 ), then the pages a customer can open ( product_page: page_access_your_pages, _order_opens, _order_pending, 6.0.5 ), then the order button that says payment is owed ( cart_payment_information:
+		   cart_payment_information_submit_order_button and the sentences naming it, ec_language::replaced_phrases(), 6.0.5 ), then the address labels ( the
+		   section address_labels, 6.0.5 ), then the reverse-charge mention ( cart_billing_information: cart_billing_information_vat_reverse_charge, 6.0.5 ), then
+		   the lowest price of the last 30 days ( product_details: product_details_prior_price, 6.0.5 ), then unit prices ( product_details:
+		   product_details_unit_price, product_details_unit_item, 6.0.5 ), then each subscription's own card and its past payments ten at a time
+		   ( account_subscriptions: subscription_details_card_expires, _expired, _updated, _updated_many, _failed, _apply, _apply_this,
+		   _apply_some, _apply_all, _apply_others, _apply_none, subscription_details_payments_more, _shown, subscription_details_view_all_orders, 6.0.5 ),
+		   then the card form's words when Stripe cannot start a payment ( cart_payment_information: stripe_unavailable, 6.0.5 ), then
+		   the one-page checkout's sign in ( cart_onepage: create_account_question, signed_in_not_you, signed_in_sign_out, 6.0.5 ), then
+		   the subscription page's email first sign up ( cart_login: subscription_email_*, subscription_set_password_*, 6.0.5 ), then the
+		   checkout's email first ( cart_login: checkout_email_*, checkout_password_*, checkout_account_required, checkout_set_password_text ), then
+		   the email step's human check ( cart_login: checkout_email_check, 6.0.5 ), then usage levels ( cart_login: subscription_level_choose,
+		   subscription_level_update, subscription_units_range; account_subscriptions: subscription_level_change, _current, _hint, _hint_up, 6.0.5 ).
 		   Missing sections and keys are added; an existing phrase changes only while it still reads as the English copy ( or a
 		   translation that lost a [token] ), so a store's own wording stays. */
 		wp_easycart_language()->update_language_data();
-		update_option( 'ec_option_language_sections_rev', '6.0.4-cart-stock-limit' );
+		update_option( 'ec_option_language_sections_rev', '6.0.5-usage-levels' );
 	}
 
 	/* 6.0.4: under WP-CLI too, so the first wp command after wp plugin update brings the tables up to date, as opening wp-admin does. */
@@ -1331,6 +1355,10 @@ function load_ec_pre() {
 		wp_easycart_cart_link::resolve( sanitize_text_field( wp_unslash( $_GET['ec_cart_apply'] ) ), $cartpage, $storepage );
 	} else if ( isset( $_GET['ec_add_to_cart'] ) ) {
 		global $wpdb;
+		/* 6.0.5: a prefetch or a bot adds nothing and starts no cart session ( wp_easycart_add_to_cart_links::guard() ). */
+		if ( class_exists( 'wp_easycart_add_to_cart_links' ) ) {
+			wp_easycart_add_to_cart_links::guard( $storepage . '?model_number=' . rawurlencode( sanitize_text_field( wp_unslash( $_GET['ec_add_to_cart'] ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public add-to-cart link.
+		}
 		wpeasycart_session()->handle_session();
 		wp_easycart_apply_query_coupon();
 
@@ -1570,7 +1598,10 @@ function load_ec_pre() {
 			$tempcart_id = true;
 		} else {
 			$wpec_before_add = function_exists( 'wp_easycart_cart_add_snapshot' ) ? wp_easycart_cart_add_snapshot( $product->product_id ) : 0;
-			$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['ec_add_to_cart'] ), array( $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5 ), $option_vals, $was_merged );
+			/* 6.0.5: &quantity=N ( issue #464 ): missing or 0 adds 1, as before; raised to the product's minimum, capped at its maximum
+			 * and at 20 ( wp_easycart_add_to_cart_links::quantity() ); quick_add_to_cart() caps it at the stock left. */
+			$wpec_link_quantity = class_exists( 'wp_easycart_add_to_cart_links' ) ? wp_easycart_add_to_cart_links::quantity( $product, wp_easycart_add_to_cart_links::requested( wp_easycart_add_to_cart_links::url_vars( $product, $advanced_options ) ) ) : 1;
+			$tempcart_id = $db->quick_add_to_cart( (string) $product->model_number, array( $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5 ), $option_vals, $was_merged, $wpec_link_quantity );
 		}
 
 		if ( $tempcart_id ) {
@@ -1617,19 +1648,27 @@ function load_ec_pre() {
 		}
 
 	} else if ( isset( $_GET['ec_action'] ) && $_GET['ec_action'] == "addtocart" && isset( $_GET['model_number'] ) ) {
+		/* 6.0.5: a prefetch or a bot ( a crawler following the store list's Add to Cart link ) adds nothing and starts no cart session. */
+		if ( class_exists( 'wp_easycart_add_to_cart_links' ) ) {
+			wp_easycart_add_to_cart_links::guard( $storepage . '?model_number=' . rawurlencode( sanitize_text_field( wp_unslash( $_GET['model_number'] ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public add-to-cart link.
+		}
 		wpeasycart_session()->handle_session();
 
 		$db = new ec_db();
 		global $wpdb;
-		/* 6.0.2: the product list's Add to cart link ( redirect mode ); its script adds ec_meta_eid to the link. */
-		$wpec_add_product_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s AND activate_in_store = 1', sanitize_text_field( wp_unslash( $_GET['model_number'] ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public add-to-cart link.
+		/* 6.0.2: the product list's Add to cart link ( redirect mode ); its script adds ec_meta_eid to the link. 6.0.5: also where a
+		 * background add goes when its cached page's nonce expired ( ec_ajax_add_to_cart() ), with the quantity chosen. */
+		$wpec_add_product = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, min_purchase_quantity, max_purchase_quantity FROM ec_product WHERE model_number = %s AND activate_in_store = 1', sanitize_text_field( wp_unslash( $_GET['model_number'] ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public add-to-cart link.
+		$wpec_add_product_id = $wpec_add_product ? (int) $wpec_add_product->product_id : 0;
 		/* 6.0.2: only an active product, and nothing while the store is shown as a catalog ( vacation mode ): the product page opens instead. */
 		if ( ! $wpec_add_product_id || apply_filters( 'wp_easycart_catalog_display', get_option( 'ec_option_display_as_catalog' ) ) ) {
 			header( "location: " . esc_url_raw( wp_easycart_with_source_tags( $storepage . "?model_number=" . htmlspecialchars( sanitize_text_field( $_GET['model_number'] ), ENT_QUOTES ) ) ) );
 			die();
 		}
 		$wpec_before_add = ( $wpec_add_product_id && function_exists( 'wp_easycart_cart_add_snapshot' ) ) ? wp_easycart_cart_add_snapshot( $wpec_add_product_id ) : 0;
-		$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['model_number'] ) );
+		$wpec_link_merged = false;
+		$wpec_link_quantity = class_exists( 'wp_easycart_add_to_cart_links' ) ? wp_easycart_add_to_cart_links::quantity( $wpec_add_product, wp_easycart_add_to_cart_links::requested() ) : 1;
+		$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( wp_unslash( $_GET['model_number'] ) ), null, null, $wpec_link_merged, $wpec_link_quantity ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public add-to-cart link.
 		if ( $tempcart_id ) {
 			if ( $wpec_add_product_id && function_exists( 'wp_easycart_announce_cart_item_added' ) ) {
 				wp_easycart_announce_cart_item_added( $tempcart_id, $wpec_add_product_id, $wpec_before_add, 'list' );
@@ -1767,6 +1806,57 @@ function wpeasycart_prevent_iframe() {
 	}
 }
 add_action( 'wp', 'wpeasycart_prevent_iframe' );
+
+if ( ! function_exists( 'wp_easycart_asset_file_version' ) ) {
+	/**
+	 * 6.0.5: WP EasyCart's own stylesheets and scripts carry the file's time beside the version ( ?ver=6_0_5.1760540000 ), in the store
+	 * and the admin. The version alone stayed the same across test and hotfix zips of one release, so a browser or a page cache kept an
+	 * older ec-store.css: My Account's "Use this card for" choices showed as bare browser controls. Files in wp-easycart and its sibling
+	 * folders ( wp-easycart-data, WP EasyCart PRO, the extensions ); others are left as they are.
+	 *
+	 * @param string $src    The address WordPress is about to print.
+	 * @param string $handle The handle.
+	 * @return string
+	 */
+	function wp_easycart_asset_file_version( $src, $handle = '' ) {
+		static $root = null;
+		if ( ! is_string( $src ) || '' === $src || false === strpos( $src, 'ver=' ) || ! defined( 'WP_PLUGIN_DIR' ) ) {
+			return $src;
+		}
+		/**
+		 * Whether WP EasyCart's own assets carry the file's time in their version.
+		 *
+		 * @since 6.0.5
+		 * @param bool   $on     True.
+		 * @param string $src    The address.
+		 * @param string $handle The handle.
+		 */
+		if ( ! apply_filters( 'wp_easycart_asset_version_by_file', true, $src, $handle ) ) {
+			return $src;
+		}
+		if ( null === $root ) {
+			$root = preg_replace( '#^(https?:)?//#i', '//', untrailingslashit( plugins_url() ) ) . '/';
+		}
+		$parts = explode( '?', $src, 2 );
+		$path  = preg_replace( '#^(https?:)?//#i', '//', $parts[0] );
+		if ( 0 !== strpos( $path, $root ) || ! preg_match( '#^(wp-easycart[A-Za-z0-9_-]*)/([A-Za-z0-9_./-]+\.(?:css|js))$#', substr( $path, strlen( $root ) ), $match ) || false !== strpos( $match[2], '..' ) ) {
+			return $src;
+		}
+		$file = WP_PLUGIN_DIR . '/' . $match[1] . '/' . $match[2];
+		$time = is_file( $file ) ? (int) filemtime( $file ) : 0;
+		if ( ! $time ) {
+			return $src;
+		}
+		$query = array();
+		parse_str( isset( $parts[1] ) ? $parts[1] : '', $query );
+		if ( ! isset( $query['ver'] ) || ! is_string( $query['ver'] ) || preg_match( '/\.' . $time . '$/', $query['ver'] ) ) {
+			return $src;
+		}
+		return add_query_arg( 'ver', rawurlencode( $query['ver'] . '.' . $time ), $src );
+	}
+	add_filter( 'style_loader_src', 'wp_easycart_asset_file_version', 10, 2 );
+	add_filter( 'script_loader_src', 'wp_easycart_asset_file_version', 10, 2 );
+}
 
 function ec_css_loader_v3() {
 	if ( apply_filters( 'wp_easycart_load_css_scripts', true ) ) {
@@ -2176,6 +2266,14 @@ function ec_load_js() {
 		'consent_statistics' => ( ! function_exists( 'wp_easycart_has_marketing_consent' ) || wp_easycart_has_marketing_consent( 'statistics' ) ) ? '1' : '0',
 		/* 6.0.3: My Account's Change plan previews a change and confirms it ( wp_easycart_subscription_changes, ec-account-subscriptions.js ). */
 		'subscription_changes' => ( class_exists( 'wp_easycart_subscription_changes' ) && wp_easycart_subscription_changes::active() ) ? '1' : '0',
+		/* 6.0.5: countries whose region is optional, and the region / postcode labels by country ( ec-store.js wpeasycart_address_fields() ). */
+		'address' => class_exists( 'wp_easycart_regions' ) ? wp_easycart_regions::config() : array( 'optional' => array(), 'labels' => array() ),
+		/* 6.0.5: the words of a size option's error on a store copy of a product template that prints none for an optional size
+		   ( ec-store.js wpeasycart_details_size_check() ): "Missing Option" and the option's label, as the templates write it. */
+		'missing_option' => wp_easycart_language()->get_text( 'product_details', 'product_details_missing_option' ),
+		/* 6.0.5 ( issue #473 ): the store's own add to cart link, where a background add goes when its answer can't be read
+		   ( ec-store.js wpeasycart_add_to_cart_fallback(): the model number and quantity are added to it ). */
+		'add_to_cart_url' => esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_action' => 'addtocart' ) ) ),
 		/* 6.0.4: what the one-page checkout's and the account page's veil says ( ec-store.js wpeasycart_checkout_veil() ). */
 		'checkout_text' => array(
 			'loading'     => wp_easycart_checkout_wait_text( 'loading' ),
@@ -2185,6 +2283,8 @@ function ec_load_js() {
 			'saving'      => wp_easycart_checkout_wait_text( 'saving' ),
 			'sending'     => wp_easycart_checkout_wait_text( 'sending' ),
 			'slow'        => wp_easycart_checkout_wait_text( 'placing_slow' ),
+			/* 6.0.5: too many emails looked up ( wp_easycart_email_lookups ) */
+			'email_busy'  => class_exists( 'wp_easycart_email_lookups' ) ? wp_easycart_email_lookups::busy_text() : '',
 		),
 	);
 	wp_localize_script( 'wpeasycart_js', 'wpeasycart_ajax_object', $ajax_array );
@@ -2564,6 +2664,10 @@ function load_ec_cart( $atts ) {
 	  $cart_page = new ec_cartpage();
 	  $cart_page->display_cart_page();
 	}
+	/* 6.0.5: the cart laid out for its own width, measured right after it is drawn ( wp_easycart_cart_fit ). */
+	if ( class_exists( 'wp_easycart_cart_fit' ) ) {
+		echo wp_easycart_cart_fit::script(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with a JSON config.
+	}
 	return ob_get_clean();
 }
 
@@ -2633,7 +2737,15 @@ function wp_easycart_dynamic_cart_display( $language = 'NONE' ) {
 	if ( ! in_array( $wpec_dyn_error, $error_codes, true ) ) {
 		$wpec_dyn_error = '';
 	}
-	echo '<div id="wpeasycart_cart_holder" style="position:relative; width:100%; min-height:350px;" data-cart-page="' . esc_js( $cart_page ) . '" data-success-code="' . ( ( isset( $_GET['ec_cart_success'] ) && 'account_created' === sanitize_text_field( wp_unslash( $_GET['ec_cart_success'] ) ) ) ? 'account_created' : '' ) . '" data-error-code="' . esc_js( $wpec_dyn_error ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-cart-page' ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a notice to show; nothing is changed.
+	/* 6.0.5: the subscription page's usage level ( ec_level / ec_units from a pricing table or the order summary ) goes with the request
+	   that draws the page ( wpeasycart_load_cart() ), which carried only the page and product, so a level chosen there was lost. */
+	$wpec_dyn_level = '';
+	$wpec_dyn_units = 0;
+	if ( 5 === (int) $cart_page || 0 === strpos( (string) $cart_page, '5-' ) ) {
+		$wpec_dyn_level = isset( $_GET['ec_level'] ) ? preg_replace( '/[^a-z0-9_\-]/', '', strtolower( sanitize_text_field( wp_unslash( $_GET['ec_level'] ) ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a choice of what to buy, read like the page's subscription parameter.
+		$wpec_dyn_units = isset( $_GET['ec_units'] ) ? (int) $_GET['ec_units'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	}
+	echo '<div id="wpeasycart_cart_holder" style="position:relative; width:100%; min-height:350px;"' . ( '' !== $wpec_dyn_level ? ' data-level="' . esc_attr( $wpec_dyn_level ) . '"' : '' ) . ( $wpec_dyn_units > 0 ? ' data-units="' . (int) $wpec_dyn_units . '"' : '' ) . ' data-cart-page="' . esc_js( $cart_page ) . '" data-success-code="' . ( ( isset( $_GET['ec_cart_success'] ) && 'account_created' === sanitize_text_field( wp_unslash( $_GET['ec_cart_success'] ) ) ) ? 'account_created' : '' ) . '" data-error-code="' . esc_js( $wpec_dyn_error ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-cart-page' ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a notice to show; nothing is changed.
 	/* 6.0.4: an outline of the page while it loads ( lines and a summary, shimmering; ec-store.css .wpec-cart-loading ), in place of the
 	   2015 spinner, under a line that says what is loading ( the cart, the checkout or the order ) and, after a while, that it is taking
 	   longer than usual: on a slow server the grey outline alone looked as if nothing was happening. */
@@ -2681,29 +2793,80 @@ if ( ! function_exists( 'wp_easycart_checkout_wait_text' ) ) {
 	/**
 	 * What the cart and the one-page checkout say while they wait: the outline while the page loads, and the veil while the checkout
 	 * signs a customer in or out or changes screens ( ec-store.js wpeasycart_checkout_veil() ). The store's wording ( language section
-	 * cart_onepage ), else English.
+	 * cart_onepage ), else English. 6.0.5: also the one-page checkout's sign in ( ec_cart_information_v2.php ).
 	 *
 	 * @since 6.0.4
 	 * @param string $key loading | loading_cart | loading_checkout | loading_order | loading_account | signing_in | signing_out |
-	 *                    creating_account | saving | sending | placing_slow.
+	 *                    creating_account | saving | sending | placing_slow | create_account_question | signed_in_not_you |
+	 *                    signed_in_sign_out.
 	 * @return string Plain text.
 	 */
 	function wp_easycart_checkout_wait_text( $key ) {
 		$english = array(
-			'loading'          => 'Loading…',
-			'loading_cart'     => 'Loading your cart…',
-			'loading_checkout' => 'Loading your checkout…',
-			'loading_order'    => 'Loading your order…',
-			'signing_in'       => 'Signing you in…',
-			'signing_out'      => 'Signing you out…',
-			'loading_account'  => 'Loading your account…',
-			'creating_account' => 'Creating your account…',
-			'saving'           => 'Saving…',
-			'sending'          => 'Sending…',
-			'placing_slow'     => 'This is taking a little longer than usual.',
+			'loading'                 => 'Loading…',
+			'loading_cart'            => 'Loading your cart…',
+			'loading_checkout'        => 'Loading your checkout…',
+			'loading_order'           => 'Loading your order…',
+			'signing_in'              => 'Signing you in…',
+			'signing_out'             => 'Signing you out…',
+			'loading_account'         => 'Loading your account…',
+			'creating_account'        => 'Creating your account…',
+			'saving'                  => 'Saving…',
+			'sending'                 => 'Sending…',
+			'placing_slow'            => 'This is taking a little longer than usual.',
+			'create_account_question' => 'Don\'t have an account?',
+			'signed_in_not_you'       => 'Not you?',
+			'signed_in_sign_out'      => 'Sign out',
 		);
 		$text = function_exists( 'wp_easycart_language' ) ? trim( wp_strip_all_tags( (string) wp_easycart_language()->get_text( 'cart_onepage', $key ) ) ) : '';
 		return ( '' !== $text ) ? $text : ( isset( $english[ $key ] ) ? $english[ $key ] : '' );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_signed_in_card' ) ) {
+	/**
+	 * Who is signed in at checkout, as a card: initials, name, email and "Not you? Sign out" ( ec-store.css .ec_cart_signed_in_v2 ), in
+	 * place of "You are currently checking out as …, click here to checkout with a different account." on the one-page checkout, the
+	 * classic checkout and the subscription page. Without a name the email is the card's title. With no user it prints the parts empty:
+	 * the subscription page's card that ec-store.js fills in once a shopper makes an account there ( wpeasycart_signed_in_card() ).
+	 *
+	 * @since 6.0.5
+	 * @param array $args logout_url ( the sign out link ), onclick ( the link's script ), id ( the card's id ), name_id ( the name's id ),
+	 *                    user ( an ec_user; null = none ).
+	 */
+	function wp_easycart_signed_in_card( $args ) {
+		$args    = array_merge(
+			array(
+				'logout_url' => '',
+				'onclick'    => '',
+				'id'         => '',
+				'name_id'    => '',
+				'user'       => isset( $GLOBALS['ec_user'] ) ? $GLOBALS['ec_user'] : null,
+			),
+			(array) $args
+		);
+		$user    = is_object( $args['user'] ) ? $args['user'] : null;
+		$first   = $user ? trim( (string) $user->first_name ) : '';
+		$last    = $user ? trim( (string) $user->last_name ) : '';
+		$email   = $user ? trim( (string) $user->email ) : '';
+		$name    = trim( $first . ' ' . $last );
+		$letters = '';
+		foreach ( ( '' !== $name ) ? array( $first, $last ) : array( $email ) as $part ) {
+			if ( '' !== $part ) {
+				$letters .= function_exists( 'mb_substr' ) ? mb_substr( $part, 0, 1, 'UTF-8' ) : substr( $part, 0, 1 );
+			}
+		}
+		$letters = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $letters, 'UTF-8' ) : strtoupper( $letters );
+		?>
+		<div class="ec_cart_input_row ec_cart_signed_in_v2"<?php echo ( '' !== $args['id'] ) ? ' id="' . esc_attr( $args['id'] ) . '"' : ''; ?>>
+			<span class="ec_cart_signed_in_avatar" aria-hidden="true"><?php echo esc_html( $letters ); ?></span>
+			<span class="ec_cart_signed_in_who">
+				<span class="ec_cart_signed_in_name"<?php echo ( '' !== $args['name_id'] ) ? ' id="' . esc_attr( $args['name_id'] ) . '"' : ''; ?>><?php echo esc_html( ( '' !== $name ) ? $name : $email ); ?></span>
+				<span class="ec_cart_signed_in_email"><?php echo esc_html( ( '' !== $name ) ? $email : '' ); ?></span>
+			</span>
+			<span class="ec_cart_signed_in_switch"><span class="ec_cart_signed_in_not_you"><?php echo esc_html( wp_easycart_checkout_wait_text( 'signed_in_not_you' ) ); ?></span> <a href="<?php echo esc_url( $args['logout_url'] ); ?>" class="ec_cart_login_header_link"<?php echo ( '' !== $args['onclick'] ) ? ' onclick="' . esc_attr( $args['onclick'] ) . '"' : ''; ?>><?php echo esc_html( wp_easycart_checkout_wait_text( 'signed_in_sign_out' ) ); ?></a></span>
+		</div>
+		<?php
 	}
 }
 
@@ -2740,7 +2903,19 @@ function load_ec_account( $atts ) {
 		}
 	}
 
+	/* 6.0.5: WP EasyCart Limit Access: a signed-in customer sent from a page they can't open gets what unlocks it
+	   ( ec_page=members_only ); a visitor sent to sign in gets a line naming the page above the form. */
+	$page_access_notice = '';
+	if ( class_exists( 'wp_easycart_page_access' ) ) {
+		$members_only = wp_easycart_page_access::account_route();
+		if ( null !== $members_only ) {
+			return $members_only;
+		}
+		$page_access_notice = wp_easycart_page_access::account_notice();
+	}
+
 	ob_start();
+	echo $page_access_notice; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by wp_easycart_page_access::account_notice().
 	if ( isset( $_POST['ec_form_action'] ) ) {
 		$account_page = new ec_accountpage( $redirect );
 		$account_page->process_form_action( sanitize_key( $_POST['ec_form_action'] ) );	
@@ -2899,7 +3074,7 @@ function wp_easycart_dynamic_account_display( $language = 'NONE', $force_page = 
 	}
 	/* 6.0.2: plus the Connect Order answers ( ec_accountpage::process_connect_order() / process_order_claim() ). */
 	$valid_success_codes = array( 'login_success', 'validation_required', 'reset_email_sent', 'password_reset_success', 'resend_activation_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated', 'order_connected', 'order_claim_sent' );
-	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed', 'invalid_order_id', 'order_claim_invalid', 'order_claim_sign_in', 'order_claim_limit' );
+	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed', 'invalid_order_id', 'order_claim_invalid', 'order_claim_sign_in', 'order_claim_limit', 'download_unavailable', 'email_busy' ); /* 6.0.5: plus email_busy ( wp_easycart_email_lookups ) and download_unavailable, which display_account_error() knew and this list did not */
 	$success_code = ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) ? sanitize_text_field( $_GET['account_success'] ) : '';
 	$error_code = ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) ? sanitize_text_field( $_GET['account_error'] ) : '';
 	echo '<div id="wpeasycart_account_holder" style="position:relative; width:100%; min-height:350px;" data-account-page="' . esc_js( $account_page ) . '" data-page-id="' . esc_js( get_queried_object_id() ) . '" data-success-code="' . esc_js( $success_code ) . '" data-error-code="' . esc_js( $error_code ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) . '"';
@@ -4543,10 +4718,50 @@ function load_ec_plan_table( $atts ) {
 }
 
 //[ec_membership productid=''][/ec_membership]
+/**
+ * Whether the signed-in customer passes an [ec_membership] / [ec_membership_alt] shortcode: any one of its products, roles, or any signed-in
+ * customer ( 6.0.5: the Limit Access engine's rule, wp_easycart_page_access::passes() ).
+ *
+ * @since 6.0.5
+ *
+ * @param string $productid Product ids, comma separated.
+ * @param string $userroles Role labels, comma separated.
+ * @param string $signedin  1 / true / yes: any signed-in customer.
+ * @return bool
+ */
+function wp_easycart_membership_shortcode_passes( $productid, $userroles, $signedin = '' ) {
+	$user_id = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) ) ? (int) $GLOBALS['ec_user']->user_id : 0;
+	$role    = ( $user_id > 0 && isset( $GLOBALS['ec_user']->user_level ) ) ? (string) $GLOBALS['ec_user']->user_level : '';
+	$any     = in_array( strtolower( trim( (string) $signedin ) ), array( '1', 'true', 'yes', 'on' ), true );
+	if ( $user_id <= 0 ) {
+		return false;
+	}
+	if ( class_exists( 'wp_easycart_page_access' ) ) {
+		$rule = wp_easycart_page_access::clean(
+			array(
+				'on'        => 1,
+				'match'     => 'any',
+				'signed_in' => $any,
+				'products'  => (string) $productid,
+				'roles'     => array_map( 'trim', explode( ',', (string) $userroles ) ),
+			)
+		);
+		return wp_easycart_page_access::passes( $rule, $user_id, $role );
+	}
+	if ( $any ) {
+		return true;
+	}
+	if ( '' !== (string) $productid && wp_easycart_user_has_membership( $user_id, $productid ) ) {
+		return true;
+	}
+	return '' !== (string) $userroles && in_array( $role, explode( ',', (string) $userroles ) ); // phpcs:ignore WordPress.PHP.StrictInArray.MissingTrueStrict -- as 6.0.4 compared.
+}
+
 function load_ec_membership( $atts, $content = NULL ) {
 	extract( shortcode_atts( array(
 		'productid' => '',
-		'userroles' => ''
+		'userroles' => '',
+		'signedin'  => '', /* 6.0.5: any signed-in customer */
 	), $atts ) );
 	/* 6.0.2: product IDs only ( blocks saved before 6.0.2 said productid="undefined" ), roles without stray spaces. */
 	$productid = wp_easycart_shortcode_id_list( $productid );
@@ -4561,20 +4776,9 @@ function load_ec_membership( $atts, $content = NULL ) {
 		return "<h4>MEMBER AND NON MEMBER CONTENT SHOWN TO ADMIN USER</h4><hr />" . do_shortcode( $content ) . "<hr />";
 
 	} else if ( $GLOBALS['ec_user']->user_id ) {
-		$db = new ec_db();
-		$is_member = false;
-
-		if ( $productid != '' ) {
-			$is_member = function_exists( 'wp_easycart_user_has_membership' ) ? wp_easycart_user_has_membership( $GLOBALS['ec_user']->user_id, $productid ) : $db->has_membership_product_ids( $productid ); /* 6.0.2: one rule ( D5 ), as the page lock */
-		}
-
-		if ( $userroles != '' ) {
-			$user_role_array = explode( ',', $userroles );
-
-			if ( in_array( $GLOBALS['ec_user']->user_level, $user_role_array ) ) {
-				$is_member = true;
-			}
-		}
+		/* 6.0.5: the Limit Access engine decides ( wp_easycart_page_access::passes(), any one of these, as always ), with signedin="1" for any
+		   signed-in customer. */
+		$is_member = wp_easycart_membership_shortcode_passes( $productid, $userroles, $signedin );
 
 		if ( $is_member ) {
 			return do_shortcode( $content );
@@ -4588,7 +4792,8 @@ function load_ec_membership( $atts, $content = NULL ) {
 function load_ec_membership_alt( $atts, $content = NULL ) {
 	extract( shortcode_atts( array(
 		'productid' => '',
-		'userroles' => ''
+		'userroles' => '',
+		'signedin'  => '', /* 6.0.5: any signed-in customer */
 	), $atts ) );
 	/* 6.0.2: product IDs only ( blocks saved before 6.0.2 said productid="undefined" ), roles without stray spaces. */
 	$productid = wp_easycart_shortcode_id_list( $productid );
@@ -4603,20 +4808,9 @@ function load_ec_membership_alt( $atts, $content = NULL ) {
 		return "<h4>NON-MEMBER CONTENT (WORDPRESS ADMIN DISPLAY ONLY)</h4><hr />" . do_shortcode( $content ) . "<hr />";
 
 	} else if ( $GLOBALS['ec_user']->user_id ) {
-		$db = new ec_db();
-		$is_member = false;
-
-		if ( $productid != '' ) {
-			$is_member = function_exists( 'wp_easycart_user_has_membership' ) ? wp_easycart_user_has_membership( $GLOBALS['ec_user']->user_id, $productid ) : $db->has_membership_product_ids( $productid ); /* 6.0.2: one rule ( D5 ), as the page lock */
-		}
-
-		if ( $userroles != '' ) {
-			$user_role_array = explode( ',', $userroles );
-
-			if ( in_array( $GLOBALS['ec_user']->user_level, $user_role_array ) ) {
-				$is_member = true;
-			}
-		}
+		/* 6.0.5: the Limit Access engine decides ( wp_easycart_page_access::passes(), any one of these, as always ), with signedin="1" for any
+		   signed-in customer. */
+		$is_member = wp_easycart_membership_shortcode_passes( $productid, $userroles, $signedin );
 
 
 		if ( ! $is_member ) {
@@ -5333,6 +5527,32 @@ function ec_ajax_add_to_cart_complete() {
 	die();
 }
 
+if ( ! function_exists( 'wp_easycart_add_to_cart_fallback_url' ) ) {
+	/**
+	 * The store's own add to cart link for a product ( ?ec_action=addtocart, no nonce ), with a quantity: where a background add
+	 * goes when it cannot be done ( a cached page's expired nonce ). An inactive or unknown product opens the store page.
+	 *
+	 * @since 6.0.5
+	 *
+	 * @param int $product_id Product.
+	 * @param int $quantity   Quantity chosen ( 1 or less adds the product's usual quantity ).
+	 * @return string
+	 */
+	function wp_easycart_add_to_cart_fallback_url( $product_id, $quantity = 1 ) {
+		global $wpdb;
+		$model_number = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d AND activate_in_store = 1', (int) $product_id ) );
+		if ( '' === $model_number ) {
+			$store = get_permalink( (int) get_option( 'ec_option_storepage' ) );
+			return esc_url_raw( $store ? (string) $store : home_url( '/' ) );
+		}
+		$args = array( 'model_number' => rawurlencode( $model_number ) );
+		if ( (int) $quantity > 1 ) {
+			$args['quantity'] = (int) $quantity;
+		}
+		return esc_url_raw( add_query_arg( $args, wpeasycart_links()->get_cart_page( '', array( 'ec_action' => 'addtocart' ) ) ) );
+	}
+}
+
 add_action( 'wp_ajax_ec_ajax_add_to_cart', 'ec_ajax_add_to_cart' );
 add_action( 'wp_ajax_nopriv_ec_ajax_add_to_cart', 'ec_ajax_add_to_cart' );
 function ec_ajax_add_to_cart() {
@@ -5341,6 +5561,13 @@ function ec_ajax_add_to_cart() {
 	ob_start();
 	$product_id = ( isset( $_POST['product_id'] ) ) ? (int) $_POST['product_id'] : 0;
 	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wp-easycart-add-to-cart-' . $product_id ) ) {
+		/* 6.0.5 ( issue #473 ): a page cache kept the store list longer than its nonce lives ( 12 to 24 hours ), and the empty
+		 * answer left the button spinning. The store's own add to cart link ( ?ec_action=addtocart, which needs no nonce ) adds
+		 * the product instead, with the quantity chosen; ec_add_to_cart() ( ec-store.js ) follows added:false + redirect. */
+		while ( ob_get_level() > $wpec_ob_level ) {
+			ob_end_clean();
+		}
+		echo wp_json_encode( array( array( 'added' => false, 'redirect' => wp_easycart_add_to_cart_fallback_url( $product_id, isset( $_POST['quantity'] ) ? (int) $_POST['quantity'] : 1 ), 'reason' => 'nonce' ) ) );
 		die();
 	}
 
@@ -5640,7 +5867,14 @@ function ec_ajax_subscription_create_account() {
 		$wpec_email      = isset( $_POST['ec_contact_email'] ) ? sanitize_email( wp_unslash( $_POST['ec_contact_email'] ) ) : '';
 		$wpec_first_name = isset( $_POST['ec_contact_first_name'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_contact_first_name'] ) ) : '';
 		$wpec_last_name  = isset( $_POST['ec_contact_last_name'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_contact_last_name'] ) ) : '';
-		if ( wp_easycart_wordpress_users::email_taken( $wpec_email ) ) {
+		if ( class_exists( 'wp_easycart_email_lookups' ) && ! wp_easycart_email_lookups::allow( $wpec_email ) ) {
+			/* 6.0.5: too many emails looked up from this browser or address: nothing said about this one */
+			$response = array( 'error' => array(
+				'id'		=> 'email_busy',
+				'message'	=> wp_easycart_email_lookups::busy_text(),
+			) );
+
+		} else if ( wp_easycart_wordpress_users::email_taken( $wpec_email ) ) {
 			$response = array( 'error' => array(
 				'id'		=> 'user_create_error',
 				'message'	=> wp_easycart_language()->get_text( "ec_errors", "email_exists_error" )
@@ -5776,13 +6010,16 @@ function wp_easycart_subscription_output_ajax_totals( $coupon_notice = null ) {
 	global $wpdb;
 	$ec_db = new ec_db();
 	$products = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['product_id'] ), "", "", "" );
-	$product = new ec_product( $products[0], 0, 1, 0 );
 	if ( class_exists( 'wp_easycart_subscription_options' ) ) {
 		wp_easycart_subscription_options::guard( $products[0] ); /* 6.0.3: totals from this product's own choices only */
 	}
+	if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+		$products[0] = wp_easycart_subscription_levels::apply( $products[0] ); /* 6.0.5: the chosen level's price */
+	}
+	$product = new ec_product( $products[0], 0, 1, 0 );
 	$subscription_cart = array();
 
-	if ( !get_option( 'ec_option_subscription_one_only' ) && $GLOBALS['ec_cart_data']->cart_data->subscription_quantity != "" ) { 
+	if ( ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( $products[0] ) : ! get_option( 'ec_option_subscription_one_only' ) ) && $GLOBALS['ec_cart_data']->cart_data->subscription_quantity != "" ) { 
 		$subscription_quantity = $GLOBALS['ec_cart_data']->cart_data->subscription_quantity;
 	} else { 
 		$subscription_quantity = 1; 
@@ -6158,20 +6395,10 @@ function wp_easycart_subscription_output_ajax_totals( $coupon_notice = null ) {
 	$cartpage->shipping->print_shipping_options( wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ), wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ) );
 	$shipping_method_content = ob_get_clean();
 
-	$billing_address_display = esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->billing_last_name ) . ', ';
-	$billing_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_company_name ) ? $GLOBALS['ec_cart_data']->cart_data->billing_company_name . ', ' : '' ) );
-	$billing_address_display .= esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 ) . ', ';
-	$billing_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 ) ? $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 . ', ' : '' ) );
-	$billing_address_display .= esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_city ) . ' ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_state ) . ' ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_zip ) . ', ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->billing_country );
-	$billing_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_phone ) ? ', ' . $GLOBALS['ec_cart_data']->cart_data->billing_phone : '' ) );
+	$billing_address_display = esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'billing', array( 'phone' => true ) ) ); /* 6.0.5: in the country's order */
 	$shipping_address_display = $billing_address_display;
 	if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_selector && 'true' == $GLOBALS['ec_cart_data']->cart_data->shipping_selector ) {
-		$shipping_address_display = esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_first_name . ' ' . $GLOBALS['ec_cart_data']->cart_data->shipping_last_name ) . ', ';
-		$shipping_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_company_name ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_company_name . ', ' : '' ) );
-		$shipping_address_display .= esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1 ) . ', ';
-		$shipping_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 . ', ' : '' ) );
-		$shipping_address_display .= esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_city ) . ' ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) . ' ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_zip ) . ', ' . esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_country );
-		$shipping_address_display .= esc_attr( ( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_phone ) ? ', ' . $GLOBALS['ec_cart_data']->cart_data->shipping_phone : '' ) );
+		$shipping_address_display = esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'shipping', array( 'phone' => true ) ) );
 	}
 
 	echo json_encode( array(
@@ -6341,7 +6568,9 @@ function ec_ajax_save_checkout_info() {
 		if ( isset( $_POST['ec_create_account'] ) && '1' == $_POST['ec_create_account'] ) {
 			$wpec_account_first_name = ( isset( $_POST['ec_contact_first_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['ec_contact_first_name'] ) ) : $first_name;
 			$wpec_account_last_name = ( isset( $_POST['ec_contact_last_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['ec_contact_last_name'] ) ) : $last_name;
-			if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $wpec_contact_email ) ) ) {
+			if ( class_exists( 'wp_easycart_email_lookups' ) && ! wp_easycart_email_lookups::allow( sanitize_email( $wpec_contact_email ) ) ) {
+				$errors = 'email_busy'; /* 6.0.5: too many emails looked up: nothing made, nothing said about this one */
+			} else if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $wpec_contact_email ) ) ) {
 				$errors = 'user_create_error';
 			} else {
 				$password = wp_easycart_hash_password( $_POST['ec_contact_password'] ); // XSS OK. Password Hashed Immediately
@@ -6695,7 +6924,8 @@ function ec_ajax_update_contact_email() {
 	$wpec_account_email = wp_easycart_checkout_account_email();
 	if ( ! filter_var( $wpec_email, FILTER_VALIDATE_EMAIL ) ) {
 		$error_message = 'email_format_error';
-	} else if ( isset( $_POST['ec_create_account'] ) && '1' == $_POST['ec_create_account'] && 0 !== strcasecmp( $wpec_email, $wpec_account_email ) && wp_easycart_wordpress_users::email_taken( sanitize_email( $wpec_email ) ) ) {
+	} else if ( isset( $_POST['ec_create_account'] ) && '1' == $_POST['ec_create_account'] && 0 !== strcasecmp( $wpec_email, $wpec_account_email ) && ( ! class_exists( 'wp_easycart_email_lookups' ) || wp_easycart_email_lookups::allow( sanitize_email( $wpec_email ) ) ) && wp_easycart_wordpress_users::email_taken( sanitize_email( $wpec_email ) ) ) {
+		/* 6.0.5: an email over the lookup limits is saved without the check ( Create Account checks it again and says "Too many tries" ) */
 		$error_message = 'user_create_error';
 	} else {
 		$is_success = 1;
@@ -6839,7 +7069,7 @@ function ec_ajax_goto_page_v2() {
 					include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_information_v2.php' );
 				}
 			echo '</div>';
-			$wpec_checkout_allowed = ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id; /* 6.0.2: as ec_checkout_v2.php */
+			$wpec_checkout_allowed = ! $cartpage->account_waits(); /* 6.0.2: as ec_checkout_v2.php ( 6.0.5: an email locked for a purchase that makes the account opens it too ) */
 			if ( $wpec_checkout_allowed && get_option( 'ec_option_use_shipping' ) && $cartpage->shipping_address_allowed && ( $cartpage->cart->shippable_total_items > 0 || $cartpage->order_totals->handling_total > 0 || $cartpage->cart->excluded_shippable_total_items > 0 ) ) {
 				echo '<div class="ec_cart_shipping" id="ec_cart_onepage_shipping">';
 					if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_shipping_v2.php' ) ) {
@@ -8713,25 +8943,47 @@ function ec_ajax_get_stripe_update_customer_card() {
 		echo json_encode( array( 'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => ( isset( $_POST['subscription_id'] ) ? (int) $_POST['subscription_id'] : 0 ), 'account_error' => 'subscription_update_failed' ) ) ) ) );
 		die();
 	}
-	$subscription_info = $stripe->get_subscription( $GLOBALS['ec_user']->stripe_customer_id, $subscription->stripe_subscription_id );
-	$subscription_item_id = false;
-	$quantity = (int) $subscription->quantity;
-	if ( $subscription_info ) {
-		$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
-		$card_info = $stripe->attach_payment_method( sanitize_text_field( $_POST['payment_id'] ), $GLOBALS['ec_user'] );
-		$update_response = $stripe->set_subscription_payment_method( sanitize_text_field( $_POST['payment_id'] ), $subscription_info, $subscription, $quantity );
-		if ( $update_response && class_exists( 'wp_easycart_subscription_changes' ) ) {
-			wp_easycart_subscription_changes::payment_method_changed( (int) $subscription->subscription_id, isset( $_POST['payment_id'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_id'] ) ) : '' ); /* 6.0.3: a change waiting for renewal bills the new card */
-		}
-		if ( $update_response ) {
-			$card = new ec_credit_card( $card_info->card->brand, ( ( isset( $card_info->card->billing_details ) && isset( $card_info->card->billing_details->name ) ) ? $card_info->card->billing_details->name : '' ), $card_info->card->last4, $card_info->card->exp_month, $card_info->card->exp_year, '' );
-			$ec_db->update_user_default_card( $GLOBALS['ec_user'], $card );
-		}
+	$payment_id = isset( $_POST['payment_id'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_id'] ) ) : '';
+	$card_info  = ( '' !== $payment_id ) ? $stripe->attach_payment_method( $payment_id, $GLOBALS['ec_user'] ) : false;
+	if ( ! $card_info && '' !== $payment_id ) {
+		$card_info = $stripe->get_payment_method( $payment_id ); /* the card check ( SetupIntent ) already attached it */
+	}
+	$card = wp_easycart_subscription_cards::normalize( $card_info );
+
+	/* 6.0.5: this subscription first, then the customer's other subscriptions only when they chose them ( Matt: a card changed on one
+	 * subscription moved them all on the page ). Template copies from before 6.0.5 post no choice: this subscription only. */
+	$main = wp_easycart_subscription_cards::apply( $stripe, array( $subscription ), $payment_id, $card, $GLOBALS['ec_user'] );
+	if ( empty( $main['updated'] ) ) {
+		echo json_encode( array( 'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription->subscription_id, 'account_error' => 'subscription_update_failed' ) ) ) ) );
+		die();
+	}
+	if ( $card && '' !== $card['last4'] ) {
+		$ec_db->update_user_default_card( $GLOBALS['ec_user'], new ec_credit_card( $card['brand'], '', $card['last4'], $card['exp_month'], $card['exp_year'], '' ) ); /* the account's last card */
 	}
 
-	echo json_encode( 
-		array( 
-			'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'] ) ) ),
+	$apply_to = isset( $_POST['apply_to'] ) ? sanitize_key( wp_unslash( $_POST['apply_to'] ) ) : 'this';
+	$also     = array();
+	if ( 'all' === $apply_to || 'some' === $apply_to ) {
+		$others = wp_easycart_subscription_cards::others( (int) $subscription->subscription_id, (int) $GLOBALS['ec_cart_data']->cart_data->user_id );
+		$chosen = ( 'all' === $apply_to ) ? array_keys( $others ) : array_map( 'intval', ( isset( $_POST['subscription_ids'] ) && is_array( $_POST['subscription_ids'] ) ) ? wp_unslash( $_POST['subscription_ids'] ) : array() ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every id is cast to an integer, then kept only when it is one of the customer's own subscriptions.
+		foreach ( $chosen as $chosen_id ) {
+			if ( isset( $others[ $chosen_id ] ) ) {
+				$also[ $chosen_id ] = $others[ $chosen_id ]['row'];
+			}
+		}
+	}
+	$rest = wp_easycart_subscription_cards::apply( $stripe, array_values( $also ), $payment_id, $card, $GLOBALS['ec_user'] );
+
+	$result_args = array(
+		'subscription_id' => (int) $subscription->subscription_id,
+		'card_updated'    => 1 + count( $rest['updated'] ),
+	);
+	if ( ! empty( $rest['failed'] ) ) {
+		$result_args['card_failed'] = implode( ',', $rest['failed'] );
+	}
+	echo json_encode(
+		array(
+			'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', $result_args ) ),
 		)
 	);
 	die();
@@ -8786,7 +9038,7 @@ function ec_ajax_stripe_update_customer_subscription_plan() {
 		echo json_encode( array( 'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => ( isset( $_POST['subscription_id'] ) ? (int) $_POST['subscription_id'] : 0 ), 'account_error' => 'subscription_update_failed' ) ) ) ) );
 		die();
 	}
-	$quantity = ( isset( $_POST['quantity'] ) && (int) $_POST['quantity'] > 0 && ! get_option( 'ec_option_subscription_one_only' ) ) ? (int) $_POST['quantity'] : max( 1, (int) $subscription->quantity );
+	$quantity = ( isset( $_POST['quantity'] ) && (int) $_POST['quantity'] > 0 && wp_easycart_subscription_quantity_allowed( isset( $_POST['ec_selected_plan'] ) ? (int) $_POST['ec_selected_plan'] : (int) $subscription->product_id ) ) ? (int) $_POST['quantity'] : max( 1, (int) $subscription->quantity );
 
 	/* 6.0.3: one way to change plan ( wp_easycart_change_subscription_plan(): the Stripe price checked before use, the subscription's
 	 * own item, the model number kept, wp_easycart_subscription_plan_changed ), shared with the account form and WP EasyCart PRO.
@@ -10752,7 +11004,7 @@ function wp_easycart_summary_shape( $cartpage ) {
 		return '';
 	}
 	$guest   = ( ! isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) || '' == $GLOBALS['ec_cart_data']->cart_data->user_id );
-	$account = ( $guest && ( ! empty( $cartpage->has_downloads ) || ! get_option( 'ec_option_allow_guest' ) ) );
+	$account = ( $guest && ( method_exists( $cartpage, 'account_waits' ) ? $cartpage->account_waits() : ( ! empty( $cartpage->has_downloads ) || ! get_option( 'ec_option_allow_guest' ) ) ) );
 	$handling = ( isset( $cartpage->order_totals ) && is_object( $cartpage->order_totals ) && $cartpage->order_totals->handling_total > 0 );
 	$ships   = ( get_option( 'ec_option_use_shipping' ) && ! empty( $cartpage->shipping_address_allowed ) && ( $cartpage->cart->shippable_total_items > 0 || $handling || $cartpage->cart->excluded_shippable_total_items > 0 ) );
 	return 'a' . ( $account ? 1 : 0 ) . 's' . ( $ships ? 1 : 0 );
@@ -10869,6 +11121,13 @@ function ec_get_cart_data( $args = array() ) {
 		"has_hst" => ( ( $order_totals->hst_total > 0 ) ? 1 : 0 ),
 		"pst_total" => $GLOBALS['currency']->get_currency_display( $order_totals->pst_total ),
 		"has_pst" => ( ( $order_totals->pst_total > 0 ) ? 1 : 0 ),
+		/* 6.0.5: the names and rates the rows show ( QST in Quebec ), as ec_cart_totals.php prints them. */
+		'gst_rate' => isset( $cartpage->tax->gst_rate ) ? (string) $cartpage->tax->gst_rate : '',
+		'pst_rate' => isset( $cartpage->tax->pst_rate ) ? (string) $cartpage->tax->pst_rate : '',
+		'hst_rate' => isset( $cartpage->tax->hst_rate ) ? (string) $cartpage->tax->hst_rate : '',
+		'gst_label' => wp_easycart_canada_tax_label( 'gst', isset( $cartpage->tax->shipping_state ) ? $cartpage->tax->shipping_state : '' ),
+		'pst_label' => wp_easycart_canada_tax_label( 'pst', isset( $cartpage->tax->shipping_state ) ? $cartpage->tax->shipping_state : '' ),
+		'hst_label' => wp_easycart_canada_tax_label( 'hst', isset( $cartpage->tax->shipping_state ) ? $cartpage->tax->shipping_state : '' ),
 		"tip_total" => $GLOBALS['currency']->get_currency_display( $order_totals->tip_total ),
 		"discount_total" => $GLOBALS['currency']->get_currency_display( (-1) * $order_totals->discount_total ),
 		"discount_message" => $cart_promo_html,
@@ -10949,6 +11208,11 @@ function ec_ajax_get_dynamic_cart_page() {
 		wp_easycart_language()->update_selected_language( sanitize_text_field( $_POST['language'] ) );
 		$GLOBALS['ec_cart_data']->cart_data->translate_to = sanitize_text_field( $_POST['language'] );
 		$GLOBALS['ec_cart_data']->save_session_to_db( );
+	}
+
+	/* 6.0.5: the usage level of the page's own address ( wp_easycart_dynamic_cart_display() prints it on the holder ). */
+	if ( ( isset( $_POST['ec_level'] ) || isset( $_POST['ec_units'] ) ) && class_exists( 'wp_easycart_subscription_levels' ) ) {
+		wp_easycart_subscription_levels::requested( isset( $_POST['ec_level'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_level'] ) ) : '', isset( $_POST['ec_units'] ) ? (int) $_POST['ec_units'] : 0 );
 	}
 
 	//Get the variables from the AJAX call
@@ -11649,7 +11913,15 @@ function wp_easycart_webhook_catch() {
 						if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
 							wp_easycart_subscription_changes::webhook( (string) $webhook_data->id );
 						}
+						/* 6.0.5: a card changed in Stripe ( the dashboard, another app ) shows on the subscription's page. */
+						if ( class_exists( 'wp_easycart_subscription_cards' ) ) {
+							wp_easycart_subscription_cards::webhook_subscription( $subscription_row, $webhook_data );
+						}
 					}
+
+				// 6.0.5: a card's details changed ( a new expiry date from the card network ): the subscriptions billing it follow.
+				} else if ( ( 'payment_method.updated' === $webhook_type || 'payment_method.automatically_updated' === $webhook_type ) && isset( $webhook_data->id ) && class_exists( 'wp_easycart_subscription_cards' ) ) {
+					wp_easycart_subscription_cards::webhook_payment_method( $webhook_data );
 
 				// Subscription Trial is Ending in 3 Days
 				} else if ( $webhook_type == "customer.subscription.trial_will_end" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
@@ -12723,19 +12995,20 @@ function ec_create_post_type_menu() {
 		$store_slug = ec_get_the_slug( $store_id );
 
 		$labels = array(
-			'name'        => _x( 'Store Items', 'post type general name' ),
-			'singular_name'   => _x( 'Store Item', 'post type singular name' ),
-			'add_new'      => _x( 'Add New', 'ec_store' ),
-			'add_new_item'    => __( 'Add New Store Item' ),
-			'edit_item'     => __( 'Edit Store Item' ),
-			'new_item'      => __( 'New Store Item' ),
-			'all_items'     => __( 'All Store Items' ),
-			'view_item'     => __( 'View Store Item' ),
-			'search_items'    => __( 'Search Store Items' ),
-			'not_found'     => __( 'No store items found' ),
-			'not_found_in_trash' => __( 'No store items found in the Trash' ), 
-			'parent_item_colon' => '',
-			'menu_name'     => 'Store Items'
+			/* 6.0.5 ( admin review M3 ): in WP EasyCart's text domain ( they had none, so they showed in English, e.g. Elementor's Query › Source ). */
+			'name'               => _x( 'Store Items', 'post type general name', 'wp-easycart' ),
+			'singular_name'      => _x( 'Store Item', 'post type singular name', 'wp-easycart' ),
+			'add_new'            => _x( 'Add New', 'ec_store', 'wp-easycart' ),
+			'add_new_item'       => __( 'Add New Store Item', 'wp-easycart' ),
+			'edit_item'          => __( 'Edit Store Item', 'wp-easycart' ),
+			'new_item'           => __( 'New Store Item', 'wp-easycart' ),
+			'all_items'          => __( 'All Store Items', 'wp-easycart' ),
+			'view_item'          => __( 'View Store Item', 'wp-easycart' ),
+			'search_items'       => __( 'Search Store Items', 'wp-easycart' ),
+			'not_found'          => __( 'No store items found', 'wp-easycart' ),
+			'not_found_in_trash' => __( 'No store items found in the Trash', 'wp-easycart' ),
+			'parent_item_colon'  => '',
+			'menu_name'          => _x( 'Store Items', 'post type general name', 'wp-easycart' ),
 		);
 		$args = array(
 			'labels'    	=> $labels,
@@ -13218,125 +13491,16 @@ function wp_easycart_init_facebook_pixel() {
 }
 add_action( 'the_posts', 'wp_easycart_check_for_shortcode' );
 
+/**
+ * WP EasyCart Limit Access on template_redirect. Since 6.0.5 every rule is read and applied by wp_easycart_page_access: a page set up
+ * before keeps its rule exactly ( wp_easycart_page_access::legacy() ), staff and page builder previews always load, and a destination
+ * that would send a visitor back to the page, to another page they can't open or round in circles is replaced by the store's own
+ * sign-in or members-only view.
+ */
 function wp_easycart_restrict_access() {
-	/* 6.0.2: a lock protects its own page; an archive or blog list whose first post is locked is not that page. */
-	if ( ! is_singular() ) {
-		return;
+	if ( class_exists( 'wp_easycart_page_access' ) ) {
+		wp_easycart_page_access::guard();
 	}
-	$product_restrict = get_post_meta( get_the_ID(), 'wpeasycart_restrict_product_id', true );
-	$user_restrict = get_post_meta( get_the_ID(), 'wpeasycart_restrict_user_id', true );
-	$role_restrict = get_post_meta( get_the_ID(), 'wpeasycart_restrict_role_id', true );
-
-	$redirect_page = get_post_meta( get_the_ID(), 'wpeasycart_restrict_redirect_url', true );
-	$redirect_page_auth = get_post_meta( get_the_ID(), 'wpeasycart_restrict_redirect_url_auth', true );
-	$redirect_page_not_auth = get_post_meta( get_the_ID(), 'wpeasycart_restrict_redirect_url_not_auth', true );
-
-	/*
-	 * 6.0.0: the meta value is post data, not trusted input ( any user who can edit the post can write it through
-	 * XML-RPC / REST ), so the product and user ids are reduced to positive integers ( bound as placeholders ). 6.0.2: the
-	 * older comma list and single values count as a lock too ( only arrays did ).
-	 */
-	$product_restrict_ids = array();
-	foreach ( ( is_array( $product_restrict ) ? $product_restrict : explode( ',', (string) $product_restrict ) ) as $product_restrict_id ) {
-		if ( is_scalar( $product_restrict_id ) && (int) $product_restrict_id > 0 ) {
-			$product_restrict_ids[] = (int) $product_restrict_id;
-		}
-	}
-	$product_restrict_ids = array_values( array_unique( $product_restrict_ids ) );
-	$user_restrict_ids = array();
-	foreach ( ( is_array( $user_restrict ) ? $user_restrict : explode( ',', (string) $user_restrict ) ) as $user_restrict_id ) {
-		if ( is_scalar( $user_restrict_id ) && (int) $user_restrict_id > 0 ) {
-			$user_restrict_ids[] = (int) $user_restrict_id;
-		}
-	}
-	$role_restrict_levels = array();
-	foreach ( ( is_array( $role_restrict ) ? $role_restrict : array( $role_restrict ) ) as $role_restrict_level ) {
-		if ( is_scalar( $role_restrict_level ) && '' !== (string) $role_restrict_level && '0' !== (string) $role_restrict_level ) {
-			$role_restrict_levels[] = (string) $role_restrict_level;
-		}
-	}
-
-	$is_restricted = ( count( $product_restrict_ids ) > 0 || count( $user_restrict_ids ) > 0 || count( $role_restrict_levels ) > 0 );
-	if ( ! $is_restricted ) {
-		return;
-	}
-
-	/*
-	 * 6.0.4: a Limit Access box with no redirect address limits nothing, as before 6.0.2. 6.0.2 applied it anyway ( signed-out
-	 * visitors to the sign-in page, everyone else not allowed to the store page, else the home page ), which locked visitors out of
-	 * pages set up while an empty box did nothing. The box needs at least one of its three addresses ( its note says so ).
-	 *
-	 * @since 6.0.4
-	 * @param bool $limit   Apply the limits with no redirect address set ( the 6.0.2 / 6.0.3 behaviour ). Default false.
-	 * @param int  $post_id The page.
-	 */
-	$has_redirect = ( '' != $redirect_page || '' != $redirect_page_auth || '' != $redirect_page_not_auth );
-	if ( ! $has_redirect && ! apply_filters( 'wp_easycart_restrict_access_without_redirect', false, get_the_ID() ) ) {
-		return;
-	}
-
-	/* 6.0.2: a locked page is drawn for each visitor, so no page cache or CDN may keep it ( a member's copy was served to
-	 * everyone, skipping the lock ). */
-	if ( function_exists( 'wp_easycart_product_details_no_cache' ) ) {
-		wp_easycart_product_details_no_cache();
-	}
-	if ( ! headers_sent() ) {
-		nocache_headers();
-	}
-
-	if ( current_user_can( 'manage_options' ) ) {
-		return;
-	}
-
-	/*
-	 * 6.0.2: a signed-out visitor is never let in ( with only a "Logged In" redirect set they were ). 6.0.4: the lock applies only
-	 * with at least one redirect set ( above ). Where each visitor goes:
-	 * - signed out: "Not Logged In + Not Authorized", else the account sign-in page;
-	 * - signed in and allowed: "Logged In + Authorized" when set, else the page;
-	 * - signed in, not allowed: "Logged In + Not Authorized", else "Not Logged In + Not Authorized", else the store page.
-	 * The merchant's own addresses may be on another site ( wp_redirect(), as before ); the store's fallbacks stay on this one.
-	 */
-	$user_id = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) ) ? (int) $GLOBALS['ec_user']->user_id : 0;
-	if ( $user_id <= 0 ) {
-		if ( '' != $redirect_page ) {
-			wp_redirect( $redirect_page ); die(); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- the merchant's own address from the page's Limit Access box ( protected meta ).
-		}
-		wp_easycart_restrict_access_fallback( wpeasycart_links()->get_account_page( 'login' ) );
-	}
-
-	$is_allowed = true;
-
-	if ( count( $product_restrict_ids ) > 0 ) {
-		/* 6.0.2: one membership rule ( D5 ), as the [ec_membership] shortcodes: a subscription while Active or an installment plan
-		 * paid in full; any other product once an order holding it is paid. */
-		if ( ! wp_easycart_user_has_membership( $user_id, $product_restrict_ids ) ) {
-			$is_allowed = false;
-		}
-	}
-
-	if ( count( $user_restrict_ids ) > 0 && ! in_array( $user_id, $user_restrict_ids, true ) ) {
-		$is_allowed = false;
-	}
-
-	if ( count( $role_restrict_levels ) > 0 && ! in_array( (string) $GLOBALS['ec_user']->user_level, $role_restrict_levels, true ) ) {
-		$is_allowed = false;
-	}
-
-	if ( $is_allowed ) {
-		if ( '' != $redirect_page_auth ) {
-			wp_redirect( $redirect_page_auth ); die(); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- the merchant's own address from the page's Limit Access box ( protected meta ).
-		}
-		return;
-	}
-
-	if ( '' != $redirect_page_not_auth ) {
-		wp_redirect( $redirect_page_not_auth ); die(); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- the merchant's own address from the page's Limit Access box ( protected meta ).
-	}
-	if ( '' != $redirect_page ) {
-		wp_redirect( $redirect_page ); die(); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- the merchant's own address from the page's Limit Access box ( protected meta ).
-	}
-	$store_page = get_permalink( (int) get_option( 'ec_option_storepage' ) );
-	wp_easycart_restrict_access_fallback( $store_page ? $store_page : home_url( '/' ) );
 }
 add_action( 'template_redirect', 'wp_easycart_restrict_access' );
 
@@ -13365,12 +13529,13 @@ function wp_easycart_restrict_access_fallback( $url ) {
  * The page-lock meta keys are written only by the plugin's own meta box ( update_post_meta, capability and nonce
  * checked there ). Marking them protected keeps every other write path out: the Custom Fields box, XML-RPC
  * ( wp.newPost / wp.editPost custom_fields ) and the REST meta endpoint all refuse protected keys for users without
- * the raw edit_post_meta capability, so an author cannot set a restriction or redirect on their own post.
+ * the raw edit_post_meta capability, so an author cannot set a restriction or redirect on their own post. 6.0.5: the rule saved by
+ * the new box ( wpeasycart_access ) too.
  *
  * @since 6.0.0
  */
 function wp_easycart_protect_restrict_meta( $protected, $meta_key, $meta_type ) {
-	if ( 'post' === $meta_type && 0 === strpos( (string) $meta_key, 'wpeasycart_restrict_' ) ) {
+	if ( 'post' === $meta_type && ( 0 === strpos( (string) $meta_key, 'wpeasycart_restrict_' ) || 'wpeasycart_access' === (string) $meta_key ) ) {
 		return true;
 	}
 	return $protected;

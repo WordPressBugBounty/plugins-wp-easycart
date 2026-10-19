@@ -121,23 +121,27 @@ $assign_click  = $locked ? $upsell_click : 'ecv2_catalog.assign_option( ' . (int
 				<div class="ecdv2-card-body">
 					<div class="ecos-ch-wrap">
 						<div class="ecos-ch-main">
-							<div class="ecos-input-note" id="ecos_input_note" style="display:none">
+							<?php /* 6.0.5: a typed input ( number, text, date, file ) keeps one hidden choice whose price, weight and default value the cart
+							   reads: the table shows that one row ( is-input ). A size has no price of its own: its area scales the product price. */ ?>
+							<div class="ecos-input-note" id="ecos_input_note" style="display:none" data-input="<?php esc_attr_e( 'This type has no list of choices — the shopper types or picks a value. Set its price, weight and default value below.', 'wp-easycart' ); ?>" data-size="<?php esc_attr_e( 'A size has no price of its own: the width and height the shopper enters scale the product price by their area.', 'wp-easycart' ); ?>">
 								<span class="dashicons dashicons-info-outline"></span>
-								<div><?php esc_html_e( 'This type has no list of choices — the shopper types or picks a value. Set the default and any price rule below.', 'wp-easycart' ); ?></div>
+								<div id="ecos_input_note_text"><?php esc_html_e( 'This type has no list of choices — the shopper types or picks a value. Set its price, weight and default value below.', 'wp-easycart' ); ?></div>
 							</div>
 							<table class="ecos-ch-tbl" id="ecos_tbl">
 								<thead><tr>
 									<th class="ecos-col-drag"></th>
 									<th class="ecos-col-sw"><?php esc_html_e( 'Swatch', 'wp-easycart' ); ?></th>
-									<th><?php esc_html_e( 'Choice', 'wp-easycart' ); ?></th>
+									<th class="ecos-col-name"><?php esc_html_e( 'Choice', 'wp-easycart' ); ?></th>
 									<th class="ecos-col-sku"><?php esc_html_e( 'SKU suffix', 'wp-easycart' ); ?></th>
 									<th class="ecos-col-price"><?php esc_html_e( 'Price', 'wp-easycart' ); ?></th>
-									<th class="ecos-col-weight"><?php echo esc_html( sprintf( __( 'Weight (%s)', 'wp-easycart' ), get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs' ) ); ?></th>
+									<th class="ecos-col-weight"><?php echo esc_html( sprintf( __( 'Weight (%s)', 'wp-easycart' ), function_exists( 'wp_easycart_admin_weight_unit' ) ? wp_easycart_admin_weight_unit() : ( get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs' ) ) ); ?></th>
+									<th class="ecos-col-init"><?php esc_html_e( 'Default value', 'wp-easycart' ); ?></th>
 									<th class="ecos-col-def"><?php esc_html_e( 'Default', 'wp-easycart' ); ?></th>
 									<th class="ecos-col-menu"></th>
 								</tr></thead>
 								<tbody id="ecos_tbody"></tbody>
 							</table>
+							<p class="ecos-input-hint" id="ecos_input_hint" hidden></p>
 							<div class="ecos-ch-foot">
 								<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecos_add" onclick="ecos.add_choice();"><span class="dashicons dashicons-plus-alt2"></span> <?php esc_html_e( 'Add choice', 'wp-easycart' ); ?></button>
 								<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" id="ecos_paste" onclick="ecos.paste_open();"><?php esc_html_e( 'Paste a list…', 'wp-easycart' ); ?></button>
@@ -168,7 +172,7 @@ $assign_click  = $locked ? $upsell_click : 'ecv2_catalog.assign_option( ' . (int
 				<div class="ecdv2-card-header"><h3 class="ecdv2-card-title"><?php esc_html_e( 'Rules & validation', 'wp-easycart' ); ?></h3><span class="ecdv2-card-hint"><?php esc_html_e( 'Only the rules that apply to this type are shown', 'wp-easycart' ); ?></span></div>
 				<div class="ecdv2-card-body">
 					<div class="ecdv2-grid">
-						<div class="ecdv2-field" data-rule="swatch"><label class="ecdv2-label" for="ecos_meta_swatch_size"><?php esc_html_e( 'Swatch size', 'wp-easycart' ); ?></label><select class="ecv2-select ecos-select" id="ecos_meta_swatch_size" data-track><?php foreach ( array( 20 => __( 'Small (20px)', 'wp-easycart' ), 30 => __( 'Medium (30px)', 'wp-easycart' ), 40 => __( 'Large (40px)', 'wp-easycart' ), 60 => __( 'Extra large (60px)', 'wp-easycart' ) ) as $v => $l ) { ?><option value="<?php echo esc_attr( $v ); ?>"<?php selected( (int) ( isset( $this->meta['swatch_size'] ) ? $this->meta['swatch_size'] : 30 ), $v ); ?>><?php echo esc_html( $l ); ?></option><?php } ?></select></div>
+						<div class="ecdv2-field" data-rule="swatch"><label class="ecdv2-label" for="ecos_meta_swatch_size"><?php esc_html_e( 'Swatch size', 'wp-easycart' ); ?></label><select class="ecv2-select ecos-select" id="ecos_meta_swatch_size" data-track><?php $ecos_swatch_size = wp_easycart_admin_option_editor_v2::swatch_size( isset( $this->meta['swatch_size'] ) ? $this->meta['swatch_size'] : 30 ); foreach ( wp_easycart_admin_option_editor_v2::swatch_sizes( $ecos_swatch_size ) as $v => $l ) { ?><option value="<?php echo esc_attr( $v ); ?>"<?php selected( $ecos_swatch_size, $v ); ?>><?php echo esc_html( $l ); ?></option><?php } ?></select></div>
 						<div class="ecdv2-field" data-rule="number"><label class="ecdv2-label"><?php esc_html_e( 'Number range', 'wp-easycart' ); ?></label><div class="ecos-range"><input type="number" class="ecv2-input" id="ecos_meta_min" placeholder="<?php esc_attr_e( 'Min', 'wp-easycart' ); ?>" value="<?php echo esc_attr( isset( $this->meta['min'] ) ? $this->meta['min'] : '' ); ?>" data-track><span>–</span><input type="number" class="ecv2-input" id="ecos_meta_max" placeholder="<?php esc_attr_e( 'Max', 'wp-easycart' ); ?>" value="<?php echo esc_attr( isset( $this->meta['max'] ) ? $this->meta['max'] : '' ); ?>" data-track><input type="number" class="ecv2-input" id="ecos_meta_step" placeholder="<?php esc_attr_e( 'Step', 'wp-easycart' ); ?>" value="<?php echo esc_attr( isset( $this->meta['step'] ) ? $this->meta['step'] : '' ); ?>" data-track></div></div>
 						<div class="ecdv2-field" data-rule="text"><label class="ecdv2-label"><?php esc_html_e( 'Length', 'wp-easycart' ); ?> <span class="ecdv2-label-hint"><?php esc_html_e( 'characters', 'wp-easycart' ); ?></span></label><div class="ecos-range"><input type="number" class="ecv2-input" id="ecos_meta_min_length" placeholder="<?php esc_attr_e( 'Min', 'wp-easycart' ); ?>" value="<?php echo esc_attr( isset( $this->meta['min_length'] ) ? $this->meta['min_length'] : '' ); ?>" data-track><span>–</span><input type="number" class="ecv2-input" id="ecos_meta_max_length" placeholder="<?php esc_attr_e( 'Max', 'wp-easycart' ); ?>" value="<?php echo esc_attr( isset( $this->meta['max_length'] ) ? $this->meta['max_length'] : '' ); ?>" data-track></div><span class="ecdv2-field-desc"><?php esc_html_e( 'Shoppers must type at least the minimum before adding to cart; the box stops accepting characters at the maximum.', 'wp-easycart' ); ?></span></div>
 							<?php

@@ -678,8 +678,9 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 		 */
 		public static function take_stock( $order_id, $note = '' ) {
 			global $wpdb;
-			$db    = new ec_db();
-			$taken = 0;
+			$db      = new ec_db();
+			$taken   = 0;
+			$claimed = 0;
 			/* translators: %d: order number. */
 			$note  = ( '' !== (string) $note ) ? (string) $note : sprintf( __( 'Order #%d paid', 'wp-easycart' ), (int) $order_id );
 			$lines = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d AND stock_adjusted = 0', (int) $order_id ) );
@@ -690,6 +691,7 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 				if ( 1 !== (int) $wpdb->query( $wpdb->prepare( 'UPDATE ec_orderdetail SET stock_adjusted = 1 WHERE orderdetail_id = %d AND stock_adjusted = 0', (int) $line->orderdetail_id ) ) ) {
 					continue;
 				}
+				++$claimed;
 				$units = (int) $line->quantity - ( isset( $restocked[ (int) $line->orderdetail_id ] ) ? (int) $restocked[ (int) $line->orderdetail_id ] : 0 );
 				if ( $units <= 0 ) {
 					continue;
@@ -747,6 +749,19 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 						'user_id'               => get_current_user_id(),
 					)
 				);
+			}
+			if ( $claimed > 0 ) {
+				/**
+				 * The order's lines not yet adjusted had their stock taken ( stock_adjusted 0 to 1 ), whichever path asked:
+				 * paid, approved, a pay link, Mark as paid, reopened after a cancel, the order screen's Take stock now. The
+				 * counterpart of wp_easycart_order_stock_returned. WP EasyCart PRO's Offers bundles take their items' stock
+				 * after it.
+				 *
+				 * @since 6.0.5
+				 * @param int $order_id Order.
+				 * @param int $units    Units taken ( 0 when a refund had already put every unit back ).
+				 */
+				do_action( 'wp_easycart_order_stock_taken', (int) $order_id, $taken );
 			}
 			return $taken;
 		}

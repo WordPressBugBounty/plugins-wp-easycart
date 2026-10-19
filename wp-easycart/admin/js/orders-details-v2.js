@@ -1091,7 +1091,7 @@ function ecodv2_drawer_jump( section ) {
 	sec.classList.remove( 'ecodv2-sec-flash' );
 	void sec.offsetWidth;
 	sec.classList.add( 'ecodv2-sec-flash' );
-	var first = sec.querySelector( 'input:not([type="hidden"]), select' );
+	var first = sec.querySelector( 'input:not([type="hidden"]):not([hidden]), select:not(.select2-hidden-accessible):not([hidden])' ); /* 6.0.5: never the select2 list's hidden select ( the address editor's country comes first ) */
 	if ( first ) {
 		first.focus( { preventScroll: true } );
 	}
@@ -3308,14 +3308,14 @@ function ecodv2_money( amount ) {
 		out += '-';
 	}
 	if ( before ) {
-		out += symbol;
+		out += symbol + ( c.space ? '\u00a0' : '' ); /* 6.0.5 */
 	}
 	if ( negative && ! c.negBefore ) {
 		out += '-';
 	}
 	out += number;
 	if ( ! before ) {
-		out += symbol;
+		out += ( c.space ? '\u00a0' : '' ) + symbol;
 	}
 	return out;
 }
@@ -3408,7 +3408,7 @@ function ecodv2_layer_open() {
 	if ( b.contains( 'ecodv2-drawer-open' ) || b.contains( 'ecodv2-label-open' ) || b.contains( 'ecodv2-line-open' ) || b.contains( 'ecodv2-add-open' ) || b.contains( 'ecodv2-hdrawer-open' ) || b.contains( 'ecpk-modal-open' ) ) {
 		return true;
 	}
-	if ( document.querySelector( '#ecodv2_email_dialog, #ecodv2_email_preview, .ecodv2-modal.is-open, .ecodv2-cnotes-popover.is-open, .ecdv2-menu.is-open, #ecodv2_line_del_pop.is-open, #ecodv2_cmdk, #ecodv2_scan' ) ) {
+	if ( document.querySelector( '#ecodv2_email_dialog, #ecodv2_email_preview, .ecodv2-modal.is-open, .ecodv2-cnotes-popover.is-open, .ecdv2-menu.is-open, #ecodv2_line_del_pop.is-open, #ecodv2_cmdk, #ecodv2_scan, #wpec_search:not([hidden])' ) ) {
 		return true;
 	}
 	var confirm_box = document.getElementById( 'ecodv2_confirm' );
@@ -3826,6 +3826,112 @@ if ( window.jQuery && 'function' === typeof jQuery.ajaxPrefilter ) {
 	} );
 }
 
+/* 6.0.5: an address in the edit drawer follows its country ( order-edit-address.php ): the town, region and postcode in the
+   country's order ( data-layout, wp_easycart_address::form_layout() ), the country's words for the region and postcode, a list of its
+   regions where it has them ( the text box behind it keeps the value that is saved ), no postcode where it has none. When the
+   country changes, the region chosen for the one before is put aside ( unless the new country's list has it ) and comes back if
+   that country is chosen again; a region set from outside ( Copy from billing ) is the new country's. A postcode is put aside for a
+   country without postcodes. A region or postcode already saved on the order stays on show. */
+var ecodv2_address_cfg = null;
+function ecodv2_address_data() {
+	if ( null === ecodv2_address_cfg ) {
+		ecodv2_address_cfg = {};
+		var el = document.getElementById( 'ecodv2_address_data' );
+		if ( el ) {
+			try {
+				ecodv2_address_cfg = JSON.parse( el.textContent ) || {};
+			} catch ( e ) {
+				ecodv2_address_cfg = {};
+			}
+		}
+	}
+	return ecodv2_address_cfg;
+}
+
+function ecodv2_address_country( type ) {
+	var $ = jQuery, cfg = ecodv2_address_data();
+	var grid = $( '.ecodv2-address-grid[data-type="' + type + '"]' );
+	if ( ! grid.length || ! cfg.postal ) {
+		return;
+	}
+	var code = String( $( '#' + type + '_country' ).val() || '' ).toUpperCase();
+	var before = grid.data( 'ecodv2Country' ), changed = ( undefined !== before && before !== code );
+	grid.data( 'ecodv2Country', code );
+	var layouts = ( cfg.layouts && ! $.isArray( cfg.layouts ) ) ? cfg.layouts : {};
+	var words = function( map ) {
+		return map ? ( map[ code ] || map._ || '' ) : '';
+	};
+	var text = $( '#' + type + '_state' ), select = $( '#' + type + '_state_select' );
+	var label = grid.find( '.ecodv2-place-state > label' ), zip = $( '#' + type + '_zip' ), cell = zip.closest( '.ecodv2-field' );
+	grid.attr( 'data-layout', layouts[ code ] || 'csz' );
+	if ( words( cfg.region ) ) {
+		label.text( words( cfg.region ) );
+	}
+	if ( words( cfg.postal ) ) {
+		cell.children( 'label' ).first().text( words( cfg.postal ) );
+	}
+
+	/* The region: the country's list, else the text box. */
+	var regions = ( cfg.regions && ! $.isArray( cfg.regions ) && cfg.regions[ code ] ) ? cfg.regions[ code ] : [];
+	var listed = function( value ) {
+		var key = $.trim( String( value || '' ) ).toLowerCase(), found = '';
+		$.each( regions, function( i, region ) {
+			if ( '' !== key && ( String( region[0] ).toLowerCase() === key || String( region[1] ).toLowerCase() === key ) ) {
+				found = String( region[0] );
+				return false;
+			}
+		} );
+		return found;
+	};
+	var kept = text.data( 'ecodv2Kept' ) || {}, seen = text.data( 'ecodv2Seen' ), value = String( text.val() || '' );
+	if ( changed ) {
+		if ( '' !== value && seen && seen.value === value && '' === listed( value ) ) {
+			kept[ before ] = value; /* the country before's region */
+			value = '';
+		}
+		if ( '' === value && kept[ code ] ) {
+			value = kept[ code ];
+			delete kept[ code ];
+		}
+		text.val( value ).data( 'ecodv2Kept', kept );
+	}
+	if ( regions.length && select.length ) {
+		var chosen = listed( value );
+		select.empty().append( $( '<option></option>' ).val( '' ).text( cfg.choose || '' ) );
+		$.each( regions, function( i, region ) {
+			select.append( $( '<option></option>' ).val( region[0] ).text( region[1] ) );
+		} );
+		if ( '' === chosen && '' !== $.trim( value ) ) {
+			select.append( $( '<option></option>' ).val( value ).text( value ) ); /* saved, or set from outside: kept as it is */
+			chosen = value;
+		}
+		select.val( chosen ).prop( 'hidden', false );
+		text.prop( 'hidden', true );
+		label.attr( 'for', type + '_state_select' );
+	} else {
+		select.prop( 'hidden', true ).empty();
+		text.prop( 'hidden', false );
+		label.attr( 'for', type + '_state' );
+	}
+
+	/* The postcode: none where the country has none ( one saved on the order stays on show ). */
+	var none = -1 !== $.inArray( code, cfg.nozip || [] );
+	if ( none && ( changed || '' === $.trim( String( zip.val() || '' ) ) ) ) {
+		if ( '' !== String( zip.val() || '' ) ) {
+			zip.data( 'ecodv2Kept', zip.val() ).val( '' );
+		}
+		cell.prop( 'hidden', true );
+	} else {
+		if ( ! none && '' === String( zip.val() || '' ) && zip.data( 'ecodv2Kept' ) ) {
+			zip.val( zip.data( 'ecodv2Kept' ) );
+			zip.removeData( 'ecodv2Kept' );
+		}
+		cell.prop( 'hidden', false );
+	}
+	grid.toggleClass( 'is-nozip', cell.prop( 'hidden' ) );
+	text.data( 'ecodv2Seen', { country: code, value: String( text.val() || '' ) } );
+}
+
 function ecodv2_free_save_address( type ) {
 	var $ = jQuery, parts = [ 'first_name', 'last_name', 'company_name', 'address_line_1', 'address_line_2', 'city', 'state', 'zip', 'country', 'phone' ];
 	var data = { action: 'ec_admin_ajax_save_order_' + type + '_address', order_id: $( '#order_id' ).val(), wp_easycart_nonce: $( '#wp_easycart_order_details_nonce' ).val() };
@@ -3842,7 +3948,8 @@ function ecodv2_free_save_address( type ) {
 		$( '#ec_admin_order_details_' + type + '_company' ).text( v( 'company_name' ) );
 		$( '#ec_admin_order_details_' + type + '_address1' ).text( v( 'address_line_1' ) );
 		$( '#ec_admin_order_details_' + type + '_address2' ).text( v( 'address_line_2' ) );
-		$( '#ec_admin_order_details_' + type + '_address3' ).text( $.trim( v( 'city' ) + ' ' + v( 'state' ) + ' ' + v( 'zip' ) ) );
+		/* 6.0.5: the server's line, in the country's order ( wp_easycart_address::place_line() ). */
+		$( '#ec_admin_order_details_' + type + '_address3' ).text( ( r.data && 'string' === typeof r.data.place ) ? r.data.place : $.trim( v( 'city' ) + ' ' + v( 'state' ) + ' ' + v( 'zip' ) ) );
 		$( '#ec_admin_order_details_' + type + '_country' ).text( '0' === String( $country.val() ) ? '' : $.trim( $country.text() ) );
 		$( '#ec_admin_order_details_' + type + '_phone' ).text( v( 'phone' ) );
 		ecodv2_sync_same_address();
@@ -3982,6 +4089,26 @@ jQuery( function( $ ) {
 			chip.textContent = ecodv2_t( map[ state ][1], chip.textContent );
 		}
 		ecodv2_mirrors_paint();
+	} );
+
+	/* 6.0.5: the address editor follows each address's country ( ecodv2_address_country() ). */
+	ecodv2_address_country( 'billing' );
+	ecodv2_address_country( 'shipping' );
+	$( document ).on( 'change', '#billing_country, #shipping_country', function() {
+		ecodv2_address_country( this.id.replace( /_country$/, '' ) );
+	} );
+	$( document ).on( 'change', '.ecodv2-region-select', function() {
+		var text = document.getElementById( this.id.replace( /_select$/, '' ) );
+		if ( text ) {
+			text.value = this.value;
+			jQuery( text ).trigger( 'ecodv2-region-typed' );
+		}
+	} );
+	$( document ).on( 'input ecodv2-region-typed', '#billing_state, #shipping_state', function() {
+		var seen = jQuery( this ).data( 'ecodv2Seen' );
+		if ( seen ) {
+			seen.value = this.value; /* chosen or typed for the country on show */
+		}
 	} );
 
 	/* Address and contact corrections without WP EasyCart PRO's script ( D4 ). */
@@ -4673,6 +4800,12 @@ function ecodv2_cmdk_actions() {
 
 function ecodv2_cmdk_open() {
 	var $ = jQuery;
+	/* 6.0.5: the one admin search ( admin-search-v2.js ) shows this page's actions as its "This order" group. */
+	if ( window.wpecSearch && window.wpecSearch.open ) {
+		ecodv2_menu_close();
+		window.wpecSearch.open( '' );
+		return false;
+	}
 	if ( document.getElementById( 'ecodv2_cmdk' ) ) {
 		$( '#ecodv2_cmdk_input' ).trigger( 'focus' );
 		return false;
@@ -4947,9 +5080,17 @@ jQuery( function( $ ) {
 		ecodv2_scan_open();
 	} );
 
+	/* 6.0.5: this order's actions in the one admin search ( window.wpecSearchPage, read each time it opens ). */
+	if ( document.getElementById( 'ecodv2_screen_data' ) || document.getElementById( 'ecodv2_find_btn' ) ) {
+		( window.wpecSearchPage = window.wpecSearchPage || [] ).push( { label: ecodv2_t( 'find_this_order', 'This order' ), items: ecodv2_cmdk_actions } );
+	}
+
 	/* The keys: Ctrl / ⌘ K anywhere; P, E, R, N and ? while nothing is being typed and nothing is open. */
 	$( document ).on( 'keydown', function( e ) {
 		if ( ( e.ctrlKey || e.metaKey ) && ! e.altKey && ! e.shiftKey && ( 'k' === e.key || 'K' === e.key ) ) {
+			if ( window.wpecSearch ) {
+				return; /* 6.0.5: the one admin search answers Ctrl / ⌘ K */
+			}
 			if ( document.getElementById( 'ecodv2_cmdk' ) ) {
 				e.preventDefault();
 				ecodv2_cmdk_close();

@@ -479,7 +479,8 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 		 */
 		public static function money( $amount ) {
 			if ( isset( $GLOBALS['currency'] ) && is_object( $GLOBALS['currency'] ) && method_exists( $GLOBALS['currency'], 'get_currency_display' ) ) {
-				return (string) $GLOBALS['currency']->get_currency_display( (float) $amount, false );
+				/* 6.0.5 ( FREE #333 ): plain text; the page script, PRO's tabs and the summary email escape it. */
+				return html_entity_decode( (string) $GLOBALS['currency']->get_currency_display( (float) $amount, false ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 			}
 			return number_format_i18n( (float) $amount, 2 );
 		}
@@ -855,11 +856,11 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 		public static function bucket_label( $key, $range, $years = false ) {
 			switch ( $range ) {
 				case 'monthly':
-					return date_i18n( 'M Y', strtotime( $key . '-01 12:00:00 UTC' ), true );
+					return wp_easycart_admin_date( strtotime( $key . '-01 12:00:00 UTC' ), 'month_year' );
 				case 'yearly':
 					return (string) $key;
 				default:
-					return date_i18n( $years ? 'M j, Y' : 'M j', strtotime( $key . ' 12:00:00 UTC' ), true );
+					return wp_easycart_admin_date( strtotime( $key . ' 12:00:00 UTC' ), $years ? 'date' : 'day' );
 			}
 		}
 
@@ -949,12 +950,12 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 			$a = strtotime( $start . ' 12:00:00 UTC' );
 			$b = strtotime( $end . ' 12:00:00 UTC' );
 			if ( $start === $end ) {
-				return date_i18n( 'M j, Y', $a, true );
+				return wp_easycart_admin_date( $a, 'date' );
 			}
 			if ( gmdate( 'Y', $a ) === gmdate( 'Y', $b ) ) {
-				return date_i18n( 'M j', $a, true ) . ' – ' . date_i18n( 'M j, Y', $b, true );
+				return wp_easycart_admin_date( $a, 'day' ) . ' – ' . wp_easycart_admin_date( $b, 'date' );
 			}
-			return date_i18n( 'M j, Y', $a, true ) . ' – ' . date_i18n( 'M j, Y', $b, true );
+			return wp_easycart_admin_date( $a, 'date' ) . ' – ' . wp_easycart_admin_date( $b, 'date' );
 		}
 
 		// ------------------------------------------------------------------
@@ -1058,6 +1059,33 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 		 * @param array $args args().
 		 * @return array
 		 */
+		/**
+		 * 6.0.5 ( Matt's H2 ): orders keep the currency they were placed in. When the range holds orders placed in another currency than
+		 * the store's now, Reports says their amounts are added as they are ( nothing is converted ).
+		 *
+		 * @param array $args args().
+		 * @return string[]
+		 */
+		public static function currency_notes( $args ) {
+			global $wpdb;
+			if ( ! class_exists( 'wp_easycart_order_currency' ) || ! wp_easycart_order_currency::ready() ) {
+				return array();
+			}
+			list( $from, $to ) = self::bounds( $args['start'], $args['end'], 'db' );
+			$store             = wp_easycart_order_currency::store_format()['code'];
+			$rows              = $wpdb->get_results( $wpdb->prepare( "SELECT o.currency_code AS code, COUNT(*) AS orders FROM ec_order o WHERE o.order_date >= %s AND o.order_date < %s AND o.currency_code <> '' AND o.currency_code <> %s GROUP BY o.currency_code", $from, $to, $store ) );
+			if ( ! $rows ) {
+				return array();
+			}
+			$parts = array();
+			foreach ( $rows as $row ) {
+				/* translators: 1: number of orders, 2: currency code ( USD ) */
+				$parts[] = sprintf( _n( '%1$s order in %2$s', '%1$s orders in %2$s', (int) $row->orders, 'wp-easycart' ), number_format_i18n( (int) $row->orders ), (string) $row->code );
+			}
+			/* translators: 1: "3 orders in USD" ( one or more, joined by commas ), 2: the store's currency code ( EUR ) */
+			return array( sprintf( __( 'This range includes %1$s, placed before your store used %2$s: their amounts are added as they are, not converted.', 'wp-easycart' ), implode( ', ', $parts ), $store ) );
+		}
+
 		public static function overview( $args ) {
 			$compare = '' !== $args['start2'];
 			$cur     = self::totals( $args['start'], $args['end'], $args );
@@ -1091,6 +1119,19 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 			if ( null !== $cur['tips'] && $cur['tips'] >= 0.005 ) {
 				$kpis[] = self::kpi( 'tips', __( 'Tips', 'wp-easycart' ), $cur['tips'], $p( 'tips' ), 'money', 'up' );
 			}
+			/* 6.0.5 ( admin review L8 ): three titled rows ( 13 tiles fell into rows of 5, 5 and 3 ); reports-v2.js sizes each row. */
+			$kpi_groups = array(
+				'sales'    => array( 'sales', 'net', 'orders', 'aov', 'items' ),
+				'money'    => array( 'received', 'refunds', 'shipping', 'tax', 'discounts', 'fees', 'tips' ),
+				'shoppers' => array( 'customers', 'visits', 'abandoned' ),
+			);
+			foreach ( $kpis as $i => $kpi ) {
+				foreach ( $kpi_groups as $group => $keys ) {
+					if ( in_array( $kpi['key'], $keys, true ) ) {
+						$kpis[ $i ]['group'] = $group;
+					}
+				}
+			}
 
 			$days     = self::daily( $args['start'], $args['end'], $args );
 			$current  = self::buckets( $days, $args['range'] );
@@ -1111,9 +1152,14 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 			return array(
 				'tab'      => 'overview',
 				'kpis'     => $kpis,
+				'kpi_groups' => array(
+					array( 'key' => 'sales', 'label' => $product ? __( 'This product', 'wp-easycart' ) : __( 'Sales', 'wp-easycart' ) ),
+					array( 'key' => 'money', 'label' => __( 'Money in and out', 'wp-easycart' ) ),
+					array( 'key' => 'shoppers', 'label' => __( 'Customers and visits', 'wp-easycart' ) ),
+				),
 				'charts'   => $charts,
 				'insights' => self::insights( $cur, $prev, $days, $args ),
-				'notes'    => $product ? array( __( 'Filtered by product: shipping, taxes, discounts, fees and refunds belong to whole orders, so they are not shown.', 'wp-easycart' ) ) : array(),
+				'notes'    => array_merge( $product ? array( __( 'Filtered by product: shipping, taxes, discounts, fees and refunds belong to whole orders, so they are not shown.', 'wp-easycart' ) ) : array(), self::currency_notes( $args ) ),
 				'history'  => self::history_note(),
 			);
 		}
@@ -1166,7 +1212,7 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 				$out[] = array(
 					'tone' => '',
 					/* translators: 1: date, 2: amount, 3: number of orders. */
-					'text' => sprintf( _n( 'Your best day was %1$s: %2$s from %3$s order.', 'Your best day was %1$s: %2$s from %3$s orders.', (int) $days[ $best ]['orders'], 'wp-easycart' ), date_i18n( 'D, M j', strtotime( $best . ' 12:00:00 UTC' ), true ), self::money( $value ), number_format_i18n( (int) $days[ $best ]['orders'] ) ),
+					'text' => sprintf( _n( 'Your best day was %1$s: %2$s from %3$s order.', 'Your best day was %1$s: %2$s from %3$s orders.', (int) $days[ $best ]['orders'], 'wp-easycart' ), wp_easycart_admin_date( strtotime( $best . ' 12:00:00 UTC' ), 'weekday' ), self::money( $value ), number_format_i18n( (int) $days[ $best ]['orders'] ) ),
 				);
 			}
 			if ( null !== $cur['new_customers'] && $cur['customers'] > 0 ) {
@@ -1365,7 +1411,7 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 					$row      = $wpdb->get_row( $wpdb->prepare( "SELECT {$customer} AS who, MAX( CONCAT( o.billing_first_name, ' ', o.billing_last_name ) ) AS name, COUNT(*) AS orders, SUM( o.grand_total ) AS spent, MIN( o.order_date ) AS first_order FROM ec_order o " . self::sale_join() . ' WHERE o.order_date >= %s AND o.order_date < %s AND ' . self::sale_where() . $where . ' GROUP BY who ORDER BY spent DESC LIMIT 1', $from, $to ) );
 					$count    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT( DISTINCT {$customer} ) FROM ec_order o " . self::sale_join() . ' WHERE o.order_date >= %s AND o.order_date < %s AND ' . self::sale_where() . $where, $from, $to ) );
 					if ( $row ) {
-						$cells = array( '' !== trim( (string) $row->name ) ? trim( (string) $row->name ) : __( 'Guest', 'wp-easycart' ), number_format_i18n( (int) $row->orders ), self::money( $row->spent ), wp_date( 'M j, Y', strtotime( (string) $row->first_order . ' UTC' ) - self::db_offset() ) );
+						$cells = array( '' !== trim( (string) $row->name ) ? trim( (string) $row->name ) : __( 'Guest', 'wp-easycart' ), number_format_i18n( (int) $row->orders ), self::money( $row->spent ), wp_date( wp_easycart_dates::format( 'date' ), strtotime( (string) $row->first_order . ' UTC' ) - self::db_offset() ) );
 					}
 					/* translators: %s: number of customers. */
 					$more = _n( 'and %s more customer', 'and %s more customers', max( 0, $count - 1 ), 'wp-easycart' );
@@ -2066,6 +2112,7 @@ if ( ! class_exists( 'wp_easycart_reports' ) ) :
 				'nonce'     => wp_create_nonce( 'wp-easycart-ecv2-reports' ),
 				'today'     => self::today(),
 				'weekStart' => (int) get_option( 'start_of_week', 1 ),
+				'dates'     => class_exists( 'wp_easycart_dates' ) ? wp_easycart_dates::config() : array(), /* 6.0.5: the store's date order */
 				'money'     => self::money_config(),
 				'tabs'      => $tabs,
 				'args'      => $args,

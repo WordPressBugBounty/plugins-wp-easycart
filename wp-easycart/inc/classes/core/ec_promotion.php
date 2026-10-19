@@ -364,6 +364,60 @@ class ec_promotion{
 		}
 	}
 
+	/**
+	 * 6.0.5: the classic promotions apply_promotion() takes off a cart line of this product, for the product page's price
+	 * ( wp_easycart_product_pricing, ec-store.js wpeasycart_details_line() ). Each rule is array( amount, percent, minimum ):
+	 * the line gets the largest of amount ( when not 0 ) or percent of its unit price, from the rules whose minimum the
+	 * matching items reach ( type 1: always; type 8: number1, counted on the line itself, the page's own quantity ). Read only;
+	 * keep it in step with apply_promotion().
+	 *
+	 * @since 6.0.5
+	 * @param int $product_id      Product.
+	 * @param int $manufacturer_id Its manufacturer.
+	 * @return array[]
+	 */
+	public function product_line_rules( $product_id, $manufacturer_id ) {
+		$rules = array();
+		for ( $i = 0; $i < count( $this->promotions ); $i++ ) {
+			$promotion = $this->promotions[ $i ];
+			if ( 1 == $promotion->promotion_type ) {
+				$match_found = false;
+				if ( 0 != $promotion->product_id_1 && $promotion->product_id_1 == $product_id ) {
+					$match_found = true;
+				} else if ( 0 != $promotion->manufacturer_id_1 && $promotion->manufacturer_id_1 == $manufacturer_id ) {
+					$match_found = true;
+				} else if ( 0 != $promotion->category_id_1 && $this->mysqli->has_category_match( $promotion->category_id_1, $product_id ) ) {
+					$match_found = true;
+				}
+				if ( $match_found ) {
+					$rules[] = array( (float) $promotion->price1, (float) $promotion->percentage1, 0 );
+				}
+			} else if ( 8 == $promotion->promotion_type ) {
+				$minimum = (float) $promotion->number1;
+				if ( 0 != $promotion->product_id_1 || 0 != $promotion->manufacturer_id_1 || 0 != $promotion->category_id_1 ) {
+					$match_found = false;
+					if ( 0 != $promotion->product_id_1 && $promotion->product_id_1 == $product_id ) {
+						$match_found = true;
+					}
+					if ( 0 != $promotion->manufacturer_id_1 && $promotion->manufacturer_id_1 == $manufacturer_id ) {
+						$match_found = true;
+					}
+					if ( 0 != $promotion->category_id_1 && $this->mysqli->has_category_match( $promotion->category_id_1, $product_id ) ) {
+						$match_found = true;
+					}
+					if ( ! $match_found ) {
+						if ( $minimum > 0 ) {
+							continue; /* no matching items: 0 never reaches it */
+						}
+						$minimum = 0;
+					}
+				}
+				$rules[] = array( (float) $promotion->price1, (float) $promotion->percentage1, $minimum );
+			}
+		}
+		return $rules;
+	}
+
 	public function single_product_promotion( $product_id, $manufacturer_id, $price, &$promotion_text ){
 		$best_discount = 0;
 		$discount_price = $price;

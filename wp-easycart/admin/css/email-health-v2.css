@@ -91,3 +91,5 @@ table.ecem-t{width:100%;border-collapse:collapse;font-size:13px}table.ecem-t th{
 /* Retry queue panel ( @since 6.0.0 ) */
 .ecem-queue-help ol.ecem-steps{margin:6px 0 4px 18px;padding:0}.ecem-queue-help ol.ecem-steps li{margin:2px 0;font-size:12.5px;line-height:1.5}
 #ecem_queue .ecem-log-bar{margin-bottom:8px}
+
+.ecsh-content .notice.ecem-banner{margin:0 0 16px} /* 6.0.5: inside the shell with the other notices */

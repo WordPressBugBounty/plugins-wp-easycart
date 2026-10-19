@@ -67,18 +67,7 @@
 		<div class="ec_cart_review_row">
 			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_ship_to' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php
-				echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1, ENT_QUOTES ) );
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 ) {
-					echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2, ENT_QUOTES ) );
-				}
-				echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_city, ENT_QUOTES ) );
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_state ) {
-					echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_state, ENT_QUOTES ) );
-				}
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_zip ) {
-					echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_zip, ENT_QUOTES ) );
-				}
-				echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_country, ENT_QUOTES ) );
+				echo esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'shipping', array( 'name' => false, 'company' => false ) ) ); /* 6.0.5: in the country's order */
 			?></div>
 			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
@@ -91,18 +80,7 @@
 		<div class="ec_cart_review_row">
 			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_billing' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php
-				echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1, ENT_QUOTES ) );
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 ) {
-					echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2, ENT_QUOTES ) );
-				}
-				echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_city, ENT_QUOTES ) );
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_state ) {
-					echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_state, ENT_QUOTES ) );
-				}
-				if ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_zip ) {
-					echo ', ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_zip, ENT_QUOTES ) );
-				}
-				echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_country, ENT_QUOTES ) );
+				echo esc_html( wp_easycart_address::one_line( $GLOBALS['ec_cart_data']->cart_data, 'billing', array( 'name' => false, 'company' => false ) ) ); /* 6.0.5: in the country's order */
 			?></div>
 			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
@@ -678,7 +656,7 @@
 
 	<?php if( get_option( 'ec_option_require_terms_agreement' ) ){ ?>
 	<div class="ec_cart_input_row ec_agreement_section" id="ec_terms_agreement_row">
-		<label class="ec_cart_check_label" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
+		<label class="ec_cart_check_label ec_agree_box" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 	</div>
 	<?php }else{ ?>
 		<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />

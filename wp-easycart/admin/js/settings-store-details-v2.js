@@ -22,6 +22,7 @@
 			code: text( 'ec_option_base_currency' ).trim().toUpperCase(),
 			symbol: decode( text( 'ec_option_currency' ) ),
 			before: pill( 'ec_option_currency_symbol_location' ) !== '0',
+			space: row( 'ec_option_currency_symbol_space' ).find( '.ecst-input' ).is( ':checked' ),
 			showCode: row( 'ec_option_show_currency_code' ).find( '.ecst-input' ).is( ':checked' ),
 			decimal: pill( 'ec_option_currency_decimal_symbol' ),
 			thousands: pill( 'ec_option_currency_thousands_seperator' ),
@@ -38,14 +39,15 @@
 	function format( amount, f ) {
 		var out = f.showCode && f.code ? f.code + ' ' : '';
 		if ( amount < 0 && f.negBefore ) { out += '-'; }
-		if ( f.before ) { out += f.symbol; }
+		var sp = f.space ? '\u00a0' : ''; /* 6.0.5 */
+		if ( f.before ) { out += f.symbol + sp; }
 		if ( amount < 0 && ! f.negBefore ) { out += '-'; }
 		out += number( amount, f.places, f.decimal, f.thousands );
-		if ( ! f.before ) { out += f.symbol; }
+		if ( ! f.before ) { out += sp + f.symbol; }
 		return out;
 	}
 	function presetFormat( p, f ) {
-		return { code: f.code, symbol: p.symbol, before: p.before === '1', showCode: f.showCode, decimal: p.decimal, thousands: p.thousands, places: parseInt( p.places, 10 ), negBefore: f.negBefore };
+		return { code: f.code, symbol: p.symbol, before: p.before === '1', space: p.space === '1', showCode: f.showCode, decimal: p.decimal, thousands: p.thousands, places: parseInt( p.places, 10 ), negBefore: f.negBefore };
 	}
 
 	function refresh() {
@@ -68,6 +70,8 @@
 		var $sym = row( 'ec_option_currency' ).find( '.ecst-input' );
 		if ( $sym.val() !== p.symbol ) { $sym.val( p.symbol ).trigger( 'input' ); }
 		setPill( 'ec_option_currency_symbol_location', p.before );
+		var $space = row( 'ec_option_currency_symbol_space' ).find( '.ecst-input' );
+		if ( $space.length && $space.is( ':checked' ) !== ( p.space === '1' ) ) { $space.prop( 'checked', p.space === '1' ).trigger( 'change' ); }
 		setPill( 'ec_option_currency_decimal_symbol', p.decimal );
 		setPill( 'ec_option_currency_thousands_seperator', p.thousands );
 		setPill( 'ec_option_currency_decimal_places', p.places );
@@ -82,4 +86,15 @@
 	$( '#ecst-sec-currency' ).on( 'input change', '.ecst-input', function() { setTimeout( refresh, 0 ); } );
 	$( document ).on( 'click', '#ecst_discard', function() { setTimeout( refresh, 0 ); } );
 	refresh();
+} )( jQuery );
+
+/* 6.0.5: after the weight unit is saved, the offer to convert the weights already saved ( or nothing ) replaces the one on
+ * the page ( the save reply's weight_convert, ecv2_store_details_weight_save_reply() ). */
+( function( $ ) {
+	'use strict';
+	$( document ).on( 'ecst:saved', function( e, d, keys ) {
+		if ( ! d || 'string' !== typeof d.weight_convert || ! keys || keys.indexOf( 'ec_option_paypal_weight_unit' ) < 0 ) { return; }
+		var $old = $( '#ecsd_weight_convert' );
+		if ( $old.length ) { $old.replaceWith( d.weight_convert ); }
+	} );
 } )( jQuery );

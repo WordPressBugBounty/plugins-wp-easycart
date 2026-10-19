@@ -953,7 +953,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Checkout_Widget' ) && class_exists( 
 							'max' => 40,
 						),
 					),
-					'selectors'  => array( '{{WRAPPER}} .ec_cart_express_button_container' => 'column-gap: {{SIZE}}{{UNIT}};' ),
+					'selectors'  => array( '{{WRAPPER}} .ec_cart_express_button_container' => '--wpec-express-gap: {{SIZE}}{{UNIT}};' ), /* 6.0.5: the strip's gap both ways ( a grid of buttons ) */
 				)
 			);
 			$this->add_responsive_control(

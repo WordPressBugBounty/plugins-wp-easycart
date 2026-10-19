@@ -256,7 +256,7 @@ if ( ! class_exists( 'wp_easycart_admin_log_table' ) ) :
 				array( 'label' => __( 'Errors · 24h', 'wp-easycart' ), 'value' => $stats['err24'], 'filter_value' => 'err24', 'color' => 'red', 'group' => 'catalog' ),
 				array( 'label' => __( 'Errors · 7d', 'wp-easycart' ), 'value' => $stats['err7'], 'filter_value' => 'err7', 'color' => 'amber', 'group' => 'catalog' ),
 				array( 'label' => __( 'Entries', 'wp-easycart' ), 'value' => $stats['total'], 'filter_value' => '', 'color' => 'default', 'group' => 'catalog' ),
-				array( 'label' => __( 'Oldest entry', 'wp-easycart' ), 'value' => $stats['oldest'] ? date_i18n( 'M j, Y', strtotime( $stats['oldest'] ) ) : '—', 'filter_value' => '', 'color' => 'gray', 'group' => 'attention' ),
+				array( 'label' => __( 'Oldest entry', 'wp-easycart' ), 'value' => $stats['oldest'] ? wp_easycart_admin_date( strtotime( $stats['oldest'] ), 'date' ) : '—', 'filter_value' => '', 'color' => 'gray', 'group' => 'attention' ),
 			) );
 		}
 
@@ -366,7 +366,7 @@ if ( ! class_exists( 'wp_easycart_admin_log_table' ) ) :
 					   zone than the store; shift it to store time so a new entry reads "a few seconds ago", not "1 hour ago". */
 					$now = current_time( 'timestamp' );
 					$ts  = strtotime( $result->response_time ) + self::db_clock_offset();
-					echo '<span class="ecv2-mono" title="' . esc_attr( date_i18n( 'Y-m-d H:i:s', $ts ) ) . '">' . esc_html( $ts > $now - DAY_IN_SECONDS ? date_i18n( 'H:i:s', $ts ) : date_i18n( 'M j H:i', $ts ) ) . '</span>';
+					echo '<span class="ecv2-mono" title="' . esc_attr( date_i18n( 'Y-m-d H:i:s', $ts ) ) . '">' . esc_html( $ts > $now - DAY_IN_SECONDS ? date_i18n( 'H:i:s', $ts ) : wp_easycart_admin_date( $ts, 'day_clock' ) ) . '</span>';
 					/* translators: %s: how long ago, e.g. "5 mins". */
 					if ( $ts > $now - DAY_IN_SECONDS ) { echo '<span class="ecv2-sub">' . esc_html( sprintf( __( '%s ago', 'wp-easycart' ), human_time_diff( min( $ts, $now ), $now ) ) ) . '</span>'; }
 					break;

@@ -119,11 +119,8 @@ if ( $this->has_downloads() ) {
 	$ed::paragraph( wp_kses_post( $ec_refund_lang->get_text( 'cart_success', ( $this->is_approved ? 'cart_downloads_available' : 'cart_downloads_unavailable' ) ) ) . ' <a href="' . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . esc_html( wp_strip_all_tags( $ec_refund_lang->get_text( 'cart_success', 'cart_downloads_click_to_go' ) ) ) . '</a>' );
 }
 
-if ( '' !== (string) $this->promo_code ) {
-	$promo_val = $this->promo_code;
-	if ( get_option( 'ec_option_show_coupon_message' ) && '' !== (string) $this->promo_code_message ) {
-		$promo_val = $this->promo_code_message;
-	}
+$promo_val = wp_easycart_order_discounts::coupon_text( $this->promo_code, $this->promo_code_message, 'refund' ); // 6.0.5: no line while codes are hidden and the coupon has no message.
+if ( '' !== $promo_val ) {
 	$ed::paragraph( wp_kses_post( $ec_refund_lang->get_text( 'cart_coupons', 'cart_coupon_title' ) ) . ': ' . esc_html( $promo_val ), array( 'tone' => 'strong' ) );
 }
 
@@ -397,7 +394,7 @@ foreach ( $ec_refund_offer_summary as $ec_refund_offer_row ) {
 	if ( ! isset( $ec_refund_offer_row['label'] ) || ! isset( $ec_refund_offer_row['amount'] ) || (float) $ec_refund_offer_row['amount'] <= 0 ) {
 		continue;
 	}
-	$ec_refund_totals[] = array( esc_html( $ec_refund_offer_row['label'] . ( ( isset( $ec_refund_offer_row['code'] ) && '' !== (string) $ec_refund_offer_row['code'] ) ? ' (' . $ec_refund_offer_row['code'] . ')' : '' ) ), $ed::ltr( '-' . $ec_refund_cur->get_currency_display( (float) $ec_refund_offer_row['amount'] ) ) );
+	$ec_refund_totals[] = array( esc_html( wp_easycart_order_discounts::display_label( $ec_refund_offer_row, 'refund' ) ), $ed::ltr( '-' . $ec_refund_cur->get_currency_display( (float) $ec_refund_offer_row['amount'] ) ) );
 }
 if ( 0 != $this->discount_total ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric string from the database.
 	$ec_refund_totals[] = array( wp_kses_post( $ec_refund_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_discount' ) ), $ed::ltr( '-' . $discount ) );

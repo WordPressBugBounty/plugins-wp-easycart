@@ -27,6 +27,8 @@
 	}
 	var T = cfg.text || {};
 	var today = moment( cfg.today, 'YYYY-MM-DD' );
+	/* 6.0.5: dates in the store's order ( wp_easycart_dates::config() ); month names come from WordPress ( moment_locale_script() ). */
+	var DF = ( cfg.dates && cfg.dates.moment && cfg.dates.moment.day ) ? cfg.dates.moment : { day: 'MMM D', date: 'MMM D, YYYY' };
 	var state = {
 		tab: 'overview',
 		start: cfg.args.start,
@@ -89,14 +91,14 @@
 			out += '-';
 		}
 		if ( before ) {
-			out += symbol;
+			out += symbol + ( c.space ? '\u00a0' : '' ); /* 6.0.5 */
 		}
 		if ( negative && ! c.negBefore ) {
 			out += '-';
 		}
 		out += number;
 		if ( ! before ) {
-			out += symbol;
+			out += ( c.space ? '\u00a0' : '' ) + symbol;
 		}
 		return out;
 	}
@@ -152,9 +154,9 @@
 		var a = moment( start, 'YYYY-MM-DD' );
 		var b = moment( end, 'YYYY-MM-DD' );
 		if ( start === end ) {
-			return a.format( 'MMM D, YYYY' );
+			return a.format( DF.date );
 		}
-		return a.format( a.year() === b.year() ? 'MMM D' : 'MMM D, YYYY' ) + ' – ' + b.format( 'MMM D, YYYY' );
+		return a.format( a.year() === b.year() ? DF.day : DF.date ) + ' – ' + b.format( DF.date );
 	}
 
 	function setCompare() {
@@ -204,7 +206,7 @@
 			alwaysShowCalendars: false,
 			opens: 'right',
 			locale: {
-				format: 'MMM D, YYYY',
+				format: DF.date,
 				applyLabel: T.apply,
 				cancelLabel: T.cancel,
 				customRangeLabel: T.custom,
@@ -347,11 +349,7 @@
 			html += '</ul>';
 		}
 		if ( payload.kpis && payload.kpis.length ) {
-			html += '<div class="ecrp3-kpis">';
-			payload.kpis.forEach( function( kpi ) {
-				html += kpiHtml( kpi );
-			} );
-			html += '</div>';
+			html += kpisHtml( payload.kpis, payload.kpi_groups );
 		}
 		if ( payload.charts && payload.charts.length ) {
 			html += '<div class="ecrp3-charts is-n' + Math.min( 3, payload.charts.length ) + '">';
@@ -387,6 +385,37 @@
 		}
 	}
 
+	/* 6.0.5 ( admin review L8 ): tiles in rows that fill: up to five a row, more split evenly ( 7 = 4 + 3, 13 = 5 + 4 + 4 );
+	   the Overview's in titled groups ( payload.kpi_groups ). The first tile leads. */
+	function kpiCols( n ) {
+		return n <= 5 ? n : Math.ceil( n / Math.ceil( n / 5 ) );
+	}
+	function kpiGrid( list ) {
+		return '<div class="ecrp3-kpis" style="--ecrp-cols:' + kpiCols( list.length ) + '">' + list.map( kpiHtml ).join( '' ) + '</div>';
+	}
+	function kpisHtml( kpis, groups ) {
+		kpis = kpis.slice();
+		kpis[0] = $.extend( {}, kpis[0], { lead: true } );
+		if ( ! groups || ! groups.length ) {
+			return kpiGrid( kpis );
+		}
+		var used = {};
+		var html = '<div class="ecrp3-kpi-groups">';
+		groups.forEach( function( group ) {
+			var list = kpis.filter( function( kpi ) { return kpi.group === group.key; } );
+			if ( ! list.length ) {
+				return;
+			}
+			list.forEach( function( kpi ) { used[ kpi.key ] = true; } );
+			html += '<section class="ecrp3-kpi-group" aria-label="' + esc( group.label ) + '"><h3 class="ecrp3-kpi-group-title">' + esc( group.label ) + '</h3>' + kpiGrid( list ) + '</section>';
+		} );
+		var rest = kpis.filter( function( kpi ) { return ! used[ kpi.key ]; } );
+		if ( rest.length ) {
+			html += '<section class="ecrp3-kpi-group">' + kpiGrid( rest ) + '</section>';
+		}
+		return html + '</div>';
+	}
+
 	function kpiHtml( kpi ) {
 		var change = '';
 		if ( null !== kpi.change && undefined !== kpi.change && '' !== kpi.prev_display ) {
@@ -396,7 +425,7 @@
 		} else if ( '' !== kpi.prev_display && null !== kpi.prev ) {
 			change = '<span class="ecrp3-change is-flat">' + esc( T.previous ) + '</span>';
 		}
-		return '<div class="ecrp3-kpi" data-kpi="' + esc( kpi.key ) + '">' +
+		return '<div class="ecrp3-kpi' + ( kpi.lead ? ' is-lead' : '' ) + '" data-kpi="' + esc( kpi.key ) + '">' +
 			'<div class="ecrp3-kpi-label">' + esc( kpi.label ) + '</div>' +
 			'<div class="ecrp3-kpi-value">' + esc( kpi.display ) + '</div>' +
 			( change || kpi.prev_display ? '<div class="ecrp3-kpi-compare">' + change + ( kpi.prev_display ? ' <span class="ecrp3-kpi-prev">' + esc( T.vs ) + ' ' + esc( kpi.prev_display ) + '</span>' : '' ) + '</div>' : '' ) +

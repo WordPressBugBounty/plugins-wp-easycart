@@ -334,6 +334,62 @@
 					"title":"Restricted Store, Signed In Without Access",
 					"value":"Your account does not have access to the store yet."
 				},
+				"page_access_signin_notice":{
+					"title":"Limit Access, Sign In To Open A Page",
+					"value":"Sign in to open [title]."
+				},
+				"page_access_title":{
+					"title":"Limit Access, Members Only Heading",
+					"value":"[title] is for members"
+				},
+				"page_access_products":{
+					"title":"Limit Access, Any One Product Opens It",
+					"value":"Any one of these opens it:"
+				},
+				"page_access_products_all":{
+					"title":"Limit Access, Every Product Needed",
+					"value":"Your account needs each of these:"
+				},
+				"page_access_contact":{
+					"title":"Limit Access, No Access ( Contact Us )",
+					"value":"Your account does not have access to this page. If you think it should, please contact us."
+				},
+				"page_access_buy":{
+					"title":"Limit Access, Buy Button",
+					"value":"Buy"
+				},
+				"page_access_subscribe":{
+					"title":"Limit Access, Subscribe Button",
+					"value":"Subscribe"
+				},
+				"page_access_open":{
+					"title":"Limit Access, Open The Page",
+					"value":"Open [title]"
+				},
+				"page_access_back":{
+					"title":"Limit Access, Back To The Store",
+					"value":"Back to the store"
+				},
+				"page_access_account":{
+					"title":"Limit Access, My Account Link",
+					"value":"My account"
+				},
+				"page_access_excerpt":{
+					"title":"Limit Access, Members Only Content",
+					"value":"This content is for members."
+				},
+				"page_access_your_pages":{
+					"title":"Limit Access, My Account Pages You Can Open",
+					"value":"Pages you can open"
+				},
+				"page_access_order_opens":{
+					"title":"Limit Access, Order Confirmation Pages Opened",
+					"value":"Your order opens:"
+				},
+				"page_access_order_pending":{
+					"title":"Limit Access, Order Confirmation Pages Opened Once Paid",
+					"value":"Once your payment is complete, your order opens:"
+				},
 				"product_page_start_trial_1":{
 					"title":"Start Your Trial Text Part 1",
 					"value":"Start Your"
@@ -524,6 +580,18 @@
 				"product_details_sign_up_now":{
 					"title":"Sign Up Now Text",
 					"value":"SIGN UP NOW"
+				},
+				"product_details_prior_price":{
+					"title":"Product Details, Lowest Price In The Last 30 Days",
+					"value":"Lowest price in the last 30 days: [price]"
+				},
+				"product_details_unit_price":{
+					"title":"Product Details, Unit Price",
+					"value":"[price] / [unit]"
+				},
+				"product_details_unit_item":{
+					"title":"Product Details, Unit Price Per Item",
+					"value":"item"
 				},
 				"product_details_inquiry_title":{
 					"title":"Inquiry Title",
@@ -2072,6 +2140,102 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"You have already purchased this item. Please visit your account to review your active subscriptions."
 				},
+				"subscription_email_continue":{
+					"title":"Subscription Page, Email Continue Button ( 6.0.5 )",
+					"value":"Continue"
+				},
+				"subscription_email_change":{
+					"title":"Subscription Page, Change the Email Link ( 6.0.5 )",
+					"value":"Change"
+				},
+				"subscription_email_hint":{
+					"title":"Subscription Page, Email First Hint ( 6.0.5 )",
+					"value":"Start with your email. If you already have an account, we’ll ask for your password."
+				},
+				"subscription_email_existing":{
+					"title":"Subscription Page, Email Has An Account ( 6.0.5 )",
+					"value":"Welcome back. Enter your password to sign in."
+				},
+				"subscription_email_new":{
+					"title":"Subscription Page, New Email Needs A Password ( 6.0.5 )",
+					"value":"Create a password for your new account."
+				},
+				"subscription_email_later":{
+					"title":"Subscription Page, Password After Checkout Note ( 6.0.5 )",
+					"value":"You’ll choose a password for your account after checkout."
+				},
+				"subscription_email_preview":{
+					"title":"Subscription Page, Checkout Waits For The Email ( 6.0.5 )",
+					"value":"Enter your email above to continue."
+				},
+				"subscription_email_busy":{
+					"title":"Subscription Page, Too Many Email Checks ( 6.0.5 )",
+					"value":"Too many tries. Please wait a few minutes and try again."
+				},
+				"subscription_email_changed":{
+					"title":"Subscription Page, Email Changed Before Paying ( 6.0.5 )",
+					"value":"Your email changed. Confirm it again before you pay."
+				},
+				"subscription_set_password_title":{
+					"title":"After Purchase, Set A Password Title ( 6.0.5 )",
+					"value":"Set a password for your account"
+				},
+				"subscription_set_password_text":{
+					"title":"After Purchase, Set A Password Text ( 6.0.5 )",
+					"value":"Your account uses [email]. Choose a password so you can sign in and manage your subscription."
+				},
+				"subscription_set_password_button":{
+					"title":"After Purchase, Save The Password Button ( 6.0.5 )",
+					"value":"Save password"
+				},
+				"subscription_set_password_saved":{
+					"title":"After Purchase, Password Saved ( 6.0.5 )",
+					"value":"Your password is saved."
+				},
+				"subscription_set_password_later":{
+					"title":"After Purchase, Set The Password Later ( 6.0.5 )",
+					"value":"You can also set it later with Forgot your password on the sign-in page."
+				},
+				"subscription_set_password_short":{
+					"title":"After Purchase, Password Too Short ( 6.0.5 )",
+					"value":"Use at least [count] characters."
+				},
+				"subscription_set_password_failed":{
+					"title":"After Purchase, Password Not Saved ( 6.0.5 )",
+					"value":"Your password could not be saved. Please try again."
+				},
+				"checkout_email_hint":{
+					"title":"Checkout, Email First Hint When The Order Needs An Account ( 6.0.5 )",
+					"value":"Your order needs an account. Start with your email: if you already have one, we’ll ask for your password."
+				},
+				"checkout_email_known":{
+					"title":"Checkout, The Email Has An Account ( 6.0.5 )",
+					"value":"You already have an account with this email. Sign in for a faster checkout."
+				},
+				"checkout_email_suggest":{
+					"title":"Checkout, Did You Mean This Email ( 6.0.5 )",
+					"value":"Did you mean [email]?"
+				},
+				"checkout_password_show":{
+					"title":"Checkout, Show The Password Button ( 6.0.5 )",
+					"value":"Show"
+				},
+				"checkout_password_hide":{
+					"title":"Checkout, Hide The Password Button ( 6.0.5 )",
+					"value":"Hide"
+				},
+				"checkout_account_required":{
+					"title":"Checkout, The Order Needs An Account Error ( 6.0.5 )",
+					"value":"This order needs an account. Enter your email at the top of the checkout to continue."
+				},
+				"checkout_set_password_text":{
+					"title":"After An Order, Set A Password Text ( 6.0.5 )",
+					"value":"Your account uses [email]. Choose a password so you can sign in to see your orders and downloads."
+				},
+				"checkout_email_check":{
+					"title":"Checkout, Email First Human Check ( 6.0.5 )",
+					"value":"To keep accounts safe, please complete this quick check to continue."
+				},
 				"subscription_change_existing":{
 					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
 					"value":"You already have a subscription to this plan. Change it from your account instead of buying a second one."
@@ -2103,6 +2267,18 @@
 				"subscription_choose_options_link":{
 					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
 					"value":"Choose options"
+				},
+				"subscription_level_choose":{
+					"title":"Subscription Page, Usage Level Question ( 6.0.5 )",
+					"value":"How many [unit] do you need?"
+				},
+				"subscription_level_update":{
+					"title":"Subscription Page, Update the Usage Level Button ( 6.0.5 )",
+					"value":"Update"
+				},
+				"subscription_units_range":{
+					"title":"Subscription Page, Amount Not In The Plan ( 6.0.5 )",
+					"value":"Choose an amount this plan includes."
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2296,6 +2472,10 @@
 				"cart_billing_information_vat_registration_number":{
 					"title":"Cart, Billing, VAT Registration Number Label",
 					"value":"VAT Registration Number"
+				},
+				"cart_billing_information_vat_reverse_charge":{
+					"title":"Cart, Billing Information, VAT Reverse Charge",
+					"value":"Reverse charge"
 				}
 			}
 		},
@@ -2492,7 +2672,7 @@
 				},
 				"cart_payment_information_manual_payment":{
 					"title":"Cart, Payment Information, Manual Payment Label",
-					"value":"Pay by Direct Deposit"
+					"value":"Pay by bank transfer"
 				},
 				"cart_payment_information_affirm":{
 					"title":"Cart, Payment Information, Affirm Payment Label",
@@ -2508,7 +2688,7 @@
 				},
 				"cart_payment_information_third_party_second":{
 					"title":"Cart, Payment Information, Third Party Text, Part 2",
-					"value":"when you click submit order to complete your payment."
+					"value":"when you click Place order and pay to complete your payment."
 				},
 				"cart_payment_information_apple_pay":{
 					"title":"Cart, Payment Information, Mobile Payment Label",
@@ -2548,7 +2728,7 @@
 				},
 				"cart_payment_information_checkout_text":{
 					"title":"Cart, Payment Information, Checkout Text",
-					"value":"By submitting your order, you are agreeing to the [terms]terms and conditions[/terms] and [privacy]privacy policy[/privacy] of our website.  Once you click submit order, the checkout process is complete and no changes can be made to your order. Thank you for shopping with us!"
+					"value":"By placing your order, you are agreeing to the [terms]terms and conditions[/terms] and [privacy]privacy policy[/privacy] of our website.  Once you click Place order and pay, the checkout process is complete and no changes can be made to your order. Thank you for shopping with us!"
 				},
 				"cart_payment_information_review_checkout_text":{
 					"title":"Cart, Payment Information, Review Checkout Text",
@@ -2560,7 +2740,7 @@
 				},
 				"cart_payment_information_submit_order_button":{
 					"title":"Cart, Payment Information, Submit Order Button",
-					"value":"SUBMIT ORDER"
+					"value":"PLACE ORDER AND PAY"
 				},
 				"cart_payment_information_cancel_order_button":{
 					"title":"Cart, Payment Information, Edit Order Button",
@@ -2705,6 +2885,10 @@
 				"choose_location":{
 					"title":"Cart, Preorder Pickup Location Choose",
 					"value":"Choose Location"
+				},
+				"stripe_unavailable":{
+					"title":"Cart, Card Payments Unavailable",
+					"value":"We can't take card payments right now. Please try again in a few minutes, or contact us if it keeps happening."
 				}
 			}
 		},
@@ -3990,7 +4174,7 @@
 				},
 				"account_order_details_payment_method_manual":{
 					"title":"Account, Order Details, Payment Method, Manual Bill Label",
-					"value":"Direct Deposit"
+					"value":"Bank transfer"
 				},
 				"account_orders_details_subtotal":{
 					"title":"Account, Orders Details, Subtotal",
@@ -4143,6 +4327,14 @@
 				"order_status_direct_deposit_received":{
 					"title":"Account, Orders Status, Direct Deposit Received",
 					"value":"Direct Deposit Received"
+				},
+				"order_status_awaiting_bank_transfer":{
+					"title":"Account, Orders Status, Awaiting Bank Transfer",
+					"value":"Awaiting Bank Transfer"
+				},
+				"order_status_bank_transfer_received":{
+					"title":"Account, Orders Status, Bank Transfer Received",
+					"value":"Bank Transfer Received"
 				},
 				"order_status_refunded_order":{
 					"title":"Account, Orders Status, Refunded Order",
@@ -4368,6 +4560,78 @@
 				"subscription_details_card_notice":{
 					"title":"Account, Subscription Details, Card Change Notice",
 					"value":"Your next payment is charged to the new card."
+				},
+				"subscription_details_card_expires":{
+					"title":"Account, Subscription Details, Card Expiry Date ( 6.0.5 )",
+					"value":"Expires [date]"
+				},
+				"subscription_details_card_expired":{
+					"title":"Account, Subscription Details, Card Expired ( 6.0.5 )",
+					"value":"Expired [date]"
+				},
+				"subscription_details_card_updated":{
+					"title":"Account, Subscription Details, Payment Method Updated ( 6.0.5 )",
+					"value":"Your payment method was updated."
+				},
+				"subscription_details_card_updated_many":{
+					"title":"Account, Subscription Details, Payment Method Updated For Several Subscriptions ( 6.0.5 )",
+					"value":"Your payment method was updated for [count] subscriptions."
+				},
+				"subscription_details_card_failed":{
+					"title":"Account, Subscription Details, Payment Method Not Changed For Some ( 6.0.5 )",
+					"value":"Your payment method could not be changed for [titles]. Open that subscription to try again."
+				},
+				"subscription_details_card_apply":{
+					"title":"Account, Subscription Details, Use This Card For ( 6.0.5 )",
+					"value":"Use this card for"
+				},
+				"subscription_details_card_apply_this":{
+					"title":"Account, Subscription Details, This Subscription Only ( 6.0.5 )",
+					"value":"This subscription only"
+				},
+				"subscription_details_card_apply_some":{
+					"title":"Account, Subscription Details, This And Chosen Subscriptions ( 6.0.5 )",
+					"value":"This subscription and others I choose"
+				},
+				"subscription_details_card_apply_all":{
+					"title":"Account, Subscription Details, All My Subscriptions ( 6.0.5 )",
+					"value":"All my subscriptions ([count])"
+				},
+				"subscription_details_card_apply_others":{
+					"title":"Account, Subscription Details, Your Other Subscriptions ( 6.0.5 )",
+					"value":"Your other subscriptions"
+				},
+				"subscription_details_card_apply_none":{
+					"title":"Account, Subscription Details, Choose Another Subscription ( 6.0.5 )",
+					"value":"Choose at least one other subscription, or choose This subscription only."
+				},
+				"subscription_details_payments_more":{
+					"title":"Account, Subscription Details, Load More Payments ( 6.0.5 )",
+					"value":"Load more"
+				},
+				"subscription_details_payments_shown":{
+					"title":"Account, Subscription Details, Payments Shown ( 6.0.5 )",
+					"value":"Showing [shown] of [total] payments"
+				},
+				"subscription_details_view_all_orders":{
+					"title":"Account, Subscription Details, View All Orders ( 6.0.5 )",
+					"value":"View all orders"
+				},
+				"subscription_level_change":{
+					"title":"Subscription Details, Change The Usage Level ( 6.0.5 )",
+					"value":"Change [unit]"
+				},
+				"subscription_level_current":{
+					"title":"Subscription Details, The Usage Level It Has ( 6.0.5 )",
+					"value":"current"
+				},
+				"subscription_level_hint":{
+					"title":"Subscription Details, When A Usage Level Change Starts ( 6.0.5 )",
+					"value":"A higher amount starts now, with the rest of this period charged today. A lower amount starts at your next renewal."
+				},
+				"subscription_level_hint_up":{
+					"title":"Subscription Details, When A Higher Usage Level Starts ( 6.0.5 )",
+					"value":"A higher amount starts now, with the rest of this period charged today."
 				},
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
@@ -5844,6 +6108,18 @@
 				"sending":{
 					"title":"Account: Sending",
 					"value":"Sending…"
+				},
+				"create_account_question":{
+					"title":"Sign in: No account yet",
+					"value":"Don't have an account?"
+				},
+				"signed_in_not_you":{
+					"title":"Signed in: Not you",
+					"value":"Not you?"
+				},
+				"signed_in_sign_out":{
+					"title":"Signed in: Sign out",
+					"value":"Sign out"
 				}
 			}
 		},
@@ -6151,6 +6427,116 @@
 				"code":{
 					"title":"Do Not Change",
 					"value":"EN"
+				}
+			}
+		},
+		"address_labels":{
+			"label":"Address Labels",
+			"options":{
+				"region_state":{
+					"title":"Address, Region label: State",
+					"value":"State"
+				},
+				"region_county":{
+					"title":"Address, Region label: County",
+					"value":"County"
+				},
+				"region_province":{
+					"title":"Address, Region label: Province",
+					"value":"Province"
+				},
+				"region_state_territory":{
+					"title":"Address, Region label: State or territory",
+					"value":"State or territory"
+				},
+				"region_region":{
+					"title":"Address, Region label: Region",
+					"value":"Region"
+				},
+				"region_prefecture":{
+					"title":"Address, Region label: Prefecture",
+					"value":"Prefecture"
+				},
+				"postal_postcode":{
+					"title":"Address, Postcode label: Postcode",
+					"value":"Postcode"
+				},
+				"postal_postal_code":{
+					"title":"Address, Postcode label: Postal code",
+					"value":"Postal code"
+				},
+				"postal_eircode":{
+					"title":"Address, Postcode label: Eircode",
+					"value":"Eircode"
+				},
+				"postal_cep":{
+					"title":"Address, Postcode label: CEP",
+					"value":"CEP"
+				},
+				"postal_pin":{
+					"title":"Address, Postcode label: PIN code",
+					"value":"PIN code"
+				}
+			}
+		},
+		"bank_details":{
+			"label":"Bank Details ( Bill Later )",
+			"options":{
+				"bank_details_title":{
+					"title":"Bank Details, Title",
+					"value":"Bank details"
+				},
+				"bank_details_holder":{
+					"title":"Bank Details, Account Name",
+					"value":"Account name"
+				},
+				"bank_details_bank":{
+					"title":"Bank Details, Bank",
+					"value":"Bank"
+				},
+				"bank_details_iban":{
+					"title":"Bank Details, IBAN",
+					"value":"IBAN"
+				},
+				"bank_details_bic":{
+					"title":"Bank Details, BIC / SWIFT",
+					"value":"BIC / SWIFT"
+				},
+				"bank_details_sort_code":{
+					"title":"Bank Details, Sort Code ( UK )",
+					"value":"Sort code"
+				},
+				"bank_details_account":{
+					"title":"Bank Details, Account Number",
+					"value":"Account number"
+				},
+				"bank_details_bsb":{
+					"title":"Bank Details, BSB ( Australia )",
+					"value":"BSB"
+				},
+				"bank_details_routing":{
+					"title":"Bank Details, Routing Number ( US )",
+					"value":"Routing number"
+				},
+				"bank_details_institution":{
+					"title":"Bank Details, Institution Number ( Canada )",
+					"value":"Institution number"
+				},
+				"bank_details_transit":{
+					"title":"Bank Details, Transit Number ( Canada )",
+					"value":"Transit number"
+				},
+				"bank_details_interac":{
+					"title":"Bank Details, Interac e-Transfer ( Canada )",
+					"value":"Interac e-Transfer"
+				},
+				"bank_details_reference":{
+					"title":"Bank Details, Payment Reference",
+					"value":"Payment reference"
+				},
+				"bank_details_order":{
+					"title":"Bank Details, Payment Reference Value ( [order_id] = the order number )",
+					"value":"Order [order_id]"
 				}
 			}
 		}

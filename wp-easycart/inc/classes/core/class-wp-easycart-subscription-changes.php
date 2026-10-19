@@ -164,6 +164,8 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				'price'           => (float) $get( 'price', 'amount', 0 ),
 				'quantity'        => max( 1, (int) $get( 'quantity', 'quantity', 1 ) ),
 				'trial'           => $trial,
+				'level'           => (string) $get( 'usage_level', 'usage_level', '' ), /* 6.0.5 */
+				'level_value'     => (float) $get( 'usage_value', 'usage_value', 0 ),
 			);
 		}
 
@@ -240,6 +242,20 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				'interval'  => $interval,
 				'direction' => $direction,
 			);
+			/* 6.0.5: another level of the same product ( D12 ): more starts now and the rest of the period is charged at once; fewer
+			 * starts at the renewal; the product's levels say whether customers may change them ( both, more only, not at all ). */
+			if ( 'same' === $direction && ! empty( $to['level'] ) && ( empty( $from['level'] ) || (string) $from['level'] !== (string) $to['level'] ) ) {
+				$up                = (float) $to['level_value'] > ( isset( $from['level_value'] ) ? (float) $from['level_value'] : 0 );
+				$change            = isset( $to['level_change'] ) ? (string) $to['level_change'] : 'both';
+				$rule['direction'] = $up ? 'up' : 'down';
+				if ( ! $allowed || 'off' === $change || ( 'up' === $change && ! $up ) ) {
+					$rule['when']   = 'none';
+					$rule['charge'] = 'none';
+				} else {
+					$rule['when']   = $up ? 'now' : 'renewal';
+					$rule['charge'] = $up ? 'now' : 'none';
+				}
+			}
 			/**
 			 * When a plan change applies and what it charges ( WP EasyCart PRO answers for plan groups ).
 			 *
@@ -380,7 +396,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 		 * @param int $quantity        Quantity ( 0 = keep ).
 		 * @return array|WP_Error
 		 */
-		private static function context( $subscription_id, $product_id, $quantity ) {
+		private static function context( $subscription_id, $product_id, $quantity, $level_id = '' ) {
 			global $wpdb;
 			if ( ! class_exists( 'ec_db' ) || ! class_exists( 'wp_easycart_subscription_prices' ) ) {
 				return new WP_Error( 'core', 'WP EasyCart is not loaded.' );
@@ -389,6 +405,9 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			$row   = ec_db::get_subscription_row( (int) $subscription_id );
 			if ( ! $row || 'stripe' !== (string) $row->subscription_type || '' === (string) $row->stripe_subscription_id ) {
 				return new WP_Error( 'subscription', 'Only Stripe subscriptions can change product.' );
+			}
+			if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+				wp_easycart_subscription_levels::fill( $row ); /* 6.0.5: the level it bills */
 			}
 			$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', (int) $product_id ) );
 			if ( ! $product || ! (int) $product->is_subscription_item ) {
@@ -406,7 +425,18 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			$quantity = ( (int) $quantity > 0 ) ? (int) $quantity : max( 1, (int) $row->quantity );
 			$from     = self::describe_subscription( $row, $live );
 			$to       = self::describe_product( $product );
+			/* 6.0.5: the level it moves to ( asked for, else the one it has, else the nearest ), with its own price. */
+			$level = class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::resolve( (int) $product->product_id, (string) $level_id, $row ) : null;
+			if ( $level ) {
+				$levels             = wp_easycart_subscription_levels::of( (int) $product->product_id );
+				$to['price']        = (float) $level['price'];
+				$to['level']        = (string) $level['id'];
+				$to['level_value']  = (float) $level['value'];
+				$to['level_change'] = $levels ? (string) $levels['change'] : 'both';
+				$product->price     = (float) $level['price'];
+			}
 			return array(
+				'level'    => $level,
 				'row'      => $row,
 				'product'  => $product,
 				'stripe'   => $stripe,
@@ -429,10 +459,11 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 		 * @return string
 		 */
 		private static function target_price( $ctx ) {
-			if ( (int) $ctx['product']->product_id === (int) $ctx['row']->product_id && $ctx['item'] && isset( $ctx['item']->price->id ) ) {
+			$same_level = ( empty( $ctx['level'] ) || (string) $ctx['level']['id'] === ( isset( $ctx['row']->usage_level ) ? (string) $ctx['row']->usage_level : '' ) );
+			if ( (int) $ctx['product']->product_id === (int) $ctx['row']->product_id && $same_level && $ctx['item'] && isset( $ctx['item']->price->id ) ) {
 				return (string) $ctx['item']->price->id;
 			}
-			return (string) wp_easycart_subscription_prices::ensure( (int) $ctx['product']->product_id, $ctx['stripe'] );
+			return (string) wp_easycart_subscription_prices::ensure( (int) $ctx['product']->product_id, $ctx['stripe'], array( 'level' => empty( $ctx['level'] ) ? '' : (string) $ctx['level']['id'] ) );
 		}
 
 		/**
@@ -502,8 +533,8 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 		 *                        the next bill, negative = a credit ), at ( the renewal, trial end or new period's end ), new_total,
 		 *                        currency, message }
 		 */
-		public static function preview( $subscription_id, $product_id, $quantity = 0 ) {
-			$ctx = self::context( $subscription_id, $product_id, $quantity );
+		public static function preview( $subscription_id, $product_id, $quantity = 0, $level_id = '' ) {
+			$ctx = self::context( $subscription_id, $product_id, $quantity, $level_id );
 			if ( is_wp_error( $ctx ) ) {
 				return $ctx;
 			}
@@ -634,6 +665,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 					'source' => 'customer',
 					'user'   => null,
 					'when'   => '',
+					'level'  => '', /* 6.0.5: the level to move to ( '' = keep, or the nearest the product sells ) */
 				),
 				(array) $args
 			);
@@ -650,12 +682,13 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				$out['state'] = is_wp_error( $changed ) ? 'error' : 'applied';
 				return $out;
 			}
-			$ctx = self::context( $subscription_id, $product_id, $quantity );
+			$ctx = self::context( $subscription_id, $product_id, $quantity, (string) $args['level'] );
 			if ( is_wp_error( $ctx ) ) {
 				$out['message'] = $ctx->get_error_message();
 				return $out;
 			}
-			$rule = $ctx['rule'];
+			$args['level'] = empty( $ctx['level'] ) ? '' : (string) $ctx['level']['id'];
+			$rule          = $ctx['rule'];
 			if ( in_array( $args['when'], array( 'now', 'renewal' ), true ) ) {
 				$rule['when'] = $args['when'];
 			}
@@ -700,7 +733,10 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				'to_quantity'     => (int) $ctx['quantity'],
 				'stripe_price_id' => (string) $price,
 				'change_source'   => substr( sanitize_key( (string) $args['source'] ), 0, 20 ),
-			);
+			) + ( ( class_exists( 'wp_easycart_subscription_levels' ) && wp_easycart_subscription_levels::ready() ) ? array(
+				'from_level' => isset( $ctx['row']->usage_level ) ? (string) $ctx['row']->usage_level : '',
+				'to_level'   => empty( $ctx['level'] ) ? '' : (string) $ctx['level']['id'],
+			) : array() );
 		}
 
 		/**
@@ -1093,6 +1129,13 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			} else {
 				ec_db::upgrade_subscription( (int) $row->subscription_id, $product, $quantity );
 			}
+			$level = null;
+			if ( class_exists( 'wp_easycart_subscription_levels' ) ) {
+				/* 6.0.5: its level ( price, title ) or its units */
+				wp_easycart_subscription_levels::fill( $row );
+				$level = wp_easycart_subscription_levels::resolve( (int) $product->product_id, isset( $args['level'] ) ? (string) $args['level'] : '', $row );
+				wp_easycart_subscription_levels::after_change( (int) $row->subscription_id, $product, $quantity, $level );
+			}
 			/** This action is documented in inc/classes/core/class-wp-easycart-subscription-prices.php */
 			do_action(
 				'wp_easycart_subscription_plan_changed',
@@ -1108,6 +1151,8 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 					'stripe_price_id'        => (string) $price,
 					'change_id'              => (int) $change_id,
 					'when'                   => $when,
+					'level'                  => $level ? (string) $level['id'] : '', /* 6.0.5 */
+					'previous_level'         => isset( $row->usage_level ) ? (string) $row->usage_level : '',
 				)
 			);
 		}
@@ -1224,7 +1269,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				$out['state'] = 'busy';
 				return $out;
 			}
-			$price = (string) wp_easycart_subscription_prices::ensure( (int) $row->product_id, $ctx['stripe'] );
+			$price = (string) wp_easycart_subscription_prices::ensure( (int) $row->product_id, $ctx['stripe'], array( 'level' => empty( $ctx['level'] ) ? '' : (string) $ctx['level']['id'] ) ); /* 6.0.5: the level's own price */
 			if ( '' === $price ) {
 				$out['message'] = 'price';
 				return $out;
@@ -1385,7 +1430,18 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			}
 			$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', (int) $change->to_product_id ) );
 			if ( $product ) {
-				self::apply_local( $row, $product, $quantity, array( 'source' => self::PRICE_SOURCE ), (string) $change->stripe_price_id, (int) $change->change_id, 'renewal' );
+				self::apply_local(
+					$row,
+					$product,
+					$quantity,
+					array(
+						'source' => self::PRICE_SOURCE,
+						'level'  => isset( $change->to_level ) ? (string) $change->to_level : '', /* 6.0.5 */
+					),
+					(string) $change->stripe_price_id,
+					(int) $change->change_id,
+					'renewal'
+				);
 			}
 			return 'applied';
 		}
@@ -1407,7 +1463,17 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			if ( null === $price ) {
 				return ( $limit > 0 ) ? array() : 0;
 			}
-			$where = $wpdb->prepare( "s.product_id = %d AND s.subscription_id > %d AND s.subscription_type = 'stripe' AND s.stripe_subscription_id != '' AND s.subscription_status IN ( 'Active', 'trialing' ) AND ROUND( s.price, 2 ) != ROUND( %f, 2 ) AND NOT EXISTS ( SELECT 1 FROM ec_subscription_change c WHERE c.subscription_id = s.subscription_id AND c.change_status IN ( 'scheduled', 'pending_payment' ) )", (int) $product_id, (int) $after, (float) $price );
+			/* 6.0.5: a product that sells usage levels: each subscriber against its own level's price ( a level no longer sold: the product's ). */
+			$target = $wpdb->prepare( '%f', (float) $price );
+			$levels = class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::of( (int) $product_id ) : null;
+			if ( $levels && 'levels' === $levels['style'] ) {
+				$target = 'CASE s.usage_level';
+				foreach ( $levels['levels'] as $level ) {
+					$target .= $wpdb->prepare( ' WHEN %s THEN %f', (string) $level['id'], (float) $level['price'] );
+				}
+				$target .= $wpdb->prepare( ' ELSE %f END', (float) $price );
+			}
+			$where = $wpdb->prepare( "s.product_id = %d AND s.subscription_id > %d AND s.subscription_type = 'stripe' AND s.stripe_subscription_id != '' AND s.subscription_status IN ( 'Active', 'trialing' ) AND NOT EXISTS ( SELECT 1 FROM ec_subscription_change c WHERE c.subscription_id = s.subscription_id AND c.change_status IN ( 'scheduled', 'pending_payment' ) )", (int) $product_id, (int) $after ) . ' AND ROUND( s.price, 2 ) != ROUND( ' . $target . ', 2 )';
 			if ( $limit <= 0 ) {
 				return (int) $wpdb->get_var( 'SELECT COUNT( s.subscription_id ) FROM ec_subscription s WHERE ' . $where ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
 			}
@@ -1532,7 +1598,18 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			}
 			$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', (int) $open->to_product_id ) );
 			if ( $product ) {
-				self::apply_local( $row, $product, (int) $open->to_quantity, array( 'source' => (string) $open->change_source ), (string) $open->stripe_price_id, (int) $open->change_id, (string) $open->change_when );
+				self::apply_local(
+					$row,
+					$product,
+					(int) $open->to_quantity,
+					array(
+						'source' => (string) $open->change_source,
+						'level'  => isset( $open->to_level ) ? (string) $open->to_level : '', /* 6.0.5 */
+					),
+					(string) $open->stripe_price_id,
+					(int) $open->change_id,
+					(string) $open->change_when
+				);
 			}
 			$stripe = ( 'renewal' === (string) $open->change_when && '' !== (string) $open->stripe_schedule_id ) ? self::stripe() : false;
 			if ( $stripe ) {
@@ -1900,7 +1977,20 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 		private static function request_quantity( $row ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- wp_easycart_subscription_change_guard() checked the nonce first.
 			$quantity = isset( $_POST['quantity'] ) ? (int) $_POST['quantity'] : 0;
-			return ( $quantity > 0 && ! get_option( 'ec_option_subscription_one_only' ) ) ? min( 1000000, $quantity ) : max( 1, (int) $row->quantity );
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- wp_easycart_subscription_change_guard() checked the nonce first.
+			$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : (int) $row->product_id;
+			return ( $quantity > 0 && wp_easycart_subscription_quantity_allowed( $product_id > 0 ? $product_id : (int) $row->product_id ) ) ? min( 1000000, $quantity ) : max( 1, (int) $row->quantity );
+		}
+
+		/**
+		 * 6.0.5: the usage level posted ( '' = keep ).
+		 *
+		 * @return string
+		 */
+		private static function request_level() {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- wp_easycart_subscription_change_guard() checked the nonce first.
+			$level = isset( $_POST['level'] ) ? sanitize_text_field( wp_unslash( $_POST['level'] ) ) : '';
+			return class_exists( 'wp_easycart_subscription_levels' ) ? wp_easycart_subscription_levels::clean_id( $level ) : '';
 		}
 
 		/**
@@ -1927,7 +2017,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 			wp_easycart_subscription_change_guard();
 			$row = self::request_subscription( 'change_plan' );
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- wp_easycart_subscription_change_guard() checked the nonce first.
-			$preview = self::preview( (int) $row->subscription_id, isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0, self::request_quantity( $row ) );
+			$preview = self::preview( (int) $row->subscription_id, isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0, self::request_quantity( $row ), self::request_level() );
 			if ( is_wp_error( $preview ) ) {
 				wp_send_json_error( array( 'message' => self::text( 'subscription_change_error' ) ) );
 			}
@@ -1956,6 +2046,7 @@ if ( ! class_exists( 'wp_easycart_subscription_changes' ) ) :
 				array(
 					'source' => 'customer',
 					'user'   => isset( $GLOBALS['ec_user'] ) ? $GLOBALS['ec_user'] : null,
+					'level'  => self::request_level(), /* 6.0.5 */
 				)
 			);
 			if ( isset( $GLOBALS['ec_cart_data'] ) && is_object( $GLOBALS['ec_cart_data'] ) ) {

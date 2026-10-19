@@ -120,6 +120,28 @@ if ( ! class_exists( 'wp_easycart_carriers' ) ) :
 					'track'     => 'https://www.purolator.com/en/shipping/tracking/%s',
 					'keywords'  => 'purolator',
 				),
+				/* 6.0.5 ( admin review L4 ): Canada's other couriers. Loomis Express's link opens its tracking page; Intelcom has no public link. */
+				'canpar'        => array(
+					'name'      => 'Canpar Express',
+					'aliases'   => array( 'canpar' ),
+					'countries' => array( 'CA' ),
+					'track'     => 'https://www.canpar.com/en/tracking/track.htm?barcode=%s',
+					'keywords'  => 'canpar',
+				),
+				'loomis'        => array(
+					'name'      => 'Loomis Express',
+					'aliases'   => array( 'loomis' ),
+					'countries' => array( 'CA' ),
+					'track'     => 'https://www.loomisexpress.com/loomship/Track',
+					'keywords'  => 'loomis',
+				),
+				'intelcom'      => array(
+					'name'      => 'Intelcom',
+					'aliases'   => array( 'intelcom express', 'dragonfly' ),
+					'countries' => array( 'CA' ),
+					'track'     => '',
+					'keywords'  => 'intelcom',
+				),
 				'royalmail'     => array(
 					'name'      => 'Royal Mail',
 					'aliases'   => array(),
@@ -291,6 +313,21 @@ if ( ! class_exists( 'wp_easycart_carriers' ) ) :
 					'track'     => '',
 					'keywords'  => 'sendle',
 				),
+				/* 6.0.5 ( admin review L4 ): Australia's other couriers. StarTrack's link goes on to Australia Post's tracking with the number. */
+				'startrack'     => array(
+					'name'      => 'StarTrack',
+					'aliases'   => array( 'star track' ),
+					'countries' => array( 'AU' ),
+					'track'     => 'https://startrack.com.au/track/details/%s',
+					'keywords'  => 'startrack|star track|premium express',
+				),
+				'couriersplease' => array(
+					'name'      => 'CouriersPlease',
+					'aliases'   => array( 'couriers please' ),
+					'countries' => array( 'AU' ),
+					'track'     => 'https://www.couriersplease.com.au/tools-track/no/%s',
+					'keywords'  => 'couriersplease|couriers please',
+				),
 				'nzpost'        => array(
 					'name'      => 'NZ Post',
 					'aliases'   => array( 'new zealand post' ),
@@ -308,7 +345,7 @@ if ( ! class_exists( 'wp_easycart_carriers' ) ) :
 				'aramex'        => array(
 					'name'      => 'Aramex',
 					'aliases'   => array(),
-					'countries' => array( 'AE', 'SA', 'QA', 'KW', 'BH', 'OM', 'JO', 'EG', 'LB' ),
+					'countries' => array( 'AE', 'SA', 'QA', 'KW', 'BH', 'OM', 'JO', 'EG', 'LB', 'AU', 'NZ' ), /* 6.0.5: Aramex ships in Australia and New Zealand too */
 					'track'     => '',
 					'keywords'  => 'aramex',
 				),
@@ -373,13 +410,21 @@ if ( ! class_exists( 'wp_easycart_carriers' ) ) :
 		}
 
 		/**
-		 * The country the store ships from: the checkout's default country, else the Stripe business country, else the region in the
-		 * site's language ( en_GB → GB ). Filter wp_easycart_store_country.
+		 * The country the store is based in and ships from: Settings › Store details › Store country ( 6.0.5,
+		 * ec_option_store_country ), else the country chosen in the setup wizard ( ec_option_store_locale, read only once the
+		 * wizard's location step was saved: the option defaults to US on every store ), else the checkout's default country, else
+		 * the Stripe business country, else the region in the site's language ( en_GB → GB ). Filter wp_easycart_store_country.
 		 *
 		 * @return string ISO code or ''.
 		 */
 		public static function store_country() {
-			$country = strtoupper( trim( (string) get_option( 'ec_option_default_country', '' ) ) );
+			$country = strtoupper( trim( (string) get_option( 'ec_option_store_country', '' ) ) );
+			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) && 1 <= (int) get_option( 'ec_option_setup_wizard_completed', 0 ) ) {
+				$country = strtoupper( trim( (string) get_option( 'ec_option_store_locale', '' ) ) );
+			}
+			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
+				$country = strtoupper( trim( (string) get_option( 'ec_option_default_country', '' ) ) );
+			}
 			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
 				$country = strtoupper( trim( (string) get_option( 'ec_option_stripe_company_country', '' ) ) );
 			}

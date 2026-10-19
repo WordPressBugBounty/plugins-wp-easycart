@@ -8,3 +8,8 @@
 .ecsd-preset[hidden] { display:none; }
 .ecsd-preset .ecv2-btn { border-color:var(--ecst-accent); color:var(--ecv2-g900); }
 @media ( max-width:760px ) { .ecsd-preset { margin-left:0; } }
+
+/* 6.0.5: convert saved weights after the weight unit changed */
+.ecsd-weight-convert { margin-top: 12px; flex-wrap: wrap; gap: 12px; }
+.ecsd-weight-convert .ecst-action-text { flex: 1 1 280px; min-width: 0; }
+.ecsd-weight-convert-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

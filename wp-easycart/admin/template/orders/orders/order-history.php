@@ -9,9 +9,12 @@
  * ( styled in admin-order-details-v2.css ).
  *
  * Free edition: the one real event we know ( creation ) is followed by a
- * dimmed sample of the entries PRO would have recorded for this order, so the
- * merchant sees the shape of the log rather than a lock icon. Every locked
- * entry opens the orders upsell on the 'history' feature.
+ * dimmed sample of the entries PRO records, so the merchant sees the shape of
+ * the log rather than a lock icon. Every locked entry opens the orders upsell
+ * on the 'history' feature. 6.0.5 ( admin review M17/M18 ): the samples sit under
+ * "Examples of what … records" and each says Example in the row itself, with
+ * neutral wording: they used the order's own total and the signed-in user's
+ * name, so they read as things that had happened to this order.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,18 +28,15 @@ $ecodv2_hist_at       = ( $ecodv2_hist_order && ! empty( $ecodv2_hist_order->ord
 $ecodv2_hist_created  = $ecodv2_hist_at ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ecodv2_hist_at ) : '';
 $ecodv2_hist_day      = $ecodv2_hist_at ? date_i18n( get_option( 'date_format' ), $ecodv2_hist_at ) : '';
 $ecodv2_hist_time     = $ecodv2_hist_at ? date_i18n( get_option( 'time_format' ), $ecodv2_hist_at ) : '';
-$ecodv2_hist_total    = ( $ecodv2_hist_order && isset( $ecodv2_hist_order->grand_total ) ) ? $GLOBALS['currency']->get_currency_display( (float) $ecodv2_hist_order->grand_total ) : '';
-$ecodv2_hist_status   = ( $ecodv2_hist_order && isset( $ecodv2_hist_order->order_status ) ) ? (string) $ecodv2_hist_order->order_status : '';
-$ecodv2_hist_user     = wp_get_current_user();
-$ecodv2_hist_who      = ( $ecodv2_hist_user && $ecodv2_hist_user->display_name ) ? $ecodv2_hist_user->display_name : __( 'Store admin', 'wp-easycart' );
 
-/* What PRO would have logged for an order like this one. Sample copy, clearly marked. */
+/* What PRO records, as examples: no amount, status or person from this order. */
 $ecodv2_hist_samples = array(
-	array( 'dashicons-money-alt', 'paid', sprintf( __( 'Payment of %s captured', 'wp-easycart' ), '' !== $ecodv2_hist_total ? $ecodv2_hist_total : '$0.00' ), __( 'Gateway, transaction ID and card type are recorded.', 'wp-easycart' ) ),
-	array( 'dashicons-email-alt', 'email', __( 'Receipt emailed to the customer', 'wp-easycart' ), __( 'Every email sent from this order, with its subject and time.', 'wp-easycart' ) ),
-	array( 'dashicons-flag', 'status', '' !== $ecodv2_hist_status ? sprintf( __( 'Status changed to “%s”', 'wp-easycart' ), $ecodv2_hist_status ) : __( 'Status changed', 'wp-easycart' ), sprintf( __( 'By %s — who changed what, and when.', 'wp-easycart' ), $ecodv2_hist_who ) ),
-	array( 'dashicons-format-status', 'note', __( 'Staff note added', 'wp-easycart' ), __( 'Internal comments your team leaves on the order.', 'wp-easycart' ) ),
+	array( 'dashicons-money-alt', 'paid', __( 'Payments and refunds', 'wp-easycart' ), __( 'Gateway, transaction ID and card type are recorded.', 'wp-easycart' ) ),
+	array( 'dashicons-email-alt', 'email', __( 'Emails sent', 'wp-easycart' ), __( 'Every email sent from this order, with its subject and time.', 'wp-easycart' ) ),
+	array( 'dashicons-flag', 'status', __( 'Status changes', 'wp-easycart' ), __( 'Who changed what, and when.', 'wp-easycart' ) ),
+	array( 'dashicons-format-status', 'note', __( 'Staff notes', 'wp-easycart' ), __( 'Internal comments your team leaves on the order.', 'wp-easycart' ) ),
 );
+$ecodv2_hist_example = __( 'Example', 'wp-easycart' );
 ?>
 <div class="ec_admin_settings_input ecodv2-history-free">
 	<div class="wpeasycart-timeline-container">
@@ -58,11 +58,13 @@ $ecodv2_hist_samples = array(
 							</div>
 						</div>
 
+						<div class="ecodv2-tl-examples-head"><?php echo esc_html( sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Examples of what %s records', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ) ); ?></div>
 						<?php foreach ( $ecodv2_hist_samples as $ecodv2_hs ) : ?>
 						<div class="wpeasycart-timeline-item ecodv2-tl-item is-locked" data-cat="all" data-tone="<?php echo esc_attr( $ecodv2_hs[1] ); ?>" onclick="ecodv2_locked( 'history' ); return false;">
 							<span class="dashicons <?php echo esc_attr( $ecodv2_hs[0] ); ?>" aria-hidden="true"></span>
 							<div class="wpeasycart-timeline-item-info">
 								<div class="ecodv2-tl-head">
+									<span class="ecodv2-tl-example"><?php echo esc_html( $ecodv2_hist_example ); ?></span>
 									<a href="#" class="ecodv2-tl-title" onclick="ecodv2_locked( 'history' ); return false;"><?php echo esc_html( $ecodv2_hs[2] ); ?></a>
 									<span class="ecodv2-pro-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span>
 								</div>

@@ -200,7 +200,7 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email_other' )?></strong> <?php $this->order->display_order_email_other( ); ?></div>
 			<?php } ?>
 
-			<?php if ( $this->order->promo_code && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $this->order ) ) { ?>
+			<?php if ( '' !== $this->order->promocode_text( 'account' ) && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $this->order ) ) { /* 6.0.5: none while codes are hidden and the coupon has no message */ ?>
 			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_coupon_code' )?></strong> <?php $this->order->display_order_promocode( ); ?></div>
 			<?php } ?>
 
@@ -221,7 +221,7 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 			<?php } ?>
 
 			<?php if ( $this->order->vat_registration_number != "" ) { ?>
-			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ); ?>:</strong> <?php echo esc_attr( htmlspecialchars( stripslashes( $this->order->vat_registration_number ), ENT_QUOTES ) ); ?></div>
+			<div class="ec_cart_input_row ec_account_order_details_info"><strong><?php echo wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ); ?>:</strong> <?php echo esc_attr( htmlspecialchars( stripslashes( $this->order->vat_registration_number ), ENT_QUOTES ) ); ?><?php echo ( class_exists( 'wp_easycart_vat' ) && '' !== wp_easycart_vat::reverse_charge_text( $this->order ) ? ' · ' . esc_html( wp_easycart_vat::reverse_charge_text( $this->order ) ) : '' ); /* 6.0.5: "Reverse charge" */ ?></div>
 			<?php } ?>
 
 			<?php do_action( 'wpeasycart_order_details_after_basic_info', $this->order ); ?>
@@ -238,7 +238,7 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 			<?php if( '' != $this->order->shipping_address_line_2 ) { ?>
 			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( $this->order->shipping_address_line_2 ); ?></div>
 			<?php }?>
-			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_city(); ?>, <?php $this->order->display_order_shipping_state( ); ?> <?php $this->order->display_order_shipping_zip(); ?></div>
+			<?php foreach ( wp_easycart_address::place_lines( $this->order, 'shipping' ) as $ec_place_line ) { /* 6.0.5: in the country's order */ ?><div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_html( $ec_place_line ); ?></div><?php } ?>
 			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_country(); ?></div>
 			<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_shipping_phone(); ?></div>
 			<div class="ec_cart_input_row ec_account_order_details_spacer">&nbsp;&nbsp;&nbsp;</div>
@@ -256,7 +256,7 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 				<?php if ( '' != $this->order->billing_address_line_2 ) { ?>
 				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_attr( htmlspecialchars( $this->order->billing_address_line_2, ENT_QUOTES ) ); ?></div>
 				<?php }?>
-				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_city(); ?>, <?php $this->order->display_order_billing_state(); ?> <?php $this->order->display_order_billing_zip(); ?></div>
+				<?php foreach ( wp_easycart_address::place_lines( $this->order, 'billing' ) as $ec_place_line ) { /* 6.0.5: in the country's order */ ?><div class="ec_cart_input_row ec_account_order_details_address_line"><?php echo esc_html( $ec_place_line ); ?></div><?php } ?>
 				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_country(); ?></div>
 				<div class="ec_cart_input_row ec_account_order_details_address_line"><?php $this->order->display_order_billing_phone(); ?></div>
 
@@ -290,7 +290,7 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 				foreach ( $ec_account_offers['applied_offers'] as $ec_account_offer ) {
 					if ( $ec_account_offer['amount'] <= 0 ) { continue; }
 			?>
-			<div class="ec_cart_input_row ec_offer_totals_row ec_account_order_details_total"><strong><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_account_offer['label'] ); ?><?php if ( '' != $ec_account_offer['code'] ) { echo ' (' . esc_attr( $ec_account_offer['code'] ) . ')'; } ?></strong> -<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_account_offer['amount'] ) ); ?></div>
+			<div class="ec_cart_input_row ec_offer_totals_row ec_account_order_details_total"><strong><span class="dashicons dashicons-tag"></span> <?php echo esc_html( wp_easycart_order_discounts::display_label( $ec_account_offer, 'account' ) ); ?></strong> -<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_account_offer['amount'] ) ); ?></div>
 			<?php } } ?>
 			<?php if ( $this->order->discount_total != 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $this->order ) ) { ?>
 			<div class="ec_cart_input_row ec_account_order_details_total ec_account_order_details_total_discount"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_discount_total' )?></strong> -<?php $this->order->display_discount_total(); ?></div>
@@ -298,7 +298,11 @@ $ec_account_nav    = $ec_account_modern && $this->account_signed_in();
 			<?php if ( $this->order->has_duty() ) { ?>
 			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_duty_total' )?></strong> <?php $this->order->display_duty_total( ); ?></div>
 			<?php } ?>
-			<?php if ( $this->order->has_vat() ) { ?>
+			<?php $ec_vat_rows = ( $this->order->has_vat() && class_exists( 'wp_easycart_tax_classes' ) ) ? wp_easycart_tax_classes::rows( $this->order, wp_strip_all_tags( wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_vat_total' ) ) ) : array(); /* 6.0.5: one row per rate ( tax classes ) */ ?>
+			<?php foreach ( $ec_vat_rows as $ec_vat_row ) { ?>
+			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo esc_html( $ec_vat_row[0] ); ?></strong> <?php echo esc_html( $GLOBALS['currency']->get_currency_display( $ec_vat_row[1] ) ); ?></div>
+			<?php } ?>
+			<?php if ( ! $ec_vat_rows && $this->order->has_vat() ) { ?>
 			<div class="ec_cart_input_row ec_account_order_details_total"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_vat_total' )?></strong> <?php $this->order->display_vat_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->gst_total > 0 ) {?>

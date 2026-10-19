@@ -62,6 +62,10 @@ if ( $document->show( 'pay_button' ) && class_exists( 'wp_easycart_order_pay' ) 
 $ec_ie_bank = '';
 if ( $document->show( 'bank_details' ) && '' === $ec_ie_pay_url && ( $ec_ie_unpaid || $ec_ie_sample ) && get_option( 'ec_option_use_direct_deposit' ) ) {
 	$ec_ie_bank = trim( (string) get_option( 'ec_option_direct_deposit_message' ) );
+	/* 6.0.5: the store's bank details with the order number as the reference ( wp_easycart_bank_details ). */
+	if ( class_exists( 'wp_easycart_bank_details' ) && '' !== wp_easycart_bank_details::text_block( $ec_ie_id ) ) {
+		$ec_ie_bank = trim( $ec_ie_bank . "\n\n" . wp_easycart_bank_details::text_block( $ec_ie_id ) );
+	}
 }
 
 $ec_ie_intro = $ec_ie_pdf

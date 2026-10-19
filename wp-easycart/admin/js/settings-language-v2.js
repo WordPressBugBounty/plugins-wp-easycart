@@ -242,7 +242,7 @@
 	$wrap.on( 'click', '.ecl-reset-area', function() { resetArea( $( this ) ); } );
 	$wrap.on( 'click', '.ecl-pill', function() {
 		area = String( $( this ).data( 'area' ) || '' );
-		$( this ).addClass( 'is-on' ).siblings().removeClass( 'is-on' );
+		$( this ).addClass( 'is-on' ).attr( 'aria-pressed', 'true' ).siblings().removeClass( 'is-on' ).attr( 'aria-pressed', 'false' );
 		if ( q ) { q = ''; $( '#ecl_search' ).val( '' ); } // picking an area leaves search mode
 		refresh();
 	} );

@@ -64,13 +64,16 @@ function wp_easycart_admin_catalog_v2_enqueue( $mode ) {
 		wp_enqueue_script( 'wp_easycart_admin_catalog_v2_js', $js . 'catalog-v2.js', array( 'jquery' ), EC_CURRENT_VERSION, true );
 		if ( 'option-editor' === $mode ) {
 			wp_enqueue_script( 'wp_easycart_admin_option_editor_v2_js', $js . 'option-editor-v2.js', array( 'jquery', 'wp_easycart_admin_catalog_v2_js' ), EC_CURRENT_VERSION, true );
+			wp_easycart_admin_js_text::attach( 'wp_easycart_admin_option_editor_v2_js', 'option_editor' ); /* 6.0.5: its words ( admin review M17 ) */
 		}
 		if ( 'category-editor' === $mode ) {
 			wp_enqueue_script( 'wp_easycart_admin_category_editor_v2_js', $js . 'category-editor-v2.js', array( 'jquery', 'wp_easycart_admin_catalog_v2_js' ), EC_CURRENT_VERSION, true );
+			wp_easycart_admin_js_text::attach( 'wp_easycart_admin_category_editor_v2_js', 'category_editor' );
 		}
 		if ( in_array( $mode, array( 'pricepoint', 'perpage', 'log-list', 'user-role-list', 'user-role-editor', 'subscribers', 'countries' ), true ) ) {
 			wp_enqueue_style( 'wp_easycart_admin_settings_lists_v2_css', $css . 'settings-lists-v2.css', array( 'wp_easycart_admin_catalog_v2_css' ), EC_CURRENT_VERSION );
 			wp_enqueue_script( 'wp_easycart_admin_settings_lists_v2_js', $js . 'settings-lists-v2.js', array( 'jquery', 'wp_easycart_admin_catalog_v2_js' ), EC_CURRENT_VERSION, true );
+			wp_easycart_admin_js_text::attach( 'wp_easycart_admin_settings_lists_v2_js', 'lists' );
 		}
 		if ( 'review-requests' === $mode ) {
 			wp_enqueue_script( 'wp_easycart_admin_review_requests_v2_js', $js . 'review-requests-v2.js', array( 'jquery', 'wp_easycart_admin_catalog_v2_js' ), EC_CURRENT_VERSION, true );
@@ -259,7 +262,7 @@ if ( ! function_exists( 'wp_easycart_admin_catalog_recent_trash_html' ) ) :
 			$labels = array( 'option' => __( 'Option set', 'wp-easycart' ), 'category' => __( 'Category', 'wp-easycart' ), 'manufacturer' => __( 'Manufacturer', 'wp-easycart' ), 'menu1' => __( 'Menu', 'wp-easycart' ), 'menu2' => __( 'Sub-menu', 'wp-easycart' ), 'menu3' => __( 'Sub-sub-menu', 'wp-easycart' ), 'customer' => __( 'Customer', 'wp-easycart' ) );
 			$type = isset( $labels[ $e['type'] ] ) ? $labels[ $e['type'] ] : $e['type'];
 			$user = get_userdata( (int) $e['user'] );
-			$html .= '<div class="ecos-u"><div class="ecos-u-main"><b>' . esc_html( $e['name'] ) . '</b> <span class="ecv2-chip ecv2-chip-gray">' . esc_html( $type ) . '</span><span class="ecv2-sub">' . esc_html( sprintf( __( 'Deleted %1$s by %2$s · restorable until %3$s', 'wp-easycart' ), human_time_diff( $e['time'] ) . ' ' . __( 'ago', 'wp-easycart' ), $user ? $user->display_name : '—', date_i18n( get_option( 'date_format' ), $e['expires'] ) ) ) . '</span></div>';
+			$html .= '<div class="ecos-u"><div class="ecos-u-main"><b>' . esc_html( $e['name'] ) . '</b> <span class="ecv2-chip ecv2-chip-gray">' . esc_html( $type ) . '</span><span class="ecv2-sub">' . esc_html( sprintf( __( 'Deleted %1$s by %2$s · restorable until %3$s', 'wp-easycart' ), /* translators: %s: how long ago ( 3 days ). */ sprintf( __( '%s ago', 'wp-easycart' ), human_time_diff( $e['time'] ) ), $user ? $user->display_name : '—', date_i18n( get_option( 'date_format' ), $e['expires'] ) ) ) . '</span></div>';
 			$html .= '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-trash-restore" data-trash-id="' . esc_attr( $id ) . '">' . esc_html__( 'Restore', 'wp-easycart' ) . '</button></div>';
 		}
 		$html .= '</div>';

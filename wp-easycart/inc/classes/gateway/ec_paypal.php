@@ -30,6 +30,26 @@ class ec_paypal extends ec_third_party{
 		return $this->available_url;
 	}
 
+	/**
+	 * The order's weight as PayPal Standard takes it: lbs or kgs ( an ounce store's weight ÷ 16, a gram store's ÷ 1000 ).
+	 *
+	 * @since 6.0.5
+	 * @param float $weight Weight in the store's unit.
+	 * @return array weight ( two decimals ), unit ( lbs | kgs ).
+	 */
+	public static function weight_fields( $weight ) {
+		if ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'carrier_unit' ) ) {
+			return array(
+				'weight' => number_format( wp_easycart_packages::to_carrier( $weight ), 2, '.', '' ),
+				'unit'   => 'kg' === wp_easycart_packages::carrier_unit() ? 'kgs' : 'lbs',
+			);
+		}
+		return array(
+			'weight' => number_format( (float) $weight, 2, '.', '' ),
+			'unit'   => (string) get_option( 'ec_option_paypal_weight_unit' ),
+		);
+	}
+
 	public function display_form_start( ){
 		$paypal_use_sandbox = get_option( 'ec_option_paypal_use_sandbox' );
 		$paypal_email = get_option( 'ec_option_paypal_email' );
@@ -74,8 +94,9 @@ class ec_paypal extends ec_third_party{
 			echo "<input name=\"tax_cart\" id=\"tax_cart\" type=\"hidden\" value=\"" . esc_attr( $tax_total ) . "\" />";
 			echo "<input name=\"amount\" id=\"amount\" type=\"hidden\" value=\"" . esc_attr( number_format($this->order->sub_total + $this->order->fee_total + $this->order->tip_total, 2, '.', '' ) ) . "\" />";
 		}
-		echo "<input name=\"weight_cart\" id=\"weight_cart\" type=\"hidden\" value=\"" . esc_attr( number_format( $this->order->order_weight, 2, '.', '' ) ) . "\" />";
-		echo "<input name=\"weight_unit\" id=\"weight_unit\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight_unit ) . "\" />";
+		$paypal_weight = self::weight_fields( $this->order->order_weight ); /* 6.0.5: PayPal takes lbs or kgs */
+		echo "<input name=\"weight_cart\" id=\"weight_cart\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight['weight'] ) . "\" />";
+		echo "<input name=\"weight_unit\" id=\"weight_unit\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight['unit'] ) . "\" />";
 		if( get_option( 'ec_option_paypal_collect_shipping' ) ){
 			echo "<input name=\"no_shipping\" id=\"no_shipping\" type=\"hidden\" value=\"2\" />";
 		}else{
@@ -291,8 +312,9 @@ class ec_paypal extends ec_third_party{
 			echo "<input name=\"tax_cart\" id=\"tax_cart\" type=\"hidden\" value=\"" . esc_attr( $tax_total ) . "\" />";
 			echo "<input name=\"amount\" id=\"amount\" type=\"hidden\" value=\"" . esc_attr( number_format($this->order->sub_total + $this->order->fee_total + $this->order->tip_total, 2, '.', '' ) ) . "\" />";
 		}
-		echo "<input name=\"weight_cart\" id=\"weight_cart\" type=\"hidden\" value=\"" . esc_attr( number_format( $this->order->order_weight, 2, '.', '' ) ) . "\" />";
-		echo "<input name=\"weight_unit\" id=\"weight_unit\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight_unit ) . "\" />";
+		$paypal_weight = self::weight_fields( $this->order->order_weight ); /* 6.0.5: PayPal takes lbs or kgs */
+		echo "<input name=\"weight_cart\" id=\"weight_cart\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight['weight'] ) . "\" />";
+		echo "<input name=\"weight_unit\" id=\"weight_unit\" type=\"hidden\" value=\"" . esc_attr( $paypal_weight['unit'] ) . "\" />";
 		if( get_option( 'ec_option_paypal_collect_shipping' ) ){
 			echo "<input name=\"no_shipping\" id=\"no_shipping\" type=\"hidden\" value=\"2\" />";
 		}else{

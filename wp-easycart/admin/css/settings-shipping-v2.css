@@ -64,6 +64,7 @@
 /* carrier sub-headers ( html rows inside the Carrier accounts section ) */
 .ecst-row.ecst-type-html:has(> .ecst-row-html > .ecsh-carrier-head) { background:var(--ecv2-g50); padding-top:9px; padding-bottom:9px; }
 .ecsh-carrier-head { display:flex; align-items:center; gap:10px; }
+.ecsh-carrier-where { color:var(--ecv2-g500, #6b7280); font-size:12px; font-style:italic; margin-left:8px; } /* 6.0.5 */
 .ecsh-carrier-name { font-size:13px; font-weight:700; color:var(--ecv2-g900); letter-spacing:.01em; }
 .ecsh-mark { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; font-size:10px; font-weight:800; letter-spacing:.03em; color:#fff; background:var(--ecv2-g700); flex-shrink:0; }
 .ecsh-mark-auspost { background:#dc1928; }

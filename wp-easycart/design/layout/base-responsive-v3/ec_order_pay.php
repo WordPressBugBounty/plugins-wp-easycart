@@ -284,7 +284,7 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 					<?php if ( isset( $ec_pay_tabs['bank'] ) ) : ?>
 						<div class="ec-pay-panel"<?php echo $ec_pay_panel( 'bank' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the closure. ?>>
 							<p><?php echo $ec_pay_text( 'pay_bank_intro', __( 'To pay by bank transfer, use these details and quote your order number:', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?> <strong>#<?php echo (int) $ec_pay_id; ?></strong></p>
-							<div class="ec-pay-bank"><?php echo wp_kses_post( (string) get_option( 'ec_option_direct_deposit_message' ) ); ?></div>
+							<div class="ec-pay-bank"><?php echo wp_kses_post( (string) get_option( 'ec_option_direct_deposit_message' ) ); ?><?php if ( class_exists( 'wp_easycart_bank_details' ) ) { echo wp_easycart_bank_details::html( (int) $ec_pay_id ); /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- html() escapes every value. */ } ?></div>
 						</div>
 					<?php endif; ?>
 					<div class="ec-pay-status" role="status" aria-live="polite"></div>
@@ -353,8 +353,8 @@ $ec_pay_input = function ( $field, $label, $required, $half = false ) use ( $ord
 						<?php if ( '' !== trim( (string) $order->shipping_company_name ) ) : ?><?php echo esc_html( $order->shipping_company_name ); ?><br /><?php endif; ?>
 						<?php echo esc_html( $order->shipping_address_line_1 ); ?><br />
 						<?php if ( '' !== trim( (string) $order->shipping_address_line_2 ) ) : ?><?php echo esc_html( $order->shipping_address_line_2 ); ?><br /><?php endif; ?>
-						<?php echo esc_html( trim( $order->shipping_city . ' ' . $order->shipping_state . ' ' . $order->shipping_zip ) ); ?><br />
-						<?php echo esc_html( $order->shipping_country ); ?>
+						<?php echo implode( '<br />', array_map( 'esc_html', wp_easycart_address::place_lines( $order, 'shipping' ) ) ); /* 6.0.5: in the country's order */ ?><br />
+						<?php echo esc_html( wp_easycart_address::country_name( $order->shipping_country ) ); ?>
 					</div>
 				</div>
 			<?php endif; ?>

@@ -14,7 +14,9 @@
  * Types:
  *   free  → basic-combo ( Dropdown ), basic-swatch ( Swatches )
  *   PRO   → modifiers: text, textarea, number, file, radio, checkbox, grid,
- *           date, dimensions1, dimensions2
+ *           date, dimensions1, dimensions2; and 6.0.5 combo / swatch: Dropdown and
+ *           Swatches whose choices add to the item ( #ecosv2_kind, "What each choice
+ *           does" ) instead of making variations
  *
  * @since 6.0.0
  */
@@ -24,8 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $is_pro     = ( '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) );
-$currency   = get_option( 'ec_option_currency_symbol', '$' );
-$weight_u   = get_option( 'ec_option_weight_unit', 'lb' );
+/* 6.0.5: the store's symbol and weight unit ( ec_option_currency_symbol and ec_option_weight_unit are never saved ). */
+$currency   = function_exists( 'wp_easycart_admin_money_format' ) ? wp_easycart_admin_money_format()['symbol'] : (string) get_option( 'ec_option_currency', '$' );
+$weight_u   = function_exists( 'wp_easycart_admin_weight_unit' ) ? wp_easycart_admin_weight_unit() : 'lb';
 $lock_svg   = '<svg class="ecosv2-lock-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>';
 
 $icons = array(
@@ -59,7 +62,10 @@ $pro_types = array(
 	'dimensions2' => array( __( 'Dimensions, fine', 'wp-easycart' ), __( 'Sub-inch', 'wp-easycart' ) ),
 );
 $type_hints = array(
-	'basic-combo'  => __( 'Dropdowns and swatches create variations — every choice can carry its own SKU suffix, price and weight.', 'wp-easycart' ),
+	'basic-combo'  => __( 'A dropdown of variations: every choice can carry its own SKU suffix, price, weight and stock.', 'wp-easycart' ),
+	/* 6.0.5: Dropdown and Swatches as modifiers ( Matt: the builder should ask; option types combo / swatch ). */
+	'combo'        => __( 'A dropdown of add-ons: every choice can add to the price or weight, with no stock of its own.', 'wp-easycart' ),
+	'swatch'       => __( 'Swatches as add-ons: each chip can add to the price or weight, with no stock of its own. Give each chip a color or a photo.', 'wp-easycart' ),
 	'basic-swatch' => $is_pro ? __( 'Swatches show as chips; give each chip a color or a photo.', 'wp-easycart' ) : sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Swatches show as chips; give each chip a color. Photo swatches come with %s.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
 	'text'         => __( 'A modifier: shoppers type something. It can add a price but never changes stock.', 'wp-easycart' ),
 	'textarea'     => __( 'Multi-line text for longer messages or instructions.', 'wp-easycart' ),
@@ -119,6 +125,22 @@ endif;
 					<?php ecosv2_tile( 'checkbox', __( 'Add-ons', 'wp-easycart' ), __( 'Checkboxes, radios…', 'wp-easycart' ), $icons['checkbox'], false, true ); ?>
 				<?php endif; ?>
 			</div>
+			<?php /* 6.0.5: a Dropdown or Swatches set makes variations ( basic-combo / basic-swatch ) or adds to the item as a modifier
+			   ( combo / swatch, Pro ). Shown only while one of those two tiles is chosen ( option-set-slideout-v2.js render() ). */ ?>
+			<fieldset class="ecosv2-kind" id="ecosv2_kind">
+				<legend class="ecosv2-kind-head"><?php esc_html_e( 'What each choice does', 'wp-easycart' ); ?></legend>
+				<div class="ecosv2-kind-opts">
+					<label class="ecosv2-kind-opt is-on">
+						<input type="radio" name="ecosv2_kind" value="variation" checked="checked" />
+						<span class="ecosv2-kind-text"><strong><?php esc_html_e( 'Makes a variation', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Each choice is a version of the product, with its own SKU, price, weight and stock. Up to 5 variation sets per product.', 'wp-easycart' ); ?></span></span>
+					</label>
+					<label class="ecosv2-kind-opt<?php echo $is_pro ? '' : ' is-locked'; ?>">
+						<input type="radio" name="ecosv2_kind" value="modifier" />
+						<span class="ecosv2-kind-text"><strong><?php esc_html_e( 'Adds to the item (modifier)', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Each choice can add to the price or weight, with no stock of its own. It can be optional, and other choices can show or hide it.', 'wp-easycart' ); ?></span></span>
+						<?php if ( ! $is_pro ) : ?><span class="ecosv2-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span><?php endif; ?>
+					</label>
+				</div>
+			</fieldset>
 			<?php if ( $is_pro ) : ?>
 			<div class="ecosv2-tiles-head"><?php esc_html_e( "Modifiers — collect input or add-ons; they don't create stock variations", 'wp-easycart' ); ?></div>
 			<div class="ecosv2-tiles">
@@ -198,9 +220,9 @@ endif;
 		<!-- ===================== MODIFIER INPUT SETTINGS ================= -->
 		<section class="ecosv2-section" id="ecosv2_modifier" hidden>
 			<div class="ecosv2-section-head"><?php esc_html_e( 'Input settings', 'wp-easycart' ); ?></div>
-			<div class="ecosv2-grid2">
+			<div class="ecosv2-grid2" id="ecosv2_input_price_row">
 				<div class="ecosv2-f">
-					<label for="ecosv2_input_price"><?php esc_html_e( 'Price for this input', 'wp-easycart' ); ?> <span class="ecosv2-hint"><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
+					<label for="ecosv2_input_price"><span id="ecosv2_input_price_t" data-input="<?php esc_attr_e( 'Price for this input', 'wp-easycart' ); ?>" data-each="<?php esc_attr_e( 'Price for each 1 entered', 'wp-easycart' ); ?>"><?php esc_html_e( 'Price for this input', 'wp-easycart' ); ?></span> <span class="ecosv2-hint"><?php esc_html_e( 'optional', 'wp-easycart' ); ?></span></label>
 					<div class="ecosv2-prefix"><span><?php echo esc_html( $currency ); ?></span><input type="number" step=".01" class="ecv2-input" id="ecosv2_input_price" placeholder="0.00" /></div>
 				</div>
 			</div>

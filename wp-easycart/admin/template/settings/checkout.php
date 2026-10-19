@@ -43,6 +43,47 @@ if ( ! function_exists( 'wp_easycart_settings_onepage_warning' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_settings_subscription_short_warning' ) ) {
+	/**
+	 * 6.0.5: the short subscription checkout switched on while a tax service works out the tax from the street address: subscription pages
+	 * keep the full billing address ( wp_easycart_subscription_short::blocker() ), and this says so as the switch is saved.
+	 *
+	 * @since 6.0.5
+	 * @param mixed $value New value.
+	 * @return string Warning, or ''.
+	 */
+	function wp_easycart_settings_subscription_short_warning( $value ) {
+		if ( ! $value || ! class_exists( 'wp_easycart_subscription_short' ) || ! method_exists( 'wp_easycart_subscription_short', 'blocker_text' ) ) {
+			return '';
+		}
+		return wp_easycart_subscription_short::blocker_text();
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_render_subscription_short_status' ) ) {
+	/**
+	 * 6.0.5: under the short subscription checkout switch, why subscription pages still ask for the full billing address ( a tax
+	 * service that needs the street ), with the way to Settings › Taxes; nothing while the short form is in use.
+	 *
+	 * @since 6.0.5
+	 * @param array $field Field declaration.
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_render_subscription_short_status( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		$text = wp_easycart_settings_subscription_short_warning( true );
+		if ( '' === $text ) {
+			return;
+		}
+		$url = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=wp-easycart-settings&subpage=tax' ) : '';
+		if ( class_exists( 'wp_easycart_admin' ) && method_exists( 'wp_easycart_admin', 'notice_html' ) ) {
+			echo wp_easycart_admin::notice_html( 'warning', $text, array( 'dismissible' => false, 'actions' => array( array( 'label' => __( 'Open Taxes', 'wp-easycart' ), 'url' => $url ) ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes its parts.
+			return;
+		}
+		echo '<p class="ecst-row-msg is-warn">' . esc_html( $text ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Open Taxes', 'wp-easycart' ) . '</a></p>';
+	}
+}
+
 if ( ! function_exists( 'ecv2_checkout_link_target_label' ) ) {
 	/**
 	 * Title and type hint for a page or post a legal link points at.
@@ -274,6 +315,14 @@ return array(
 					'keywords' => array( 'promo message', 'receipt', 'coupon display' ),
 					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'Coupon Display: Message' ),
 				),
+				'ec_option_show_discount_codes' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Show discount codes on receipts and documents', 'wp-easycart' ),
+					'desc'     => __( 'Receipts, invoices, order emails, the order confirmation and My Account print the code beside its discount. Turn it off to show the discount alone, so a private code is never printed.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'coupon code', 'promo code', 'offer code', 'receipt', 'invoice', 'hide code', 'private code' ),
+					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'Discount codes on documents ( 6.0.5 )' ),
+				),
 				'ec_option_show_giftcards' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Gift card box', 'wp-easycart' ),
@@ -383,6 +432,46 @@ return array(
 			'title'  => __( 'Checkout flow', 'wp-easycart' ),
 			'hint'   => __( 'The steps a shopper goes through to place an order', 'wp-easycart' ),
 			'fields' => array(
+				'ec_option_onepage_checkout' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'One-page checkout', 'wp-easycart' ),
+					'desc'     => __( 'Recommended: shoppers enter their details, pick shipping and pay on one page, with no page reloads between steps.', 'wp-easycart' ),
+					'validate' => 'wp_easycart_settings_onepage_warning',
+					'default'  => 0,
+					'pro'      => true,
+					'keywords' => array( 'single page', 'one page', 'no reload' ),
+					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout (Beta)', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
+				),
+				'ec_option_onepage_checkout_tabbed' => array(
+					'type'      => 'toggle',
+					'label'     => __( 'Show one-page checkout as steps', 'wp-easycart' ),
+					'desc'      => __( 'When shipping is required the one-page checkout is split into steps with a breadcrumb trail.', 'wp-easycart' ),
+					'default'   => 0,
+					'pro'       => true,
+					'parent'    => 'ec_option_onepage_checkout',
+					'keywords'  => array( 'breadcrumbs', 'tabbed', 'steps' ),
+					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout Format: Enable Breadcrumbs Display', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
+				),
+				'ec_option_onepage_checkout_cart_first' => array(
+					'type'      => 'toggle',
+					'label'     => __( 'Show the cart before the one-page checkout', 'wp-easycart' ),
+					'desc'      => __( 'Shoppers land on the cart first. Off sends them straight into checkout.', 'wp-easycart' ),
+					'default'   => 0,
+					'pro'       => true,
+					'parent'    => 'ec_option_onepage_checkout',
+					'keywords'  => array( 'cart first', 'entry', 'landing' ),
+					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout Entry: Cart First', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
+				),
+				'ec_option_onepage_checkout_quantity_adjust_on' => array(
+					'type'      => 'toggle',
+					'label'     => __( 'Items can be changed on the one-page checkout', 'wp-easycart' ),
+					'desc'      => __( 'Shoppers can change quantities and remove items in the order summary instead of going back to the cart.', 'wp-easycart' ),
+					'default'   => 0,
+					'pro'       => true,
+					'parent'    => 'ec_option_onepage_checkout',
+					'keywords'  => array( 'quantity', 'adjust', 'edit cart', 'remove', 'order summary' ),
+					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout: Quantity Adjust on Checkout', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
+				),
 				'ec_option_allow_guest' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Guest checkout', 'wp-easycart' ),
@@ -400,50 +489,6 @@ return array(
 					'keywords' => array( 'bypass shipping', 'shipping selection', 'fewer steps' ),
 					'legacy'   => array( 'page' => 'checkout', 'section' => 'Checkout Form', 'label' => 'Bypass Shipping Selection Page' ),
 				),
-				'ec_option_onepage_checkout' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'One-page checkout', 'wp-easycart' ),
-					'desc'     => __( 'Shows the whole checkout on a single page without reloads.', 'wp-easycart' ),
-					'validate' => 'wp_easycart_settings_onepage_warning',
-					'default'  => 0,
-					'advanced' => true,
-					'pro'      => true,
-					'keywords' => array( 'single page', 'one page', 'no reload' ),
-					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout (Beta)', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
-				),
-				'ec_option_onepage_checkout_tabbed' => array(
-					'type'      => 'toggle',
-					'label'     => __( 'Show one-page checkout as steps', 'wp-easycart' ),
-					'desc'      => __( 'When shipping is required the one-page checkout is split into steps with a breadcrumb trail.', 'wp-easycart' ),
-					'default'   => 0,
-					'advanced'  => true,
-					'pro'       => true,
-					'parent'    => 'ec_option_onepage_checkout',
-					'keywords'  => array( 'breadcrumbs', 'tabbed', 'steps' ),
-					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout Format: Enable Breadcrumbs Display', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
-				),
-				'ec_option_onepage_checkout_cart_first' => array(
-					'type'      => 'toggle',
-					'label'     => __( 'Show the cart before the one-page checkout', 'wp-easycart' ),
-					'desc'      => __( 'Shoppers land on the cart first. Off sends them straight into checkout.', 'wp-easycart' ),
-					'default'   => 0,
-					'advanced'  => true,
-					'pro'       => true,
-					'parent'    => 'ec_option_onepage_checkout',
-					'keywords'  => array( 'cart first', 'entry', 'landing' ),
-					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout Entry: Cart First', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
-				),
-				'ec_option_onepage_checkout_quantity_adjust_on' => array(
-					'type'      => 'toggle',
-					'label'     => __( 'Items can be changed on the one-page checkout', 'wp-easycart' ),
-					'desc'      => __( 'Shoppers can change quantities and remove items in the order summary instead of going back to the cart.', 'wp-easycart' ),
-					'default'   => 0,
-					'advanced'  => true,
-					'pro'       => true,
-					'parent'    => 'ec_option_onepage_checkout',
-					'keywords'  => array( 'quantity', 'adjust', 'edit cart', 'remove', 'order summary' ),
-					'legacy'    => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout: Quantity Adjust on Checkout', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
-				),
 			),
 		),
 
@@ -459,6 +504,34 @@ return array(
 					'default'  => 1,
 					'keywords' => array( 'first name', 'last name', 'contact', 'register' ),
 					'legacy'   => array( 'page' => 'checkout', 'section' => 'Checkout Form', 'label' => 'Contact Name for Account Creation' ),
+				),
+				/* 6.0.5: the subscription page, and a checkout whose order needs an account, ask for the email first ( wp_easycart_subscription_signup,
+				   wp_easycart_checkout_signup ); on, a new email goes straight to the address and payment. */
+				'ec_option_subscription_password_after_purchase' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'New customers choose a password after paying', 'wp-easycart' ),
+					'desc'     => __( 'When a purchase needs an account ( a subscription, a download, a members-only page, or no guest checkout ), a new email goes straight to the address and payment. The account is made when they pay, and they set its password on the next page or later with Forgot your password.', 'wp-easycart' ),
+					'default'  => 0,
+					'keywords' => array( 'subscription', 'download', 'password', 'sign up', 'register', 'account', 'email first', 'guest' ),
+					'legacy'   => array( 'page' => 'checkout', 'section' => 'Checkout Form', 'label' => '( new in 6.0.5 )' ),
+				),
+				/* 6.0.5: the short subscription checkout ( wp_easycart_subscription_short ); never for a subscription that ships, or while a tax service works out the tax. */
+				'ec_option_subscription_short_checkout' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Short subscription checkout', 'wp-easycart' ),
+					'desc'     => __( 'For a subscription that ships nothing, the subscription page asks only for the name, country, state and postcode, with the payment on the same screen. Not used while a tax service works out the tax from the street address.', 'wp-easycart' ),
+					'validate' => 'wp_easycart_settings_subscription_short_warning',
+					'default'  => 0,
+					'keywords' => array( 'subscription', 'billing address', 'short', 'simple', 'one screen', 'postcode', 'zip' ),
+					'legacy'   => array( 'page' => 'checkout', 'section' => 'Checkout Form', 'label' => '( new in 6.0.5 )' ),
+				),
+				/* 6.0.5: why subscription pages still ask the full address while it is on ( a tax service that needs the street ). */
+				'ecst_subscription_short_status' => array(
+					'type'      => 'html',
+					'label'     => __( 'Short subscription checkout', 'wp-easycart' ),
+					'parent'    => 'ec_option_subscription_short_checkout',
+					'show_when' => '1',
+					'render'    => 'wp_easycart_settings_render_subscription_short_status',
 				),
 				'ec_option_enable_extra_email' => array(
 					'type'     => 'toggle',

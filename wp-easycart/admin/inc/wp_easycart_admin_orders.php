@@ -513,12 +513,15 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			}
 
 			ob_start();
+			wp_easycart_order_currency::push( (int) $order_id ); /* 6.0.5: the order's currency */
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_shipping_email.php' ) ) {
 				include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_shipping_email.php';
 			} else {
 				include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_shipping_email.php';
 			}
-			return (string) ob_get_clean();
+			$html = (string) ob_get_clean();
+			wp_easycart_order_currency::pop();
+			return $html;
 		}
 
 		/**
@@ -912,10 +915,12 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$headers[] = 'X-Mailer: PHP/' . phpversion();
 
 			ob_start();
+			wp_easycart_order_currency::push( ( is_object( $cart_item ) && isset( $cart_item->order_id ) ) ? (int) $cart_item->order_id : 0 ); /* 6.0.5: the order's currency */
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_giftcard.php' ) )	
 				include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_giftcard.php';
 			else
 				include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_giftcard.php';
+			wp_easycart_order_currency::pop();
 
 			$message = ob_get_clean();
 
@@ -1208,11 +1213,13 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			}
 			$email_logo_url = get_option( 'ec_option_email_logo' );
 
+			wp_easycart_order_currency::push( (int) $order_id ); /* 6.0.5: the order's currency */
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_print_receipt.php' ) ) {
 				include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_print_receipt.php';
 			} else {
 				include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_print_receipt.php';
 			}
+			wp_easycart_order_currency::pop();
 		 }
 
 		 public function print_packing_slips() {
@@ -1285,11 +1292,13 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$permalink_divider = "?";
 			}
 
+			wp_easycart_order_currency::push( (int) $order_id ); /* 6.0.5: the order's currency */
 			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_admin_packaging_slip.php' ) ) {
 				include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_admin_packaging_slip.php';
 			} else {
 				include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_admin_packaging_slip.php';
 			}
+			wp_easycart_order_currency::pop();
 		}
 	}
 endif; // End if class_exists check

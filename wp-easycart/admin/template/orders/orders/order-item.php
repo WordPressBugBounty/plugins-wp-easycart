@@ -165,10 +165,8 @@ $ecodv2_line_pack  = ! empty( $ecodv2_pack );
 		if( $line_item->subscription_signup_fee > 0 ){
 			echo '<div class="ec_details_option_label">' . esc_attr__( 'Sign Up Fee', 'wp-easycart' ) . ':</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_fee_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ';
-			if( $GLOBALS['currency']->get_symbol_location() ) {
-				echo esc_attr( $GLOBALS['currency']->get_symbol( ) );
-			}
-			echo esc_attr( number_format( $line_item->subscription_signup_fee, 2 ) );
+			/* 6.0.5: in the store's own format ( it was always a point and two decimals, the symbol only when before ). */
+			echo esc_html( $GLOBALS['currency']->get_currency_display( (float) $line_item->subscription_signup_fee, false ) );
 			echo '</div>';
 		}
 		if( $line_item->optionitem_label_1 || $line_item->optionitem_name_1 ){
@@ -340,13 +338,13 @@ $ecodv2_line_pack  = ! empty( $ecodv2_pack );
 	</div>
 
 	<?php
-	/* Quantity × unit price and the line total. WP EasyCart PRO rewrites both by id after a line edit, in the same shape. */
-	$ecodv2_symbol_before = $GLOBALS['currency']->get_symbol_location();
-	$ecodv2_symbol        = $GLOBALS['currency']->get_symbol();
-	$ecodv2_unit_display  = apply_filters( 'wp_easycart_cart_item_unit_price_display', number_format( $line_item->unit_price, 2 ), $line_item->product_id );
+	/* Quantity × unit price and the line total. WP EasyCart PRO rewrites both by id after a line edit, in the same shape.
+	   6.0.5: both in the store's own format ( number_format( …, 2 ) gave every store a point, a comma for thousands and two
+	   decimals, so a euro store read "18.00€" beside totals of "70,43€" ); the filter now gets the amount as the receipts pass it. */
+	$ecodv2_unit_display  = apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( (float) $line_item->unit_price, false ), $line_item->product_id );
 	?>
-	<div class="ec_admin_order_details_item_price" id="ec_admin_order_details_item_price_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( $line_item->quantity ); ?><span> x </span><?php echo esc_html( ( $ecodv2_symbol_before ? $ecodv2_symbol : '' ) . $ecodv2_unit_display . ( $ecodv2_symbol_before ? '' : $ecodv2_symbol ) ); ?></div>
-	<div class="ec_admin_order_details_item_total" id="ec_admin_order_details_item_total_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( ( $ecodv2_symbol_before ? $ecodv2_symbol : '' ) . number_format( $line_item->total_price, 2 ) . ( $ecodv2_symbol_before ? '' : $ecodv2_symbol ) ); ?></div>
+	<div class="ec_admin_order_details_item_price" id="ec_admin_order_details_item_price_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( $line_item->quantity ); ?><span> x </span><?php echo esc_html( $ecodv2_unit_display ); ?></div>
+	<div class="ec_admin_order_details_item_total" id="ec_admin_order_details_item_total_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( $GLOBALS['currency']->get_currency_display( (float) $line_item->total_price, false ) ); ?></div>
 
 	<div class="ec_admin_order_details_item_actions">
 		<?php $delete_line_action = apply_filters( 'wp_easycart_admin_order_details_delete_line_action', 'show_pro_required' ); ?>

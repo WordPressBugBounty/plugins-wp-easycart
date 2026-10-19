@@ -1,0 +1,180 @@
+/*
+ * WP EasyCart Limit Access ( 6.0.5 ): the editor box ( classic and block editor sidebars, WordPress's own look ), Users › Limit Access
+ * and its drawer ( V2 admin ). Markup: wp_easycart_admin_page_access.
+ */
+
+/* ------------------------------------------------------------------ The fields
+   6.0.5 design: a switch, a status card ( who can open the page, where everyone else goes ), then "Who can see it" and "Where visitors
+   go". Built for the block editor's sidebar ( about 250px wide ) first; the classic editor's side box and the drawer are wider. The accent
+   is the admin's own: EasyCart's colour on its screens ( --ec-brand, the drawer ), else WordPress's theme colour ( the editors ). */
+.wpec-access { --wpec-acc: var(--ec-brand, var(--wp-admin-theme-color, #2271b1)); --wpec-acc-soft: #f0f6fc; --wpec-acc-line: #c5d9ed; --wpec-line: #e0e0e0; --wpec-muted: #757575; font-size: 13px; line-height: 1.5; color: #1e1e1e; }
+@supports ( color: color-mix( in srgb, red, blue ) ) {
+	.wpec-access { --wpec-acc-soft: color-mix( in srgb, var(--wpec-acc) 8%, #fff ); --wpec-acc-line: color-mix( in srgb, var(--wpec-acc) 30%, #fff ); }
+}
+.wpec-access *, .wpec-access *::before, .wpec-access *::after { box-sizing: border-box; }
+.wpec-access [hidden] { display: none !important; }
+
+/* The switch ( a checkbox drawn as WordPress's toggle ) */
+.wpec-access-switch { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-weight: 600; cursor: pointer; }
+.wpec-access .wpec-access-switch input[type="checkbox"] { -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto; width: 36px; height: 20px; min-width: 36px; margin: 0; padding: 0; border: 1px solid #1e1e1e; border-radius: 10px; background: #fff; box-shadow: none; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+.wpec-access .wpec-access-switch input[type="checkbox"]::before,
+.wpec-access .wpec-access-switch input[type="checkbox"]:checked::before { content: ""; position: absolute; top: 3px; left: 3px; float: none; width: 12px; height: 12px; margin: 0; border-radius: 50%; background: #1e1e1e; transition: transform .15s ease; }
+.wpec-access .wpec-access-switch input[type="checkbox"]:checked { border-color: var(--wpec-acc); background: var(--wpec-acc); }
+.wpec-access .wpec-access-switch input[type="checkbox"]:checked::before { background: #fff; transform: translateX( 16px ); }
+.wpec-access .wpec-access-switch input[type="checkbox"]:focus-visible { outline: 2px solid var(--wpec-acc); outline-offset: 2px; box-shadow: none; }
+[dir="rtl"] .wpec-access .wpec-access-switch input[type="checkbox"]:checked::before { transform: translateX( -16px ); }
+[dir="rtl"] .wpec-access .wpec-access-switch input[type="checkbox"]::before { left: auto; right: 3px; }
+
+/* The status card */
+.wpec-access-summary { position: relative; margin: 0 0 16px; padding: 10px 12px; padding-inline-start: 36px; border: 1px solid var(--wpec-line); border-radius: 6px; background: #f6f7f7; color: #1e1e1e; }
+.wpec-access-summary::before { content: ""; position: absolute; top: 12px; inset-inline-start: 12px; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--wpec-access-icon) center / contain no-repeat; mask: var(--wpec-access-icon) center / contain no-repeat; }
+.wpec-access-summary.is-off { --wpec-access-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 7.8-1.2'/%3E%3C/svg%3E"); color: #50575e; }
+.wpec-access-summary.is-ok { --wpec-access-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E"); border-color: #b8e6bf; background: #edfaef; }
+.wpec-access-summary.is-ok::before { color: #00a32a; }
+.wpec-access-summary.is-warn,
+.wpec-access-summary.is-bad { --wpec-access-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E"); }
+.wpec-access-summary.is-warn { border-color: #f0c33c; background: #fcf9e8; }
+.wpec-access-summary.is-warn::before { color: #996800; }
+.wpec-access-summary.is-bad { border-color: #f0b5b6; background: #fcf0f1; }
+.wpec-access-summary.is-bad::before { color: #d63638; }
+.wpec-access-summary-title { margin: 0; font-weight: 600; }
+.wpec-access-summary-lines { margin: 2px 0 0; }
+.wpec-access-summary-lines:empty { display: none; }
+.wpec-access-summary-lines > div { margin: 2px 0 0; overflow-wrap: anywhere; }
+.wpec-access-summary-lines dt { display: inline; color: #50575e; }
+.wpec-access-summary-lines dt::after { content: ": "; }
+.wpec-access-summary-lines dd { display: inline; margin: 0; }
+.wpec-access-problems { margin: 6px 0 0; padding: 0; list-style: none; }
+.wpec-access-problems li { margin: 4px 0 0; }
+.wpec-access-problems li.is-bad { color: #8a2424; }
+.wpec-access-problems li.is-warn { color: #6e4b00; }
+
+/* The two groups */
+.wpec-access-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.wpec-access-group + .wpec-access-group { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--wpec-line); }
+.wpec-access-group > legend { float: left; width: 100%; margin: 0 0 10px; padding: 0; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--wpec-muted); }
+.wpec-access-group > legend + * { clear: both; }
+.wpec-access-label { display: block; margin: 0 0 6px; padding: 0; font-weight: 600; }
+.wpec-access-row { margin: 0 0 14px; }
+.wpec-access-group > :last-child { margin-bottom: 0; }
+.wpec-access-hint { display: block; margin-top: 4px; color: var(--wpec-muted); font-size: 12px; line-height: 1.45; }
+.wpec-access-check { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 14px; cursor: pointer; }
+.wpec-access-check input { flex: 0 0 auto; margin: 2px 0 0; }
+
+/* Role pills: the box is the pill */
+.wpec-access-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.wpec-access-pill { position: relative; display: inline-flex; max-width: 100%; cursor: pointer; }
+.wpec-access .wpec-access-pill input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; min-width: 0; margin: 0; opacity: 0; pointer-events: none; }
+.wpec-access-pill > span { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 11px; border: 1px solid #c3c4c7; border-radius: 999px; background: #fff; line-height: 18px; overflow-wrap: anywhere; transition: background-color .12s ease, border-color .12s ease; }
+.wpec-access-pill:hover > span { border-color: #8c8f94; }
+.wpec-access-pill input:checked + span { border-color: var(--wpec-acc); background: var(--wpec-acc); color: #fff; }
+.wpec-access-pill input:checked + span::before { content: ""; flex: 0 0 auto; width: 11px; height: 11px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5 9.5 18 20 6.5'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5 9.5 18 20 6.5'/%3E%3C/svg%3E") center / contain no-repeat; }
+.wpec-access-pill input:focus-visible + span { outline: 2px solid var(--wpec-acc); outline-offset: 2px; }
+
+/* Any one / All of them */
+.wpec-access-seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #949494; border-radius: 4px; overflow: hidden; }
+.wpec-access-seg label { position: relative; display: flex; min-width: 0; cursor: pointer; }
+.wpec-access .wpec-access-seg input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; min-width: 0; margin: 0; opacity: 0; pointer-events: none; }
+.wpec-access-seg label > span { flex: 1 1 auto; padding: 6px 8px; text-align: center; line-height: 18px; overflow-wrap: anywhere; }
+.wpec-access-seg label + label > span { border-inline-start: 1px solid #949494; }
+.wpec-access-seg label:hover > span { background: #f6f7f7; }
+.wpec-access-seg input:checked + span { background: var(--wpec-acc); color: #fff; font-weight: 600; }
+.wpec-access-seg input:focus-visible + span { box-shadow: inset 0 0 0 2px var(--wpec-acc), inset 0 0 0 3px #fff; }
+
+/* Searches ( the shared picker ) */
+.wpec-access .wpec-pick { margin: 0; }
+.wpec-access .wpec-pick-input { min-height: 32px; padding-inline-start: 30px; background: #fff no-repeat 9px 50%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23757575' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.2-3.2'/%3E%3C/svg%3E"); background-size: 14px 14px; }
+.wpec-access .wpec-pick-input::placeholder { color: var(--wpec-muted); opacity: 1; }
+[dir="rtl"] .wpec-access .wpec-pick-input { background-position: calc( 100% - 9px ) 50%; }
+.wpec-access .wpec-pick-chips { margin: 0 0 6px; }
+.wpec-access .wpec-pick-chips:empty { margin: 0; }
+.wpec-access .wpec-pick-chips:not(:has(.wpec-pick-chip)) { margin: 0; }
+.wpec-access .wpec-pick-chip { padding: 2px 4px 2px 9px; border-color: var(--wpec-acc-line); background: var(--wpec-acc-soft); font-size: 12px; }
+
+/* Where visitors go */
+.wpec-access-dest { margin: 0 0 14px; }
+.wpec-access-dest select { width: 100%; max-width: 100%; }
+.wpec-access-dest-hint { margin: 4px 0 0; color: var(--wpec-muted); font-size: 12px; line-height: 1.45; }
+.wpec-access-dest-page, .wpec-access-dest-url { margin-top: 6px; }
+.wpec-access-check-line { margin: 6px 0 0; padding: 6px 8px; border-radius: 4px; font-size: 12px; }
+.wpec-access-check-line.is-bad { background: #fcf0f1; color: #8a2424; }
+.wpec-access-check-line.is-warn { background: #fcf9e8; color: #6e4b00; }
+.wpec-access-external { margin-bottom: 0; }
+
+.wpec-access-note { margin: 0 0 10px; padding: 6px 8px; border-radius: 4px; background: #f0f6fc; }
+.wpec-access-note.is-warn { background: #fcf9e8; }
+.wpec-access-foot { margin: 16px 0 0; padding-top: 10px; border-top: 1px solid var(--wpec-line); }
+.wpec-access-foot a { text-decoration: none; font-weight: 600; }
+.wpec-access-foot a::after { content: " →"; }
+[dir="rtl"] .wpec-access-foot a::after { content: " ←"; }
+.wpec-access-foot a:hover { text-decoration: underline; }
+@media ( prefers-reduced-motion: reduce ) {
+	.wpec-access .wpec-access-switch input[type="checkbox"], .wpec-access .wpec-access-switch input[type="checkbox"]::before, .wpec-access-pill > span { transition: none; }
+}
+
+/* ------------------------------------------------------------------ Users › Limit Access */
+.wpec-access-screen [hidden], .wpec-access-drawer [hidden] { display: none !important; }
+.wpec-access-screen .wpec-access-banner { margin: 0 0 16px; padding: 12px 16px; border-radius: var(--ecv2-r, 8px); border: 1px solid; font-size: 13px; }
+.wpec-access-screen .wpec-access-banner.is-warn { border-color: #f0c33c; background: #fcf9e8; color: #6e4b00; }
+.wpec-access-screen .wpec-access-banner.is-bad { border-color: #f0b5b6; background: #fcf0f1; color: #8a2424; }
+.wpec-access-screen .wpec-access-banner ul { margin: 6px 0 0; padding-inline-start: 18px; list-style: disc; }
+.wpec-access-screen .wpec-access-banner li { margin: 2px 0; }
+.wpec-access-banner-note { margin: 6px 0 0; opacity: .85; }
+.wpec-access-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.wpec-access-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; color: var(--ecv2-g700, #3c434a); text-decoration: none; font-weight: 500; }
+.wpec-access-tab:hover, .wpec-access-tab:focus-visible { background: var(--ecv2-g100, #f0f0f1); }
+.wpec-access-tab.is-current { background: var(--ec-brand, #2271b1); color: #fff; }
+.wpec-access-count { font-size: 12px; opacity: .8; }
+.wpec-access-bulk { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: 12px; }
+.wpec-access-bulk-count { font-weight: 600; }
+.wpec-access-search { display: flex; gap: 6px; align-items: center; }
+.wpec-access-table td { vertical-align: top; }
+.wpec-access-link { padding: 0; border: 0; background: none; color: var(--ec-brand, #2271b1); font: inherit; font-weight: 600; text-align: start; cursor: pointer; }
+.wpec-access-link:hover, .wpec-access-link:focus-visible { text-decoration: underline; }
+.wpec-access-type { display: block; margin-top: 2px; color: var(--ecv2-g600, #646970); font-size: 12px; }
+.wpec-access-status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.wpec-access-status.is-on { background: #e1f2e6; color: #1e5c33; }
+.wpec-access-status.is-off { background: #f0f0f1; color: #50575e; }
+.wpec-access-status.is-problem { background: #fcf0e3; color: #8a4b00; }
+.wpec-access-row-note { display: block; margin-top: 4px; max-width: 260px; color: var(--ecv2-g600, #646970); font-size: 12px; }
+.wpec-access-actions { white-space: nowrap; text-align: end; }
+.wpec-access-pages { display: flex; gap: 4px; margin: 16px 0 0; }
+.wpec-access-pages .is-current { font-weight: 700; }
+.wpec-access-empty h2 { margin: 0 0 6px; font-size: 18px; }
+
+/* ------------------------------------------------------------------ The drawer */
+html.wpec-access-drawer-open { overflow: hidden; }
+.wpec-access-drawer { position: fixed; inset: 0; z-index: 100000; }
+.wpec-access-drawer[hidden] { display: none; }
+.wpec-access-drawer-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
+.wpec-access-drawer-panel { position: absolute; top: 0; bottom: 0; inset-inline-end: 0; display: flex; flex-direction: column; width: min(520px, 100vw); background: #fff; box-shadow: -8px 0 24px rgba(0, 0, 0, .15); }
+.wpec-access-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #dcdcde; }
+.wpec-access-drawer-head h2 { margin: 0; font-size: 16px; line-height: 1.3; overflow-wrap: anywhere; }
+.wpec-access-drawer-close { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; }
+.wpec-access-drawer-close:hover, .wpec-access-drawer-close:focus-visible { background: #f0f0f1; }
+.wpec-access-drawer-body { flex: 1 1 auto; overflow: auto; padding: 16px 20px; }
+.wpec-access-choose { margin: 0 0 16px; }
+.wpec-access-drawer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid #dcdcde; }
+.wpec-access-drawer-msg { margin-inline-end: auto; font-size: 13px; }
+.wpec-access-drawer-msg.is-bad { color: #b32d2e; }
+.wpec-access-loading { color: #646970; }
+@media ( max-width: 782px ) {
+	/* the list as cards */
+	.wpec-access-table thead { display: none; }
+	.wpec-access-table, .wpec-access-table tbody { display: block; width: 100%; min-width: 0 !important; }
+	.wpec-access-table tr { display: grid; grid-template-columns: 28px minmax( 0, 1fr ); gap: 4px 8px; padding: 12px; border-bottom: 1px solid var(--ecv2-g200, #dcdcde); }
+	.wpec-access-table td { display: block; grid-column: 2; padding: 0; border: 0; }
+	.wpec-access-table td.ecv2-col-check { grid-column: 1; grid-row: 1 / span 6; }
+	.wpec-access-table td[data-label]::before { content: attr( data-label ) ": "; color: var(--ecv2-g600, #646970); font-size: 12px; }
+	.wpec-access-table td.wpec-access-actions { margin-top: 6px; text-align: start; white-space: normal; }
+	.wpec-access-table + * { margin-top: 0; }
+	.ecv2-table-scroll:has( .wpec-access-table ) { overflow: visible; }
+}
+@media ( max-width: 600px ) {
+	.wpec-access-actions { white-space: normal; }
+	.wpec-access-drawer-body, .wpec-access-drawer-head, .wpec-access-drawer-foot { padding-inline: 16px; }
+}
+@media ( prefers-reduced-motion: no-preference ) {
+	.wpec-access-drawer-panel { animation: wpec-access-in .18s ease-out; }
+	@keyframes wpec-access-in { from { transform: translateX( 24px ); opacity: .6; } to { transform: none; opacity: 1; } }
+}

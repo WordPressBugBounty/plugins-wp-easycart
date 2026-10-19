@@ -140,7 +140,7 @@ if ( ! isset( $cartpage ) ) {
 			}
 			?>
 		</div>
-		<?php if ( ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) { ?>
+		<?php if ( method_exists( $cartpage, 'account_waits' ) ? ! $cartpage->account_waits() : ( ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) ) { /* 6.0.5: or an email locked for a purchase that makes the account */ ?>
 			<?php if( get_option( 'ec_option_use_shipping' ) && $this->shipping_address_allowed && ( $this->cart->shippable_total_items > 0 || $this->order_totals->handling_total > 0 || $this->cart->excluded_shippable_total_items > 0 ) ) { ?>
 				<div class="ec_cart_shipping" id="ec_cart_onepage_shipping"<?php echo ( isset( $current_screen ) && 'cart' == $current_screen ) ? ' style="display:none;"' : ''; ?>>
 					<?php

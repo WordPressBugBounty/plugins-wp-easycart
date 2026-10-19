@@ -21,6 +21,21 @@ $paypal_url = wp_easycart_paypal_connect::onboard_url( 'production', $admin . '?
 $stripe_url = wp_easycart_stripe_connect_relay::connect_url( false, 'wizard' ); /* 6.0.4: through admin-post to WP EasyCart Connect's /stripe-v2/; the return now carries the wp-easycart-stripe nonce onboard_stripe() checks ( the wizard's link had none, so connecting there was refused ) */
 $square_url = wp_easycart_square_relay::connect_url( false, 'wizard' ); /* 6.0.4: through admin-post to WP EasyCart Connect's /square-v3/ ( no tokens in the return address ); the return handler still checks the wp-easycart-square nonce */
 $payment_settings = admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' );
+$store_country    = class_exists( 'wp_easycart_carriers' ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+
+/* 6.0.5 ( admin review M8 ): what fits the store's country ( Step 1 saved it ). Square takes payments for stores in eight countries,
+ * Venmo is US only, and the Pro line names the gateways and Stripe methods stores there choose. */
+$by_country  = class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'available_in' );
+$show_square = $gw['square'] || ! $by_country || wp_easycart_admin_payment_v2::available_in( 'square' );
+$paypal_line = $by_country ? wp_easycart_admin_payment_v2::paypal_text() : __( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' );
+$pro_names   = $by_country ? wp_easycart_admin_payment_v2::pro_examples() : array( 'Authorize.net', 'Braintree', 'NMI' );
+$pro_more    = $by_country ? wp_easycart_admin_payment_v2::pro_more_count( count( $pro_names ) ) : 30;
+$pro_methods = array();
+if ( $by_country ) {
+	foreach ( array_slice( wp_easycart_admin_payment_v2::stripe_local_methods(), 0, 3 ) as $pro_row ) {
+		$pro_methods[] = wp_easycart_admin_payment_v2::stripe_method_label( $pro_row );
+	}
+}
 
 $flash = '';
 if ( isset( $_GET['success'] ) ) {
@@ -88,6 +103,7 @@ $ssl_badge = $env['https']
 				</div>
 			</div>
 
+			<?php if ( $show_square ) { ?>
 			<div class="ecwz-pline<?php echo $gw['square'] ? ' is-on' : ''; ?>" data-pay="square">
 				<span class="ecwz-ico" style="background:#1c1c1c">Sq</span>
 				<div class="ecwz-pline-text">
@@ -104,6 +120,7 @@ $ssl_badge = $env['https']
 					<?php } ?>
 				</div>
 			</div>
+			<?php } ?>
 
 			<div class="ecwz-pgroup"><?php esc_html_e( 'Checkout buttons', 'wp-easycart' ); ?></div>
 
@@ -111,7 +128,7 @@ $ssl_badge = $env['https']
 				<span class="ecwz-ico" style="background:#003087">PP</span>
 				<div class="ecwz-pline-text">
 					<h4>PayPal</h4>
-					<span class="ecwz-sub"><?php esc_html_e( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' ); ?> · <?php esc_html_e( 'No SSL certificate required', 'wp-easycart' ); ?></span>
+					<span class="ecwz-sub"><?php echo esc_html( $paypal_line ); ?> · <?php esc_html_e( 'No SSL certificate required', 'wp-easycart' ); ?></span>
 				</div>
 				<div class="ecwz-pline-act">
 					<?php if ( $gw['paypal'] ) { ?>
@@ -127,10 +144,12 @@ $ssl_badge = $env['https']
 			<div class="ecwz-pgroup"><?php esc_html_e( 'Pay later', 'wp-easycart' ); ?></div>
 
 			<div class="ecwz-pline<?php echo $gw['manual'] ? ' is-on' : ''; ?>" data-pay="manual">
-				<span class="ecwz-ico" style="background:#475569">$</span>
+				<?php /* 6.0.5: Settings › Payment's name ( Bill later ), the ways stores in the country are paid, and where the bank details go;
+				   it was "Manual payments" with a dollar sign for every currency. */ ?>
+				<span class="ecwz-ico" style="background:#475569" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h18M5 10v7M9.5 10v7M14.5 10v7M19 10v7M3 20h18M12 3l9 5H3z"/></svg></span>
 				<div class="ecwz-pline-text">
-					<h4 id="ecwz_manual_name"><?php esc_html_e( 'Manual payments', 'wp-easycart' ); ?></h4>
-					<span class="ecwz-sub"><?php esc_html_e( 'Customers complete the order and pay you offline. You write the instructions shown at checkout. No fees.', 'wp-easycart' ); ?></span>
+					<h4 id="ecwz_manual_name"><?php esc_html_e( 'Bill later', 'wp-easycart' ); ?></h4>
+					<span class="ecwz-sub"><?php echo esc_html( 'CA' === $store_country ? __( 'Customers order now and pay you directly: Interac e-Transfer, bank transfer or cheque.', 'wp-easycart' ) : __( 'Customers order now and pay you directly: bank transfer, cheque or on pickup.', 'wp-easycart' ) ); ?> <a href="<?php echo esc_url( add_query_arg( 'gateway', 'manual', $payment_settings ) ); ?>" class="ecwz-lnk" target="_blank"><?php esc_html_e( 'Add your bank details', 'wp-easycart' ); ?></a></span>
 				</div>
 				<div class="ecwz-pline-act">
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'No fees', 'wp-easycart' ); ?></span>
@@ -142,7 +161,15 @@ $ssl_badge = $env['https']
 		<?php if ( $upsell ) { ?>
 		<div class="ecwz-hint ecwz-upsell-row">
 			<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
-			<?php esc_html_e( 'Authorize.net, Braintree, Mollie, Klarna and 30+ more.', 'wp-easycart' ); ?>
+			<?php
+			/* translators: 1: payment gateway names, e.g. "Moneris Canada, Bambora, Authorize.net", 2: how many more, e.g. 30. */
+			echo esc_html( sprintf( __( '%1$s and %2$d+ more gateways.', 'wp-easycart' ), implode( ', ', $pro_names ), $pro_more ) );
+			if ( $pro_methods ) {
+				echo ' ';
+				/* translators: %s: payment methods, e.g. "iDEAL, Klarna, SEPA Direct Debit". */
+				echo esc_html( sprintf( __( 'Through Stripe: %s.', 'wp-easycart' ), implode( ', ', $pro_methods ) ) );
+			}
+			?>
 			<a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment" target="_blank" rel="noopener noreferrer" class="ecwz-lnk"><?php esc_html_e( 'See the list', 'wp-easycart' ); ?></a> ·
 			<a href="<?php echo esc_url( wp_easycart_admin()->pro_install_url( 'trial' ) ); ?>" target="_blank" class="ecwz-lnk"><?php esc_html_e( 'Start 14-day trial', 'wp-easycart' ); ?></a>
 		</div>

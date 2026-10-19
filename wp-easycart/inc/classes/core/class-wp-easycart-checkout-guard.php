@@ -1406,7 +1406,8 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 		 * Store one event.
 		 *
 		 * @param string     $type    decline | paid | stop | would_stop | check | check_pass | check_fail | cleared |
-		 *                            attack_start | attack_end | code_fail | code_stop; 6.0.4 internal marks seen | passed
+		 *                            attack_start | attack_end | code_fail | code_stop; 6.0.4 internal marks seen | passed;
+		 *                            6.0.5 email_stop ( wp_easycart_email_lookups )
 		 *                            ( mark(), never listed ).
 		 * @param string     $reason  Short reason code or the decline code.
 		 * @param array      $args    place, gateway, amount, order_id, ref, detail.
@@ -2745,8 +2746,8 @@ if ( ! class_exists( 'wp_easycart_checkout_guard' ) ) :
 			global $wpdb;
 			/* Literal event lists per filter ( internal names, never input ). */
 			$where = array(
-				'all'  => "event_type IN ( 'stop', 'would_stop', 'decline', 'paid', 'check_pass', 'check_fail', 'attack_start', 'attack_end', 'code_stop', 'cleared' )",
-				'stop' => "event_type IN ( 'stop', 'would_stop', 'code_stop' )",
+				'all'  => "event_type IN ( 'stop', 'would_stop', 'decline', 'paid', 'check_pass', 'check_fail', 'attack_start', 'attack_end', 'code_stop', 'email_stop', 'cleared' )",
+				'stop' => "event_type IN ( 'stop', 'would_stop', 'code_stop', 'email_stop' )",
 				'dec'  => "event_type IN ( 'decline', 'paid' )",
 				'pass' => "event_type IN ( 'check_pass', 'check_fail' )",
 				'att'  => "event_type IN ( 'attack_start', 'attack_end' )",

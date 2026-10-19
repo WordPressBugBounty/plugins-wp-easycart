@@ -680,6 +680,16 @@ if ( ! class_exists( 'wp_easycart_admin_checkout_protection' ) ) :
 					return array( 'is-att', __( 'Attack ended', 'wp-easycart' ), is_array( $summary ) ? sprintf( __( 'lasted %1$d minutes, %2$d stopped', 'wp-easycart' ), (int) $summary['minutes'], (int) $summary['stopped'] ) : '' );
 				case 'code_stop':
 					return array( 'is-stop', __( 'Stopped', 'wp-easycart' ), __( 'Too many wrong gift card or coupon codes', 'wp-easycart' ) );
+				case 'email_stop':
+					/* 6.0.5: wp_easycart_email_lookups ( the checkout's email step, Create Account, registration ). */
+					$email_reasons = array(
+						'session' => __( 'Too many email addresses looked up from this browser', 'wp-easycart' ),
+						'ip'      => __( 'Too many email addresses looked up from this network address', 'wp-easycart' ),
+						'day'     => __( 'Too many email addresses looked up from this network address today', 'wp-easycart' ),
+						'surge'   => __( 'Too many email addresses looked up while the store had a rush of them', 'wp-easycart' ),
+						'check'   => __( 'Email address looked up without the human check', 'wp-easycart' ),
+					);
+					return array( 'is-stop', __( 'Stopped', 'wp-easycart' ), isset( $email_reasons[ $row->reason ] ) ? $email_reasons[ $row->reason ] : __( 'Too many email addresses looked up', 'wp-easycart' ) );
 				case 'cleared':
 					return array( 'is-watch', __( 'Unpaused', 'wp-easycart' ), __( 'Unpaused by the store', 'wp-easycart' ) );
 			}

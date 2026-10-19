@@ -510,6 +510,15 @@ if ( ! function_exists( 'ecv2_shipping_render_carrier_head' ) ) {
 		echo '<div class="ecsh-carrier-head" data-carrier="' . esc_attr( $carrier ) . '">';
 		echo '<span class="ecsh-mark ecsh-mark-' . esc_attr( $carrier ) . '" aria-hidden="true">' . esc_html( $mark ) . '</span>';
 		echo '<span class="ecsh-carrier-name">' . esc_html( $name ) . '</span>';
+		/* 6.0.5: a carrier that quotes only for stores in other countries says where. */
+		if ( ! empty( $field['countries'] ) && '' === $status ) {
+			$store = function_exists( 'ecv2_shipping_store_country' ) ? ecv2_shipping_store_country() : '';
+			if ( '' !== $store && ! in_array( $store, (array) $field['countries'], true ) ) {
+				$home = reset( $field['countries'] );
+				/* translators: %s: a country, e.g. United States. */
+				echo '<span class="ecsh-carrier-where">' . esc_html( sprintf( __( 'For stores in %s', 'wp-easycart' ), class_exists( 'wp_easycart_address' ) ? wp_easycart_address::country_name( $home ) : $home ) ) . '</span>';
+			}
+		}
 		/* Always printed ( hidden when empty ) so settings-shipping-v2.js can update it from the save reply without a reload. */
 		echo '<span class="ecsh-status is-' . esc_attr( '' !== $status ? $status : 'none' ) . '" id="ecsh_status_' . esc_attr( $carrier ) . '"' . ( '' === $status ? ' hidden' : '' ) . '>' . esc_html( $detail['label'] ) . '</span>';
 		echo '<span class="ecst-grow"></span>';
@@ -536,6 +545,23 @@ if ( ! function_exists( 'ecv2_shipping_render_dhl_xml_note' ) ) {
 		echo '<span>' . esc_html__( 'XML Services still quotes, but DHL now issues MyDHL API keys instead. Request MyDHL API access for your DHL Express account, then choose MyDHL API above and add the API key, secret, account number and origin city. Your Site ID stays saved, so you can switch back.', 'wp-easycart' ) . '</span></div>';
 		echo '<a class="ecv2-btn" href="' . esc_url( 'https://developer.dhl.com/api-reference/dhl-express-mydhl-api#get-started-section/user-guide--get-access' ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Request MyDHL API access', 'wp-easycart' ) . ' ↗</a>';
 		echo '</div>';
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_render_units_note' ) ) {
+	/**
+	 * Where the store's units are set ( 6.0.5: Settings › Store details › Country and units ).
+	 *
+	 * @since 6.0.5
+	 */
+	function ecv2_shipping_render_units_note( $field, $page ) {
+		$units = class_exists( 'wp_easycart_packages' ) ? wp_easycart_packages::units() : array( 'weight' => 'lb', 'dim' => 'in' );
+		$url   = class_exists( 'wp_easycart_admin_settings_registry' ) ? wp_easycart_admin_settings_registry::page_url( 'initial-setup', 'ec_option_paypal_weight_unit' ) : admin_url( 'admin.php?page=wp-easycart-settings&subpage=initial-setup' );
+		?>
+		<div class="ecst-row-text">
+			<span class="ecst-row-desc"><?php echo esc_html( sprintf( /* translators: 1: weight unit ( lb, kg ), 2: dimension unit ( in, cm ) */ __( 'Weight unit: %1$s. Dimension unit: %2$s.', 'wp-easycart' ), $units['weight'], $units['dim'] ) ); ?> <a href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Change them in Store details', 'wp-easycart' ); ?></a></span>
+		</div>
+		<?php
 	}
 }
 
@@ -573,6 +599,101 @@ if ( ! function_exists( 'ecv2_shipping_carrier_row' ) ) {
 		}
 		unset( $row['key'] );
 		return $row;
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_store_country' ) ) {
+	/** The store's country ( Settings › Store details ), or '' outside WordPress or when it is not known. @since 6.0.5 */
+	function ecv2_shipping_store_country() {
+		return ( function_exists( 'get_option' ) && class_exists( 'wp_easycart_carriers' ) ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_carrier_home' ) ) {
+	/** The carrier accounts that quote only for stores in some countries ( the rest quote anywhere ). @since 6.0.5 */
+	function ecv2_shipping_carrier_home() {
+		return array(
+			'usps'       => array( 'US', 'PR', 'GU', 'VI', 'AS', 'MP' ),
+			'canadapost' => array( 'CA' ),
+			'auspost'    => array( 'AU' ),
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_carrier_order' ) ) {
+	/**
+	 * The Carrier accounts' order for the store's country ( 6.0.5, admin review M10 ): its own postal service first, then the
+	 * carriers that quote anywhere ( UPS, FedEx and DHL in the US and Canada, DHL first elsewhere ), then the postal services of
+	 * other countries. A store whose country is not known keeps the 6.0.0 order.
+	 *
+	 * @return array carrier keys
+	 */
+	function ecv2_shipping_carrier_order() {
+		$country = ecv2_shipping_store_country();
+		$order   = array( 'usps', 'ups', 'fedex', 'dhl', 'canadapost', 'auspost' );
+		if ( '' === $country ) {
+			return $order;
+		}
+		$home  = array();
+		$other = array();
+		foreach ( ecv2_shipping_carrier_home() as $carrier => $countries ) {
+			if ( in_array( $country, $countries, true ) ) {
+				$home[] = $carrier;
+			} else {
+				$other[] = $carrier;
+			}
+		}
+		$anywhere = in_array( $country, array( 'US', 'CA', 'PR', 'MX' ), true ) ? array( 'ups', 'fedex', 'dhl' ) : array( 'dhl', 'ups', 'fedex' );
+		return array_merge( $home, $anywhere, $other );
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_arrange' ) ) {
+	/**
+	 * The page for the store's country ( 6.0.5, admin review M10 ): the Carrier accounts hint names its carriers in their order, and
+	 * Royal Mail ( UK stores ) and Fraktjakt ( Swedish stores ) fold under "Carriers for other countries" for stores elsewhere,
+	 * unless they are in use.
+	 *
+	 * @param array $page The declaration.
+	 * @return array
+	 */
+	function ecv2_shipping_arrange( $page ) {
+		$names = array(
+			'usps'       => __( 'USPS', 'wp-easycart' ),
+			'ups'        => __( 'UPS', 'wp-easycart' ),
+			'fedex'      => __( 'FedEx', 'wp-easycart' ),
+			'dhl'        => __( 'DHL', 'wp-easycart' ),
+			'canadapost' => __( 'Canada Post', 'wp-easycart' ),
+			'auspost'    => __( 'Australia Post', 'wp-easycart' ),
+		);
+		$list = array();
+		foreach ( ecv2_shipping_carrier_order() as $carrier ) {
+			if ( isset( $names[ $carrier ] ) ) {
+				$list[] = $names[ $carrier ];
+			}
+		}
+		if ( isset( $page['sections']['carriers'] ) ) {
+			/* translators: %s: carrier names, e.g. "Royal Mail, DHL, UPS, FedEx". */
+			$page['sections']['carriers']['hint'] = sprintf( __( '%s credentials and origin details. A carrier quotes once its details are complete.', 'wp-easycart' ), implode( ', ', $list ) );
+		}
+		$country = ecv2_shipping_store_country();
+		if ( '' === $country ) {
+			return $page;
+		}
+		$page['fold_title'] = __( 'Carriers for other countries', 'wp-easycart' );
+		$page['fold_hint']  = __( 'Carrier services for shops based elsewhere', 'wp-easycart' );
+		if ( 'GB' !== $country && isset( $page['sections']['royal-mail'] ) && ! get_option( 'ec_option_royalmail_enable' ) ) {
+			$page['sections']['royal-mail']['fold'] = true;
+		}
+		$fraktjakt = ( 'fraktjakt' === (string) ecv2_shipping_setting( 'shipping_method', '' ) ) || '' !== trim( (string) ecv2_shipping_setting( 'fraktjakt_customer_id', '' ) );
+		if ( 'SE' !== $country && ! $fraktjakt ) {
+			foreach ( array( 'fraktjakt', 'ship-from' ) as $slug ) {
+				if ( isset( $page['sections'][ $slug ] ) ) {
+					$page['sections'][ $slug ]['fold'] = true;
+				}
+			}
+		}
+		return $page;
 	}
 }
 
@@ -622,7 +743,7 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 		$fields['ec_option_dhl_ship_from_city'] = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_ship_from_city', 'label' => __( 'Origin city', 'wp-easycart' ), 'default' => '', 'desc' => __( 'The city parcels ship from. DHL needs it with the postal code.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_api', 'show_when' => 'rest', 'pro_min_version' => '6.0.2', 'legacy' => array( 'label' => '( new in 6.0.2 )' ) ) );
 		$fields['dhl_ship_from_zip']           = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_ship_from_zip', 'label' => __( 'Origin postal code', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Origin Postal Code' ) ) );
 		$fields['dhl_ship_from_country']       = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_ship_from_country', 'type' => 'select', 'options' => $countries, 'label' => __( 'Origin country', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Origin Country' ) ) );
-		$fields['dhl_weight_unit']             = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_weight_unit', 'type' => 'select', 'options' => array_merge( array( '' => __( 'Select one', 'wp-easycart' ) ), $lb_kg ), 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
+		$fields['dhl_weight_unit']             = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_weight_unit', 'type' => 'select', 'options' => array_merge( array( '' => __( 'Select one', 'wp-easycart' ) ), $lb_kg ), 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in. It follows your store\'s weight unit when that changes.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
 		$fields['dhl_test_mode']               = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_test_mode', 'type' => 'toggle', 'label' => __( 'Test mode', 'wp-easycart' ), 'desc' => __( 'Sends requests to DHL’s test server.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Test Mode' ) ) );
 		/* 6.0.2: a WP EasyCart PRO that only speaks XML Services keeps the Site ID rows it reads, without a Connection choice
 		   or MyDHL API fields it would ignore. */
@@ -645,7 +766,7 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 		$fields['fedex_account_number']                   = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_account_number', 'label' => __( 'Account number', 'wp-easycart' ), 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Account Number' ) ) );
 		$fields['fedex_ship_from_zip']                    = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_ship_from_zip', 'label' => __( 'Origin postal code', 'wp-easycart' ), 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Origin Postal Code' ) ) );
 		$fields['fedex_country_code']                     = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_country_code', 'type' => 'select', 'options' => $countries, 'label' => __( 'Origin country', 'wp-easycart' ), 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Origin Country' ) ) );
-		$fields['fedex_weight_units']                     = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_weight_units', 'type' => 'select', 'options' => $lb_kg, 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in.', 'wp-easycart' ), 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
+		$fields['fedex_weight_units']                     = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_weight_units', 'type' => 'select', 'options' => $lb_kg, 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in. It follows your store\'s weight unit when that changes.', 'wp-easycart' ), 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
 		$fields['fedex_conversion_rate']                  = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'fedex_conversion_rate', 'type' => 'number', 'min' => 0, 'step' => 0.001, 'placeholder' => '1.000', 'label' => __( 'Rate multiplier', 'wp-easycart' ), 'desc' => __( 'Converts FedEx’s quote currency to yours, or pads every rate. 1.000 leaves quotes as they are.', 'wp-easycart' ), 'advanced' => true, 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Conversion Rate' ) ) );
 		$fields['ec_option_fedex_use_check_address_type'] = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_fedex_use_check_address_type', 'type' => 'toggle', 'default' => 0, 'label' => __( 'Check for business addresses', 'wp-easycart' ), 'desc' => __( 'Asks FedEx whether the address is residential or business before quoting, so business rates apply where they should. Needs Address Validation Service permission on your FedEx project.', 'wp-easycart' ), 'advanced' => true, 'parent' => 'ec_option_fedex_use_oauth', 'legacy' => array( 'label' => 'Check Address Type' ) ) );
 		/* 6.0.1: moved here from "Live carrier rates" advanced — it only affects FedEx quotes. */
@@ -659,7 +780,7 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 		$fields['ec_option_ups_use_oauth']  = ecv2_shipping_carrier_row( $c, $n, 'ups_oauth', array( 'key' => 'ec_option_ups_use_oauth', 'type' => 'toggle', 'default' => 0, 'label' => __( 'Enable UPS', 'wp-easycart' ), 'desc' => __( 'Quotes UPS services through your linked UPS account. Link the account below, then fill in the shipper details.', 'wp-easycart' ), 'legacy' => array( 'label' => 'Enable UPS' ) ) );
 		$fields['ecv2_shipping_ups_connect'] = array( 'type' => 'html', 'render' => null, 'carrier' => $c, 'parent' => 'ec_option_ups_use_oauth' ); // PRO attaches the Link / Reconnect / Refresh / Disconnect buttons.
 		$fields['ups_shipper_number']       = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'ups_shipper_number', 'label' => __( 'Shipper number', 'wp-easycart' ), 'desc' => __( 'The six-character account number from your UPS profile.', 'wp-easycart' ), 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Shipper Number' ) ) );
-		$fields['ups_weight_type']          = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'ups_weight_type', 'type' => 'select', 'options' => array( '' => __( 'Select one', 'wp-easycart' ), 'LBS' => __( 'Pounds ( lb )', 'wp-easycart' ), 'KGS' => __( 'Kilograms ( kg )', 'wp-easycart' ) ), 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in.', 'wp-easycart' ), 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
+		$fields['ups_weight_type']          = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'ups_weight_type', 'type' => 'select', 'options' => array( '' => __( 'Select one', 'wp-easycart' ), 'LBS' => __( 'Pounds ( lb )', 'wp-easycart' ), 'KGS' => __( 'Kilograms ( kg )', 'wp-easycart' ) ), 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in. It follows your store\'s weight unit when that changes.', 'wp-easycart' ), 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
 		$fields['ups_ship_from_address1']   = ecv2_shipping_carrier_row( $c, $n, 'ups_settings', array( 'key' => 'ups_ship_from_address1', 'label' => __( 'Origin address line 1', 'wp-easycart' ), 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Origin Address (Line 1)' ) ) );
 		$fields['ups_ship_from_address2']   = ecv2_shipping_carrier_row( $c, $n, 'ups_settings', array( 'key' => 'ups_ship_from_address2', 'label' => __( 'Origin address line 2', 'wp-easycart' ), 'advanced' => true, 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Origin Address (Line 2)' ) ) );
 		$fields['ups_ship_from_address3']   = ecv2_shipping_carrier_row( $c, $n, 'ups_settings', array( 'key' => 'ups_ship_from_address3', 'label' => __( 'Origin address line 3', 'wp-easycart' ), 'advanced' => true, 'parent' => 'ec_option_ups_use_oauth', 'legacy' => array( 'label' => 'Origin Address (Line 3)' ) ) );
@@ -689,8 +810,13 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 		$fields['ec_option_usps_v3_crid']           = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_usps_v3_crid', 'label' => __( 'CRID', 'wp-easycart' ), 'default' => '', 'desc' => __( 'Customer Registration ID of the business the account belongs to.', 'wp-easycart' ), 'parent' => 'ec_option_usps_v3_custom_rates', 'legacy' => array( 'label' => 'Your CRID' ) ) );
 
 		/* 6.0.0: most-used carriers first ( the blocks above are written alphabetically ). The page shows one carrier at a
-		   time in tabs ( settings-shipping-v2.js ), in this order. */
-		$order   = array( 'usps', 'ups', 'fedex', 'dhl', 'canadapost', 'auspost' );
+		   time in tabs ( settings-shipping-v2.js ), in this order. 6.0.5 ( admin review M10 ): the store's own country first. */
+		$order   = ecv2_shipping_carrier_order();
+		foreach ( ecv2_shipping_carrier_home() as $home_carrier => $home_countries ) {
+			if ( isset( $fields[ 'ecv2_shipping_head_' . $home_carrier ] ) ) {
+				$fields[ 'ecv2_shipping_head_' . $home_carrier ]['countries'] = $home_countries;
+			}
+		}
 		$grouped = array_fill_keys( $order, array() );
 		foreach ( $fields as $key => $field ) {
 			$carrier = isset( $field['carrier'] ) && isset( $grouped[ $field['carrier'] ] ) ? $field['carrier'] : 'usps';
@@ -812,7 +938,7 @@ if ( ! function_exists( 'ecv2_shipping_render_royalmail_status' ) ) {
 /* Plan name for copy: the store's own plan, or Pro/Premium when no license is known ( and outside WordPress ). */
 $ecv2_shipping_plan = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : 'Pro/Premium';
 
-return array(
+return ecv2_shipping_arrange( array(
 	'slug'        => 'shipping-settings',
 	'title'       => __( 'Shipping settings', 'wp-easycart' ),
 	'description' => __( 'How shipping is charged, what shoppers can choose, and where you ship.', 'wp-easycart' ),
@@ -876,20 +1002,14 @@ return array(
 					'keywords'    => array( 'expedited', 'express', 'rush', 'surcharge' ),
 					'legacy'      => array( 'page' => 'shipping-settings', 'section' => 'Additional Shipping Options', 'label' => 'Expedited Shipping Cost', 'note' => 'stored in ec_setting.shipping_expedite_rate' ),
 				),
-				'ec_option_enable_metric_unit_display' => array(
-					'type'     => 'select',
-					'label'    => __( 'Dimension units', 'wp-easycart' ),
-					'desc'     => __( 'Used when product dimensions drive option pricing or are sent to a live carrier.', 'wp-easycart' ),
-					'default'  => '0',
-					'options'  => array(
-						'0' => __( 'Standard ( inches )', 'wp-easycart' ),
-						'1' => __( 'Metric ( centimetres )', 'wp-easycart' ),
-					),
+				/* 6.0.5: the weight and dimension units are set in Settings › Store details › Country and units. */
+				'ecv2_shipping_units_note' => array(
+					'type'     => 'html',
+					'label'    => __( 'Units', 'wp-easycart' ),
+					'render'   => 'ecv2_shipping_render_units_note',
 					'advanced' => true,
 					'parent'   => 'ec_option_use_shipping',
-					'on_save'  => 'ecv2_shipping_flush_cache',
-					'keywords' => array( 'metric', 'inches', 'centimetres', 'dimensions' ),
-					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Additional Shipping Options', 'label' => 'Dimension Unit' ),
+					'keywords' => array( 'metric', 'inches', 'centimetres', 'dimensions', 'weight unit', 'kilograms', 'pounds' ),
 				),
 			),
 		),
@@ -1284,4 +1404,4 @@ return array(
 			),
 		),
 	),
-);
+) );

@@ -264,6 +264,16 @@ class wpeasycart_links {
 			}
 			$url .= 'ec_reset_key=' . rawurlencode( $atts['ec_reset_key'] );
 		}
+		/* 6.0.5: what a subscription page says after a change: a card change ( card_updated, card_failed ) and 6.0.3's plan change
+		 * ( subscription_change ), which this list dropped, so its notice never showed. 6.0.5: a pricing table's links: the plan and
+		 * level to change to in My Account ( change_plan, also dropped since 6.0.3, change_level ) and the level or number of units
+		 * chosen for the subscription page ( ec_level, ec_units ). */
+		foreach ( array( 'subscription_change', 'card_updated', 'card_failed', 'change_plan', 'change_level', 'ec_level', 'ec_units' ) as $result_key ) {
+			if ( isset( $atts[ $result_key ] ) ) {
+				$url     .= ( $is_first ? '?' : '&' ) . $result_key . '=' . rawurlencode( (string) $atts[ $result_key ] );
+				$is_first = false;
+			}
+		}
 		return $url;
 	}
 

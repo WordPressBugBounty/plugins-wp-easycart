@@ -29,6 +29,14 @@ class ec_product {
 	public $quantity;
 
 	public $vat_rate;
+	public $tax_class = ''; /* 6.0.5: tax classes ( wp_easycart_tax_classes ) */
+	public $unit_measure = 0; /* 6.0.5: what one item holds, its unit and the base its unit price is shown per ( wp_easycart_unit_price ) */
+	public $unit_measure_unit = '';
+	public $usage_levels = ''; /* 6.0.5: usage levels ( wp_easycart_subscription_levels ); the level sold, set by its apply() */
+	public $usage_level = '';
+	public $usage_label = '';
+	public $usage_value = 0;
+	public $unit_base = '';
 	public $handling_price;
 	public $handling_price_each;
 	public $stock_quantity;
@@ -224,6 +232,14 @@ class ec_product {
 		$this->custom_price_label = $product_data['custom_price_label'];
 
 		$this->vat_rate = $product_data['vat_rate'];
+		$this->tax_class = isset( $product_data['tax_class'] ) ? (string) $product_data['tax_class'] : '';
+		$this->unit_measure = isset( $product_data['unit_measure'] ) ? (float) $product_data['unit_measure'] : 0;
+		$this->unit_measure_unit = isset( $product_data['unit_measure_unit'] ) ? (string) $product_data['unit_measure_unit'] : '';
+		$this->usage_levels = isset( $product_data['usage_levels'] ) ? (string) $product_data['usage_levels'] : '';
+		$this->usage_level = isset( $product_data['usage_level'] ) ? (string) $product_data['usage_level'] : '';
+		$this->usage_label = isset( $product_data['usage_label'] ) ? (string) $product_data['usage_label'] : '';
+		$this->usage_value = isset( $product_data['usage_value'] ) ? (float) $product_data['usage_value'] : 0;
+		$this->unit_base = isset( $product_data['unit_base'] ) ? (string) $product_data['unit_base'] : '';
 		$this->handling_price = $product_data['handling_price'];
 		$this->handling_price_each = $product_data['handling_price_each'];
 		$this->stock_quantity = $product_data['stock_quantity'];
@@ -526,7 +542,7 @@ class ec_product {
 						'total_price' => $price, 
 						'manufacturer_id' => $this->manufacturer_id, 
 						'is_taxable' => $this->is_taxable,
-						'vat_enabled' => $this->vat_rate
+						'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class
 					)
 				)
 			) );
@@ -963,11 +979,11 @@ class ec_product {
 		if ( '0.000' != $this->list_price ) {
 			$output .= '<span class="ec_product_old_price' . ( ( $is_elementor ) ? '_ele' : '' ) . '" style="' . ( ( $font ) ? 'font-family:' . esc_attr( $font ) . ' !important;' : '' ) . ( ( $color ) ? 'color:' . esc_attr( $color ) . ' !important;' : '' ) . '">';
 			if ( $GLOBALS['currency']->get_symbol_location() ) {
-				$output .= '<span class="currency">' . esc_attr( $GLOBALS['currency']->get_symbol( ) ) . '</span>';
+				$output .= '<span class="currency">' . esc_attr( $GLOBALS['currency']->get_display_symbol( ) ) . '</span>';
 			}
 			$output .= '<span class="dollar">' . esc_attr( $p_dollar ) . '</span><span class="cent">' . esc_attr( $GLOBALS['currency']->get_decimal_symbol() . $p_cent ) . '</span>';
 			if ( ! $GLOBALS['currency']->get_symbol_location() ) {
-				$output .= '<span class="currency">' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '</span>';
+				$output .= '<span class="currency">' . esc_attr( $GLOBALS['currency']->get_display_symbol() ) . '</span>';
 			}
 			$output .= '</span>';
 		}
@@ -999,7 +1015,7 @@ class ec_product {
 					'total_price' => $price,
 					'manufacturer_id' => $this->manufacturer_id,
 					'is_taxable' => $this->is_taxable,
-					'vat_enabled' => $this->vat_rate,
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class,
 				),
 			),
 		) );
@@ -1010,7 +1026,7 @@ class ec_product {
 					'total_price' => $list_price,
 					'manufacturer_id' => $this->manufacturer_id,
 					'is_taxable' => $this->is_taxable,
-					'vat_enabled' => $this->vat_rate,
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class,
 				),
 			),
 		) );
@@ -1069,7 +1085,7 @@ class ec_product {
 					'total_price' => $this->price, 
 					'manufacturer_id' => $this->manufacturer_id, 
 					'is_taxable' => $this->is_taxable, 
-					'vat_enabled' => $this->vat_rate 
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class 
 				)
 			)
 		) );
@@ -1080,7 +1096,7 @@ class ec_product {
 					'total_price' => $this->price, 
 					'manufacturer_id' => $this->manufacturer_id, 
 					'is_taxable' => $this->is_taxable, 
-					'vat_enabled' => $this->vat_rate 
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class 
 				)
 			)
 		) );
@@ -1138,7 +1154,7 @@ class ec_product {
 					'total_price' => $price, 
 					'manufacturer_id' => $this->manufacturer_id, 
 					'is_taxable' => $this->is_taxable, 
-					'vat_enabled' => $this->vat_rate 
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class 
 				)
 			)
 		) );
@@ -1175,7 +1191,7 @@ class ec_product {
 					'total_price' => $this->price, 
 					'manufacturer_id' => $this->manufacturer_id, 
 					'is_taxable' => $this->is_taxable, 
-					'vat_enabled' => $this->vat_rate 
+					'vat_enabled' => $this->vat_rate, 'tax_class' => $this->tax_class 
 				)
 			)
 		) );

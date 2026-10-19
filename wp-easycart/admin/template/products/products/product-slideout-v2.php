@@ -44,7 +44,7 @@ $pro_status    = class_exists( 'wp_easycart_admin_pro_gate' ) ? wp_easycart_admi
 $pro_inactive  = ( ! $is_pro && $pro_status['installed'] && ! $pro_status['active'] );
 /* Free edition allows two option sets per product; PRO allows five. */
 $max_opt_sets  = $is_pro ? 5 : (int) apply_filters( 'wp_easycart_admin_free_option_set_limit', 2 );
-$currency_sym  = get_option( 'ec_option_currency_symbol', '$' );
+$currency_sym  = function_exists( 'wp_easycart_admin_money_format' ) ? wp_easycart_admin_money_format()['symbol'] : (string) get_option( 'ec_option_currency', '$' ); /* 6.0.5: the store's symbol ( ec_option_currency_symbol is never saved ). */
 $step          = pow( 10, -1 * (int) $GLOBALS['currency']->get_decimal_length() );
 
 /*

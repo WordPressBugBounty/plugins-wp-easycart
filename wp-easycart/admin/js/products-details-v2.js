@@ -300,6 +300,8 @@ window.ecdv2_cart_links = ( function( $ ) {
 	// A set created from the "Create a new option set" panel lands in the first empty slot.
 	$( document ).on( 'ecosv2:created', function( e, r ) {
 		if ( ! r || ! r.option_id ) { return; }
+		/* 6.0.5: a modifier ( the panel's Dropdown / Swatches as add-ons too ) never goes in a variation slot. */
+		if ( r.option_type && 'basic-combo' !== r.option_type && 'basic-swatch' !== r.option_type ) { return; }
 		var $empty = $( '#ecdv2_opt_slots .ecdv2-opt-slot:not(.is-locked) select' ).filter( function() { return ! parseInt( this.value, 10 ); } ).first();
 		if ( ! $empty.length ) { return; }
 		if ( ! $empty.find( 'option[value="' + r.option_id + '"]' ).length ) {
@@ -563,6 +565,9 @@ window.ecdv2 = ( function( $ ) {
 				custom_price_label           : v( 'custom_price_label' )
 			};
 			maybe( data, 'product_cost', v( 'product_cost' ) ); /* 6.0.2: Cost per item */
+			maybe( data, 'unit_measure', v( 'unit_measure' ) ); /* 6.0.5: unit price ( admin review M16 ) */
+			maybe( data, 'unit_measure_unit', v( 'unit_measure_unit' ) );
+			maybe( data, 'unit_base', v( 'unit_base' ) );
 			return data;
 		},
 
@@ -572,6 +577,7 @@ window.ecdv2 = ( function( $ ) {
 			};
 			maybe( data, 'vat_rate', c( 'vat_rate' ) );
 			maybe( data, 'TIC', v( 'TIC' ) );
+			maybe( data, 'tax_class', v( 'tax_class' ) ); /* 6.0.5: the VAT / GST rate ( it was printed and never sent ) */
 			return data;
 		},
 
@@ -709,12 +715,14 @@ window.ecdv2 = ( function( $ ) {
 		},
 
 		seo: function() {
-			return {
-				seo_description : v( 'seo_description' ),
-				seo_keywords    : v( 'seo_keywords' ),
-				post_excerpt    : ed( 'post_excerpt' ),
-				featured_image  : v( 'featured_image' )
-			};
+			/* 6.0.5: only the fields on the page. With Yoast SEO's card in place of this one the page may hold only the older
+			 * description ( print_seo_fallback_v2() ), and the keywords, excerpt and featured image must not be saved empty. */
+			var data = {};
+			maybe( data, 'seo_description', v( 'seo_description' ) );
+			maybe( data, 'seo_keywords', v( 'seo_keywords' ) );
+			maybe( data, 'post_excerpt', ed( 'post_excerpt' ) );
+			maybe( data, 'featured_image', v( 'featured_image' ) );
+			return data;
 		},
 
 		/* Yoast SEO card ( SEO tab, only printed while Yoast is active ). Saved to
@@ -1640,7 +1648,7 @@ window.ecdv2 = ( function( $ ) {
 		'shipping'           : 'shipping',
 		'packaging'          : 'shipping',
 		'customs'            : 'shipping',
-		'tax'                : 'pricing'
+		'tax'                : 'tax'
 	};
 
 	/*
@@ -2082,9 +2090,68 @@ window.ecdv2 = ( function( $ ) {
 		side.scrollTop = Math.max( 0, top - ( head ? head.offsetHeight : 0 ) - 12 );
 	}
 
+	/**
+	 * 6.0.5: a card of the summary column into view. A column taller than the window sticks at the window's foot ( fit_side() ), so a
+	 * card near its top ( Status, Product type ) sits above the window and scrolling the page never shows it: the column itself moves
+	 * until the card is under the header, and goes back to its foot at the next scroll. A column that fits scrolls the page as before.
+	 *
+	 * @param {Element} node    The card.
+	 * @param {boolean} instant No smooth scroll.
+	 */
+	var side_reveal_back = null;
+	function side_reveal( node, instant ) {
+		var side = el( 'ecdv2_side' );
+		var rect = node.getBoundingClientRect();
+		var head = $( '#ecdv2_wrap .ecdv2-header' ).get( 0 );
+		var under = head ? Math.round( parseFloat( window.getComputedStyle( head ).top ) || 0 ) + head.offsetHeight + 14 : scroll_offset();
+		if ( rect.top >= under && rect.bottom <= window.innerHeight ) {
+			return;
+		}
+		if ( side && $( side ).hasClass( 'is-sticky' ) && side.offsetHeight + under + 16 > window.innerHeight ) {
+			var box = side.getBoundingClientRect();
+			if ( rect.top < under ) {
+				side.style.top = Math.round( under - ( rect.top - box.top ) ) + 'px';
+				/* A sticky column stays inside the editor's grid, so near the foot of the page it can move only so far: the page
+				 * scrolls up by what is left ( a few hundred pixels, never back to the top ). */
+				var short = under - node.getBoundingClientRect().top;
+				var wait = 500;
+				if ( short > 1 ) {
+					spy_hold_until = Date.now() + 1200;
+					wait = 1200;
+					try {
+						window.scrollBy( { top: -Math.round( short ), behavior: ( instant || reduce_motion ) ? 'auto' : 'smooth' } );
+					} catch ( e ) {
+						window.scrollBy( 0, -Math.round( short ) );
+					}
+				}
+				if ( side_reveal_back ) {
+					window.removeEventListener( 'scroll', side_reveal_back );
+				}
+				var after = Date.now() + wait;
+				var settled = window.pageYOffset;
+				side_reveal_back = function() {
+					/* The page's own scrolling ( this move, a scroll still running ) never counts; the person scrolling on does. */
+					if ( Date.now() < after ) {
+						settled = window.pageYOffset;
+						return;
+					}
+					if ( Math.abs( window.pageYOffset - settled ) < 80 ) {
+						return;
+					}
+					window.removeEventListener( 'scroll', side_reveal_back );
+					side_reveal_back = null;
+					fit_side();
+				};
+				window.addEventListener( 'scroll', side_reveal_back, { passive: true } );
+				return;
+			}
+		}
+		scroll_to_node( node, instant );
+	}
+
 	/* The summary column's cards ( Categories lives there since 6.0.4 ). */
 	function go_side( key, opts ) {
-		var $card = 'categories' === key ? $( '.ecdv2-card[data-ecdv2-section="categories"]' ) : ( 'health' === key ? $( '#ecdv2_health' ) : ( 'status' === key ? $( '#ecdv2_side_visibility' ) : $( '#ecdv2_side' ) ) );
+		var $card = 'categories' === key ? $( '.ecdv2-card[data-ecdv2-section="categories"]' ) : ( 'health' === key ? $( '#ecdv2_health' ) : ( 'status' === key ? $( '#ecdv2_side_visibility' ) : ( 'type' === key ? $( '#ecdv2_side_type_card' ) : $( '#ecdv2_side' ) ) ) );
 		if ( ! $card.length ) {
 			return;
 		}
@@ -2096,12 +2163,15 @@ window.ecdv2 = ( function( $ ) {
 			side_drawer( true, { no_focus: true } );
 			side_scroll_to( $card.get( 0 ) );
 		} else {
-			var rect = $card.get( 0 ).getBoundingClientRect();
-			if ( rect.top < scroll_offset() || rect.bottom > window.innerHeight ) {
-				scroll_to_node( $card.get( 0 ), opts && opts.instant );
-			}
+			side_reveal( $card.get( 0 ), opts && opts.instant );
 		}
 		flash( $card );
+		/* 6.0.5: Change type ( the type section's bar ) lands on the choice itself. */
+		if ( 'type' === key && ! ( opts && opts.no_focus ) && el( 'ecdv2_type' ) && ! el( 'ecdv2_type' ).disabled ) {
+			setTimeout( function() {
+				try { el( 'ecdv2_type' ).focus( { preventScroll: true } ); } catch ( e ) { el( 'ecdv2_type' ).focus(); }
+			}, 60 );
+		}
 		if ( 'status' === key && ! ( opts && opts.no_focus ) && el( 'activate_in_store' ) ) {
 			try { el( 'activate_in_store' ).focus( { preventScroll: true } ); } catch ( e ) { el( 'activate_in_store' ).focus(); }
 		}
@@ -2127,7 +2197,7 @@ window.ecdv2 = ( function( $ ) {
 		if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) && 'general' !== key ) {
 			return;
 		}
-		if ( 'categories' === key || 'health' === key || 'side' === key || 'status' === key ) {
+		if ( 'categories' === key || 'health' === key || 'side' === key || 'status' === key || 'type' === key ) {
 			go_side( key, opts );
 			return;
 		}
@@ -2460,7 +2530,17 @@ window.ecdv2 = ( function( $ ) {
 			return n ? counted( 'picture_one', 'pictures', n, '1 picture', '%d pictures' ) : vt( 'no_pictures', 'No pictures yet' );
 		},
 		pricing: function() {
-			return [ money( v( 'price' ) ), 1 === parseInt( c( 'is_taxable' ), 10 ) ? vt( 'taxed', 'Taxed' ) : vt( 'not_taxed', 'Not taxed' ) ].join( ' · ' );
+			var price = parseFloat( v( 'price' ) ) || 0;
+			var list = parseFloat( v( 'list_price' ) ) || 0;
+			return [ money( price ) ].concat( list > price ? [ vt( 'compare_at', 'compare-at %s' ).replace( '%s', money( list ) ) ] : [] ).join( ' · ' );
+		},
+		/* 6.0.5: the taxes it is charged in this store, as the summary column's card says them. */
+		tax: function() {
+			if ( ! tax_cfg() ) {
+				return '';
+			}
+			var t = tax_card();
+			return ( t.taxed || ! tax_cfg().any ) ? t.sub : t.title;
 		},
 		inventory: function() {
 			var type = String( v( 'stock_quantity_type' ) );
@@ -2509,10 +2589,11 @@ window.ecdv2 = ( function( $ ) {
 			return parts.join( ' · ' );
 		},
 		seo: function() {
-			if ( ! el( 'seo_description' ) ) {
+			var written = seo_written();
+			if ( null === written ) {
 				return '';
 			}
-			return $.trim( v( 'seo_description' ) ) ? vt( 'seo_set', 'Search description written' ) : vt( 'seo_missing', 'No search description yet' );
+			return written ? vt( 'seo_set', 'Search description written' ) : vt( 'seo_missing', 'No search description yet' );
 		},
 		notes: function() {
 			var ids = [ 'order_completed_note', 'order_completed_email_note', 'order_completed_details_note' ];
@@ -2525,6 +2606,18 @@ window.ecdv2 = ( function( $ ) {
 			return vt( 'notes', '%1$d of %2$d order notes written' ).replace( '%1$d', written ).replace( '%2$d', ids.length );
 		}
 	};
+
+	/* 6.0.5: a search description is written when Yoast SEO's meta description holds text ( its card shows while Yoast is
+	 * active ) or WP EasyCart's own does ( the store gives Yoast its own for a page whose Yoast description is empty ). Before,
+	 * only WP EasyCart's counted, so a product described in Yoast read "No search description yet". null = neither field shows. */
+	function seo_written() {
+		var yoast = el( 'ecdv2_yoast_metadesc' );
+		var own = el( 'seo_description' );
+		if ( ! yoast && ! own ) {
+			return null;
+		}
+		return ( !! yoast && '' !== $.trim( v( 'ecdv2_yoast_metadesc' ) ) ) || ( !! own && '' !== $.trim( v( 'seo_description' ) ) );
+	}
 
 	function paint_summary( key ) {
 		var $sum = panel( key ).find( '> .ecdv2-panel-head [data-ecdv2-sum]' );
@@ -2557,7 +2650,7 @@ window.ecdv2 = ( function( $ ) {
 		short_description : { tab: 'general', field: 'short_description', test: function() { return '' !== $.trim( v( 'short_description' ) ); } },
 		price             : { tab: 'pricing', field: 'price', test: function() { return parseFloat( v( 'price' ) ) > 0 || 1 === parseInt( c( 'is_donation' ), 10 ) || 1 === parseInt( c( 'inquiry_mode' ), 10 ); } },
 		category          : { tab: 'categories', test: function() { return $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length > 0; } },
-		seo               : { tab: 'seo', field: 'seo_description', test: function() { return el( 'seo_description' ) ? '' !== $.trim( v( 'seo_description' ) ) : null; } },
+		seo               : { tab: 'seo', get field() { return el( 'ecdv2_yoast_metadesc' ) ? 'ecdv2_yoast_metadesc' : 'seo_description'; }, test: function() { return seo_written(); } },
 		weight            : { tab: 'shipping', field: 'weight', test: function() { return 1 !== parseInt( c( 'is_shippable' ), 10 ) || parseFloat( v( 'weight' ) ) > 0; } },
 		stock             : { tab: 'inventory', field: 'stock_quantity_type', test: function() { return '1' !== String( v( 'stock_quantity_type' ) ) || ( parseInt( v( 'stock_quantity' ), 10 ) || 0 ) > 0; } },
 		active            : { tab: 'general', field: 'activate_in_store', test: function() { return 1 === parseInt( c( 'activate_in_store' ), 10 ); } }
@@ -2650,6 +2743,7 @@ window.ecdv2 = ( function( $ ) {
 		$( '#ecdv2_side_type' ).text( type_text() );
 		paint_ship_state();
 		paint_ship_card();
+		paint_tax_state();
 		paint_tax_card();
 		paint_quick_links();
 		/* The product card. */
@@ -2775,17 +2869,131 @@ window.ecdv2 = ( function( $ ) {
 		$( '#ecdv2_side_ship_off' ).prop( 'hidden', on ).text( 'download' === key ? vt( 'off_download', '' ) : ( 'service' === key ? vt( 'off_service', '' ) : vt( 'off_other', 'Checkout asks no shipping address and adds no shipping for it.' ) ) || vt( 'off_other', '' ) );
 	}
 
+	/* ---------- 6.0.5: the Tax section and its card in the summary column ---------- */
+
+	/* What the store charges ( wp_easycart_admin_details_products_v2::tax_config_v2() ). */
+	function tax_cfg() {
+		return ( vcfg && vcfg.tax && vcfg.tax.lead ) ? vcfg.tax : null;
+	}
+
+	/* A switch of the product: sales ( Charge sales tax ) or vat ( Charge VAT / GST ). */
+	function tax_on( kind ) {
+		var id = 'vat' === kind ? 'vat_rate' : 'is_taxable';
+		return !! el( id ) && 1 === parseInt( c( id ), 10 );
+	}
+
+	/* The product's VAT / GST rate class ( '' = the standard rate ), and that class's settings. */
+	function tax_class_key() {
+		return el( 'tax_class' ) ? String( v( 'tax_class' ) || '' ) : '';
+	}
+
+	function tax_class_info() {
+		var cfg = tax_cfg();
+		var classes = ( cfg && cfg.classes ) ? cfg.classes : {};
+		return classes[ tax_class_key() ] || classes[''] || null;
+	}
+
+	/* "VAT 20%", "VAT 5% · Reduced rate" ( tax_vat_text() in PHP ). */
+	function tax_vat_text() {
+		var cfg = tax_cfg();
+		var info = tax_class_info();
+		var text = ( info && info.pct ) ? vt( 'tax_rate_pct', '%1$s %2$s' ).replace( '%1$s', cfg.vat_name ).replace( '%2$s', info.pct ) : cfg.vat_name;
+		return ( '' !== tax_class_key() && info ) ? text + ' · ' + info.label : text;
+	}
+
+	/* The summary card's words ( tax_card_text() in PHP ): the taxes the store charges that are on for this product. */
+	function tax_card() {
+		var cfg = tax_cfg();
+		var parts = [];
+		$.each( cfg.lead.concat( cfg.other ), function( i, kind ) {
+			if ( ! tax_on( kind ) || ( cfg.any && ! cfg[ kind ] ) ) {
+				return;
+			}
+			parts.push( 'vat' === kind ? tax_vat_text() : ( cfg.service || cfg.sales_name || vt( 'tax_sales', 'Sales tax' ) ) ); /* 6.0.5: by the store's country */
+		} );
+		var taxed = parts.length > 0;
+		return {
+			taxed: taxed,
+			warn: ! cfg.any,
+			title: taxed ? vt( 'taxable', 'Taxable' ) : vt( 'not_taxable', 'Not taxable' ),
+			sub: ! cfg.any ? vt( 'tax_store_none', 'Your store doesn’t charge tax yet' ) : ( taxed ? parts.join( ' · ' ) : vt( 'tax_no_tax', 'Checkout adds no tax for it' ) )
+		};
+	}
+
 	/* 6.0.4: the summary column's Tax card, under Shipping. */
 	function paint_tax_card() {
 		var $card = $( '#ecdv2_side_tax' );
-		if ( ! $card.length || ! el( 'is_taxable' ) ) {
+		if ( ! $card.length || ! el( 'is_taxable' ) || ! tax_cfg() ) {
 			return;
 		}
-		var tax = 1 === parseInt( c( 'is_taxable' ), 10 );
-		var vat = el( 'vat_rate' ) ? 1 === parseInt( c( 'vat_rate' ), 10 ) : false;
-		$card.toggleClass( 'is-off', ! tax && ! vat );
-		$( '#ecdv2_side_tax_title' ).text( tax || vat ? vt( 'taxable', 'Taxable' ) : vt( 'not_taxable', 'Not taxable' ) );
-		$( '#ecdv2_side_tax_sub' ).text( tax && vat ? vt( 'tax_sales_vat', 'Sales tax and VAT' ) : ( tax ? vt( 'tax_sales', 'Sales tax' ) : ( vat ? vt( 'tax_vat', 'VAT' ) : vt( 'tax_none', 'No sales tax or VAT' ) ) ) );
+		var t = tax_card();
+		$card.toggleClass( 'is-off', ! t.taxed ).toggleClass( 'is-warn', t.warn );
+		$( '#ecdv2_side_tax_title' ).text( t.title );
+		$( '#ecdv2_side_tax_sub' ).text( t.sub );
+	}
+
+	/* The section: the switches' boxes, the note while nothing is charged, the rate, the folded taxes' words and the code hint. */
+	function paint_tax_state() {
+		var cfg = tax_cfg();
+		if ( ! cfg || ! $( '#ecdv2_tax' ).length ) {
+			return;
+		}
+		var vat = tax_on( 'vat' );
+		$( '#ecdv2_tax_switch_sales' ).toggleClass( 'is-on', tax_on( 'sales' ) );
+		$( '#ecdv2_tax_switch_vat' ).toggleClass( 'is-on', vat );
+		$( '#ecdv2_tax_off' ).prop( 'hidden', tax_card().taxed );
+		$( '#ecdv2_tax_rate' ).prop( 'hidden', ! vat );
+		$.each( cfg.other, function( i, kind ) {
+			var $sum = $( '#ecdv2_tax_other_' + kind + '_sum' );
+			if ( $sum.length ) {
+				$sum.text( $sum.attr( 'data-ecdv2-tax-why' ) + ' · ' + ( tax_on( kind ) ? vt( 'tax_on_product', 'On for this product' ) : vt( 'tax_off', 'Off' ) ) );
+			}
+		} );
+		var code = $.trim( String( v( 'TIC' ) || '' ) );
+		$( '#ecdv2_tax_code_hint' ).prop( 'hidden', '' !== code && '0' !== code && '00000' !== code ); /* 00000: TaxCloud's general goods */
+		paint_tax_rate();
+	}
+
+	/* What a shopper pays at the chosen rate, on the price as it is typed; a class with no rate of its own says so. */
+	function paint_tax_rate() {
+		var cfg = tax_cfg();
+		var $note = $( '#ecdv2_tax_rate_note' );
+		var $warn = $( '#ecdv2_tax_rate_warn' );
+		if ( ! cfg || ! $note.length ) {
+			return;
+		}
+		var name = cfg.vat_name || 'VAT';
+		var key = tax_class_key();
+		var info = tax_class_info();
+		var standard = ( cfg.classes && cfg.classes[''] ) ? cfg.classes[''] : null;
+		var text = '';
+		if ( ! cfg.vat ) {
+			text = vt( 'tax_store_novat', 'Your store doesn’t charge %s yet, so nothing is added.' ).replace( '%s', name );
+		} else if ( ! info || null === info.rate || undefined === info.rate ) {
+			text = cfg.by_country ? vt( 'tax_country_rate', 'Each shopper pays their own country’s %s rate.' ).replace( '%s', name ) : '';
+		} else if ( parseFloat( info.rate ) <= 0 ) {
+			text = vt( 'tax_zero', 'At the zero rate, no %s is charged on it.' ).replace( '%s', name );
+		} else {
+			var rate = parseFloat( info.rate );
+			var price = parseFloat( v( 'price' ) ) || 0;
+			if ( price <= 0 ) {
+				text = vt( 'tax_at', '%1$s at %2$s.' ).replace( '%1$s', name ).replace( '%2$s', info.pct );
+			} else {
+				var amount = cfg.vat_included ? price - price / ( 1 + rate / 100 ) : price * rate / 100;
+				text = ( cfg.vat_included ? vt( 'tax_included', 'At %1$s, %2$s of the %3$s price is %4$s.' ) : vt( 'tax_added', 'At %1$s, checkout adds %2$s %4$s to the %3$s price.' ) )
+					.replace( '%1$s', info.pct ).replace( '%2$s', money( amount ) ).replace( '%3$s', money( price ) ).replace( '%4$s', name );
+			}
+			if ( cfg.by_country && '' === key ) {
+				text += ' ' + vt( 'tax_by_country', 'Shoppers in other countries pay their own country’s rate.' );
+			}
+		}
+		$note.text( text ).prop( 'hidden', '' === text );
+		if ( cfg.vat && '' !== key && 'zero' !== key && info && ! info.set ) {
+			var words = ( standard && standard.pct ) ? vt( 'tax_class_unset', '%1$s has no rate set yet, so it charges the standard %2$s.' ).replace( '%1$s', info.label ).replace( '%2$s', standard.pct ) : vt( 'tax_class_unset_plain', '%s has no rate set yet, so it charges the standard rate.' ).replace( '%s', info.label );
+			$warn.empty().append( document.createTextNode( words + ' ' ) ).append( $( '<a target="_blank" rel="noopener"></a>' ).attr( 'href', String( $warn.attr( 'data-href' ) || '' ) + encodeURIComponent( 'ec_option_tax_class_' + key + '_rate' ) ).text( vt( 'tax_class_set', 'Set its rate' ) ) ).prop( 'hidden', false );
+		} else {
+			$warn.prop( 'hidden', true ).empty();
+		}
 	}
 
 	/* 6.0.4: the quick links under Basics' title and SKU ( the price and the manufacturer, set elsewhere ). */
@@ -2836,6 +3044,11 @@ window.ecdv2 = ( function( $ ) {
 			if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-side-open' ) ) {
 				place_side_drawer();
 			}
+			return;
+		}
+		/* 6.0.5: a card brought into view ( side_reveal() ) keeps the column where it is until the person scrolls on: the column's own
+		   changes ( the sales figures arriving ) would otherwise put it back at the window's foot. */
+		if ( side_reveal_back ) {
 			return;
 		}
 		var fits = side.offsetHeight + top + 16 <= window.innerHeight;
@@ -3238,6 +3451,29 @@ window.ecdv2 = ( function( $ ) {
 		} );
 	}
 
+	/* 6.0.5: the type section is named for the type ( Subscription settings, Download settings …; vcfg.type_sections ), and its bar
+	 * says what the product is ( #ecdv2_type_bar ). The rail entry keeps one word, so it stays on one line. */
+	function paint_type_section( key ) {
+		var sections = ( vcfg && vcfg.type_sections && 'object' === typeof vcfg.type_sections ) ? vcfg.type_sections : {};
+		var section = sections[ key ] || sections.custom;
+		var types = type_list();
+		var type = types[ key ];
+		if ( section ) {
+			$( '.ecdv2-tab[data-ecdv2-tab="behavior"] .ecdv2-tab-label' ).text( section.rail );
+			$( '#ecdv2_panel_title_behavior' ).text( section.title );
+			$( '#ecdv2_panel_desc_behavior' ).text( section.desc );
+			if ( 'focus' === view ) {
+				paint_next();
+			}
+		}
+		if ( $( '#ecdv2_type_bar' ).length ) {
+			$( '#ecdv2_type_bar_name' ).text( type ? type.label : vt( 'type_mixed', 'Custom ( more than one type )' ) );
+			$( '#ecdv2_type_bar_help' ).text( type ? ( type.help || '' ) : vt( 'type_custom', '' ) );
+			var icon = ( type && type.icon ) ? type.icon : 'admin-generic';
+			$( '#ecdv2_type_bar_icon' ).attr( 'class', 'ecdv2-type-bar-icon dashicons dashicons-' + icon );
+		}
+	}
+
 	/* @param {boolean} hide Also hide sections that stopped being used ( a type was chosen, or the page loaded ). Other
 	 * changes only bring sections back, so a section never disappears under the person working in it. */
 	function paint_type( hide ) {
@@ -3273,6 +3509,7 @@ window.ecdv2 = ( function( $ ) {
 			}
 		} );
 		paint_rail_unused();
+		paint_type_section( key );
 	}
 
 	/* Opening a section the type does not use shows it for this visit. */
@@ -3368,6 +3605,12 @@ window.ecdv2 = ( function( $ ) {
 		$( document ).on( 'input change', '#price', paint_quick_links );
 		$( document ).on( 'change', '#manufacturer_id', paint_quick_links );
 		$( document ).on( 'change', '#is_taxable, #vat_rate', paint_tax_card );
+		/* 6.0.5: the Tax section follows its switches, the rate, the code and the price at once. */
+		$( document ).on( 'change', '#is_taxable, #vat_rate, #tax_class', function() {
+			paint_tax_state();
+			paint_tax_card();
+		} );
+		$( document ).on( 'input change', '#TIC, #price', paint_tax_state );
 		$( document ).on( 'click', '.ecdv2-side-health-go', function() {
 			var $item = $( this ).closest( '.ecdv2-side-health-item' );
 			go_check( $item.attr( 'data-ecdv2-check' ), $item.attr( 'data-ecdv2-tab' ) );
@@ -3549,7 +3792,11 @@ window.ecdv2 = ( function( $ ) {
 		'promotion' : [ 'offers' ],
 		'history'   : [ 'stock history' ],
 		'url'       : [ 'slug', 'permalink' ],
-		'tax'       : [ 'vat', 'taxable' ],
+		'tax'       : [ 'vat', 'taxable', 'sales tax', 'tax code' ],
+		'gst'       : [ 'vat', 'tax' ],
+		'avalara'   : [ 'tax code' ],
+		'taxjar'    : [ 'tax code' ],
+		'tic'       : [ 'tax code' ],
 		'file'      : [ 'download' ],
 		'related'   : [ 'featured products' ],
 		'cross-sell': [ 'featured products' ]
@@ -4279,6 +4526,58 @@ window.ecdv2 = ( function( $ ) {
 		return $( '<span/>' ).text( null === raw || undefined === raw ? '' : String( raw ) ).html();
 	}
 
+	/* 6.0.5 ( admin review M16 ): what shoppers see beside the price ( "$12.00 / kg" ) as the price and the unit price fields
+	 * change, the way wp_easycart_unit_price works it out; bases of another kind than the unit are greyed out. */
+	function paint_unit_preview() {
+		var node = el( 'ecdv2_unit_preview' );
+		if ( ! node ) {
+			return;
+		}
+		var units, bases;
+		try {
+			units = JSON.parse( node.getAttribute( 'data-units' ) || '{}' );
+			bases = JSON.parse( node.getAttribute( 'data-bases' ) || '{}' );
+		} catch ( err ) {
+			return;
+		}
+		var unit = units[ v( 'unit_measure_unit' ) ];
+		var base_select = el( 'unit_base' );
+		if ( base_select ) {
+			$( base_select ).find( 'option' ).each( function() {
+				var b = bases[ this.value ];
+				this.disabled = !! ( unit && b && units[ b[1] ] && units[ b[1] ][0] !== unit[0] );
+			} );
+			if ( base_select.selectedIndex > -1 && base_select.options[ base_select.selectedIndex ].disabled ) {
+				$( base_select ).val( '' ).trigger( 'change' );
+				return;
+			}
+		}
+		var measure = parseFloat( String( v( 'unit_measure' ) ).replace( ',', '.' ) );
+		var price = parseFloat( v( 'price' ) );
+		var key = v( 'unit_base' );
+		if ( unit && ( ! bases[ key ] || units[ bases[ key ][1] ][0] !== unit[0] ) ) {
+			key = unit[2];
+		}
+		var base = bases[ key ];
+		if ( ! unit || ! base || ! ( measure > 0 ) || ! ( price > 0 ) ) {
+			node.hidden = true;
+			node.textContent = '';
+			return;
+		}
+		var factor = ( base[0] * units[ base[1] ][1] ) / ( measure * unit[1] );
+		var words = String( node.getAttribute( 'data-words' ) || '[price] / [unit]' ).split( '[unit]' ).join( base[2] ).split( '[price]' ).join( money( price * factor ) );
+		node.textContent = ( node.getAttribute( 'data-label' ) || 'Shoppers see' ) + ': ' + words;
+		node.hidden = false;
+	}
+
+	function bind_unit_preview() {
+		if ( ! el( 'ecdv2_unit_preview' ) ) {
+			return;
+		}
+		$( document ).on( 'input change', '#unit_measure, #unit_measure_unit, #unit_base, #price', paint_unit_preview );
+		paint_unit_preview();
+	}
+
 	function money( amount ) {
 		var conf = window.wpeasycart_ecdv2_currency || {};
 		if ( 'string' === typeof conf ) {
@@ -4302,7 +4601,8 @@ window.ecdv2 = ( function( $ ) {
 		var frac_part = ( -1 === dot ) ? '' : fixed.slice( dot + 1 );
 		int_part = int_part.replace( /\B(?=(\d{3})+(?!\d))/g, thou_sep );
 		var number = int_part + ( frac_part ? dec_sep + frac_part : '' );
-		return ( negative ? '-' : '' ) + ( left ? symbol + number : number + symbol );
+		var sp = conf.space ? '\u00a0' : ''; /* 6.0.5: 93,00 € */
+		return ( negative ? '-' : '' ) + ( left ? symbol + sp + number : number + sp + symbol );
 	}
 
 	/* 6.0.4: one request feeds both the Activity section and the summary column's sales. */
@@ -4598,6 +4898,24 @@ window.ecdv2 = ( function( $ ) {
 			update();
 		} );
 		$( document ).on( 'input change', '#ecdv2_yoast_metadesc', update );
+	}
+
+	/* 6.0.5: the older description beside Yoast SEO's card ( print_seo_fallback_v2() ). Clear empties it; Save writes it. */
+	function bind_seo_fallback() {
+		var $card = $( '#ecdv2_seo_fallback' );
+		if ( ! $card.length ) {
+			return;
+		}
+		var $clear = $card.find( '[data-ecdv2-seo-clear]' );
+		var paint = function() {
+			$clear.prop( 'disabled', '' === $.trim( v( 'seo_description' ) ) );
+		};
+		$clear.on( 'click', function( e ) {
+			e.preventDefault();
+			$( '#seo_description' ).val( '' ).trigger( 'input' ).trigger( 'focus' );
+		} );
+		$( document ).on( 'input change', '#seo_description', paint );
+		paint();
 	}
 
 	function review_toggle( node, review_id, approved ) {
@@ -5526,12 +5844,14 @@ window.ecdv2 = ( function( $ ) {
 		bind_role_select();
 		bind_tier_rows();
 		watch_pricing_holders();
+		bind_unit_preview();
 		bind_sale_preview();
 		bind_variant_stock_note();
 		bind_price_context();
 		bind_featured_products();
 		bind_feeds();
 		bind_yoast_preview();
+		bind_seo_fallback();
 		bind_search_ai_preview();
 
 		/* Override the legacy handler from products.js ( ready runs after
@@ -5781,3 +6101,40 @@ function ecdv2_reviews_toggle( cb ) {
 		say( 'Something went wrong.', 'error' );
 	} );
 }
+
+/* 6.0.5: the lowest price of the last 30 days ( wp_easycart_admin_price_history ). The card records price history, not a product
+ * field, so it saves on its own and never marks the page unsaved ( data-ecdv2-nodirty ). */
+( function( $ ) {
+	$( document ).on( 'click', '#ecdv2_prior_price_card .ecdv2-prior-toggle', function() {
+		var form = $( '#ecdv2_prior_form' ), open = form.prop( 'hidden' );
+		form.prop( 'hidden', ! open );
+		$( this ).attr( 'aria-expanded', open ? 'true' : 'false' );
+		if ( open ) {
+			$( '#ecdv2_prior_price_value' ).trigger( 'focus' );
+		}
+	} );
+	$( document ).on( 'click', '#ecdv2_prior_price_save', function() {
+		var card = $( '#ecdv2_prior_price_card' ), btn = $( this ), msg = card.find( '.ecdv2-prior-msg' );
+		var failed = function( text ) {
+			btn.prop( 'disabled', false ).removeAttr( 'aria-busy' );
+			msg.addClass( 'is-error' ).text( text || card.attr( 'data-failed' ) || '' );
+		};
+		btn.prop( 'disabled', true ).attr( 'aria-busy', 'true' );
+		msg.removeClass( 'is-error' ).text( card.attr( 'data-saving' ) || '' );
+		$.post( window.ajaxurl, {
+			action: 'ecv2_product_prior_price',
+			nonce: card.attr( 'data-nonce' ),
+			product_id: card.attr( 'data-product-id' ),
+			price: $( '#ecdv2_prior_price_value' ).val(),
+			start: $( '#ecdv2_prior_price_start' ).val()
+		} ).done( function( r ) {
+			if ( r && r.success ) {
+				$( '#ecdv2_prior_price_body' ).html( r.data.html );
+			} else {
+				failed( r && r.data && r.data.message ? r.data.message : '' );
+			}
+		} ).fail( function() {
+			failed( '' );
+		} );
+	} );
+} )( jQuery );

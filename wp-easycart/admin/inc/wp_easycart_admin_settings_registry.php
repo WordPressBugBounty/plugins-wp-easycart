@@ -86,6 +86,8 @@
  *           // 6.0.2: 'drawer' => '<drawer id>' draws the action in that drawer, under its rows ( Taxes › TaxJar › Test connection ).
  *           // 6.0.2: 'input' => array( 'label' => '', 'placeholder' => '' ) puts a text box beside the button; what is typed
  *           // reaches the callback as its third argument ( Taxes › VAT › Test Vatlayer: a VAT number ).
+ *           // 6.0.5: 'inline' => true runs from the section's own markup ( its render prints a .ecst-action with the button,
+ *           // only when it is needed ) and is not drawn after the fields ( Taxes › Canada › Use today's rates ).
  *         ),
  *         'render' => null,                      // callable printing custom HTML inside the card ( legacy embeds )
  *         'drawers' => array( 'taxjar' => array( 'title' => 'TaxJar', 'hint' => '' ) ), // 6.0.2: titles of the section's drawers

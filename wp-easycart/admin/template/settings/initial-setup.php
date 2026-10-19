@@ -266,7 +266,8 @@ if ( ! function_exists( 'ecv2_store_details_sample_price' ) ) {
 		$decimals = get_option( 'ec_option_currency_decimal_places', '2' );
 		$decimals = ( '' === (string) $decimals || ! is_numeric( $decimals ) || (int) $decimals < 0 ) ? 2 : (int) $decimals;
 		$amount   = number_format( 1234.56, $decimals, (string) get_option( 'ec_option_currency_decimal_symbol', '.' ), (string) get_option( 'ec_option_currency_thousands_seperator', ',' ) );
-		$sample   = get_option( 'ec_option_currency_symbol_location', '1' ) ? $symbol . $amount : $amount . $symbol;
+		$space    = get_option( 'ec_option_currency_symbol_space', '0' ) ? "\xC2\xA0" : ''; /* 6.0.5 */
+		$sample   = get_option( 'ec_option_currency_symbol_location', '1' ) ? $symbol . $space . $amount : $amount . $space . $symbol;
 		if ( get_option( 'ec_option_show_currency_code', '0' ) ) {
 			$sample = (string) get_option( 'ec_option_base_currency', 'USD' ) . ' ' . $sample;
 		}
@@ -288,7 +289,10 @@ if ( ! function_exists( 'ecv2_store_details_sanitize_currency_code' ) ) {
 if ( ! function_exists( 'ecv2_store_details_sanitize_symbol' ) ) {
 	/** Up to 10 characters ( classic filter_length( …, 10 ) ), multibyte-safe for € and ₹. */
 	function ecv2_store_details_sanitize_symbol( $raw, $field ) {
-		$symbol = sanitize_text_field( (string) $raw );
+		/* 6.0.5: a symbol typed as an HTML code ( &pound; ) is saved as the character, as prices print it. */
+		$raw    = (string) $raw;
+		$raw    = false === strpos( $raw, '&' ) ? $raw : html_entity_decode( $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$symbol = sanitize_text_field( $raw );
 		return function_exists( 'mb_substr' ) ? mb_substr( $symbol, 0, 10 ) : substr( $symbol, 0, 10 );
 	}
 }
@@ -296,6 +300,10 @@ if ( ! function_exists( 'ecv2_store_details_sanitize_symbol' ) ) {
 if ( ! function_exists( 'ecv2_store_details_sanitize_separator' ) ) {
 	/** A single character ( classic filter_length( …, 1 ) / substr( …, 0, 1 ) ); may be empty. */
 	function ecv2_store_details_sanitize_separator( $raw, $field ) {
+		/* 6.0.5: a space ( typed, &nbsp; or a non-breaking space ) is stored as a non-breaking space; sanitize_text_field() trims it away. */
+		if ( in_array( (string) $raw, array( ' ', '&nbsp;', "\xC2\xA0", "\xE2\x80\xAF" ), true ) ) {
+			return "\xE2\x80\xAF" === (string) $raw ? "\xE2\x80\xAF" : "\xC2\xA0";
+		}
 		$value = sanitize_text_field( (string) $raw );
 		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 1 ) : substr( $value, 0, 1 );
 	}
@@ -367,28 +375,52 @@ if ( ! function_exists( 'ecv2_store_details_currency_presets' ) ) {
 	 * @since 6.0.0
 	 */
 	function ecv2_store_details_currency_presets() {
-		return array(
-			'USD' => array( 'name' => __( 'US dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'EUR' => array( 'name' => __( 'Euro', 'wp-easycart' ), 'symbol' => '€', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'GBP' => array( 'name' => __( 'British pound', 'wp-easycart' ), 'symbol' => '£', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'CAD' => array( 'name' => __( 'Canadian dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'AUD' => array( 'name' => __( 'Australian dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'NZD' => array( 'name' => __( 'New Zealand dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'JPY' => array( 'name' => __( 'Japanese yen', 'wp-easycart' ), 'symbol' => '¥', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '0' ),
-			'CHF' => array( 'name' => __( 'Swiss franc', 'wp-easycart' ), 'symbol' => 'CHF', 'before' => '1', 'decimal' => '.', 'thousands' => "'", 'places' => '2' ),
-			'SEK' => array( 'name' => __( 'Swedish krona', 'wp-easycart' ), 'symbol' => 'kr', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'NOK' => array( 'name' => __( 'Norwegian krone', 'wp-easycart' ), 'symbol' => 'kr', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'DKK' => array( 'name' => __( 'Danish krone', 'wp-easycart' ), 'symbol' => 'kr.', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'PLN' => array( 'name' => __( 'Polish złoty', 'wp-easycart' ), 'symbol' => 'zł', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'MXN' => array( 'name' => __( 'Mexican peso', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'BRL' => array( 'name' => __( 'Brazilian real', 'wp-easycart' ), 'symbol' => 'R$', 'before' => '1', 'decimal' => ',', 'thousands' => '.', 'places' => '2' ),
-			'INR' => array( 'name' => __( 'Indian rupee', 'wp-easycart' ), 'symbol' => '₹', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'ZAR' => array( 'name' => __( 'South African rand', 'wp-easycart' ), 'symbol' => 'R', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'SGD' => array( 'name' => __( 'Singapore dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'HKD' => array( 'name' => __( 'Hong Kong dollar', 'wp-easycart' ), 'symbol' => 'HK$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'CNY' => array( 'name' => __( 'Chinese yuan', 'wp-easycart' ), 'symbol' => '¥', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2' ),
-			'KRW' => array( 'name' => __( 'South Korean won', 'wp-easycart' ), 'symbol' => '₩', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '0' ),
+		$presets = array(
+			'USD' => array( 'name' => __( 'US dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'EUR' => array( 'name' => __( 'Euro', 'wp-easycart' ), 'symbol' => '€', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2', 'space' => '1' ),
+			'GBP' => array( 'name' => __( 'British pound', 'wp-easycart' ), 'symbol' => '£', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'CAD' => array( 'name' => __( 'Canadian dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'AUD' => array( 'name' => __( 'Australian dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'NZD' => array( 'name' => __( 'New Zealand dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'JPY' => array( 'name' => __( 'Japanese yen', 'wp-easycart' ), 'symbol' => '¥', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '0', 'space' => '0' ),
+			'CHF' => array( 'name' => __( 'Swiss franc', 'wp-easycart' ), 'symbol' => 'CHF', 'before' => '1', 'decimal' => '.', 'thousands' => "'", 'places' => '2', 'space' => '1' ),
+			'SEK' => array( 'name' => __( 'Swedish krona', 'wp-easycart' ), 'symbol' => 'kr', 'before' => '0', 'decimal' => ',', 'thousands' => "\xC2\xA0", 'places' => '2', 'space' => '1' ),
+			'NOK' => array( 'name' => __( 'Norwegian krone', 'wp-easycart' ), 'symbol' => 'kr', 'before' => '0', 'decimal' => ',', 'thousands' => "\xC2\xA0", 'places' => '2', 'space' => '1' ),
+			'DKK' => array( 'name' => __( 'Danish krone', 'wp-easycart' ), 'symbol' => 'kr.', 'before' => '0', 'decimal' => ',', 'thousands' => '.', 'places' => '2', 'space' => '1' ),
+			'PLN' => array( 'name' => __( 'Polish złoty', 'wp-easycart' ), 'symbol' => 'zł', 'before' => '0', 'decimal' => ',', 'thousands' => "\xC2\xA0", 'places' => '2', 'space' => '1' ),
+			'MXN' => array( 'name' => __( 'Mexican peso', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'BRL' => array( 'name' => __( 'Brazilian real', 'wp-easycart' ), 'symbol' => 'R$', 'before' => '1', 'decimal' => ',', 'thousands' => '.', 'places' => '2', 'space' => '1' ),
+			'INR' => array( 'name' => __( 'Indian rupee', 'wp-easycart' ), 'symbol' => '₹', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'ZAR' => array( 'name' => __( 'South African rand', 'wp-easycart' ), 'symbol' => 'R', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'SGD' => array( 'name' => __( 'Singapore dollar', 'wp-easycart' ), 'symbol' => '$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'HKD' => array( 'name' => __( 'Hong Kong dollar', 'wp-easycart' ), 'symbol' => 'HK$', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'CNY' => array( 'name' => __( 'Chinese yuan', 'wp-easycart' ), 'symbol' => '¥', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '2', 'space' => '0' ),
+			'KRW' => array( 'name' => __( 'South Korean won', 'wp-easycart' ), 'symbol' => '₩', 'before' => '1', 'decimal' => '.', 'thousands' => ',', 'places' => '0', 'space' => '0' ),
 		);
+		/* 6.0.5 ( admin review M9 ): the euro and the Canadian dollar are written the way the store's country writes them
+		 * ( 1.234,56 € in Germany, 1 234,56 € in France, € 1.234,56 in the Netherlands, 1 234,56 $ in French Canada ). */
+		$country = class_exists( 'wp_easycart_carriers' ) ? (string) wp_easycart_carriers::store_country() : '';
+		$format  = ( '' !== $country && class_exists( 'ec_currency' ) && method_exists( 'ec_currency', 'country_format' ) ) ? ec_currency::country_format( $country ) : null;
+		$euro    = array( 'AT', 'BE', 'HR', 'CY', 'EE', 'FI', 'FR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PT', 'SK', 'SI', 'ES' );
+		$home    = in_array( $country, $euro, true ) ? 'EUR' : ( 'CA' === $country ? 'CAD' : '' );
+		if ( $format && '' !== $home && isset( $presets[ $home ] ) ) {
+			$presets[ $home ]['before']    = $format['before'] ? '1' : '0';
+			$presets[ $home ]['space']     = $format['space'] ? '1' : '0';
+			$presets[ $home ]['decimal']   = $format['dec'];
+			$presets[ $home ]['thousands'] = $format['thou'];
+		}
+		return $presets;
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_position_desc' ) ) {
+	/** "Before the amount gives €40,00; after gives 40,00€." in the store's own symbol and separators ( 6.0.5, admin review L1 ). */
+	function ecv2_store_details_position_desc() {
+		$symbol = function_exists( 'get_option' ) ? html_entity_decode( (string) get_option( 'ec_option_currency', '$' ), ENT_QUOTES, 'UTF-8' ) : '$';
+		$dec    = function_exists( 'get_option' ) ? (string) get_option( 'ec_option_currency_decimal_symbol', '.' ) : '.';
+		$amount = '40' . ( '' === $dec ? '.' : $dec ) . '00';
+		/* translators: 1: an amount with the symbol before it, e.g. $40.00, 2: with the symbol after it, e.g. 40.00$. */
+		return sprintf( __( 'Before the amount gives %1$s; after gives %2$s.', 'wp-easycart' ), ( '' !== $symbol ? $symbol : '$' ) . $amount, $amount . ( '' !== $symbol ? $symbol : '$' ) );
 	}
 }
 
@@ -412,6 +444,7 @@ if ( ! function_exists( 'ecv2_store_details_separator_options' ) ) {
 				','  => '1,000',
 				'.'  => '1.000',
 				"'"  => "1'000",
+				"\xC2\xA0" => __( '1 000 (space)', 'wp-easycart' ), /* 6.0.5: France, Scandinavia, Poland … */
 				''   => __( '1000 (none)', 'wp-easycart' ),
 			);
 			$current = function_exists( 'get_option' ) ? (string) get_option( 'ec_option_currency_thousands_seperator', ',' ) : ',';
@@ -456,6 +489,7 @@ if ( ! function_exists( 'ecv2_store_details_render_currency_preview' ) ) {
 			</span>
 		</div>
 		<?php
+		echo ecv2_store_details_order_currency_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts ( 6.0.5: past orders in another currency ).
 	}
 }
 
@@ -543,6 +577,331 @@ if ( ! function_exists( 'ecv2_store_details_uninstall_demo_data' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecv2_store_details_country_options' ) ) {
+	/**
+	 * Store country choices: every country in Countries & Regions ( ec_country ), by name, also those the store does not ship to.
+	 *
+	 * @since 6.0.5
+	 * @return array ISO code => name.
+	 */
+	function ecv2_store_details_country_options() {
+		$options = array( '' => __( 'Choose your country', 'wp-easycart' ) );
+		if ( empty( $GLOBALS['wpdb'] ) ) {
+			return $options;
+		}
+		foreach ( (array) $GLOBALS['wpdb']->get_results( 'SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY name_cnt ASC' ) as $row ) {
+			$code = strtoupper( trim( (string) $row->iso2_cnt ) );
+			if ( preg_match( '/^[A-Z]{2}$/', $code ) && ! isset( $options[ $code ] ) ) {
+				$options[ $code ] = (string) $row->name_cnt;
+			}
+		}
+		return $options;
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_store_country' ) ) {
+	/**
+	 * The store country as the page shows it before one is saved: what WP EasyCart works out today
+	 * ( wp_easycart_carriers::store_country(): the setup wizard's choice, the checkout's default country, Stripe's, the site language ).
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	function ecv2_store_details_store_country() {
+		return ( function_exists( 'get_option' ) && class_exists( 'wp_easycart_carriers' ) ) ? (string) wp_easycart_carriers::store_country() : '';
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_sanitize_country' ) ) {
+	/**
+	 * Store country: an ISO code from the list ( UK is GB ), else nothing.
+	 *
+	 * @since 6.0.5
+	 */
+	function ecv2_store_details_sanitize_country( $value, $field ) {
+		$value = strtoupper( trim( (string) $value ) );
+		if ( 'UK' === $value ) {
+			$value = 'GB';
+		}
+		return ( '' !== $value && array_key_exists( $value, ecv2_store_details_country_options() ) ) ? $value : '';
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_country_saved' ) ) {
+	/**
+	 * Store country saved: the setup wizard starts from it too ( ec_option_store_locale ).
+	 *
+	 * @since 6.0.5
+	 */
+	function ecv2_store_details_country_saved( $value, $old, $field ) {
+		if ( '' !== (string) $value ) {
+			update_option( 'ec_option_store_locale', (string) $value );
+		}
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_country_warning' ) ) {
+	/**
+	 * After the store country is saved: a store in the EU or the EEA must offer the withdrawal button ( the switch was set once,
+	 * from the country WP EasyCart worked out when 6.0.4 arrived ).
+	 *
+	 * @since 6.0.5
+	 */
+	function ecv2_store_details_country_warning( $value, $field ) {
+		if ( '' === (string) $value || ! class_exists( 'wp_easycart_withdrawals' ) || ! in_array( (string) $value, wp_easycart_withdrawals::eu_countries(), true ) || wp_easycart_withdrawals::enabled() ) {
+			return '';
+		}
+		return __( 'Stores in the EU and the EEA must offer a withdrawal button to consumers. Switch it on in Settings › Checkout › Withdrawal button.', 'wp-easycart' );
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_render_units_note' ) ) {
+	/**
+	 * Top of the Units card: changing a unit does not convert what was entered.
+	 *
+	 * @since 6.0.5
+	 */
+	function ecv2_store_details_render_units_note( $field, $page ) {
+		?>
+		<div class="ecst-row-text">
+			<span class="ecst-row-desc"><?php esc_html_e( 'The units you enter weights and sizes in for products, variants and boxes. Shipping rates by weight, live carriers, PayPal and search engines read them in these units. When you change the weight unit, you can convert the weights already saved.', 'wp-easycart' ); ?></span>
+			<?php echo ecv2_store_details_weight_convert_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts. ?>
+		</div>
+		<?php
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_weight_convert_html' ) ) {
+	/**
+	 * The offer to convert saved weights after the weight unit changed ( wp_easycart_packages::pending_conversion() ), or an
+	 * empty holder the save reply fills ( ecv2_store_details_weight_save_reply() ).
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	function ecv2_store_details_weight_convert_html() {
+		$pending = ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'pending_conversion' ) ) ? wp_easycart_packages::pending_conversion() : null;
+		if ( ! $pending ) {
+			return '<div id="ecsd_weight_convert" hidden></div>';
+		}
+		$counts = wp_easycart_packages::weight_counts();
+		$parts  = array();
+		$words  = array(
+			/* translators: %s: number of products */
+			'products' => _n_noop( '%s product', '%s products', 'wp-easycart' ),
+			/* translators: %s: number of variants */
+			'variants' => _n_noop( '%s variant', '%s variants', 'wp-easycart' ),
+			/* translators: %s: number of option choices */
+			'options'  => _n_noop( '%s option choice', '%s option choices', 'wp-easycart' ),
+			/* translators: %s: number of boxes */
+			'boxes'    => _n_noop( '%s box', '%s boxes', 'wp-easycart' ),
+			/* translators: %s: number of shipping rates */
+			'rates'    => _n_noop( '%s weight-based shipping rate', '%s weight-based shipping rates', 'wp-easycart' ),
+		);
+		foreach ( $words as $kind => $noop ) {
+			if ( ! empty( $counts[ $kind ] ) ) {
+				$parts[] = sprintf( translate_nooped_plural( $noop, $counts[ $kind ], 'wp-easycart' ), number_format_i18n( $counts[ $kind ] ) );
+			}
+		}
+		$from = wp_easycart_packages::weight_unit_name( $pending['from'] );
+		$to   = wp_easycart_packages::weight_unit_name( $pending['to'] );
+		/* translators: 1: list of what has weights ( "12 products, 3 boxes" ), 2: old unit ( kilograms ), 3: new unit ( grams ) */
+		$text = sprintf( __( 'Weights are saved for %1$s, entered in %2$s. Convert them to %3$s?', 'wp-easycart' ), implode( ', ', $parts ), $from, $to );
+		$amounts = array( 'lb' => 1.5, 'kg' => 1.5, 'oz' => 8, 'g' => 500 );
+		$amount  = isset( $amounts[ $pending['from'] ] ) ? $amounts[ $pending['from'] ] : 1.5;
+		$fmt     = function ( $n ) {
+			return rtrim( rtrim( number_format( (float) $n, 3, '.', '' ), '0' ), '.' );
+		};
+		/* translators: 1: an amount, 2: old unit ( kg ), 3: the amount converted, 4: new unit ( g ) */
+		$sample = sprintf( __( 'For example %1$s %2$s becomes %3$s %4$s.', 'wp-easycart' ), $fmt( $amount ), $pending['from'], $fmt( wp_easycart_packages::convert( $amount, $pending['from'], $pending['to'] ) ), $pending['to'] );
+		ob_start();
+		?>
+		<div id="ecsd_weight_convert" class="ecst-action ecsd-weight-convert" role="group" aria-label="<?php esc_attr_e( 'Convert saved weights', 'wp-easycart' ); ?>">
+			<div class="ecst-action-text">
+				<b><?php esc_html_e( 'Convert saved weights', 'wp-easycart' ); ?></b>
+				<span><?php echo esc_html( $text . ' ' . $sample ); ?></span>
+			</div>
+			<div class="ecsd-weight-convert-buttons">
+				<button type="button" class="ecv2-btn ecv2-btn-primary" data-action="convert_weights" data-sec="location" data-confirm-title="<?php /* translators: %s: new unit ( grams ) */ echo esc_attr( sprintf( __( 'Convert saved weights to %s?', 'wp-easycart' ), $to ) ); ?>" data-confirm="<?php esc_attr_e( 'Products, variants, option choices, boxes, weight-based shipping rates and the weights recorded on orders are converted. This cannot be undone, but you can convert back the same way.', 'wp-easycart' ); ?>" data-confirm-ok="<?php esc_attr_e( 'Convert weights', 'wp-easycart' ); ?>"><?php /* translators: %s: new unit ( grams ) */ echo esc_html( sprintf( __( 'Convert to %s', 'wp-easycart' ), $to ) ); ?></button>
+				<button type="button" class="ecv2-btn" data-action="keep_weights" data-sec="location"><?php /* translators: %s: new unit ( grams ) */ echo esc_html( sprintf( __( 'They are already in %s', 'wp-easycart' ), $to ) ); ?></button>
+			</div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_convert_weights' ) ) {
+	/**
+	 * Action convert_weights: every saved weight from the unit it was entered in to the store's unit.
+	 *
+	 * @since 6.0.5
+	 * @return array|string|WP_Error
+	 */
+	function ecv2_store_details_convert_weights() {
+		$pending = wp_easycart_packages::pending_conversion();
+		if ( ! $pending ) {
+			return __( 'There are no weights to convert.', 'wp-easycart' );
+		}
+		$changed = wp_easycart_packages::convert_weights( $pending['from'], $pending['to'] );
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+		return array(
+			/* translators: %s: new unit ( grams ) */
+			'message' => sprintf( __( 'Saved weights are now in %s.', 'wp-easycart' ), wp_easycart_packages::weight_unit_name( $pending['to'] ) ),
+			'reload'  => true,
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_keep_weights' ) ) {
+	/**
+	 * Action keep_weights: the saved weights were already in the new unit; the offer goes.
+	 *
+	 * @since 6.0.5
+	 * @return array
+	 */
+	function ecv2_store_details_keep_weights() {
+		wp_easycart_packages::dismiss_conversion();
+		return array(
+			'message' => __( 'Saved weights kept as they are.', 'wp-easycart' ),
+			'reload'  => true,
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_order_currency_html' ) ) {
+	/**
+	 * 6.0.5 ( Matt's H2 ): orders keep the currency they were placed in. When some were placed in another currency than the
+	 * store's now, the Currency section says so and offers to show them in the store's ( a store that changed currency because
+	 * the old one was wrong ).
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	function ecv2_store_details_order_currency_html() {
+		$others = class_exists( 'wp_easycart_order_currency' ) ? wp_easycart_order_currency::other_currencies() : array();
+		if ( ! $others ) {
+			return '<div id="ecsd_order_currency" hidden></div>';
+		}
+		$store = strtoupper( (string) get_option( 'ec_option_base_currency', 'USD' ) );
+		$parts = array();
+		$total = 0;
+		foreach ( $others as $code => $orders ) {
+			/* translators: 1: number of orders, 2: currency code ( USD ) */
+			$parts[] = sprintf( _n( '%1$s order in %2$s', '%1$s orders in %2$s', $orders, 'wp-easycart' ), number_format_i18n( $orders ), $code );
+			$total  += $orders;
+		}
+		/* translators: 1: "12 orders in USD" ( one or more, joined by commas ), 2: the store's currency code ( EUR ) */
+		$text = sprintf( __( 'Orders keep the currency they were placed in: %1$s still show in that currency, although your store now uses %2$s.', 'wp-easycart' ), implode( ', ', $parts ), $store );
+		ob_start();
+		?>
+		<div id="ecsd_order_currency" class="ecst-action ecsd-weight-convert" role="group" aria-label="<?php esc_attr_e( 'Past orders in another currency', 'wp-easycart' ); ?>">
+			<div class="ecst-action-text">
+				<b><?php esc_html_e( 'Past orders in another currency', 'wp-easycart' ); ?></b>
+				<span><?php echo esc_html( $text ); ?></span>
+			</div>
+			<div class="ecsd-weight-convert-buttons">
+				<button type="button" class="ecv2-btn" data-action="relabel_order_currency" data-sec="currency" data-confirm-title="<?php /* translators: %s: the store's currency code ( EUR ) */ echo esc_attr( sprintf( __( 'Show every order in %s?', 'wp-easycart' ), $store ) ); ?>" data-confirm="<?php /* translators: %s: the store's currency code ( EUR ) */ echo esc_attr( sprintf( _n( 'Only when the order was really paid in %s: its amounts stay the same numbers and are shown with your store\'s currency from now on.', 'Only when these orders were really paid in %s: their amounts stay the same numbers and are shown with your store\'s currency from now on.', $total, 'wp-easycart' ), $store ) ); ?>" data-confirm-ok="<?php /* translators: %s: the store's currency code ( EUR ) */ echo esc_attr( sprintf( __( 'Show them in %s', 'wp-easycart' ), $store ) ); ?>"><?php /* translators: %s: the store's currency code ( EUR ) */ echo esc_html( sprintf( __( 'They were paid in %s', 'wp-easycart' ), $store ) ); ?></button>
+			</div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_relabel_order_currency' ) ) {
+	/**
+	 * Action relabel_order_currency: orders recorded in another currency take the store's.
+	 *
+	 * @since 6.0.5
+	 * @return array|string
+	 */
+	function ecv2_store_details_relabel_order_currency() {
+		if ( ! class_exists( 'wp_easycart_order_currency' ) ) {
+			return __( 'There are no orders to change.', 'wp-easycart' );
+		}
+		$done = wp_easycart_order_currency::relabel_all();
+		return array(
+			/* translators: 1: number of orders, 2: the store's currency code ( EUR ) */
+			'message' => sprintf( _n( '%1$s order now shows in %2$s.', '%1$s orders now show in %2$s.', $done, 'wp-easycart' ), number_format_i18n( $done ), strtoupper( (string) get_option( 'ec_option_base_currency', 'USD' ) ) ),
+			'reload'  => true,
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_weight_unit_warning' ) ) {
+	/**
+	 * After the weight unit is saved: label extensions that read only pounds and kilograms ( older versions ) would send an
+	 * ounce or gram store's weights to the carrier as pounds.
+	 *
+	 * @since 6.0.5
+	 * @param string $value Saved value.
+	 * @return string
+	 */
+	function ecv2_store_details_weight_unit_warning( $value ) {
+		if ( ! in_array( (string) $value, array( 'oz', 'g' ), true ) ) {
+			return '';
+		}
+		$old = ecv2_store_details_weight_unit_extensions();
+		if ( ! $old ) {
+			return '';
+		}
+		/* translators: 1: extension names and the versions that read ounces and grams ( "Shippo 2.0.4" ), 2: unit ( grams ) */
+		return sprintf( __( 'Update %1$s before you ship: older versions send %2$s to the carrier as pounds.', 'wp-easycart' ), implode( ', ', $old ), wp_easycart_packages::weight_unit_name( $value ) );
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_weight_unit_extensions' ) ) {
+	/**
+	 * Active label and rate extensions older than the version that reads ounces and grams, as "Name version".
+	 *
+	 * @since 6.0.5
+	 * @return array
+	 */
+	function ecv2_store_details_weight_unit_extensions() {
+		$needs = apply_filters(
+			'wp_easycart_weight_unit_extensions',
+			array(
+				'WP_EASYCART_SHIPPO_VERSION'      => array( 'WP EasyCart for Shippo', '2.0.4' ),
+				'WP_EASYCART_SHIPSTATION_VERSION' => array( 'WP EasyCart for ShipStation', '2.1.4' ),
+				'WP_EASYCART_STAMPS_VERSION'      => array( 'WP EasyCart for Stamps.com', '2.0.3' ),
+				'WP_EASYCART_OPTIMALSHIP_VERSION' => array( 'WP EasyCart for OptimalShip', '2.0.1' ),
+			)
+		);
+		$old = array();
+		foreach ( (array) $needs as $constant => $need ) {
+			if ( defined( $constant ) && version_compare( (string) constant( $constant ), $need[1], '<' ) ) {
+				$old[] = $need[0] . ' ' . $need[1];
+			}
+		}
+		return $old;
+	}
+}
+
+if ( ! function_exists( 'ecv2_store_details_weight_save_reply' ) ) {
+	/**
+	 * Filter wp_easycart_settings_save_reply: a saved weight unit sends the conversion offer as it now stands, so the page
+	 * shows it without a reload ( settings-store-details-v2.js ).
+	 *
+	 * @since 6.0.5
+	 * @param array  $reply Save reply.
+	 * @param string $slug  Page slug.
+	 * @param array  $keys  Saved keys.
+	 * @return array
+	 */
+	function ecv2_store_details_weight_save_reply( $reply, $slug, $keys ) {
+		if ( 'initial-setup' === $slug && in_array( 'ec_option_paypal_weight_unit', (array) $keys, true ) ) {
+			$reply['weight_convert'] = ecv2_store_details_weight_convert_html();
+		}
+		return $reply;
+	}
+	if ( function_exists( 'add_filter' ) ) {
+		add_filter( 'wp_easycart_settings_save_reply', 'ecv2_store_details_weight_save_reply', 10, 3 );
+	}
+}
+
 $ecv2_store_details_demo_installed = (bool) get_option( 'ec_option_demo_data_installed' );
 $ecv2_store_details_demo_actions   = $ecv2_store_details_demo_installed
 	? array(
@@ -573,7 +932,7 @@ $ecv2_store_details_demo_actions   = $ecv2_store_details_demo_installed
 return array(
 	'slug'        => 'initial-setup',
 	'title'       => __( 'Store details', 'wp-easycart' ),
-	'description' => __( 'The pages your store runs on, how prices are written and your monthly sales goal. The setup wizard filled these in; change them here at any time.', 'wp-easycart' ),
+	'description' => __( 'The pages your store runs on, where it is based, its units, how prices are written and your monthly sales goal. The setup wizard filled these in; change them here at any time.', 'wp-easycart' ),
 	'group'       => 'store',
 	'order'       => 10,
 	'icon'        => 'store',
@@ -672,6 +1031,119 @@ return array(
 			),
 		),
 
+		/* 6.0.5: where the store is based ( it was set only by the setup wizard, and read nowhere else ) and the units it weighs and
+		 * measures in ( the weight unit lived in the PayPal drawer, the dimension unit among the shipping settings ). */
+		'location' => array(
+			'title'  => __( 'Country and units', 'wp-easycart' ),
+			'hint'   => __( 'Where your business is based and how it weighs and measures', 'wp-easycart' ),
+			/* 6.0.5: after the weight unit changes, the units note offers these ( ecv2_store_details_weight_convert_html() ). */
+			'actions' => array(
+				array(
+					'id'       => 'convert_weights',
+					'label'    => __( 'Convert saved weights', 'wp-easycart' ),
+					'desc'     => __( 'Converts the weights of products, variants, option choices, boxes, weight-based shipping rates and orders to the new unit.', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => 'ecv2_store_details_convert_weights',
+				),
+				array(
+					'id'       => 'keep_weights',
+					'label'    => __( 'Keep saved weights', 'wp-easycart' ),
+					'desc'     => __( 'The weights were already entered in the new unit.', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => 'ecv2_store_details_keep_weights',
+				),
+			),
+			'fields' => array(
+				'ec_option_store_country' => array(
+					'type'     => 'select',
+					'label'    => __( 'Store country', 'wp-easycart' ),
+					'desc'     => __( 'Where your business is based. Decides which carriers are listed first, whether EU rules such as the withdrawal button apply, and the wallet country for Square.', 'wp-easycart' ),
+					'default'  => ecv2_store_details_store_country(),
+					'options'  => 'ecv2_store_details_country_options',
+					'sanitize' => 'ecv2_store_details_sanitize_country',
+					'on_save'  => 'ecv2_store_details_country_saved',
+					'validate' => 'ecv2_store_details_country_warning',
+					'keywords' => array( 'country', 'location', 'based', 'business address', 'region', 'eu', 'uk', 'canada', 'australia' ),
+					'legacy'   => array( 'page' => 'setup-wizard', 'section' => 'Location', 'label' => 'Where is your store based?' ),
+				),
+				'ecv2_store_details_units_note' => array(
+					'type'   => 'html',
+					'label'  => __( 'Units', 'wp-easycart' ),
+					'render' => 'ecv2_store_details_render_units_note',
+				),
+				'ec_option_paypal_weight_unit' => array(
+					'type'     => 'pills',
+					'label'    => __( 'Weight unit', 'wp-easycart' ),
+					'desc'     => __( 'Live carriers and PayPal are given pounds or kilograms: ounces and grams are worked out for them. DHL, FedEx and UPS follow this unit when you change it.', 'wp-easycart' ),
+					'default'  => 'lbs',
+					'options'  => array(
+						'lbs' => __( 'Pounds ( lb )', 'wp-easycart' ),
+						'oz'  => __( 'Ounces ( oz )', 'wp-easycart' ),
+						'kgs' => __( 'Kilograms ( kg )', 'wp-easycart' ),
+						'g'   => __( 'Grams ( g )', 'wp-easycart' ),
+					),
+					'validate' => 'ecv2_store_details_weight_unit_warning',
+					'keywords' => array( 'weight', 'pounds', 'kilograms', 'kg', 'lb', 'ounces', 'oz', 'grams', 'g', 'metric', 'imperial' ),
+					'legacy'   => array( 'page' => 'payment', 'section' => 'PayPal', 'label' => 'Weight Unit' ),
+				),
+				'ec_option_enable_metric_unit_display' => array(
+					'type'     => 'pills',
+					'label'    => __( 'Dimension unit', 'wp-easycart' ),
+					'desc'     => __( 'Length, width and height of products and boxes, and sizes that price an option.', 'wp-easycart' ),
+					'default'  => '0',
+					'options'  => array(
+						'0' => __( 'Inches ( in )', 'wp-easycart' ),
+						'1' => __( 'Centimetres ( cm )', 'wp-easycart' ),
+					),
+					'keywords' => array( 'metric', 'inches', 'centimetres', 'centimeters', 'dimensions', 'size', 'length' ),
+					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Additional Shipping Options', 'label' => 'Dimension Unit' ),
+				),
+			),
+		),
+
+		/* 6.0.5 ( admin review M7, M5 ): the registered name, address and tax number receipts and invoices show ( wp_easycart_business ). */
+		'business' => array(
+			'title'  => __( 'Business details', 'wp-easycart' ),
+			'hint'   => __( 'Your registered name, address and tax number, on receipts and invoices', 'wp-easycart' ),
+			'fields' => array(
+				'ec_option_business_name' => array(
+					'type'        => 'text',
+					'label'       => __( 'Registered business name', 'wp-easycart' ),
+					'desc'        => __( 'The legal name receipts and invoices show. EU and UK invoices must show it.', 'wp-easycart' ),
+					'default'     => '',
+					'placeholder' => ( function_exists( 'get_bloginfo' ) && function_exists( 'wp_specialchars_decode' ) ) ? wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ) : '',
+					'keywords'    => array( 'legal name', 'company', 'seller', 'invoice', 'receipt' ),
+					'legacy'      => array( 'page' => 'initial-setup', 'section' => 'Business details', 'label' => 'Registered business name ( 6.0.5 )' ),
+				),
+				'ec_option_business_address' => array(
+					'type'        => 'textarea',
+					'label'       => __( 'Registered address', 'wp-easycart' ),
+					'desc'        => __( 'The address on your business registration, one line each.', 'wp-easycart' ),
+					'default'     => '',
+					'keywords'    => array( 'business address', 'company address', 'seller', 'invoice' ),
+					'legacy'      => array( 'page' => 'initial-setup', 'section' => 'Business details', 'label' => 'Registered address ( 6.0.5 )' ),
+				),
+				'ec_option_business_tax_id' => array(
+					'type'        => 'text',
+					'label'       => class_exists( 'wp_easycart_business' ) ? wp_easycart_business::auto_label() : __( 'VAT number', 'wp-easycart' ),
+					'desc'        => __( 'Your VAT, GST or ABN number. Tax invoices in the EU, the UK, Australia and New Zealand must show it.', 'wp-easycart' ),
+					'default'     => '',
+					'keywords'    => array( 'vat number', 'abn', 'gst number', 'tax id', 'ein', 'tax invoice' ),
+					'legacy'      => array( 'page' => 'initial-setup', 'section' => 'Business details', 'label' => 'Tax number ( 6.0.5 )' ),
+				),
+				'ec_option_business_tax_label' => array(
+					'type'        => 'text',
+					'label'       => __( 'What the number is called', 'wp-easycart' ),
+					'desc'        => __( 'Leave it empty to use your country\'s name for it.', 'wp-easycart' ),
+					'default'     => '',
+					'placeholder' => class_exists( 'wp_easycart_business' ) ? wp_easycart_business::auto_label() : '',
+					'advanced'    => true,
+					'keywords'    => array( 'vat number', 'abn', 'tax id label' ),
+					'legacy'      => array( 'page' => 'initial-setup', 'section' => 'Business details', 'label' => 'Tax number label ( 6.0.5 )' ),
+				),
+			),
+		),
+
 		'currency' => array(
 			'title'  => __( 'Currency', 'wp-easycart' ),
 			'hint'    => __( 'How every price is written across the store, emails and admin', 'wp-easycart' ),
@@ -684,6 +1156,16 @@ return array(
 					'preset' => __( 'Usual %1$s format: %2$s', 'wp-easycart' ),
 				) );
 			},
+			/* 6.0.5 ( Matt's H2 ): past orders keep their currency; this offers to show them in the store's ( ecv2_store_details_order_currency_html() ). */
+			'actions' => array(
+				array(
+					'id'       => 'relabel_order_currency',
+					'label'    => __( 'Show past orders in the store\'s currency', 'wp-easycart' ),
+					'desc'     => __( 'For orders that were really paid in the store\'s currency although they were recorded in another.', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => 'ecv2_store_details_relabel_order_currency',
+				),
+			),
 			'fields'  => array(
 				'ecv2_store_details_currency_preview' => array(
 					'type'   => 'html',
@@ -714,7 +1196,7 @@ return array(
 				'ec_option_currency_symbol_location' => array(
 					'type'     => 'pills',
 					'label'    => __( 'Symbol position', 'wp-easycart' ),
-					'desc'     => __( 'Before the amount gives $40.00; after gives 40.00$.', 'wp-easycart' ),
+					'desc'     => ecv2_store_details_position_desc(),
 					'default'  => '1',
 					'options'  => array(
 						'1' => __( 'Before the amount', 'wp-easycart' ),
@@ -722,6 +1204,15 @@ return array(
 					),
 					'keywords' => array( 'left', 'right', 'prefix', 'suffix' ),
 					'legacy'   => array( 'page' => 'initial-setup', 'section' => 'Currency', 'label' => 'Currency: Location' ),
+				),
+				/* 6.0.5 ( admin review M9 ): 93,00 € or CHF 12.00, as most of Europe writes prices. */
+				'ec_option_currency_symbol_space' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Space between the symbol and the amount', 'wp-easycart' ),
+					'desc'     => __( 'Writes 93,00 € or CHF 12.00 instead of 93,00€. The space never lets a price break over two lines.', 'wp-easycart' ),
+					'default'  => 0,
+					'keywords' => array( 'space', 'gap', 'euro', 'format', 'nbsp' ),
+					'legacy'   => array( 'page' => 'initial-setup', 'section' => 'Currency', 'label' => 'Currency: Space ( 6.0.5 )' ),
 				),
 				'ec_option_show_currency_code' => array(
 					'type'     => 'toggle',
@@ -786,7 +1277,7 @@ return array(
 					),
 					'label'     => __( 'Exchange rates', 'wp-easycart' ),
 					'desc'      => __( 'Used only when a shopper switches currency with the currency widget. The rate is how much of that currency one unit of your base currency buys. Leave your base currency out.', 'wp-easycart' ),
-					'default'   => 'EUR=.73,GBP=.6,JPY=101.9',
+					'default'   => '',
 					'advanced'  => true,
 					'sanitize'  => 'ecv2_store_details_sanitize_exchange_rates',
 					'validate'  => 'ecv2_store_details_exchange_rates_warning',

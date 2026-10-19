@@ -281,7 +281,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			update_option( 'ec_option_paypal_use_paylater', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_use_paylater'] ) );
 			update_option( 'ec_option_paypal_lc', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_lc'] ) ) );
 			update_option( 'ec_option_paypal_charset', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_charset'] ) ) );
-			update_option( 'ec_option_paypal_weight_unit', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_weight_unit'] ) ), array( 'lbs', 'kgs' ) ) );
+			update_option( 'ec_option_paypal_weight_unit', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_weight_unit'] ) ), array( 'lbs', 'kgs', 'oz', 'g' ) ) ); /* 6.0.5: ounces and grams */
 			update_option( 'ec_option_paypal_use_sandbox', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_use_sandbox'] ) );
 			update_option( 'ec_option_paypal_collect_shipping', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_collect_shipping'] ) );
 
@@ -321,7 +321,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			update_option( 'ec_option_paypal_use_selected_currency', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_use_selected_currency'] ) ) );
 			update_option( 'ec_option_paypal_lc', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_lc'] ) ) );
 			update_option( 'ec_option_paypal_charset', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_charset'] ) ) );
-			update_option( 'ec_option_paypal_weight_unit', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_weight_unit'] ) ) );
+			update_option( 'ec_option_paypal_weight_unit', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_weight_unit'] ) ), array( 'lbs', 'kgs', 'oz', 'g' ) ) );
 			update_option( 'ec_option_paypal_use_sandbox', (int) $_POST['ec_option_paypal_use_sandbox'] );
 			update_option( 'ec_option_paypal_collect_shipping', sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_collect_shipping'] ) ) );
 

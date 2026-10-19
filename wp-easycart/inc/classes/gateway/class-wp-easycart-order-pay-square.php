@@ -76,9 +76,11 @@ if ( class_exists( 'ec_square' ) && ! class_exists( 'wp_easycart_order_pay_squar
 					'postal_code'                     => (string) $order->billing_zip,
 					'country'                         => strtoupper( (string) $order->billing_country ),
 				),
-				'buyer_email_address' => (string) $order->user_email,
 				'location_id'         => $location,
 			);
+			if ( is_email( (string) $order->user_email ) ) { /* 6.0.5: only an email ( Square refuses the payment over one that is not ) */
+				$data['buyer_email_address'] = (string) $order->user_email;
+			}
 			if ( '' !== $verify ) {
 				$data['verification_token'] = $verify;
 			}

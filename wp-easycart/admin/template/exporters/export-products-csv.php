@@ -10,6 +10,7 @@
  * multi-file redirect / zip flow with a single streamed download.
  *
  * @since 6.0.0 Rewritten to stream in chunks.
+ * @since 6.0.5 Starts with the UTF-8 mark; adds yoast_meta_description while Yoast SEO is active.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -84,6 +85,13 @@ $last_product_id = 0;
 $keys = null;
 $output = null;
 
+/*
+ * 6.0.5: with Yoast SEO active the product editor shows Yoast's meta description ( kept on the product's page ) in place of
+ * seo_description, which stays in ec_product unseen. The file adds Yoast's as yoast_meta_description, after
+ * advanced_option_ids so every older column keeps its place; the importer writes it back to the page.
+ */
+$export_yoast = method_exists( 'wp_easycart_admin_products', 'export_yoast_description' ) && wp_easycart_admin_products::export_yoast_description();
+
 if ( function_exists( 'set_time_limit' ) ) {
 	@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a large export legitimately outlives max_execution_time; set_time_limit() warns where it is disabled.
 }
@@ -120,14 +128,21 @@ while ( true ) {
 	if ( null === $keys ) {
 		$keys = array_keys( $results[0] );
 		$keys[] = 'advanced_option_ids';
+		if ( $export_yoast ) {
+			$keys[] = wp_easycart_admin_products::YOAST_DESCRIPTION_COLUMN;
+		}
 		$output = fopen( 'php://output', 'w' );
+		wp_easycart_admin_csv_bom( $output, 'products' ); /* 6.0.5: without the UTF-8 mark Excel showed "–" as "â€“"; the importer skips it */
 		fputcsv( $output, $keys, ',', '"', '\\' ); /* 6.0.3: every argument given ( PHP 8.4 warns without the escape character, and a site showing warnings printed it into the file ) */
 	}
 
 	$chunk_product_ids = array();
+	$chunk_post_ids    = array();
 	foreach ( $results as $result ) {
 		$chunk_product_ids[] = (int) $result['product_id'];
+		$chunk_post_ids[]    = (int) $result['post_id'];
 	}
+	$yoast_by_post = $export_yoast ? wp_easycart_admin_products::yoast_descriptions( $chunk_post_ids ) : array();
 	$last_product_id = max( $last_product_id, max( $chunk_product_ids ) );
 	$chunk_placeholders = implode( ', ', array_fill( 0, count( $chunk_product_ids ), '%d' ) );
 
@@ -245,6 +260,11 @@ while ( true ) {
 			$line[] = '';
 		} else {
 			$line[] = isset( $advanced_options_by_product[ $product_id ] ) ? implode( ',', $advanced_options_by_product[ $product_id ] ) : '';
+		}
+
+		if ( $export_yoast ) {
+			/* As Yoast keeps it ( no slashes to take off, unlike the ec_product columns ). */
+			$line[] = isset( $yoast_by_post[ (int) $result['post_id'] ] ) ? $yoast_by_post[ (int) $result['post_id'] ] : '';
 		}
 
 		fputcsv( $output, $line, ',', '"', '\\' );

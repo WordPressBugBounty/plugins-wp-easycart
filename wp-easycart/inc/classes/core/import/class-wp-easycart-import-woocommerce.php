@@ -189,10 +189,8 @@ if ( ! class_exists( 'wp_easycart_import_woocommerce' ) ) :
 		 * @return string
 		 */
 		private function store_weight_unit() {
-			$unit = strtolower( (string) get_option( 'ec_option_weight_unit', '' ) );
-			if ( '' === $unit ) {
-				$unit = strtolower( (string) get_option( 'ec_option_weight', 'lbs' ) );
-			}
+			/* 6.0.5: the unit weights are entered in ( wp_easycart_packages::units(); ec_option_weight_unit and ec_option_weight are never saved ). */
+			$unit = class_exists( 'wp_easycart_packages' ) ? wp_easycart_packages::units()['weight'] : strtolower( (string) get_option( 'ec_option_paypal_weight_unit', 'lbs' ) );
 			if ( 0 === strpos( $unit, 'k' ) ) {
 				return 'kg';
 			}

@@ -65,7 +65,7 @@ $ecv2_prem_cta   = $ecv2_prem_only ? $ecv2_upsell['prem_cta'] : __( 'Get Premium
 		<a class="ecv2-upsell-plan<?php echo $ecv2_prem ? '' : ' is-recommended'; ?>" data-upsell-plan-card="pro" href="<?php echo esc_url( $ecv2_upsell['pro_url'] ); ?>" target="_blank" rel="noopener">
 			<span class="ecv2-upsell-plan-tag"><?php esc_html_e( 'Recommended', 'wp-easycart' ); ?></span>
 			<strong><?php esc_html_e( 'Pro', 'wp-easycart' ); ?></strong>
-			<span class="ecv2-upsell-plan-desc"><?php esc_html_e( 'Everything shown here, plus a year of priority support and updates.', 'wp-easycart' ); ?></span>
+			<span class="ecv2-upsell-plan-desc"><?php esc_html_e( 'Everything shown here, plus priority support and updates, billed yearly or monthly.', 'wp-easycart' ); ?></span>
 			<span class="ecv2-btn ecv2-btn-primary"><?php esc_html_e( 'Get Pro', 'wp-easycart' ); ?> →</span>
 		</a>
 		<a class="ecv2-upsell-plan<?php echo $ecv2_prem ? ' is-recommended' : ''; ?>" data-upsell-plan-card="premium" href="<?php echo esc_url( $ecv2_upsell['prem_url'] ); ?>" target="_blank" rel="noopener">

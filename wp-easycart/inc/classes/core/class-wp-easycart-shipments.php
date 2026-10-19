@@ -121,6 +121,9 @@ if ( ! class_exists( 'wp_easycart_shipments' ) ) :
 			foreach ( $changes as $hook ) {
 				add_action( $hook, array( __CLASS__, 'forget_queue' ), 1, 0 );
 			}
+			/* 6.0.5 ( FREE #402 ): a line removed, or given fewer units, on the order screen leaves the packages still waiting for a label. */
+			add_action( 'wpeasycart_order_detail_line_delete', array( __CLASS__, 'on_line_removed' ), 20, 2 );
+			add_action( 'wpeasycart_order_detail_line_update', array( __CLASS__, 'on_line_changed' ), 20, 5 );
 		}
 
 		/**
@@ -520,6 +523,8 @@ if ( ! class_exists( 'wp_easycart_shipments' ) ) :
 				$locked = self::lock( $order_id );
 				try {
 					unset( self::$line_providers[ $order_id ] );
+					/* 6.0.5 ( FREE #402 ): a line removed before this kept its package waiting, so the order never went to Shipped. */
+					self::tidy_lines( $order_id );
 					/* 6.0.2: whose record this is: a fulfillment partner's ( its slug ) or the store's ( '' ). */
 					$partner = self::partner(
 						(object) array(
@@ -617,7 +622,8 @@ if ( ! class_exists( 'wp_easycart_shipments' ) ) :
 
 		/**
 		 * Packages still waiting for a label. A fulfillment partner's package counts only while it still holds units the
-		 * partner has to make ( partner_package_open() ).
+		 * partner has to make ( partner_package_open() ); the store's only while a line in it is still on the order
+		 * ( 6.0.5, FREE #402: a package left holding a removed line waited forever ).
 		 *
 		 * @since 6.0.2 $owner.
 		 * @param int         $order_id Order.
@@ -627,12 +633,220 @@ if ( ! class_exists( 'wp_easycart_shipments' ) ) :
 		public static function waiting_packages( $order_id, $owner = null ) {
 			$count = 0;
 			$open  = array();
+			$lines = null;
 			foreach ( self::for_order( $order_id, array( 'returns' => false ) ) as $row ) {
-				if ( 'packed' === $row->status && ( null === $owner || (string) $row->partner === (string) $owner ) && ( '' === (string) $row->partner || self::partner_units_open( $row, $open ) ) ) {
+				if ( 'packed' !== $row->status || ( null !== $owner && (string) $row->partner !== (string) $owner ) ) {
+					continue;
+				}
+				if ( '' === (string) $row->partner ? self::store_units_open( $row, $lines ) : self::partner_units_open( $row, $open ) ) {
 					++$count;
 				}
 			}
 			return $count;
+		}
+
+		/**
+		 * A store's packed package still holds a line that is on the order ( with units ). One with no items listed counts,
+		 * as it always did.
+		 *
+		 * @since 6.0.5
+		 * @param object     $row   Packed store package ( decoded ).
+		 * @param array|null $lines The order's lines with units ( orderdetail_id => true ), read once per call of waiting_packages().
+		 * @return bool
+		 */
+		private static function store_units_open( $row, &$lines ) {
+			global $wpdb;
+			$items = (array) $row->items;
+			if ( ! $items ) {
+				return true;
+			}
+			if ( null === $lines ) {
+				$lines = array();
+				foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SELECT orderdetail_id FROM ec_orderdetail WHERE order_id = %d AND quantity > 0', (int) $row->order_id ) ) as $detail_id ) {
+					$lines[ (int) $detail_id ] = true;
+				}
+			}
+			foreach ( array_keys( $items ) as $detail_id ) {
+				if ( isset( $lines[ (int) $detail_id ] ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Action wpeasycart_order_detail_line_delete ( WP EasyCart PRO fires it before the line is deleted ): the line leaves
+		 * the packages still waiting for a label.
+		 *
+		 * @since 6.0.5
+		 * @param int $order_id       Order.
+		 * @param int $orderdetail_id Line.
+		 */
+		public static function on_line_removed( $order_id, $orderdetail_id ) {
+			try {
+				self::tidy_lines( (int) $order_id, array( (int) $orderdetail_id => 0 ) );
+			} catch ( \Throwable $e ) {
+				// Packages never stop a line edit; they are tidied again when the order is opened or shipped.
+				unset( $e );
+			}
+		}
+
+		/**
+		 * Action wpeasycart_order_detail_line_update ( WP EasyCart PRO fires it before the line is saved, with its new quantity ).
+		 *
+		 * @since 6.0.5
+		 * @param int    $order_id       Order.
+		 * @param int    $orderdetail_id Line.
+		 * @param string $title          Title.
+		 * @param string $model_number   SKU.
+		 * @param int    $quantity       The line's new quantity.
+		 */
+		public static function on_line_changed( $order_id, $orderdetail_id, $title = '', $model_number = '', $quantity = null ) {
+			if ( null === $quantity || '' === $quantity || ! is_numeric( $quantity ) ) {
+				return;
+			}
+			try {
+				self::tidy_lines( (int) $order_id, array( (int) $orderdetail_id => max( 0, (int) $quantity ) ) );
+			} catch ( \Throwable $e ) {
+				unset( $e );
+			}
+		}
+
+		/**
+		 * Bring the store's packages still waiting for a label in line with the order's lines ( 6.0.5, FREE #402 ): a line that
+		 * is gone leaves them, a line with fewer units keeps only what it has left after the units already labelled or shipped,
+		 * and a package left empty is removed. A line given more units ( only one named in $quantities ) puts them in the
+		 * waiting package that already holds it. Weights move by the units' weight. Labelled, shipped and return packages,
+		 * and a fulfillment partner's, stay as they are.
+		 *
+		 * Before 6.0.5 a line removed on the order screen stayed in its package: the package waited for a label forever and
+		 * the order never moved to Shipped when the rest shipped.
+		 *
+		 * @since 6.0.5
+		 * @param int   $order_id   Order.
+		 * @param array $quantities orderdetail_id => the quantity the line is about to have ( 0 = being removed ): the order
+		 *                          screen's hooks fire before the line is saved. Other lines are read from the order.
+		 * @return int Packages changed or removed.
+		 */
+		public static function tidy_lines( $order_id, $quantities = array() ) {
+			global $wpdb;
+			$order_id = (int) $order_id;
+			if ( $order_id <= 0 || ! self::ready() ) {
+				return 0;
+			}
+			$locked = self::lock( $order_id );
+			try {
+				$packed = array();
+				$held   = array();
+				foreach ( self::for_order( $order_id, array( 'returns' => false ) ) as $row ) {
+					if ( '' !== (string) $row->partner ) {
+						continue;
+					}
+					if ( 'packed' === $row->status ) {
+						$packed[] = $row;
+						continue;
+					}
+					foreach ( (array) $row->items as $detail_id => $qty ) {
+						$held[ (int) $detail_id ] = ( isset( $held[ (int) $detail_id ] ) ? $held[ (int) $detail_id ] : 0 ) + (int) $qty;
+					}
+				}
+				if ( ! $packed ) {
+					return 0;
+				}
+				/* What each line has left to pack: its quantity less what labelled and shipped packages already hold. */
+				$left = array();
+				foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, quantity FROM ec_orderdetail WHERE order_id = %d', $order_id ) ) as $line ) {
+					$left[ (int) $line->orderdetail_id ] = max( 0, (int) $line->quantity );
+				}
+				foreach ( (array) $quantities as $detail_id => $qty ) {
+					$left[ (int) $detail_id ] = max( 0, (int) $qty );
+				}
+				foreach ( $left as $detail_id => $qty ) {
+					$left[ $detail_id ] = max( 0, $qty - ( isset( $held[ $detail_id ] ) ? $held[ $detail_id ] : 0 ) );
+				}
+				$unit_weight = null;
+				$weigh       = function ( $counts ) use ( $order_id, &$unit_weight ) {
+					if ( null === $unit_weight ) {
+						$unit_weight = array();
+						if ( class_exists( 'wp_easycart_packages' ) ) {
+							foreach ( wp_easycart_packages::lines( $order_id ) as $line ) {
+								$unit_weight[ (int) $line->orderdetail_id ] = (float) $line->weight;
+							}
+						}
+					}
+					$total = 0;
+					foreach ( $counts as $detail_id => $qty ) {
+						$total += ( isset( $unit_weight[ (int) $detail_id ] ) ? $unit_weight[ (int) $detail_id ] : 0 ) * (int) $qty;
+					}
+					return $total;
+				};
+				$plans = array();
+				foreach ( $packed as $i => $row ) {
+					$keep  = array();
+					$taken = array();
+					foreach ( (array) $row->items as $detail_id => $qty ) {
+						$detail_id = (int) $detail_id;
+						$qty       = (int) $qty;
+						$give      = min( $qty, isset( $left[ $detail_id ] ) ? $left[ $detail_id ] : 0 );
+						if ( $give > 0 ) {
+							$keep[ $detail_id ]  = $give;
+							$left[ $detail_id ] -= $give;
+						}
+						if ( $qty - $give > 0 ) {
+							$taken[ $detail_id ] = $qty - $give;
+						}
+					}
+					$plans[ $i ] = array(
+						'keep'  => $keep,
+						'taken' => $taken,
+						'added' => array(),
+					);
+				}
+				/* More units on a line named: the waiting package that holds it takes them. */
+				foreach ( (array) $quantities as $detail_id => $qty ) {
+					$detail_id = (int) $detail_id;
+					if ( empty( $left[ $detail_id ] ) ) {
+						continue;
+					}
+					foreach ( $plans as $i => $plan ) {
+						if ( isset( $plan['keep'][ $detail_id ] ) ) {
+							$plans[ $i ]['keep'][ $detail_id ] += $left[ $detail_id ];
+							$plans[ $i ]['added'][ $detail_id ] = $left[ $detail_id ];
+							$left[ $detail_id ]                 = 0;
+							break;
+						}
+					}
+				}
+				$changed = 0;
+				foreach ( $plans as $i => $plan ) {
+					if ( ! $plan['taken'] && ! $plan['added'] ) {
+						continue;
+					}
+					$row = $packed[ $i ];
+					if ( ! $plan['keep'] ) {
+						$wpdb->delete( 'ec_order_shipment', array( 'shipment_id' => (int) $row->shipment_id ) );
+					} else {
+						self::update(
+							(int) $row->shipment_id,
+							array(
+								'items'  => $plan['keep'],
+								'weight' => round( max( 0, (float) $row->weight - $weigh( $plan['taken'] ) + $weigh( $plan['added'] ) ), 3 ),
+							)
+						);
+					}
+					++$changed;
+				}
+				if ( $changed ) {
+					self::forget_queue();
+					/** This action is documented in save_packages(). */
+					do_action( 'wp_easycart_order_packages_saved', $order_id );
+				}
+				return $changed;
+			} finally {
+				if ( $locked ) {
+					self::unlock( $order_id );
+				}
+			}
 		}
 
 		/**

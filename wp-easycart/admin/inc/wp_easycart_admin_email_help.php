@@ -774,7 +774,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_help' ) ) :
 			echo '<p>' . esc_html__( 'Once the plugin reports a successful test, send one from EasyCart too. When the checks see the plugin, this guide is replaced by a green "Your emails are sent by…" check.', 'wp-easycart' ) . '</p>';
 			if ( $last ) {
 				/* translators: 1: date, 2: result, 3: transport */
-				echo '<p class="ecem-help-meta">' . esc_html( sprintf( __( 'Last test: %1$s · %2$s · %3$s', 'wp-easycart' ), date_i18n( 'M j, H:i', strtotime( $last->created_at ) ), 'sent' === $last->status ? __( 'sent', 'wp-easycart' ) : __( 'failed', 'wp-easycart' ), ec_email::transport_label( $last->transport ) ) ) . '</p>';
+				echo '<p class="ecem-help-meta">' . esc_html( sprintf( __( 'Last test: %1$s · %2$s · %3$s', 'wp-easycart' ), wp_easycart_admin_date( strtotime( $last->created_at ), 'day_clock' ), 'sent' === $last->status ? __( 'sent', 'wp-easycart' ) : __( 'failed', 'wp-easycart' ), ec_email::transport_label( $last->transport ) ) ) . '</p>';
 			}
 			echo '<div class="ecem-help-acts">';
 			self::send_test_button( true );

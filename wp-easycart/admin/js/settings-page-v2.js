@@ -828,10 +828,15 @@
 
 		/* section list: active on scroll + smooth jump */
 		var $links = $( '#ecst_secnav a' );
+		/* 6.0.5: a section folded under the page's "Other …" group opens it first. */
+		function openMore( $el ) {
+			var more = $el.closest( 'details.ecst-more' )[0];
+			if ( more && ! more.open ) { more.open = true; }
+		}
 		$links.on( 'click', function( e ) {
 			e.preventDefault();
 			var $sec = $( '#ecst-sec-' + $.escapeSelector( $( this ).data( 'sec' ) ) );
-			if ( $sec.length ) { $sec[0].scrollIntoView( { behavior: 'smooth', block: 'start' } ); }
+			if ( $sec.length ) { openMore( $sec ); $sec[0].scrollIntoView( { behavior: 'smooth', block: 'start' } ); }
 		} );
 		if ( 'IntersectionObserver' in window ) {
 			var io = new IntersectionObserver( function( entries ) {
@@ -871,6 +876,7 @@
 		/* Open whatever hides the row: its advanced fold, an advanced ancestor's fold, a hidden-by-parent state. */
 		function reveal( $target ) {
 			var $sec = $target.closest( '.ecst-section' ), p = $target.data( 'parent' ), guard = 0;
+			openMore( $target ); /* 6.0.5 */
 			$( document ).trigger( 'ecst:reveal', [ $target ] ); // page scripts show a hidden tab or panel first ( shipping carrier tabs )
 			if ( $target.closest( '.ecst-drawer' ).length ) { $target.prop( 'hidden', false ); return; } // 6.0.2: its drawer opened above and shows every row
 			if ( $target.hasClass( 'is-advanced' ) && ! $sec.hasClass( 'is-adv-open' ) ) { $sec.find( '.ecst-fold-btn' ).trigger( 'click' ); }
@@ -960,102 +966,5 @@
 		};
 	}
 
-	/* ================================================================== */
-	/* Settings search ( home, every declared page header, above classic pages ) */
-	/* ================================================================== */
-	/* Mark the query words in a result label. One pass over the raw text: a word matches only where a word starts
-	 * ( "attach" marks "Attach" and "attachment", never the "a" inside "PDF" ), longest word first, one-letter words
-	 * are skipped unless they are the whole query, and each piece is escaped as it is emitted, so inserted <mark>
-	 * tags are never searched again. */
-	function highlight( text, term ) {
-		var src = text == null ? '' : String( text ), q = String( term || '' ).trim().toLowerCase();
-		var words = [], seen = {}, out = '', plain = '', i = 0, j, w, hit;
-		q.split( /\s+/ ).forEach( function( part ) {
-			if ( part && ( part.length > 1 || q.length === 1 ) && ! seen[ part ] ) { seen[ part ] = 1; words.push( part ); }
-		} );
-		if ( ! src || ! words.length ) { return esc( src ); }
-		words.sort( function( a, b ) { return b.length - a.length; } );
-		var wordChar = /[0-9A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
-		while ( i < src.length ) {
-			hit = '';
-			if ( i === 0 || ! wordChar.test( src.charAt( i - 1 ) ) || ! wordChar.test( src.charAt( i ) ) ) {
-				for ( j = 0; j < words.length; j++ ) {
-					w = words[ j ];
-					if ( src.substr( i, w.length ).toLowerCase() === w ) { hit = src.substr( i, w.length ); break; }
-				}
-			}
-			if ( hit ) {
-				out += esc( plain ) + '<mark>' + esc( hit ) + '</mark>';
-				plain = '';
-				i += hit.length;
-			} else {
-				plain += src.charAt( i );
-				i++;
-			}
-		}
-		return out + esc( plain );
-	}
-	$( '[data-ecst-search]' ).each( function() {
-		var $box = $( this ), $in = $box.find( '.ecst-search-input' ), $menu = $box.find( '.ecst-search-menu' ), timer = null, active = -1, lastTerm = '', xhr = null;
-		var current = String( $box.attr( 'data-current' ) || '' );
-		function open( on ) { $menu.prop( 'hidden', ! on ); $in.attr( 'aria-expanded', on ? 'true' : 'false' ); }
-		function render( results, term ) {
-			$menu.empty();
-			if ( ! results.length ) { $menu.append( $( '<div class="ecst-sr-empty"></div>' ).text( T.no_results || '' ) ); }
-			results.forEach( function( r, i ) {
-				var path = [ r.page_title, r.section_title ].filter( Boolean ).join( ' › ' );
-				var $a = $( '<a class="ecst-sr" role="option"></a>' ).attr( { href: r.url, id: $menu.attr( 'id' ) + '_' + i } )
-					.attr( 'data-page', r.page || '' ).attr( 'data-key', r.key || '' ).addClass( 'is-' + ( r.type || 'field' ) ).toggleClass( 'is-locked', !! r.locked )
-					.html( '<span class="ecst-sr-text"><span>' + highlight( r.label, term ) + '</span><small>' + highlight( r.desc || '', term ) + '</small></span>' + ( r.value_text ? '<span class="ecv2-chip">' + esc( r.value_text ) + '</span>' : '' ) + '<span class="ecst-sr-path">' + esc( path ) + '</span>' );
-				$menu.append( $a );
-			} );
-			active = -1;
-			$in.removeAttr( 'aria-activedescendant' );
-			open( true );
-		}
-		function search() {
-			var term = String( $in.val() || '' ).trim();
-			if ( term.length < 2 ) { open( false ); $menu.empty(); lastTerm = ''; return; }
-			if ( term === lastTerm ) { open( true ); return; }
-			lastTerm = term;
-			if ( xhr ) { xhr.abort(); }
-			xhr = $.get( V.ajax, { action: 'ecv2_settings_search', nonce: V.nonce, term: term } ).done( function( r ) {
-				if ( r && r.success && String( $in.val() || '' ).trim() === term ) { render( r.data.results || [], term.toLowerCase() ); }
-			} );
-		}
-		/* A result on the page being viewed scrolls to it instead of reloading. */
-		function go( $a ) {
-			var key = String( $a.attr( 'data-key' ) || '' ), page = String( $a.attr( 'data-page' ) || '' ), href = String( $a.attr( 'href' ) || '' );
-			if ( current && page === current ) {
-				if ( key && window.ecst && window.ecst.jump && window.ecst.jump( key ) ) { open( false ); $in.val( '' ); lastTerm = ''; return; }
-				var hash = href.indexOf( '#' ) !== -1 ? href.slice( href.indexOf( '#' ) + 1 ) : '';
-				if ( hash && document.getElementById( hash ) ) {
-					open( false );
-					if ( window.ecst && window.ecst.scrollTo ) { window.ecst.scrollTo( document.getElementById( hash ), 'start' ); } else { document.getElementById( hash ).scrollIntoView( { behavior: 'smooth', block: 'start' } ); }
-					return;
-				}
-			}
-			window.location.href = href;
-		}
-		$in.on( 'input', function() { clearTimeout( timer ); timer = setTimeout( search, 180 ); } );
-		$in.on( 'keydown', function( e ) {
-			var $rows = $menu.find( '.ecst-sr' );
-			if ( e.key === 'ArrowDown' ) { e.preventDefault(); if ( $menu.prop( 'hidden' ) && $rows.length ) { open( true ); } active = Math.min( active + 1, $rows.length - 1 ); }
-			else if ( e.key === 'ArrowUp' ) { e.preventDefault(); active = Math.max( active - 1, 0 ); }
-			else if ( e.key === 'Enter' ) { e.preventDefault(); var $go = active >= 0 ? $rows.eq( active ) : $rows.first(); if ( $go.length ) { go( $go ); } return; }
-			else if ( e.key === 'Escape' ) { if ( ! $menu.prop( 'hidden' ) ) { e.stopPropagation(); open( false ); } else { $in.val( '' ).trigger( 'blur' ); } return; }
-			else { return; }
-			$rows.removeClass( 'is-active' ).eq( active ).addClass( 'is-active' );
-			if ( $rows.eq( active ).length ) { $in.attr( 'aria-activedescendant', $rows.eq( active ).attr( 'id' ) ); $rows.eq( active )[0].scrollIntoView( { block: 'nearest' } ); }
-		} );
-		$menu.on( 'click', '.ecst-sr', function( e ) { if ( e.ctrlKey || e.metaKey || e.shiftKey ) { return; } e.preventDefault(); go( $( this ) ); } );
-		$( document ).on( 'mousedown', function( e ) { if ( ! $.contains( $box[0], e.target ) ) { open( false ); } } );
-		$in.on( 'focus', function() { if ( $menu.children().length && String( $in.val() || '' ).trim().length >= 2 ) { open( true ); } } );
-	} );
-	/* "/" focuses the first search box on the screen. */
-	$( document ).on( 'keydown', function( e ) {
-		if ( e.key !== '/' || $( e.target ).is( 'input, textarea, select, [contenteditable]' ) ) { return; }
-		var $first = $( '[data-ecst-search] .ecst-search-input' ).filter( ':visible' ).first();
-		if ( $first.length ) { e.preventDefault(); $first.trigger( 'focus' ); }
-	} );
+	/* 6.0.5: the settings search boxes became the one admin search ( admin-search-v2.js ). */
 } )( jQuery );

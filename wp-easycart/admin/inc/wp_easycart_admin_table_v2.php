@@ -114,6 +114,13 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		protected $view_modes = array( 'table', 'card', 'spreadsheet' );
 		protected $current_view_mode = 'table';
 		protected $health_stats = array();
+
+		/**
+		 * Names of quick filters that have no tile of their own ( health_filter => label ), for the filter tag. @since 6.0.5
+		 *
+		 * @var array
+		 */
+		protected $health_labels = array();
 		protected $inline_editable_columns = array();
 		protected $spreadsheet_columns = array();
 		protected $completeness_fields = array();
@@ -1052,7 +1059,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			// Add new.
 			if ( $this->add_new ) {
-				echo '<a href="' . esc_url( $this->add_new_url() ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . ' title="' . esc_attr( $this->add_new_label ) . '"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
+				echo '<a href="' . esc_url( $this->add_new_url() ) . '" class="ecv2-btn ecv2-btn-primary" data-ecv2-add-new="1"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . ' title="' . esc_attr( $this->add_new_label ) . '"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
 			}
 
 			echo '</div>'; // .ecv2-page-header-right
@@ -1160,7 +1167,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					/* Informational tile: no filter, no hover, ignored by the click handler. */
 					echo '<div class="ecv2-stat-card ecv2-stat-static' . esc_attr( $hidden_class ) . esc_attr( $zero_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-stat-key="' . esc_attr( $key ) . '">';
 				} else {
-					echo '<div class="ecv2-stat-card' . esc_attr( $active_class ) . esc_attr( $hidden_class ) . esc_attr( $zero_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-filter="' . esc_attr( $stat['filter_value'] ) . '" data-stat-key="' . esc_attr( $key ) . '" role="button" tabindex="0">';
+					echo '<div class="ecv2-stat-card' . esc_attr( $active_class ) . esc_attr( $hidden_class ) . esc_attr( $zero_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-filter="' . esc_attr( $stat['filter_value'] ) . '" data-stat-key="' . esc_attr( $key ) . '" role="button" tabindex="0"' . ( ! empty( $stat['title'] ) ? ' title="' . esc_attr( $stat['title'] ) . '"' : '' ) . '>';
 				}
 				echo '<div class="ecv2-stat-main">';
 				echo '<div class="ecv2-stat-value">' . esc_html( $stat['value'] ) . '</div>';
@@ -1216,7 +1223,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			}
 			echo '<div class="ecv2-bulk-actions">';
 			echo '<span class="ecv2-bulk-count" style="display:none;"><span id="ecv2-selected-count">0</span> ' . esc_html__( 'selected', 'wp-easycart' ) . '</span>';
-			echo '<select id="ecv2-bulk-action" name="ec_admin_form_action" class="ecv2-select">';
+			echo '<select id="ecv2-bulk-action" name="ec_admin_form_action" class="ecv2-select" aria-label="' . esc_attr__( 'Bulk actions', 'wp-easycart' ) . '">';
 			echo '<option value="">' . esc_html__( 'Bulk Actions', 'wp-easycart' ) . '</option>';
 			foreach ( $this->bulk_actions as $action ) {
 				echo '<option value="' . esc_attr( $action['name'] ) . '">' . esc_html( $action['label'] ) . '</option>';
@@ -1278,6 +1285,9 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				if ( '' !== $health_filter_val ) {
 					$health_label = ucwords( str_replace( '_', ' ', $health_filter_val ) );
 					// Match the label from the health stats config.
+					if ( isset( $this->health_labels[ $health_filter_val ] ) ) {
+						$health_label = $this->health_labels[ $health_filter_val ];
+					}
 					if ( ! empty( $this->health_stats ) ) {
 						foreach ( $this->health_stats as $stat ) {
 							if ( $stat['filter_value'] === $health_filter_val ) {
@@ -1410,7 +1420,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						}
 					}
 					echo '<div class="ecv2-drawer-select-wrap">';
-					echo '<select class="ecv2-filter-select ecv2-drawer-select' . ( '' !== $ajax_attrs ? ' ecv2-filter-ajax' : '' ) . '" data-filter="filter_' . esc_attr( $i ) . '" data-placeholder="' . esc_attr( sprintf( __( 'Search %s...', 'wp-easycart' ), strtolower( $filter['label'] ) ) ) . '"' . $ajax_attrs . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $ajax_attrs is built above from literal attribute names and esc_attr() values.
+					echo '<select class="ecv2-filter-select ecv2-drawer-select' . ( '' !== $ajax_attrs ? ' ecv2-filter-ajax' : '' ) . '" aria-label="' . esc_attr( $filter['label'] ) . '" data-filter="filter_' . esc_attr( $i ) . '" data-placeholder="' . esc_attr( sprintf( __( 'Search %s...', 'wp-easycart' ), strtolower( $filter['label'] ) ) ) . '"' . $ajax_attrs . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $ajax_attrs is built above from literal attribute names and esc_attr() values.
 					echo '<option value="">' . esc_html( sprintf( __( 'All %s', 'wp-easycart' ), $filter['label'] ) ) . '</option>';
 					if ( isset( $filter['data'] ) && is_array( $filter['data'] ) ) {
 						foreach ( $filter['data'] as $option ) {
@@ -1675,6 +1685,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				}
 				echo '<tr><td colspan="' . ( $visible_cols + 2 ) . '" class="ecv2-empty-state">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $visible_cols is an integer counter.
 				$this->print_empty_state();
+				$this->print_search_everywhere();
 				echo '</td></tr>';
 			}
 			echo '</tbody>';
@@ -1684,7 +1695,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 		protected function print_table_thead() {
 			echo '<thead><tr>';
-			echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-select-all" class="ecv2-check-all" /></th>';
+			echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-select-all" class="ecv2-check-all" aria-label="' . esc_attr__( 'Select every row on this page', 'wp-easycart' ) . '" /></th>';
 
 			foreach ( $this->list_columns as $col ) {
 				if ( isset( $col['format'] ) && $col['format'] === 'hidden' ) {
@@ -1709,7 +1720,10 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				}
 
 				echo '<th class="ecv2-col ecv2-col-' . esc_attr( $col['name'] ) . $sorted_class . $extra_classes . '"' . $width_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sorted_class only carries the asc/desc value whitelisted in the constructor, $extra_classes is static literals, $width_attr is built from esc_attr().
-				echo '<a href="' . esc_url( $this->get_url( 'orderby', $col['name'], false, 'order', $sort ) ) . '" class="ecv2-sort-link">';
+				/* 6.0.5 ( admin review M14 ): a column with no heading ( the picture ) still names its sort link. */
+				$sort_name = ( '' === trim( (string) $col['label'] ) ) ? ( ! empty( $col['chooser_label'] ) ? (string) $col['chooser_label'] : ucwords( str_replace( array( '_', '1' ), array( ' ', '' ), (string) $col['name'] ) ) ) : '';
+				/* translators: %s: a column, e.g. Image. */
+				echo '<a href="' . esc_url( $this->get_url( 'orderby', $col['name'], false, 'order', $sort ) ) . '" class="ecv2-sort-link"' . ( '' !== $sort_name ? ' aria-label="' . esc_attr( sprintf( __( 'Sort by %s', 'wp-easycart' ), $sort_name ) ) . '"' : '' ) . '>';
 				echo esc_html( $col['label'] );
 				if ( $this->current_sort_column == $col['name'] ) {
 					echo '<span class="ecv2-sort-arrow">' . ( $this->current_sort_direction === 'asc' ? '&#9650;' : '&#9660;' ) . '</span>';
@@ -1790,7 +1804,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					break;
 				case 'date':
 					$ts = empty( $result->{ $col['name'] } ) ? 0 : strtotime( $result->{ $col['name'] } ); // Empty or NULL columns print nothing ( strtotime( null ) is deprecated on PHP 8.1+ ).
-					echo $ts > 0 ? esc_html( date( 'F d, Y', $ts ) ) : '';
+					echo $ts > 0 ? esc_html( wp_easycart_admin_date( $ts, 'date' ) ) : '';
 					break;
 				case 'datetime':
 					$ts = empty( $result->{ $col['name'] } ) ? 0 : strtotime( $result->{ $col['name'] } );
@@ -1927,6 +1941,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			if ( empty( $this->results ) ) {
 				echo '<div class="ecv2-empty-state">';
 				$this->print_empty_state();
+				$this->print_search_everywhere();
 				echo '</div>';
 			}
 			echo '</div>';
@@ -1945,6 +1960,22 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		protected function print_empty_state() {
 			echo '<span class="dashicons dashicons-info-outline"></span> ';
 			echo esc_html__( 'No items found.', 'wp-easycart' );
+		}
+
+		/**
+		 * Under an empty list that was searched: "Search everywhere for …", which opens the admin search with the same words
+		 * ( a customer typed into the orders list, an order number into the products list ).
+		 *
+		 * @since 6.0.5
+		 */
+		protected function print_search_everywhere() {
+			$term = isset( $_GET['s'] ) ? trim( sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the list's own read-only search box.
+			if ( '' === $term || ! class_exists( 'wp_easycart_admin_search' ) ) {
+				return;
+			}
+			/* translators: %s: what was typed in the list's search box. */
+			$text = sprintf( __( 'Search everywhere for “%s”', 'wp-easycart' ), $term );
+			echo '<p class="ecv2-empty-everywhere"><button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-wpec-search-open="' . esc_attr( $term ) . '"><span class="dashicons dashicons-search" aria-hidden="true"></span> ' . esc_html( $text ) . '</button></p>';
 		}
 
 		/**
@@ -2011,6 +2042,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				// Empty state: white background centered message matching table/card views.
 				echo '<div class="ecv2-empty-state ecv2-empty-state-ss">';
 				$this->print_empty_state();
+				$this->print_search_everywhere();
 				echo '</div>';
 			} else {
 				echo '<table class="ecv2-spreadsheet">';
@@ -2063,7 +2095,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			// Left: per page selector.
 			echo '<div class="ecv2-pagination-left">';
-			echo '<select name="perpage" class="ecv2-select ecv2-select-sm ecv2-perpage-select">';
+			echo '<select name="perpage" class="ecv2-select ecv2-select-sm ecv2-perpage-select" aria-label="' . esc_attr__( 'Rows per page', 'wp-easycart' ) . '">';
 			foreach ( $this->perpage_options as $pp ) {
 				echo '<option value="' . esc_attr( $pp ) . '"' . selected( $this->perpage, $pp, false ) . '>' . esc_html( $pp ) . ' ' . esc_html__( 'per page', 'wp-easycart' ) . '</option>';
 			}
@@ -2208,7 +2240,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					break;
 				case 'price':
 					echo '<div class="ecv2-be-price-wrap">';
-					echo '<select id="ecv2-be-' . esc_attr( $field['name'] ) . '-mode" class="ecv2-select ecv2-select-sm">';
+					echo '<select id="ecv2-be-' . esc_attr( $field['name'] ) . '-mode" class="ecv2-select ecv2-select-sm" aria-label="' . esc_attr( isset( $field['label'] ) ? $field['label'] : $field['name'] ) . '">';
 					echo '<option value="">- ' . esc_html__( 'No Change', 'wp-easycart' ) . ' -</option>';
 					echo '<option value="set">' . esc_html__( 'Set to', 'wp-easycart' ) . '</option>';
 					echo '<option value="increase">' . esc_html__( 'Increase by', 'wp-easycart' ) . '</option>';
@@ -2221,7 +2253,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					break;
 				case 'number':
 					echo '<div class="ecv2-be-number-wrap">';
-					echo '<select id="ecv2-be-' . esc_attr( $field['name'] ) . '-mode" class="ecv2-select ecv2-select-sm">';
+					echo '<select id="ecv2-be-' . esc_attr( $field['name'] ) . '-mode" class="ecv2-select ecv2-select-sm" aria-label="' . esc_attr( isset( $field['label'] ) ? $field['label'] : $field['name'] ) . '">';
 					echo '<option value="">- ' . esc_html__( 'No Change', 'wp-easycart' ) . ' -</option>';
 					echo '<option value="set">' . esc_html__( 'Set to', 'wp-easycart' ) . '</option>';
 					echo '<option value="increase">' . esc_html__( 'Increase by', 'wp-easycart' ) . '</option>';
@@ -2466,22 +2498,16 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			return esc_url_raw( $url );
 		}
 
+		/**
+		 * A list's date: Today / Yesterday with the time, a weekday within the week, else the day ( the year when not this year ), in
+		 * the store's order and language ( 6.0.5, wp_easycart_dates::relative() ).
+		 *
+		 * @param int $date_timestamp Wall clock timestamp.
+		 * @param int $now_timestamp  The same clock now.
+		 * @return string
+		 */
 		protected function format_relative_date( $date_timestamp, $now_timestamp ) {
-			$date_compare = date( 'Ymd', $date_timestamp );
-			$today_compare = date( 'Ymd', $now_timestamp );
-			$yesterday_compare = date( 'Ymd', strtotime( 'Yesterday' ) );
-			$week_cutoff = strtotime( '-7 days 11:59pm' );
-			if ( $date_compare == $today_compare ) {
-				return __( 'Today', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp );
-			} else if ( $date_compare == $yesterday_compare ) {
-				return __( 'Yesterday', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp );
-			} else if ( $date_timestamp > $week_cutoff ) {
-				return date( 'l ' . get_option( 'time_format' ), $date_timestamp );
-			} else if ( date( 'Y', $date_timestamp ) != date( 'Y', $now_timestamp ) ) {
-				return date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp );
-			} else {
-				return date( 'M j ' . get_option( 'time_format' ), $date_timestamp );
-			}
+			return wp_easycart_dates::relative( $date_timestamp, $now_timestamp );
 		}
 
 		/**

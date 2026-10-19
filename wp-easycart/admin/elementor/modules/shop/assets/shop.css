@@ -1254,3 +1254,8 @@
 		animation-duration: 1.6s;
 	}
 }
+
+/* 6.0.5: the lowest price of the last 30 days under a reduced price ( wp_easycart_price_history ). */
+:where( .wpec-card ) .ec_product_prior_price { margin: 2px 0 0; font-size: 0.8em; line-height: 1.4; opacity: 0.75; }
+/* 6.0.5 ( admin review M16 ): the price per kg, litre, metre or item ( wp_easycart_unit_price ). */
+:where( .wpec-card ) .ec_product_unit_price { margin: 2px 0 0; font-size: 0.8em; line-height: 1.4; opacity: 0.8; font-variant-numeric: tabular-nums; }

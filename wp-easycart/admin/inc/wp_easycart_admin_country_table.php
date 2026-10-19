@@ -23,6 +23,14 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 		const NONCE = 'wp-easycart-cntv2';
 		private $regions_by_country = null;
 
+		/**
+		 * The United Kingdom's regions as WP EasyCart seeded them before 6.0.5 ( counties abolished from 1974 to 1996, the pre-1975
+		 * Scottish counties, the Welsh preserved counties ): only these are switched off by the update, never a region a store added.
+		 *
+		 * @since 6.0.5
+		 */
+		const UK_LEGACY = array( 'Avon', 'Bedfordshire', 'Berkshire', 'Buckinghamshire', 'Cambridgeshire', 'Cheshire', 'Cleveland', 'Cornwall', 'Cumbria', 'Derbyshire', 'Devon', 'Dorset', 'Durham', 'East Sussex', 'Essex', 'Gloucestershire', 'Hampshire', 'Herefordshire', 'Hertfordshire', 'Isle of Wight', 'Kent', 'Lancashire', 'Leicestershire', 'Lincolnshire', 'London', 'Merseyside', 'Middlesex', 'Norfolk', 'Northamptonshire', 'Northumberland', 'North Humberside', 'North Yorkshire', 'Nottinghamshire', 'Oxfordshire', 'Rutland', 'Shropshire', 'Somerset', 'South Humberside', 'South Yorkshire', 'Staffordshire', 'Suffolk', 'Surrey', 'Tyne and Wear', 'Warwickshire', 'West Midlands', 'West Sussex', 'West Yorkshire', 'Wiltshire', 'Worcestershire', 'Clwyd', 'Dyfed', 'Gwent', 'Gwynedd', 'Mid Glamorgan', 'Powys', 'South Glamorgan', 'West Glamorgan', 'Aberdeenshire', 'Angus', 'Argyll', 'Ayrshire', 'Banffshire', 'Berwickshire', 'Bute', 'Caithness', 'Clackmannanshire', 'Dumfriesshire', 'Dunbartonshire', 'East Lothian', 'Fife', 'Inverness-shire', 'Kincardineshire', 'Kinross-shire', 'Kirkcudbrightshire', 'Lanarkshire', 'Midlothian', 'Moray', 'Nairnshire', 'Orkney', 'Peeblesshire', 'Perthshire', 'Renfrewshire', 'Ross-shire', 'Roxburghshire', 'Selkirkshire', 'Shetland', 'Stirlingshire', 'Sutherland', 'West Lothian', 'Wigtownshire', 'Antrim', 'Down', 'Armagh', 'Fermanagh', 'Londonderry', 'Tyrone' );
+
 		public function __construct() { parent::__construct(); $this->setup(); }
 
 		public static function url() { return admin_url( 'admin.php?page=wp-easycart-settings&subpage=country' ); }
@@ -39,7 +47,7 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
 			$this->set_label( __( 'Country', 'wp-easycart' ), __( 'Countries', 'wp-easycart' ) );
 			$this->set_view_modes( array( 'table' ) );
-			$this->set_list_columns( array(
+			$columns = array(
 				array( 'name' => 'name_cnt', 'label' => __( 'Country', 'wp-easycart' ), 'format' => 'cnt_name', 'linked' => true ),
 				array( 'name' => 'iso2_cnt', 'label' => __( 'ISO', 'wp-easycart' ), 'format' => 'cnt_iso', 'width' => 110 ),
 				array( 'name' => 'ship_to_active', 'label' => __( 'Ship to', 'wp-easycart' ), 'format' => 'cnt_ship', 'width' => 110 ),
@@ -51,7 +59,11 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				array( 'name' => 'iso3_cnt', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'vat_b2b_enabled', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'stripe_taxrate_id', 'format' => 'hidden', 'label' => '' ),
-			) );
+			);
+			if ( class_exists( 'wp_easycart_regions' ) && wp_easycart_regions::ready() ) { /* 6.0.5: whether the region must be chosen ( NULL = WP EasyCart decides ) */
+				$columns[] = array( 'name' => 'region_required', 'format' => 'hidden', 'label' => '' );
+			}
+			$this->set_list_columns( $columns );
 			$this->set_search_columns( array( 'ec_country.name_cnt', 'ec_country.iso2_cnt', 'ec_country.iso3_cnt' ) );
 			$this->set_bulk_actions( array(
 				array( 'name' => 'ecv2-country-enable', 'label' => __( 'Enable ship-to', 'wp-easycart' ) ),
@@ -108,6 +120,7 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 			echo '<a href="#" class="ecv2-btn ecv2-btn-primary" onclick="' . esc_attr( $this->add_new_js ) . '"><span class="dashicons dashicons-plus-alt2"></span> ' . esc_html( $this->add_new_label ) . '</a>';
 			echo '</div>';
 			echo '</div>';
+			echo self::uk_regions_notice(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts ( 6.0.5 ).
 		}
 
 		/**
@@ -211,12 +224,15 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				case 'cnt_iso': echo '<span class="ecv2-mono">' . esc_html( $result->iso2_cnt ) . ( $result->iso3_cnt ? ' · ' . esc_html( $result->iso3_cnt ) : '' ) . '</span>'; break;
 				case 'cnt_ship': echo '<label class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" class="eccnt-ship" data-kind="country" data-id="' . esc_attr( $result->id_cnt ) . '"' . ( $result->ship_to_active ? ' checked' : '' ) . ' /><span class="ecv2-toggle-slider"></span></label>'; break;
 				case 'cnt_vat':
-					if ( (float) $result->vat_rate_cnt > 0 ) { echo '<span class="ecv2-chip ecv2-chip-blue">' . esc_html( rtrim( rtrim( number_format( (float) $result->vat_rate_cnt, 2 ), '0' ), '.' ) ) . '% VAT</span>' . ( $result->vat_b2b_enabled ? ' <span class="ecv2-sub" style="display:inline">' . esc_html__( 'B2B reverse charge', 'wp-easycart' ) . '</span>' : '' ) . ( $result->stripe_taxrate_id ? ' <span class="ecv2-sub ecv2-mono" style="display:inline">' . esc_html( $result->stripe_taxrate_id ) . '</span>' : '' ); }
+					if ( (float) $result->vat_rate_cnt > 0 ) { echo '<span class="ecv2-chip ecv2-chip-blue">' . esc_html( rtrim( rtrim( number_format( (float) $result->vat_rate_cnt, 2 ), '0' ), '.' ) ) . '% VAT</span>' . ( $result->vat_b2b_enabled ? '' : ' <span class="ecv2-sub" style="display:inline">' . esc_html__( 'business rate', 'wp-easycart' ) . '</span>' ) . ( $result->stripe_taxrate_id ? ' <span class="ecv2-sub ecv2-mono" style="display:inline">' . esc_html( $result->stripe_taxrate_id ) . '</span>' : '' ); }
 					else { echo '<span class="ecv2-sub">—</span>'; }
 					break;
 				case 'cnt_regions':
 					$n = (int) $result->region_count;
 					echo $n ? '<a href="#" class="ecv2-usage" onclick="return eccountry.toggle_tree( this );">' . esc_html( sprintf( _n( '%d region', '%d regions', $n, 'wp-easycart' ), $n ) ) . '</a>' . ( (int) $result->region_active !== $n ? ' <span class="ecv2-sub" style="display:inline">' . esc_html( sprintf( __( '%d ship-to', 'wp-easycart' ), (int) $result->region_active ) ) . '</span>' : '' ) : '<span class="ecv2-sub">—</span>';
+					if ( $n && class_exists( 'wp_easycart_regions' ) && ! wp_easycart_regions::required( $result->iso2_cnt, ( isset( $result->region_required ) && null !== $result->region_required ) ? (int) $result->region_required : null ) ) { /* 6.0.5 */
+						echo ' <span class="ecv2-sub eccnt-optional" style="display:inline">' . esc_html__( 'optional at checkout', 'wp-easycart' ) . '</span>';
+					}
 					break;
 				default: parent::print_cell_content( $result, $col );
 			}
@@ -240,7 +256,113 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				'off'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_country WHERE ship_to_active = 0' ),
 			);
 		}
-		public static function flush() { wp_cache_delete( 'wpeasycart-countries' ); wp_cache_delete( 'wpeasycart-states' ); wp_cache_flush(); }
+		public static function flush() { wp_cache_delete( 'wpeasycart-countries' ); wp_cache_delete( 'wpeasycart-states' ); if ( class_exists( 'wp_easycart_address' ) ) { wp_easycart_address::forget(); } wp_cache_flush(); }
+
+		/**
+		 * What "Update UK regions" would do: today's regions ( ec_default_countries_states.php ) the list lacks, old defaults still
+		 * offered that today's list no longer has ( switched off, never deleted: rates, zones and saved addresses that name them keep
+		 * them ), and default names that changed ( Orkney → Orkney Islands ). Null when the store has no United Kingdom.
+		 *
+		 * @since 6.0.5
+		 * @return array|null country_id, add ( seed rows ), off ( id => name ), rename ( id => name ).
+		 */
+		public static function uk_regions_plan() {
+			global $wpdb;
+			$country_id = (int) $wpdb->get_var( "SELECT id_cnt FROM ec_country WHERE iso2_cnt = 'GB' LIMIT 1" );
+			if ( $country_id <= 0 ) {
+				return null;
+			}
+			$defaults = include EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_default_countries_states.php';
+			$seed     = array();
+			foreach ( ( is_array( $defaults ) && isset( $defaults['states'] ) ) ? (array) $defaults['states'] : array() as $row ) {
+				if ( 'GB' === strtoupper( (string) $row['iso2_cnt'] ) ) {
+					$seed[ strtolower( (string) $row['code_sta'] ) ] = $row;
+				}
+			}
+			$legacy = array_map( 'strtolower', self::UK_LEGACY );
+			$have   = array();
+			$plan   = array(
+				'country_id' => $country_id,
+				'add'        => array(),
+				'off'        => array(),
+				'rename'     => array(),
+			);
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id_sta, code_sta, name_sta, ship_to_active FROM ec_state WHERE idcnt_sta = %d', $country_id ) ) as $row ) {
+				$code          = strtolower( (string) $row->code_sta );
+				$have[ $code ] = true;
+				if ( isset( $seed[ $code ] ) ) {
+					if ( (string) $row->name_sta === (string) $row->code_sta && (string) $seed[ $code ]['name_sta'] !== (string) $row->name_sta ) {
+						$plan['rename'][ (int) $row->id_sta ] = (string) $seed[ $code ]['name_sta'];
+					}
+				} elseif ( in_array( $code, $legacy, true ) && ! empty( $row->ship_to_active ) ) {
+					$plan['off'][ (int) $row->id_sta ] = (string) $row->name_sta;
+				}
+			}
+			foreach ( $seed as $code => $row ) {
+				if ( ! isset( $have[ $code ] ) ) {
+					$plan['add'][] = $row;
+				}
+			}
+			return $plan;
+		}
+
+		/**
+		 * Carry out uk_regions_plan(): add today's regions ( offered at checkout ), switch off the old ones, update changed names.
+		 *
+		 * @since 6.0.5
+		 * @return array added, off, renamed.
+		 */
+		public static function uk_regions_apply() {
+			global $wpdb;
+			$plan = self::uk_regions_plan();
+			$done = array(
+				'added'   => 0,
+				'off'     => 0,
+				'renamed' => 0,
+			);
+			if ( ! $plan ) {
+				return $done;
+			}
+			foreach ( $plan['add'] as $row ) {
+				if ( $wpdb->insert( 'ec_state', array( 'idcnt_sta' => $plan['country_id'], 'code_sta' => (string) $row['code_sta'], 'name_sta' => (string) $row['name_sta'], 'sort_order' => (int) $row['sort_order'], 'group_sta' => (string) $row['group_sta'], 'ship_to_active' => 1 ), array( '%d', '%s', '%s', '%d', '%s', '%d' ) ) ) {
+					++$done['added'];
+				}
+			}
+			foreach ( array_keys( $plan['off'] ) as $id ) {
+				$done['off'] += (int) $wpdb->update( 'ec_state', array( 'ship_to_active' => 0 ), array( 'id_sta' => (int) $id ), array( '%d' ), array( '%d' ) );
+			}
+			foreach ( $plan['rename'] as $id => $name ) {
+				$done['renamed'] += (int) $wpdb->update( 'ec_state', array( 'name_sta' => $name ), array( 'id_sta' => (int) $id ), array( '%s' ), array( '%d' ) );
+			}
+			self::flush();
+			return $done;
+		}
+
+		/**
+		 * The offer above the list while the United Kingdom still has old regions on offer, or ''.
+		 *
+		 * @since 6.0.5
+		 * @return string HTML.
+		 */
+		public static function uk_regions_notice() {
+			$plan = self::uk_regions_plan();
+			if ( ! $plan || ! $plan['off'] ) {
+				return '';
+			}
+			$names = array_slice( array_values( $plan['off'] ), 0, 4 );
+			/* translators: 1: a few old county names, 2: how many in all */
+			$text = sprintf( __( 'The United Kingdom still offers counties that no longer exist, such as %1$s ( %2$d in all ).', 'wp-easycart' ), implode( ', ', $names ), count( $plan['off'] ) );
+			$detail = __( 'Update to today’s counties of England, the council areas of Scotland and Wales, and the six counties of Northern Ireland. The old ones are switched off, not deleted, so shipping zones, tax rates and saved addresses that name them keep them. A UK address does not need a county.', 'wp-easycart' );
+			$button = '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="eccnt_uk_btn" onclick="return eccountry.uk_regions( this );"'
+				. ' data-title="' . esc_attr__( 'Update the United Kingdom’s regions?', 'wp-easycart' ) . '"'
+				/* translators: 1: regions added, 2: regions switched off */
+				. ' data-body="' . esc_attr( sprintf( __( '%1$d of today’s regions are added and offered at checkout; %2$d old ones are switched off. Nothing is deleted.', 'wp-easycart' ), count( $plan['add'] ), count( $plan['off'] ) ) ) . '"'
+				. ' data-ok="' . esc_attr__( 'Update regions', 'wp-easycart' ) . '" data-busy="' . esc_attr__( 'Updating…', 'wp-easycart' ) . '">' . esc_html__( 'Update UK regions', 'wp-easycart' ) . '</button>';
+			if ( class_exists( 'wp_easycart_admin' ) && method_exists( 'wp_easycart_admin', 'notice_html' ) ) {
+				return '<div class="eccnt-uk-notice">' . wp_easycart_admin::notice_html( 'info', $text, array( 'detail' => $detail, 'dismissible' => false ) ) . '<div class="eccnt-uk-actions">' . $button . '</div></div>';
+			}
+			return '<div class="eccnt-uk-notice"><p>' . esc_html( $text ) . ' ' . esc_html( $detail ) . '</p>' . $button . '</div>';
+		}
 
 		public static function country_payload( $id ) {
 			global $wpdb;
@@ -248,7 +370,7 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 			if ( ! $c ) { return null; }
 			$regions = array();
 			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_state WHERE idcnt_sta = %d ORDER BY sort_order ASC, name_sta ASC', (int) $id ) ) as $s ) { $regions[] = array( 'id' => (int) $s->id_sta, 'name' => wp_unslash( $s->name_sta ), 'code' => $s->code_sta, 'group' => wp_unslash( (string) $s->group_sta ), 'sort' => (int) $s->sort_order, 'ship' => (bool) $s->ship_to_active ); }
-			return array( 'id' => (int) $c->id_cnt, 'name' => wp_unslash( $c->name_cnt ), 'iso2' => $c->iso2_cnt, 'iso3' => $c->iso3_cnt, 'sort' => (int) $c->sort_order, 'ship' => (bool) $c->ship_to_active, 'vat' => (float) $c->vat_rate_cnt, 'vat_b2b' => (bool) $c->vat_b2b_enabled, 'stripe' => (string) $c->stripe_taxrate_id, 'regions' => $regions, 'usage' => self::usage( $c ) );
+			return array( 'id' => (int) $c->id_cnt, 'name' => wp_unslash( $c->name_cnt ), 'iso2' => $c->iso2_cnt, 'iso3' => $c->iso3_cnt, 'sort' => (int) $c->sort_order, 'ship' => (bool) $c->ship_to_active, 'vat' => (float) $c->vat_rate_cnt, 'vat_b2b' => (bool) $c->vat_b2b_enabled, 'stripe' => (string) $c->stripe_taxrate_id, 'regions' => $regions, 'usage' => self::usage( $c ), 'region' => self::region_choice( $c ) );
 		}
 
 		/** One rendered list row ( with its region sub-rows ) so the list can update in place after an AJAX save. */
@@ -275,6 +397,18 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 			);
 		}
 
+		/**
+		 * The drawer's "Region at checkout" choice ( 6.0.5, wp_easycart_regions ): ready, value '' | '1' | '0', what '' means here.
+		 *
+		 * @param object $c Country row.
+		 * @return array
+		 */
+		public static function region_choice( $c ) {
+			$ready  = class_exists( 'wp_easycart_regions' ) && wp_easycart_regions::ready();
+			$stored = ( $ready && isset( $c->region_required ) && null !== $c->region_required ) ? (string) (int) $c->region_required : '';
+			return array( 'ready' => $ready, 'value' => $stored, 'default_required' => $ready ? wp_easycart_regions::required( (string) $c->iso2_cnt, null ) : true );
+		}
+
 		public static function save_country( $d, $id = 0 ) {
 			global $wpdb;
 			$name = isset( $d['name'] ) ? sanitize_text_field( $d['name'] ) : ''; $iso2 = isset( $d['iso2'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $d['iso2'] ) ) : ''; $iso3 = isset( $d['iso3'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $d['iso3'] ) ) : '';
@@ -284,6 +418,9 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 			$dupe = $wpdb->get_var( $wpdb->prepare( 'SELECT id_cnt FROM ec_country WHERE iso2_cnt = %s AND id_cnt != %d', $iso2, (int) $id ) );
 			if ( $dupe ) { return new WP_Error( 'dupe', sprintf( __( 'ISO code %s is already used by another country.', 'wp-easycart' ), $iso2 ) ); }
 			$data = array( 'name_cnt' => $name, 'iso2_cnt' => $iso2, 'iso3_cnt' => $iso3, 'sort_order' => isset( $d['sort'] ) ? (int) $d['sort'] : 0, 'ship_to_active' => ! empty( $d['ship'] ) ? 1 : 0, 'vat_rate_cnt' => isset( $d['vat'] ) ? max( 0, min( 100, (float) $d['vat'] ) ) : 0, 'vat_b2b_enabled' => ! empty( $d['vat_b2b'] ) ? 1 : 0 );
+			if ( array_key_exists( 'region_required', $d ) && class_exists( 'wp_easycart_regions' ) && wp_easycart_regions::ready() ) { /* 6.0.5: '' = WP EasyCart decides */
+				$data['region_required'] = ( '1' === (string) $d['region_required'] ) ? 1 : ( ( '0' === (string) $d['region_required'] ) ? 0 : null );
+			}
 			if ( $id ) {
 				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT iso2_cnt FROM ec_country WHERE id_cnt = %d', (int) $id ) );
 				if ( ! $old ) { return new WP_Error( 'missing', __( 'Country not found.', 'wp-easycart' ) ); }
@@ -457,6 +594,24 @@ function ecv2_country_restore_preview() {
 			'default_countries'        => (int) $r['default_countries'],
 			'default_regions'          => (int) $r['default_states'],
 			'default_region_countries' => (int) $r['default_region_countries'],
+		)
+	);
+}
+
+add_action( 'wp_ajax_ecv2_country_uk_regions', 'ecv2_country_uk_regions' );
+/**
+ * Update the United Kingdom's regions to today's ( wp_easycart_admin_country_table::uk_regions_apply() ).
+ *
+ * @since 6.0.5
+ */
+function ecv2_country_uk_regions() {
+	ecv2_cnt_guard();
+	$done = wp_easycart_admin_country_table::uk_regions_apply();
+	wp_send_json_success(
+		array(
+			/* translators: 1: regions added, 2: regions switched off */
+			'message' => sprintf( __( 'United Kingdom regions updated: %1$d added, %2$d old ones switched off.', 'wp-easycart' ), (int) $done['added'], (int) $done['off'] ),
+			'done'    => $done,
 		)
 	);
 }

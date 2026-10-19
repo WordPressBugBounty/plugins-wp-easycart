@@ -203,6 +203,7 @@ $wpec_screen_data = array(
 		'close'             => __( 'Close', 'wp-easycart' ),
 		'find_placeholder'  => __( 'Find an order, or type what to do…', 'wp-easycart' ),
 		'find_label'        => __( 'Find an order or run an action', 'wp-easycart' ),
+		'find_this_order'   => __( 'This order', 'wp-easycart' ),
 		'find_actions'      => __( 'This order', 'wp-easycart' ),
 		'find_orders'       => __( 'Orders', 'wp-easycart' ),
 		'find_searching'    => __( 'Searching…', 'wp-easycart' ),
@@ -285,6 +286,8 @@ $wpec_screen_data = array(
 		<a href="<?php echo esc_attr( $this->action ); ?>" class="ecdv2-header-back ecodv2-crumb" title="<?php esc_attr_e( 'Back to orders', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Back to orders', 'wp-easycart' ); ?>"><span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span><span class="ecodv2-crumb-text"><?php esc_html_e( 'Orders', 'wp-easycart' ); ?></span></a>
 		<span class="ecodv2-crumb-sep" aria-hidden="true">/</span>
 
+		<?php /* 6.0.5: the order, its facts and the buttons share one column beside the back link, so buttons that wrap start under the order number. */ ?>
+		<div class="ecodv2-header-main">
 		<div class="ecdv2-header-meta">
 			<p class="ecdv2-header-title ecodv2-title-row">
 				<span class="ec_admin_order_details_order_id"><?php esc_html_e( 'Order', 'wp-easycart' ); ?> #<?php echo esc_html( $this->order->order_id ); ?></span>
@@ -328,7 +331,7 @@ $wpec_screen_data = array(
 			<div class="ecdv2-header-sub">
 				<?php $edit_order_date_action = apply_filters( 'wp_easycart_admin_order_details_order_date_edit_action', 'show_pro_required' ); ?>
 				<span class="ecodv2-date-view" id="ec_admin_order_details_order_date_row">
-					<span id="ec_admin_order_details_order_date"><?php echo esc_html( date_i18n( 'M j Y ' . get_option( 'time_format' ), $this->order_timestamp ) ); ?></span>
+					<span id="ec_admin_order_details_order_date"><?php echo esc_html( wp_easycart_admin_date( $this->order_timestamp, 'date_time' ) ); ?></span>
 				</span>
 				<?php do_action( 'wp_easycart_order_details_order_date' ); ?>
 				<?php if ( '' !== $wpec_customer_name ) { ?>
@@ -461,6 +464,7 @@ $wpec_screen_data = array(
 			</div>
 
 		</div>
+		</div>
 	</div>
 
 	<?php /* =============================== WHERE THE ORDER STANDS, AND WHAT IS NEXT =============================== */ ?>
@@ -474,7 +478,7 @@ $wpec_screen_data = array(
 					<?php do_action( 'wp_easycart_admin_order_status_box_right' ); ?>
 					<?php
 					$wpec_current_status_color = ( $selected_order_status && '' !== (string) $selected_order_status->color_code ) ? $selected_order_status->color_code : '#e5e7eb';
-					$wpec_current_status_label = ( $selected_order_status ) ? $selected_order_status->order_status : __( 'Processing', 'wp-easycart' );
+					$wpec_current_status_label = ( $selected_order_status ) ? wp_easycart_order_status_label( $selected_order_status ) : __( 'Processing', 'wp-easycart' );
 					$wpec_current_is_archived  = ( $selected_order_status && ! empty( $selected_order_status->is_archieved ) );
 					?>
 					<button type="button" class="ecodv2-status-pill" id="ecodv2_status_pill" onclick="ecodv2_status_toggle(); return false;" aria-haspopup="listbox" aria-expanded="false" aria-controls="ecodv2_status_menu">
@@ -494,7 +498,7 @@ $wpec_screen_data = array(
 							?>
 						<button type="button" class="ecodv2-status-item<?php echo $wpec_is_current ? ' is-current' : ''; ?><?php echo empty( $order_status->is_approved ) ? ' is-unapproved' : ''; ?>" data-status-id="<?php echo esc_attr( $order_status->status_id ); ?>" data-color="<?php echo esc_attr( $wpec_dot ); ?>" onclick="ecodv2_set_status( '<?php echo esc_attr( $order_status->status_id ); ?>', this ); return false;" role="option" aria-selected="<?php echo $wpec_is_current ? 'true' : 'false'; ?>">
 							<span class="ecodv2-status-dot" style="background:<?php echo esc_attr( $wpec_dot ); ?>;"></span>
-							<span class="ecodv2-status-item-label"><?php echo esc_html( $order_status->order_status ); ?></span>
+							<span class="ecodv2-status-item-label"><?php echo esc_html( wp_easycart_order_status_label( $order_status ) ); ?></span>
 							<span class="ecodv2-status-check dashicons dashicons-yes" aria-hidden="true"></span>
 						</button>
 						<?php } ?>
@@ -503,7 +507,7 @@ $wpec_screen_data = array(
 					</div>
 					<select id="orderstatus_id" class="ecodv2-visually-hidden" name="orderstatus_id" tabindex="-1" aria-hidden="true" data-partial-refund="<?php echo esc_attr__( 'Partial Refund', 'wp-easycart' ); ?>" data-refunded="<?php echo esc_attr__( 'Refunded', 'wp-easycart' ); ?>" data-paid="<?php echo esc_attr__( 'Paid', 'wp-easycart' ); ?>" data-cancelled="<?php echo esc_attr__( 'Canceled', 'wp-easycart' ); ?>" data-failed="<?php echo esc_attr__( 'Failed', 'wp-easycart' ); ?>" data-pending="<?php echo esc_attr__( 'Processing', 'wp-easycart' ); ?>">
 						<?php foreach ( $order_status_list as $order_status ) { ?>
-						<option value="<?php echo esc_attr( $order_status->status_id ); ?>" isapproved="<?php echo esc_attr( $order_status->is_approved ); ?>"<?php selected( $this->order->orderstatus_id, $order_status->status_id ); ?>><?php echo esc_html( $order_status->order_status ); ?></option>
+						<option value="<?php echo esc_attr( $order_status->status_id ); ?>" isapproved="<?php echo esc_attr( $order_status->is_approved ); ?>"<?php selected( $this->order->orderstatus_id, $order_status->status_id ); ?>><?php echo esc_html( wp_easycart_order_status_label( $order_status ) ); ?></option>
 						<?php } ?>
 						<option value="add-new"><?php esc_html_e( '+ Add New Status', 'wp-easycart' ); ?></option>
 					</select>
@@ -755,11 +759,14 @@ $wpec_screen_data = array(
 			?>
 			<div class="ecdv2-card ecodv2-card-totals ecodv2-o-payment">
 				<div class="ecdv2-card-header">
+					<?php /* 6.0.5: the title and its chips stay together, so buttons that wrap start at the left. */ ?>
+					<div class="ecodv2-card-head-main">
 					<h3 class="ecdv2-card-title"><?php esc_html_e( 'Payment', 'wp-easycart' ); ?></h3>
 					<?php if ( $wpec_pay_chip ) { ?>
 					<span class="ecodv2-pay-chip <?php echo esc_attr( $wpec_pay_chip[0] ); ?>" id="ecodv2_pay_chip"><?php echo esc_html( $wpec_pay_chip[1] ); ?></span>
 					<?php } ?>
 					<span class="ecodv2-refund-chip<?php echo ( (float) $this->order->refund_total < 0.005 ) ? ' ec_admin_initial_hide' : ''; ?>" id="ecodv2_refund_chip"><?php esc_html_e( 'Refunded', 'wp-easycart' ); ?> <span class="ecodv2-amt" data-amt-for="ecodv2_refund_chip_amount"><?php echo esc_html( wp_easycart_admin_order_screen::money( $this->order->refund_total ) ); ?></span><span class="ecodv2-amt-raw" id="ecodv2_refund_chip_amount" hidden><?php echo esc_html( number_format( (float) $this->order->refund_total, 2, '.', '' ) ); ?></span></span>
+					</div>
 					<div class="ecdv2-card-header-actions">
 						<?php
 						/* 6.0.3: an order paid with a gift card can be refunded to the card ( WP EasyCart PRO 6.0.3's refund window ). */
@@ -785,6 +792,13 @@ $wpec_screen_data = array(
 					$wpec_fig_method   = wp_easycart_admin_order_screen::payment_method( $this->order );
 					$wpec_fig_how      = implode( ' · ', array_filter( array( $wpec_fig_method['method'], $wpec_fig_method['gateway'] ) ) );
 					?>
+					<?php
+					/* 6.0.5 ( Matt's H2 ): an order placed in another currency than the store's now, or by a shopper browsing in another, says so. */
+					$wpec_currency_note = class_exists( 'wp_easycart_order_currency' ) ? wp_easycart_order_currency::note( $this->order ) : '';
+					if ( '' !== $wpec_currency_note ) {
+						?>
+					<p class="ecodv2-currency-note"><span class="dashicons dashicons-money-alt" aria-hidden="true"></span><span><?php echo esc_html( $wpec_currency_note ); ?></span></p>
+					<?php } ?>
 					<div class="ecodv2-figures<?php echo $wpec_fig_due ? ' is-due' : ''; ?>" id="ecodv2_figures">
 						<?php if ( $wpec_fig_due ) { ?>
 						<div class="ecodv2-figure"><span class="ecodv2-figure-label"><?php esc_html_e( 'Order total', 'wp-easycart' ); ?></span><span class="ecodv2-figure-amt" data-ecodv2-mirror="ec_admin_order_details_totals_grand_total"><?php echo esc_html( wp_easycart_admin_order_screen::money( $this->order->grand_total ) ); ?></span></div>
@@ -930,9 +944,16 @@ $wpec_screen_data = array(
 								<div class="ecodv2-trow-total"><?php echo wp_easycart_admin_order_screen::amount_html( 'ec_admin_order_details_totals_tax_total', $this->order->tax_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- amount_html() escapes. ?></div>
 							</div>
 							<div class="ecodv2-trow<?php if ( $this->order->vat_total == 0 ) { ?> ec_admin_initial_hide<?php } ?>" id="ec_admin_order_details_totals_vat_total_row">
-								<div class="ecodv2-trow-label"><?php esc_html_e( 'VAT', 'wp-easycart' ); ?> <span class="ecodv2-trow-note"><span id="ec_admin_order_details_totals_vat_total_rate"><?php echo esc_html( $this->order->vat_rate ); ?></span>%</span></div>
+								<div class="ecodv2-trow-label"><?php echo esc_html( ( class_exists( 'wp_easycart_vat' ) && method_exists( 'wp_easycart_vat', 'name_label' ) ) ? wp_easycart_vat::name_label() : __( 'VAT', 'wp-easycart' ) ); /* 6.0.5: VAT or GST */ ?> <span class="ecodv2-trow-note"><span id="ec_admin_order_details_totals_vat_total_rate"><?php echo esc_html( $this->order->vat_rate ); ?></span>%</span></div>
 								<div class="ecodv2-trow-total"><?php echo wp_easycart_admin_order_screen::amount_html( 'ec_admin_order_details_totals_vat_total', $this->order->vat_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- amount_html() escapes. ?></div>
 							</div>
+							<?php /* 6.0.5: the VAT each rate charged ( tax classes ) */ ?>
+							<?php foreach ( ( class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::order_breakdown( $this->order ) : array() ) as $wpec_vat_part ) { ?>
+							<div class="ecodv2-trow ecodv2-trow-sub">
+								<div class="ecodv2-trow-label"><span class="ecodv2-trow-note"><?php echo esc_html( sprintf( /* translators: 1: a VAT rate, e.g. 7, 2: the amount it applied to. */ __( '%1$s%% on %2$s', 'wp-easycart' ), wp_easycart_tax_classes::rate_text( $wpec_vat_part['rate'] ), wp_easycart_admin_order_screen::money( $wpec_vat_part['base'] ) ) ); ?></span></div>
+								<div class="ecodv2-trow-total"><span class="ecodv2-trow-note"><?php echo esc_html( wp_easycart_admin_order_screen::money( $wpec_vat_part['vat'] ) ); ?></span></div>
+							</div>
+							<?php } ?>
 							<div class="ecodv2-trow<?php if ( $this->order->gst_total == 0 ) { ?> ec_admin_initial_hide<?php } ?>" id="ec_admin_order_details_totals_gst_total_row">
 								<div class="ecodv2-trow-label"><?php esc_html_e( 'GST', 'wp-easycart' ); ?> <span class="ecodv2-trow-note"><span id="ec_admin_order_details_totals_gst_total_rate"><?php echo esc_html( $this->order->gst_rate ); ?></span>%</span></div>
 								<div class="ecodv2-trow-total"><?php echo wp_easycart_admin_order_screen::amount_html( 'ec_admin_order_details_totals_gst_total', $this->order->gst_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- amount_html() escapes. ?></div>
@@ -1230,7 +1251,7 @@ $wpec_screen_data = array(
 							<?php do_action( 'wp_easycart_admin_order_details_shipping_after_address1', $this->order ); ?>
 							<div id="ec_admin_order_details_shipping_address2"><?php echo esc_html( $this->order->shipping_address_line_2 ); ?></div>
 							<?php do_action( 'wp_easycart_admin_order_details_shipping_after_address2', $this->order ); ?>
-							<div id="ec_admin_order_details_shipping_address3"><?php echo esc_html( trim( $this->order->shipping_city . ' ' . $this->order->shipping_state . ' ' . $this->order->shipping_zip ) ); ?></div>
+							<div id="ec_admin_order_details_shipping_address3"><?php echo esc_html( wp_easycart_address::place_line( $this->order, 'shipping', true ) ); /* 6.0.5: in the country's order */ ?></div>
 							<?php do_action( 'wp_easycart_admin_order_details_shipping_after_city', $this->order ); ?>
 							<div id="ec_admin_order_details_shipping_country"><?php echo esc_html( $this->order->shipping_country_name ); ?></div>
 							<?php do_action( 'wp_easycart_admin_order_details_shipping_after_country_name', $this->order ); ?>
@@ -1262,7 +1283,7 @@ $wpec_screen_data = array(
 								<?php do_action( 'wp_easycart_admin_order_details_billing_after_address1', $this->order ); ?>
 								<div id="ec_admin_order_details_billing_address2"><?php echo esc_html( $this->order->billing_address_line_2 ); ?></div>
 								<?php do_action( 'wp_easycart_admin_order_details_billing_after_address2', $this->order ); ?>
-								<div id="ec_admin_order_details_billing_address3"><?php echo esc_html( trim( $this->order->billing_city . ' ' . $this->order->billing_state . ' ' . $this->order->billing_zip ) ); ?></div>
+								<div id="ec_admin_order_details_billing_address3"><?php echo esc_html( wp_easycart_address::place_line( $this->order, 'billing', true ) ); /* 6.0.5: in the country's order */ ?></div>
 								<?php do_action( 'wp_easycart_admin_order_details_billing_after_city', $this->order ); ?>
 								<div id="ec_admin_order_details_billing_country"><?php echo esc_html( $this->order->billing_country_name ); ?></div>
 								<?php do_action( 'wp_easycart_admin_order_details_billing_after_country_name', $this->order ); ?>
@@ -1374,7 +1395,7 @@ $wpec_screen_data = array(
 						</div>
 						<div class="ecodv2-doc-row">
 							<span class="dashicons dashicons-media-text" aria-hidden="true"></span>
-							<span class="ecodv2-doc-name"><?php esc_html_e( 'Receipt', 'wp-easycart' ); ?><?php if ( $wpec_receipt_sent ) { ?> <span class="ecodv2-doc-note"><?php echo esc_html( sprintf( /* translators: %s: date. */ __( 'Sent %s', 'wp-easycart' ), date_i18n( 'M j', $wpec_receipt_sent ) ) ); ?></span><?php } ?></span>
+							<span class="ecodv2-doc-name"><?php esc_html_e( 'Receipt', 'wp-easycart' ); ?><?php if ( $wpec_receipt_sent ) { ?> <span class="ecodv2-doc-note"><?php echo esc_html( sprintf( /* translators: %s: date. */ __( 'Sent %s', 'wp-easycart' ), wp_easycart_admin_date( $wpec_receipt_sent, 'day' ) ) ); ?></span><?php } ?></span>
 							<a class="ecodv2-doc-act" href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&bulk=' . (int) $this->order->order_id . '&ec_admin_form_action=print-receipt&wp_easycart_nonce=' . $wpec_doc_nonce ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Print', 'wp-easycart' ); ?><span class="screen-reader-text"> <?php esc_html_e( 'the receipt', 'wp-easycart' ); ?></span></a>
 							<?php if ( $wpec_has_email ) { ?>
 							<button type="button" class="ecodv2-doc-act" onclick="ecodv2_send_dialog( document.getElementById( 'ecodv2_send_email_link' ), 'receipt' ); return false;"><?php esc_html_e( 'Email', 'wp-easycart' ); ?><span class="screen-reader-text"> <?php esc_html_e( 'the receipt', 'wp-easycart' ); ?></span></button>
@@ -1383,7 +1404,7 @@ $wpec_screen_data = array(
 						<?php if ( $wpec_shipped_sent ) { ?>
 						<div class="ecodv2-doc-row">
 							<span class="dashicons dashicons-email-alt" aria-hidden="true"></span>
-							<span class="ecodv2-doc-name"><?php esc_html_e( 'Shipped email', 'wp-easycart' ); ?> <span class="ecodv2-doc-note"><?php echo esc_html( sprintf( /* translators: %s: date. */ __( 'Sent %s', 'wp-easycart' ), date_i18n( 'M j', $wpec_shipped_sent ) ) ); ?></span></span>
+							<span class="ecodv2-doc-name"><?php esc_html_e( 'Shipped email', 'wp-easycart' ); ?> <span class="ecodv2-doc-note"><?php echo esc_html( sprintf( /* translators: %s: date. */ __( 'Sent %s', 'wp-easycart' ), wp_easycart_admin_date( $wpec_shipped_sent, 'day' ) ) ); ?></span></span>
 							<?php if ( $wpec_has_email ) { ?>
 							<button type="button" class="ecodv2-doc-act" onclick="ecodv2_send_dialog( document.getElementById( 'ecodv2_send_email_link' ), 'shipped' ); return false;"><?php esc_html_e( 'Send again', 'wp-easycart' ); ?><span class="screen-reader-text"> <?php esc_html_e( 'the shipped email', 'wp-easycart' ); ?></span></button>
 							<?php } ?>
@@ -1454,8 +1475,10 @@ $wpec_screen_data = array(
 	$wpec_stamps_on      = $wpec_stamps_on || isset( $wpec_label_rows['stamps'] );
 	$wpec_shipstation_on = $wpec_shipstation_on || isset( $wpec_label_rows['shipstation'] );
 	$wpec_shipping_name  = trim( (string) $this->order->shipping_first_name . ' ' . (string) $this->order->shipping_last_name );
-	$wpec_ship_to        = trim( $wpec_shipping_name . ' · ' . $this->order->shipping_address_line_1 . ( '' !== (string) $this->order->shipping_address_line_2 ? ' ' . $this->order->shipping_address_line_2 : '' ) . ', ' . $this->order->shipping_city . ' ' . $this->order->shipping_state . ' ' . $this->order->shipping_zip . ', ' . $this->order->shipping_country_name . ( '' !== (string) $this->order->shipping_phone ? ' · ' . $this->order->shipping_phone : '' ) );
-	$wpec_package        = trim( $this->order->order_weight . ' — ' . sprintf( _n( '%d item', '%d items', $item_count, 'wp-easycart' ), $item_count ) );
+	$wpec_ship_to        = trim( $wpec_shipping_name . ' · ' . wp_easycart_address::one_line( $this->order, 'shipping', array( 'name' => false, 'company' => false, 'all' => true ) ) . ( '' !== (string) $this->order->shipping_phone ? ' · ' . $this->order->shipping_phone : '' ) ); /* 6.0.5: in the country's order */
+	/* 6.0.5: the weight says its unit ( ounces and grams too ). */
+	$wpec_weight_unit    = class_exists( 'wp_easycart_packages' ) ? wp_easycart_packages::units()['weight'] : '';
+	$wpec_package        = trim( ( (float) $this->order->order_weight > 0 ? rtrim( rtrim( number_format( (float) $this->order->order_weight, 3, '.', '' ), '0' ), '.' ) . ( '' !== $wpec_weight_unit ? ' ' . $wpec_weight_unit : '' ) . ' — ' : '' ) . sprintf( _n( '%d item', '%d items', $item_count, 'wp-easycart' ), $item_count ) );
 	$wpec_label_pkgs     = wp_easycart_admin_order_screen::label_rows( $this->order );
 	$wpec_label_open     = 0;
 	foreach ( $wpec_label_pkgs as $wpec_lp ) {

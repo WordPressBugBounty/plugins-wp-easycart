@@ -71,6 +71,12 @@
 
 /* Canada grid */
 .ectx-canada { container-type:inline-size; container-name:ectx-canada; }
+/* 6.0.5: saved rates a province has since changed */
+.ectx-canada .ecst-action.ectx-canada-old { margin:0 0 14px; padding:12px 14px; border:1px solid #fcd34d; border-radius:var(--ecv2-rs, 6px); background:var(--ecv2-amber-light, #fef3c7); }
+.ectx-canada-old .ecst-action-text b { color:#92400e; }
+.ectx-canada-old .ecst-action-text span { color:#78350f; margin-top:2px; }
+.ectx-canada-old .ecv2-btn { flex:none; }
+@media ( max-width:600px ) { .ectx-canada .ecst-action.ectx-canada-old { flex-wrap:wrap; } }
 .ectx-canada-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; font-size:13px; font-weight:500; color:var(--ecv2-g700); }
 .ectx-canada-bar .ecv2-select { max-width:220px !important; }
 .ectx-canada-bar .ectx-hint { font-weight:400; font-size:12px; color:var(--ecv2-g500); }
@@ -170,4 +176,35 @@
 	.ectx-rates .ectx-row-actions { opacity:1; }
 	.ectx-rates .ectx-row.is-editing select.ectx-edit, .ectx-addrow .ecv2-select { max-width:none; }
 	.ectx-confirm-in { align-items:flex-start; }
+}
+
+/* 6.0.5: recommended tax settings by store country ( wp_easycart_admin_tax_setup ): what would change, Apply, Keep my settings, Undo. */
+.ectx-setup { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
+.ectx-setup-card { border: 1px solid var(--ecv2-g200); border-left: 4px solid var(--ecst-accent, var(--ecv2-primary)); border-radius: var(--ecv2-r, 8px); background: #fff; padding: 16px 18px; }
+.ectx-setup-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.ectx-setup-head b { font-size: 14px; color: var(--ecv2-g900); }
+.ectx-setup-head span { font-size: 12px; color: var(--ecv2-g500); }
+.ectx-setup-lede { margin: 4px 0 12px; font-size: 13px; color: var(--ecv2-g600); }
+.ectx-setup-choices { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 12px; }
+.ectx-setup-choice { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--ecv2-g600); }
+.ectx-setup-choice select { min-width: 240px; max-width: 100%; }
+.ectx-setup-list { list-style: none; margin: 0; padding: 0; }
+.ectx-setup-list li { display: grid; grid-template-columns: minmax( 0, 1fr ) minmax( 0, auto ); gap: 2px 16px; margin: 0; padding: 9px 0; border-top: 1px solid var(--ecv2-g100); font-size: 13px; }
+.ectx-setup-label { min-width: 0; font-weight: 600; color: var(--ecv2-g900); }
+.ectx-setup-ft { max-width: 60ch; text-align: right; color: var(--ecv2-g800); }
+.ectx-setup-ft s { color: var(--ecv2-g500); }
+.ectx-setup-why { grid-column: 1 / -1; font-size: 12px; color: var(--ecv2-g500); }
+.ectx-setup-changes[aria-busy="true"] { opacity: .55; }
+.ectx-setup-ok { margin: 0; font-size: 13px; color: var(--ecv2-g600); }
+.ectx-setup-actions.ecst-action { flex-wrap: wrap; justify-content: flex-start; gap: 8px; padding: 14px 0 0; border-top: 0; }
+.ectx-setup-actions .ecst-action-text { order: 3; flex: 1 1 100%; }
+.ectx-setup-notes { margin: 14px 0 0; padding-left: 18px; font-size: 12px; color: var(--ecv2-g600); }
+.ectx-setup-notes li { margin: 3px 0; }
+.ectx-setup-fine { margin: 10px 0 0; font-size: 11.5px; color: var(--ecv2-g500); }
+.ectx-setup-done.ecst-action { border: 1px solid var(--ecv2-g200); border-radius: var(--ecv2-r, 8px); background: var(--ecst-accent-soft, #f0fdf4); }
+.ectx-setup-none { margin: 0; font-size: 13px; color: var(--ecv2-g600); }
+@media ( max-width: 600px ) {
+	.ectx-setup-list li { grid-template-columns: minmax( 0, 1fr ); }
+	.ectx-setup-ft { text-align: left; }
+	.ectx-setup-choice, .ectx-setup-choice select { width: 100%; min-width: 0; }
 }

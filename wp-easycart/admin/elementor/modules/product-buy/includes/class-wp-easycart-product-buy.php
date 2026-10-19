@@ -403,27 +403,32 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 		 *     @type bool       $hidden  The price is hidden from this shopper ( nothing else is filled ).
 		 *     @type float      $base    The price before offers ( with the default options ).
 		 *     @type float      $list    The list price ( 0 = none ).
-		 *     @type float      $regular The price shown struck through: the higher of list and base, when above final ( else 0 ).
+		 *     @type float      $regular The price shown struck through: the higher of list and base, when above final ( else 0 ). 6.0.5:
+		 *                               base while an offer applies and the store strikes the price before the offer ( strike_base ).
 		 *     @type float      $sale    The sale price ( base, when the list price is above it; else 0 ).
 		 *     @type float      $final   What the shopper pays: the Offers preview when there is one, else base.
 		 *     @type bool       $offer   An Offers price preview applies.
 		 *     @type int        $percent The reduction from regular to final, in percent ( 0 = none ).
 		 *     @type float      $save    regular − final ( 0 = none ).
 		 *     @type array|null $rules   The Offers rules for the browser ( offer_rules() ).
+		 *     @type bool       $strike_base 6.0.5: an offer's struck price is the price before the offer, never the list price
+		 *                                    ( wp_easycart_price_history::strike_before_offer(): the store shows the lowest price of
+		 *                                    the last 30 days, which for an offer counts back from today ).
 		 * }
 		 */
 		public static function price_state( $product ) {
 			$state = array(
-				'hidden'  => false,
-				'base'    => 0.0,
-				'list'    => 0.0,
-				'regular' => 0.0,
-				'sale'    => 0.0,
-				'final'   => 0.0,
-				'offer'   => false,
-				'percent' => 0,
-				'save'    => 0.0,
-				'rules'   => array(),
+				'hidden'      => false,
+				'base'        => 0.0,
+				'list'        => 0.0,
+				'regular'     => 0.0,
+				'sale'        => 0.0,
+				'final'       => 0.0,
+				'offer'       => false,
+				'percent'     => 0,
+				'save'        => 0.0,
+				'rules'       => array(),
+				'strike_base' => false,
 			);
 			if ( self::price_hidden( $product ) ) {
 				$state['hidden'] = true;
@@ -440,7 +445,8 @@ if ( ! class_exists( 'WP_EasyCart_Product_Buy' ) ) :
 				$state['offer'] = true;
 				$state['rules'] = self::offer_rules( $product, $base, $list );
 			}
-			$regular          = max( $list, $base );
+			$state['strike_base'] = class_exists( 'wp_easycart_price_history' ) && method_exists( 'wp_easycart_price_history', 'strike_before_offer' ) && wp_easycart_price_history::strike_before_offer();
+			$regular              = ( $state['offer'] && $state['strike_base'] ) ? $base : max( $list, $base );
 			$state['base']    = $base;
 			$state['list']    = $list;
 			$state['sale']    = ( $list > $base ) ? $base : 0.0;

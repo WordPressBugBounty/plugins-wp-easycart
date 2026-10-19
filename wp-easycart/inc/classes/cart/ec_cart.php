@@ -71,10 +71,15 @@ class ec_cart{
 
             if( $this->cart[$i]->vat_enabled ){
 
-                if( $tax->vat_included && $tax->vat_rate_default != $tax->vat_rate ){ 
+                /* 6.0.5: each line by its own tax class's rates ( wp_easycart_tax_classes ). */
+                $line_class = isset( $this->cart[$i]->tax_class ) ? $this->cart[$i]->tax_class : '';
+                $line_default = method_exists( $tax, 'class_default_rate' ) ? $tax->class_default_rate( $line_class ) : $tax->vat_rate_default;
+                $line_rate = method_exists( $tax, 'class_rate' ) ? $tax->class_rate( $line_class ) : $tax->vat_rate;
 
-                    $default_vat = $tax->vat_rate_default / 100;
-                    $new_vat = $tax->vat_rate / 100;
+                if( $tax->vat_included && $line_default != $line_rate ){
+
+                    $default_vat = $line_default / 100;
+                    $new_vat = $line_rate / 100;
                     
                     $old_unit_price = $this->cart[$i]->unit_price;
                     $product_actual_price = number_format( $old_unit_price / ( $default_vat + 1 ), 2, '.', '' );

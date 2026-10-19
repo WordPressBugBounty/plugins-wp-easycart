@@ -385,11 +385,11 @@ class wp_easycart_admin_language_v2 {
 				<span class="ecl-count" id="ecl_count"></span>
 				<label class="ecl-changed-only"><input type="checkbox" id="ecl_changed_only" /><span><?php esc_html_e( 'Changed only', 'wp-easycart' ); ?></span><span class="ecv2-chip ecv2-chip-amber" id="ecl_changed_count"><?php echo esc_html( sprintf( __( '%d changed', 'wp-easycart' ), $changed ) ); ?></span></label>
 			</div>
-			<div class="ecl-pills" id="ecl_pills" role="tablist">
-				<button type="button" class="ecl-pill is-on" data-area=""><?php esc_html_e( 'All areas', 'wp-easycart' ); ?> <b><?php echo (int) $total; ?></b></button>
+			<div class="ecl-pills" id="ecl_pills" role="group" aria-label="<?php esc_attr_e( 'Show an area', 'wp-easycart' ); ?>">
+				<button type="button" class="ecl-pill is-on" data-area="" aria-pressed="true"><?php esc_html_e( 'All areas', 'wp-easycart' ); ?> <b><?php echo (int) $total; ?></b></button>
 				<?php foreach ( $areas as $group => $area ) : ?>
 					<?php if ( $is_active && self::RECEIPT_GROUP === $group ) { continue; } ?>
-					<button type="button" class="ecl-pill<?php echo $area['changed'] > 0 ? ' has-changed' : ''; ?>" data-area="<?php echo esc_attr( $group ); ?>"><?php echo esc_html( $area['label'] ); ?> <b><?php echo (int) $area['total']; ?></b></button>
+					<button type="button" class="ecl-pill<?php echo $area['changed'] > 0 ? ' has-changed' : ''; ?>" data-area="<?php echo esc_attr( $group ); ?>" aria-pressed="false"><?php echo esc_html( $area['label'] ); ?> <b><?php echo (int) $area['total']; ?></b></button>
 				<?php endforeach; ?>
 			</div>
 			<div class="ecl-body" id="ecl_body">

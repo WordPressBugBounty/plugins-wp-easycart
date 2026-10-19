@@ -1405,6 +1405,8 @@ if( $admin_access || $use_quickview ){ ?>
 
 						?><?php if( $GLOBALS['ec_vat_included'] && $product->vat_rate == 1 && get_option( 'ec_option_show_multiple_vat_pricing' ) ){ ?> <span class="ec_inc_vat_text"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_inc_vat_text' ); ?></span><?php }else if( $GLOBALS['ec_vat_added'] && $product->vat_rate == 1 && get_option( 'ec_option_show_multiple_vat_pricing' ) ){ ?> <span class="ec_inc_vat_text"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_excluding_vat_text' ); ?></span><?php }?></span>
 					</div>
+					<?php if ( class_exists( 'wp_easycart_unit_price' ) ) { echo wp_kses_post( wp_easycart_unit_price::note_html( $product, 'listing' ) ); /* 6.0.5: the price per kg, litre, metre or item ( admin review M16 ) */ } ?>
+					<?php if ( class_exists( 'wp_easycart_price_history' ) ) { echo wp_kses_post( wp_easycart_price_history::note_html( $product, false, 'listing' ) ); /* 6.0.5: the lowest price of the last 30 days under a reduction */ } ?>
 				<?php }?>
 			<?php }?>
 			<?php if( isset( $product_visible_options ) && in_array( 'category', $visible_options ) ){ ?>
@@ -1594,6 +1596,8 @@ if( $admin_access || $use_quickview ){ ?>
 			?><?php if( $GLOBALS['ec_vat_included'] && $product->vat_rate == 1 && get_option( 'ec_option_show_multiple_vat_pricing' ) ){ ?> <span class="ec_inc_vat_text"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_inc_vat_text' ); ?></span><?php }else if( $GLOBALS['ec_vat_added'] && $product->vat_rate == 1 && get_option( 'ec_option_show_multiple_vat_pricing' ) ){ ?> <span class="ec_inc_vat_text"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_excluding_vat_text' ); ?></span><?php }?></span>
 			<?php } // Close Tiered Pricing If ?>
 		</div>
+		<?php if ( class_exists( 'wp_easycart_unit_price' ) ) { echo wp_kses_post( wp_easycart_unit_price::note_html( $product, 'listing' ) ); /* 6.0.5: the price per kg, litre, metre or item ( admin review M16 ) */ } ?>
+		<?php if ( class_exists( 'wp_easycart_price_history' ) ) { echo wp_kses_post( wp_easycart_price_history::note_html( $product, false, 'listing' ) ); /* 6.0.5: the lowest price of the last 30 days under a reduction */ } ?>
 		<?php }?>
 		<?php }?>
 

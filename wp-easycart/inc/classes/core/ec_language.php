@@ -583,7 +583,8 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 		 * A phrase the store never changed takes the language file's wording. Phrases added in 6.0.2 were copied into every
 		 * language file in English, and a few translations had lost a [token] the code fills in; a store that merged them keeps
 		 * that copy, because updates only add missing keys. A phrase still reading as the English ( en-us.txt ), or as one of
-		 * those broken translations ( replaced_phrases() ), is replaced; anything a store wrote itself stays.
+		 * those broken translations ( replaced_phrases() ), is replaced; anything a store wrote itself stays. 6.0.5: English too, for
+		 * the phrases replaced_phrases() lists ( the order button ).
 		 *
 		 * @since 6.0.3
 		 * @param string $file_name Language file ( without .txt ).
@@ -592,7 +593,12 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 		 * @param object $new_item  The phrase in the language file.
 		 */
 		private function refresh_phrase( $file_name, $section, $key, $new_item ) {
-			if ( 'en-us' === $file_name || ! is_object( $new_item ) || ! isset( $new_item->value ) ) {
+			if ( ! is_object( $new_item ) || ! isset( $new_item->value ) ) {
+				return;
+			}
+			$replaced = self::replaced_phrases();
+			$id       = $file_name . ' ' . $section . '.' . $key;
+			if ( 'en-us' === $file_name && ! isset( $replaced[ $id ] ) ) {
 				return;
 			}
 			$current = self::$language_data->{$file_name}->options->{$section}->options->{$key};
@@ -603,11 +609,9 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 			if ( self::phrase_text( $new_item->value ) === $now ) {
 				return;
 			}
-			$english    = self::english_phrase( $section, $key );
-			$replaced   = self::replaced_phrases();
-			$id         = $file_name . ' ' . $section . '.' . $key;
+			$english    = ( 'en-us' === $file_name ) ? null : self::english_phrase( $section, $key );
 			$is_english = ( null !== $english && self::phrase_text( $english ) === $now );
-			$is_broken  = ( isset( $replaced[ $id ] ) && md5( $now ) === $replaced[ $id ] );
+			$is_broken  = ( isset( $replaced[ $id ] ) && in_array( md5( $now ), (array) $replaced[ $id ], true ) );
 			if ( $is_english || $is_broken ) {
 				$current->value = $new_item->value;
 			}
@@ -646,7 +650,9 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 		 * product name ): md5 of the text as phrase_text() reads it, keyed "<file> <section>.<key>". 6.0.4: German's closing line
 		 * under receipts, invoice PDFs and refund emails ( one merchant's bank details with a placeholder IBAN, a § 19 UStG note
 		 * and a made-to-order notice, for the English "Thank you very much!" ), and guest checkout messages that lost their line
-		 * break ( French, Greek and Dutch also their accents or question; Spanish was broken ).
+		 * break ( French, Greek and Dutch also their accents or question; Spanish was broken ). 6.0.5: the order button and the
+		 * sentences that name it, which said only "submit order" ( "Bestellung absenden" ); the button must say that payment is
+		 * owed ( § 312j(3) BGB, Art. 8(2) of the Consumer Rights Directive, UK CCR 2013 reg. 14(3) ). A value may list several.
 		 *
 		 * @return array
 		 */
@@ -655,13 +661,50 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 				'german ec_errors.preorder_message'                                     => '18a4579ce8e8d1d9a2ab5f69f2c33b97',
 				'ch-tr cart_payment_information.cart_payment_information_checkout_text' => 'd830353399e88695bc841f07921bce19',
 				'ch-tr ec_success.store_added_to_cart'                                  => '9c6a3ba681288c7821731bb1ee7f7e9f',
-				'fr-fr cart_payment_information.cart_payment_information_checkout_text' => '31abf776af2345cc6bfe5ac8a9172b87',
+				'fr-fr cart_payment_information.cart_payment_information_checkout_text' => array( '31abf776af2345cc6bfe5ac8a9172b87', 'd4142e8ad53e85241100aef023e2ffcc' ),
 				'greek cart_payment_information.cart_payment_information_checkout_text' => '9d5b5848a531fbaea45d20723c2cae80',
 				'german cart_success.cart_payment_complete_bottom_line_2'               => 'ccce1adc2c80883a7312ed32837857ec',
 				'fr-fr cart_guest_checkout.cart_guest_message'                          => '88b097e712fc83183704f26bd30e3e54',
 				'es cart_subscription_guest_checkout.cart_subscription_guest_message'   => '1a99e5959a0c316b2696aea3a92088d6',
 				'greek cart_guest_checkout.cart_guest_message'                          => 'd6a8dd065c7bde899405ad4215201780',
 				'dutch cart_guest_checkout.cart_guest_message'                          => '772072ed18ab2b864fda31faa0a76942',
+				/* 6.0.5: the order button. */
+				'en-us cart_payment_information.cart_payment_information_submit_order_button'   => '225a64509d5136bd7da6282bba5f5639',
+				'en-us cart_payment_information.cart_payment_information_third_party_second'    => '5f94bdb077b28700b53c8162d1e8f22d',
+				'en-us cart_payment_information.cart_payment_information_checkout_text'         => '22d4a41cf46a27763699f21387839827',
+				'german cart_payment_information.cart_payment_information_submit_order_button'  => 'fc4d6b29cda457875b17c36f66725c7f',
+				'german cart_payment_information.cart_payment_information_third_party_first'    => 'cba849a8a5e9c0aedf95145c77fefb90',
+				'german cart_payment_information.cart_payment_information_third_party_second'   => 'f39000f985669ed33e5d31ec999023bd',
+				'german cart_payment_information.cart_payment_information_checkout_text'        => '4c2ec20cf195378aabac5b032426849f',
+				'da-dk cart_payment_information.cart_payment_information_submit_order_button'   => 'e00c36c5e664f973fbbffc6b4194613f',
+				'da-dk cart_payment_information.cart_payment_information_third_party_second'    => '9a9ef6e4392a8690e4bffd795c8dd2d3',
+				'dutch cart_payment_information.cart_payment_information_submit_order_button'   => '2a16437dd469b39bb91690596af82c07',
+				'dutch cart_payment_information.cart_payment_information_third_party_second'    => 'c2b2e97b952a999d477a2ecfd9c95d47',
+				'dutch cart_payment_information.cart_payment_information_checkout_text'         => 'c5bbc3dd618887dff688d65af5c0f8cf',
+				'es cart_payment_information.cart_payment_information_submit_order_button'      => '2eea71091dd263c647e1f81eda7ac4f4',
+				'es cart_payment_information.cart_payment_information_third_party_second'       => '7e434488078906e817c5ce560dd80c34',
+				'es cart_payment_information.cart_payment_information_checkout_text'            => 'f2ecb4e1fce58f2e5aad0d0e4cfb2df6',
+				'fr-fr cart_payment_information.cart_payment_information_submit_order_button'   => '8f1a114d4dd77a512552219d8ba00b72',
+				'fr-fr cart_payment_information.cart_payment_information_third_party_first'     => '7d62f8587ed756c6b3c5a14fa697535a',
+				'fr-fr cart_payment_information.cart_payment_information_third_party_second'    => '58bae5eea7da22db1df682162067ad20',
+				'greek cart_payment_information.cart_payment_information_submit_order_button'   => 'b5e360cf9f3c556d8509173d1480cbb0',
+				'hu-hun cart_payment_information.cart_payment_information_submit_order_button'  => '61fdb6f67a551c8ebbd0f0a8485b5934',
+				'hu-hun cart_payment_information.cart_payment_information_third_party_second'   => '75d6841f78e0a05d6fb6ff80c15ca414',
+				'hu-hun cart_payment_information.cart_payment_information_checkout_text'        => '0d37a7370b5da544780966468151112c',
+				'lv-lat cart_payment_information.cart_payment_information_submit_order_button'  => '69efc1f3a763f63925ad961bf04a1273',
+				'lv-lat cart_payment_information.cart_payment_information_third_party_second'   => '6656fea1b2a14c384db93511762b647c',
+				'lv-lat cart_payment_information.cart_payment_information_checkout_text'        => 'e26cf5d69c8a6522f92b3d986a789a03',
+				/* 6.0.5: Bill later is a bank transfer ( it read direct deposit, cash transfer or direct debit ). */
+				'en-us cart_payment_information.cart_payment_information_manual_payment' => '626faf898a73038a3e9adf8ca4567b96', /* Pay by Direct Deposit */
+				'en-us account_order_details.account_order_details_payment_method_manual' => '26597f68b42701c9a9ab0ba1512ffa5f', /* Direct Deposit */
+				'es cart_payment_information.cart_payment_information_manual_payment' => '8e0eac764052276001f4b9258a9da281', /* Pago por Depósito Directo */
+				'es account_order_details.account_order_details_payment_method_manual' => '51ebe26c67aea8d23531de0f4a64eefd', /* Depósito Directo */
+				'fr-fr cart_payment_information.cart_payment_information_manual_payment' => '4f1131a9bc7d306caa1850ea9fd6dc5c', /* Paiement par depot direct */
+				'fr-fr account_order_details.account_order_details_payment_method_manual' => '89d751ea7b3bba3d553d21d91759bd0a', /* Depot Direct */
+				'hu-hun cart_payment_information.cart_payment_information_manual_payment' => 'af6843bb69b86c6e583ec3d7c9717d2e', /* Közvetlen fizetés */
+				'hu-hun account_order_details.account_order_details_payment_method_manual' => '1c7e304e925e78d38f8195d900ab9060', /* Csoportos beszedéssel */
+				'ch-tr cart_payment_information.cart_payment_information_manual_payment' => '65796d4544656f3260698186ca774d62', /* 現金轉賬 */
+				'ch-tr account_order_details.account_order_details_payment_method_manual' => '65796d4544656f3260698186ca774d62', /* 現金轉賬 */
 			);
 		}
 

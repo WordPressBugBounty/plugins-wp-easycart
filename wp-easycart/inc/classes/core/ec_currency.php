@@ -23,10 +23,15 @@ class ec_currency{
 	public static $static_currency_code;
 	public static $static_show_currency_code;
 	public static $static_conversion_rate;
+	/** 6.0.5: a non-breaking space between the symbol and the amount ( ec_option_currency_symbol_space: 93,00 €, CHF 12.00 ). */
+	public static $static_symbol_space = false;
 	
 	function __construct( ){
-		self::$static_symbol = $symbol = get_option( 'ec_option_currency' );
+		/* 6.0.5 ( FREE #333 ): the symbol as characters. The setup wizard saved it as an HTML entity ( &pound;, &euro;, &#107;&#114; ),
+		   which pages that print it into HTML show right but scripts and plain text showed as the code ( Reports: &pound;125.55 ). */
+		self::$static_symbol = $symbol = self::plain_symbol( get_option( 'ec_option_currency' ) );
 		self::$static_symbol_location = $symbol_location = get_option( 'ec_option_currency_symbol_location' );
+		self::$static_symbol_space = (bool) get_option( 'ec_option_currency_symbol_space' );
 		self::$static_negative_location = $negative_location = get_option( 'ec_option_currency_negative_location' );
 		self::$static_decimal_symbol = $decimal_symbol = get_option( 'ec_option_currency_decimal_symbol' );
 		if(  get_option( 'ec_option_currency_decimal_places' ) == '' || is_nan(  get_option( 'ec_option_currency_decimal_places' ) ) ||  get_option( 'ec_option_currency_decimal_places' ) < 0 ){
@@ -63,6 +68,10 @@ class ec_currency{
 				}
 			}else{ self::$static_symbol = self::get_currency_symbol( $to ); }
 		}
+		/* 6.0.5: made again while an order's amounts are being printed ( wp_easycart_order_currency::push() ): keep the order's format. */
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::reapply();
+		}
 	}
 	
 	public static function get_stats_currency_display( $amount ){
@@ -74,7 +83,7 @@ class ec_currency{
 			$display_amount .= '-';
 		
 		if( self::$static_symbol_location )
-			$display_amount .= self::$static_symbol;
+			$display_amount .= self::get_display_symbol( );
 			
 		if( $amount < 0 && !self::$static_negative_location )
 			$display_amount .= '-';
@@ -87,7 +96,7 @@ class ec_currency{
 		$display_amount .= number_format( $amount, self::$static_decimal_length, self::$static_decimal_symbol, self::$static_grouping_symbol );
 		
 		if( !self::$static_symbol_location )
-			$display_amount .= self::$static_symbol;
+			$display_amount .= self::get_display_symbol( );
 			
 		return $display_amount;
 	}
@@ -103,7 +112,7 @@ class ec_currency{
 			$display_amount .= '-';
 		
 		if( self::$static_symbol_location )
-			$display_amount .= self::$static_symbol;
+			$display_amount .= self::get_display_symbol( );
 			
 		if( $amount < 0 && !self::$static_negative_location )
 			$display_amount .= '-';
@@ -117,7 +126,7 @@ class ec_currency{
 		$display_amount .= number_format( $amount, self::$static_decimal_length, self::$static_decimal_symbol, self::$static_grouping_symbol );
 		
 		if( !self::$static_symbol_location )
-			$display_amount .= self::$static_symbol;
+			$display_amount .= self::get_display_symbol( );
 			
 		return $display_amount;
 	}
@@ -269,6 +278,100 @@ class ec_currency{
 	
 	public static function get_symbol( ){
 		return self::$static_symbol;
+	}
+	/**
+	 * A currency symbol as characters: one saved as an HTML entity ( &pound;, &#107;&#114; ) is decoded; one already
+	 * in characters is returned as it is.
+	 *
+	 * @since 6.0.5
+	 * @param string $symbol Symbol.
+	 * @return string
+	 */
+	public static function plain_symbol( $symbol ){
+		$symbol = (string) $symbol;
+		if ( false === strpos( $symbol, '&' ) ) {
+			return $symbol;
+		}
+		return html_entity_decode( $symbol, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+	/**
+	 * The saved symbol as characters, once. The setup wizard saved an HTML entity before 6.0.5 ( &pound; ): prices read it
+	 * through plain_symbol(), but Settings › Store details showed the code in the symbol box, and a merchant took it for a
+	 * setting they had broken. Runs on admin_init and on activation; does nothing once the symbol is characters.
+	 *
+	 * @since 6.0.5
+	 * @return bool Whether the saved symbol changed.
+	 */
+	public static function repair_saved_symbol(){
+		$saved = get_option( 'ec_option_currency' );
+		if ( ! is_string( $saved ) || false === strpos( $saved, '&' ) ) {
+			return false;
+		}
+		$plain = self::plain_symbol( $saved );
+		if ( $plain === $saved || '' === trim( $plain ) ) {
+			return false;
+		}
+		update_option( 'ec_option_currency', $plain );
+		return true;
+	}
+	/**
+	 * The symbol as prices print it: with a non-breaking space on the amount's side when the store writes one ( 6.0.5,
+	 * ec_option_currency_symbol_space ). The product templates hand it to ec_details_format_money_v2(), so prices the page
+	 * redraws keep the space.
+	 *
+	 * @param string|null $symbol A symbol ( the store's when null ).
+	 * @return string
+	 */
+	public static function get_display_symbol( $symbol = null ){
+		$symbol = ( null === $symbol ) ? (string) self::$static_symbol : (string) $symbol;
+		if ( ! self::$static_symbol_space || '' === $symbol ) {
+			return $symbol;
+		}
+		return self::$static_symbol_location ? $symbol . "\xC2\xA0" : "\xC2\xA0" . $symbol;
+	}
+	public static function get_symbol_space( ){
+		return self::$static_symbol_space;
+	}
+	/**
+	 * How a country writes amounts, its usual style ( CLDR ): the symbol before or after, a space between them, the decimal and
+	 * thousands separators. The setup wizard and Settings › Store details' usual format read it ( 6.0.5, admin review M9:
+	 * Germany writes 1.234,56 €, France 1 234,56 €, the Netherlands € 1.234,56, Switzerland CHF 1'234.56 ).
+	 *
+	 * @param string $country ISO code.
+	 * @param string $locale  WordPress locale ( fr_CA and fr_BE write as French does ), '' for the site's.
+	 * @return array|null before ( bool ), space ( bool ), dec, thou; null for a country it does not list
+	 */
+	public static function country_format( $country, $locale = '' ){
+		$nb  = "\xC2\xA0";
+		$uk  = array( 1, 0, '.', ',' );
+		$map = array(
+			'US' => $uk, 'CA' => $uk, 'GB' => $uk, 'IE' => $uk, 'MT' => $uk, 'AU' => $uk, 'NZ' => $uk, 'JP' => $uk, 'MX' => $uk, 'IN' => $uk,
+			'SG' => $uk, 'HK' => $uk, 'ZA' => $uk, 'TH' => $uk, 'PH' => $uk, 'MY' => $uk, 'CN' => $uk, 'KR' => $uk, 'IL' => $uk, 'AE' => $uk,
+			'DE' => array( 0, 1, ',', '.' ), 'AT' => array( 1, 1, ',', '.' ), 'CH' => array( 1, 1, '.', "'" ), 'LI' => array( 1, 1, '.', "'" ),
+			'FR' => array( 0, 1, ',', $nb ), 'BE' => array( 1, 1, ',', '.' ), 'LU' => array( 0, 1, ',', '.' ), 'NL' => array( 1, 1, ',', '.' ),
+			'ES' => array( 0, 1, ',', '.' ), 'IT' => array( 0, 1, ',', '.' ), 'PT' => array( 0, 1, ',', $nb ), 'GR' => array( 0, 1, ',', '.' ),
+			'CY' => array( 0, 1, ',', '.' ), 'FI' => array( 0, 1, ',', $nb ), 'EE' => array( 0, 1, ',', $nb ), 'LV' => array( 0, 1, ',', $nb ),
+			'LT' => array( 0, 1, ',', $nb ), 'SK' => array( 0, 1, ',', $nb ), 'SI' => array( 0, 1, ',', '.' ), 'HR' => array( 0, 1, ',', '.' ),
+			'DK' => array( 0, 1, ',', '.' ), 'SE' => array( 0, 1, ',', $nb ), 'NO' => array( 0, 1, ',', $nb ), 'IS' => array( 0, 1, ',', '.' ),
+			'PL' => array( 0, 1, ',', $nb ), 'CZ' => array( 0, 1, ',', $nb ), 'HU' => array( 0, 1, ',', $nb ), 'RO' => array( 0, 1, ',', '.' ),
+			'BG' => array( 0, 1, ',', $nb ), 'BR' => array( 1, 1, ',', '.' ), 'TR' => array( 1, 0, ',', '.' ),
+		);
+		$country = strtoupper( (string) $country );
+		$locale  = ( '' === (string) $locale && function_exists( 'get_locale' ) ) ? (string) get_locale() : (string) $locale;
+		/* French in Canada and Belgium writes as France does. */
+		if ( ( 'CA' === $country && 0 === strpos( $locale, 'fr_' ) ) || ( 'BE' === $country && 0 === strpos( $locale, 'fr_' ) ) ) {
+			$map[ $country ] = $map['FR'];
+		}
+		$format = isset( $map[ $country ] ) ? array( 'before' => (bool) $map[ $country ][0], 'space' => (bool) $map[ $country ][1], 'dec' => $map[ $country ][2], 'thou' => $map[ $country ][3] ) : null;
+		/**
+		 * How a country writes amounts.
+		 *
+		 * @since 6.0.5
+		 * @param array|null $format  before, space, dec, thou ( null = not known ).
+		 * @param string     $country ISO code.
+		 * @param string     $locale  WordPress locale.
+		 */
+		return function_exists( 'apply_filters' ) ? apply_filters( 'wp_easycart_currency_country_format', $format, $country, $locale ) : $format;
 	}
 	public static function get_symbol_location( ){
 		return self::$static_symbol_location;

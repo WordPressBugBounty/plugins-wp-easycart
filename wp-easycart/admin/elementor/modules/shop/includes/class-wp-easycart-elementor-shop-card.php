@@ -237,6 +237,14 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Shop_Card' ) ) :
 				$price = self::price_html( $product );
 				if ( '' !== $price ) {
 					echo '<div class="wpec-card__price wpec-price">' . $price . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts in price_html().
+					/* 6.0.5 ( admin review M16 ): the price per kg, litre, metre or item. */
+					if ( class_exists( 'wp_easycart_unit_price' ) ) {
+						echo wp_kses_post( wp_easycart_unit_price::note_html( $product, 'listing' ) );
+					}
+					/* 6.0.5: the lowest price of the last 30 days under a reduced price, as the store page's cards show it. */
+					if ( self::on_sale( $product ) && class_exists( 'wp_easycart_price_history' ) ) {
+						echo wp_kses_post( wp_easycart_price_history::note_html( $product, false, 'listing' ) );
+					}
 				}
 			}
 			if ( ! empty( $options['swatches'] ) ) {

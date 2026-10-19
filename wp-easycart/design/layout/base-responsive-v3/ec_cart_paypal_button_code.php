@@ -59,8 +59,51 @@ $wpec_paypal_cover     = 'paypal-success-cover' . ( ( 'paypal-button-container' 
 			}
 		} );
 	}
+	/* 6.0.5: in the one-page checkout's Express checkout strip ( .ec_cart_express_button_container ) each way to pay is its own button
+	   ( PayPal, Venmo, Pay Later, PayPal Credit: whichever PayPal says this shopper can use ), at the strip's height and corners beside
+	   Apple Pay and Google Pay, in a cell the strip lays out ( wpeasycart_express_layout(), ec-checkout-onepage.js ). PayPal's card button
+	   is left out there: the card form is further down the page. Anywhere else PayPal draws its own list, as before. */
+	function <?php echo esc_attr( $wpec_paypal_fn ); ?>_draw( options ) {
+		var holder = document.getElementById( '<?php echo esc_attr( $wpec_paypal_container ); ?>' );
+		var strip = ( holder && holder.closest ) ? holder.closest( '.ec_cart_express_button_container' ) : null;
+		if ( ! strip || ! paypal.FUNDING || ! paypal.FUNDING.PAYPAL ) {
+			paypal.Buttons( options ).render( '#<?php echo esc_attr( $wpec_paypal_container ); ?>' );
+			return;
+		}
+		var height = parseInt( window.getComputedStyle( strip ).getPropertyValue( '--wpec-express-height' ), 10 ) || 48;
+		var sources = [ paypal.FUNDING.PAYPAL, paypal.FUNDING.VENMO, paypal.FUNDING.PAYLATER, paypal.FUNDING.CREDIT ];
+		holder.innerHTML = '';
+		jQuery( holder ).addClass( 'wpec-express-split' );
+		for ( var i = 0; i < sources.length; i++ ) {
+			if ( ! sources[ i ] ) {
+				continue;
+			}
+			var style = jQuery.extend( {}, options.style, { height: Math.max( 25, Math.min( 55, height ) ) } );
+			/* Venmo and PayPal Credit come in fewer colours ( no gold ): their own, unless the store chose black or white. */
+			if ( sources[ i ] !== paypal.FUNDING.PAYPAL && sources[ i ] !== paypal.FUNDING.PAYLATER && 'black' !== style.color && 'white' !== style.color ) {
+				delete style.color;
+			}
+			try {
+				var button = paypal.Buttons( jQuery.extend( {}, options, { fundingSource: sources[ i ], style: style } ) );
+				if ( ! button.isEligible() ) {
+					continue;
+				}
+				var cell = document.createElement( 'div' );
+				cell.className = 'wpec-express-paypal wpec-express-paypal-' + sources[ i ];
+				holder.appendChild( cell );
+				button.render( cell );
+			} catch ( e ) {
+				if ( window.console && console.debug ) {
+					console.debug( e );
+				}
+			}
+		}
+		if ( window.wpeasycart_express_layout ) {
+			window.wpeasycart_express_layout();
+		}
+	}
 	function <?php echo esc_attr( $wpec_paypal_fn ); ?>( ){
-		paypal.Buttons( {
+		<?php echo esc_attr( $wpec_paypal_fn ); ?>_draw( {
 			env: '<?php if( get_option( 'ec_option_paypal_use_sandbox' ) == '1' ){ echo "sandbox"; }else{ echo "production"; } ?>',
 			commit: false,
 			style: {
@@ -261,7 +304,7 @@ $wpec_paypal_cover     = 'paypal-success-cover' . ( ( 'paypal-button-container' 
 					console.debug( data );
 				}
 			},
-		} ).render( '#<?php echo esc_attr( $wpec_paypal_container ); ?>' );
+		} );
 	}
 	jQuery(document).ready(function( $ ){
 		setTimeout( <?php echo esc_attr( $wpec_paypal_fn ); ?>, 1 ); // Delay load for mmenu sites

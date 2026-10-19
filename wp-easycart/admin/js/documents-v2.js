@@ -142,7 +142,28 @@
 		this.$el.find( '[data-op="rename"], [data-op="delete"]' ).prop( 'hidden', !! p.builtin );
 		this.$el.find( '[data-op="reset"]' ).prop( 'hidden', ! p.builtin );
 		this.children();
+		this.choices();
 		this.brandMark();
+	};
+
+	/*
+	 * 6.0.5: a choice that needs a switch on ( the logo position needs Logo ) is greyed while it is off, and one that places
+	 * the logo in the heading says when the switches that make the heading are all off ( the logo then sits at the top ).
+	 * A choice the store's copy of the template never reads ( data-copy ) stays greyed with its note.
+	 */
+	Editor.prototype.choices = function() {
+		var self = this, f = this.fields();
+		this.$el.find( '.ecdoc-choice[data-needs], .ecdoc-choice[data-heading]' ).each( function() {
+			var $c = $( this ), copy = '1' === $c.attr( 'data-copy' );
+			var needs = $c.attr( 'data-needs' ) || '';
+			var off = '' !== needs && Object.prototype.hasOwnProperty.call( f, needs ) && ! f[ needs ];
+			var heads = ( $c.attr( 'data-heading' ) || '' ).split( ',' ).filter( function( k ) { return '' !== k; } );
+			var noHead = heads.length > 0 && heads.every( function( k ) { return Object.prototype.hasOwnProperty.call( f, k ) && ! f[ k ]; } );
+			$c.toggleClass( 'is-off', copy || off );
+			$c.find( 'input[data-option-key]' ).prop( 'disabled', self.locked || copy || off );
+			$c.find( '[data-note="needs"]' ).prop( 'hidden', copy || ! off );
+			$c.find( '[data-note="heading"]' ).prop( 'hidden', copy || off || ! noHead );
+		} );
 	};
 
 	/* A dot on Logo & footer while the profile on screen has its own logo or footer image. */
@@ -186,6 +207,7 @@
 		if ( ! p ) { return; }
 		p.fields = this.fields();
 		this.children();
+		this.choices();
 		this.status( t( 'saving', 'Saving…' ) );
 		clearTimeout( this.saveTimer );
 		this.saveTimer = setTimeout( function() { self.save(); }, 350 );
@@ -335,7 +357,7 @@
 					return;
 				}
 				self.data.profiles[ r.data.id ] = { id: r.data.id, name: r.data.name, desc: '', builtin: false, locked: false, fields: r.data.fields, branding: r.data.branding, options: r.data.options };
-				$( '<button type="button" class="ecdoc-tab" role="tab" aria-selected="false"></button>' ).attr( 'data-profile', r.data.id ).append( $( '<span class="ecdoc-tab-name"></span>' ).text( r.data.name ) ).insertBefore( self.$el.find( '.ecdoc-tab[data-add]' ) );
+				$( '<button type="button" class="ecdoc-tab" role="tab" aria-selected="false"></button>' ).attr( 'data-profile', r.data.id ).append( $( '<span class="ecdoc-tab-name"></span>' ).text( r.data.name ) ).appendTo( self.$el.find( '.ecdoc-profile-tabs' ).length ? self.$el.find( '.ecdoc-profile-tabs' ) : self.$el.find( '.ecdoc-profiles' ) ); /* 6.0.5: into the tab list */
 				self.select( r.data.id );
 				self.announce();
 			} );
@@ -593,11 +615,14 @@
 				'</div>';
 			if ( 'logo' === key ) {
 				var align = b.logo_align || 'store';
-				html += '<div class="ecdoc-bd-group"><div class="ecdoc-bd-label">' + esc( t( 'brand_position', 'Position' ) ) + '</div><div class="ecdoc-bd-pills" role="radiogroup" aria-label="' + esc( t( 'brand_position', 'Position' ) ) + '">';
+				/* 6.0.5: Logo position ( the profile's choice on the editor ) can put the logo beside other content, where it lines up with it. */
+				var place = ( p.options && p.options.logo_place ) ? String( p.options.logo_place ) : '';
+				var besides = [ 'seller', 'title', 'beside' ].indexOf( place ) > -1;
+				html += '<div class="ecdoc-bd-group"><div class="ecdoc-bd-label">' + esc( t( 'brand_position', 'Line up' ) ) + '</div><div class="ecdoc-bd-pills" role="radiogroup" aria-label="' + esc( t( 'brand_position', 'Line up' ) ) + '">';
 				[ [ 'store', t( 'brand_st_pos', 'Store ( %s )' ).replace( '%s', alignText( STORE.logo_align ) ) ], [ 'left', t( 'brand_left', 'Left' ) ], [ 'center', t( 'brand_center', 'Center' ) ], [ 'right', t( 'brand_right', 'Right' ) ] ].forEach( function( o ) {
 					html += '<label>' + radio( 'ecbd_logo_align', o[0], align === o[0] ) + '<span>' + esc( o[1] ) + '</span></label>';
 				} );
-				html += '</div></div>';
+				html += '</div>' + ( besides ? '<p class="ecdoc-bd-hint" data-line-up-note>' + esc( t( 'brand_lu_note', 'This profile’s logo position puts the logo beside other content, where it lines up with it. Line up applies when the logo is on a line of its own.' ) ) + '</p>' : '' ) + '</div>';
 			}
 			return html + '</fieldset>';
 		};

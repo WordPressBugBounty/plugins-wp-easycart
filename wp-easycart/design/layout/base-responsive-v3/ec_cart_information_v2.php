@@ -61,7 +61,7 @@ if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_optio
 	$allow_express_checkout = true;
 }
 if ( ( $cartpage->has_downloads || ! get_option( 'ec_option_allow_guest' ) ) && '' == $GLOBALS['ec_cart_data']->cart_data->user_id ) {
-	$allow_express_checkout = false;
+	$allow_express_checkout = false; /* 6.0.5: also with an email locked for the account: a wallet sheet brings its own email */
 }
 /* 6.0.2: express buttons skip this form ( WP EasyCart PRO hides them while a required checkout field applies ). */
 if ( $allow_express_checkout && ! apply_filters( 'wpeasycart_express_checkout_allowed', true, 'checkout', $cartpage ) ) {
@@ -74,14 +74,17 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 	<div class="ec_cart_express_checkout_header" style="margin-bottom:10px;">
 		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'express_checkout' ) ); ?>
 	</div>
-		<div class="ec_cart_express_button_container<?php echo ( $show_paypal ) ? '' : ' ec_cart_express_button_container_single'; ?>">
+		<?php /* 6.0.5: one grid of equal buttons ( Apple Pay, Google Pay, PayPal, Venmo, Pay Later ) laid out by wpeasycart_express_layout()
+		   ( ec-checkout-onepage.js ), every button the same height and corners ( ec_cartpage::express_button_style() ). */
+		$wpec_express_style = $cartpage->express_button_style(); ?>
+		<div class="ec_cart_express_button_container<?php echo ( $show_paypal ) ? '' : ' ec_cart_express_button_container_single'; ?>" style="--wpec-express-height:<?php echo (int) $wpec_express_style['height']; ?>px; --wpec-express-radius:<?php echo (int) $wpec_express_style['radius']; ?>px;">
 			<?php if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
 				$cartpage->print_stripe_payment_button();
 			} else if ( get_option( 'ec_option_payment_process_method' ) == 'square' ) {
 				$cartpage->print_square_payment_express();
 			} ?>
 			<?php if( $show_paypal ){ ?>
-				<div id="paypal-button-container" style="float:left; width:100%; margin:10px 0;"></div>
+				<div id="paypal-button-container"></div>
 				<?php /* 6.0.2: PayPal could not start ( ec_cart_paypal_button_code.php shows it ). */ ?>
 				<div class="ec_cart_error wpec-paypal-error" style="display:none;"><div><?php echo wp_kses_post( wp_easycart_language()->get_text( 'ec_errors', 'thirdparty_failed' ) ); ?></div></div>
 				<div id="paypal-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
@@ -111,13 +114,35 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 </div>
 <?php } ?>
 
-<?php if( $GLOBALS['ec_cart_data']->cart_data->user_id == "" ) { ?>
-	<div class="ec_cart_header ec_cart_header_no_border" id="ec_cart_contact_header">
+<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id && method_exists( $cartpage, 'display_checkout_account' ) && class_exists( 'wp_easycart_checkout_signup' ) && $cartpage->account_required() ) { ?>
+	<?php /* 6.0.5: the order needs an account ( a download, a members-only page, no guest checkout ): Contact with the email first, as
+	   the subscription page ( ec_checkout_account.php, wp_easycart_checkout_signup ). The address, shipping and payment follow once the
+	   email is settled: signed in, or locked for a purchase that makes the account ( "New customers choose a password after paying" ). */
+	$cartpage->display_checkout_account( 'onepage' ); ?>
+
+	<?php /* 6.0.5: the checkout's own questions ( the newsletter box, checkout fields ) once the email is settled, never while the email
+	   or its password is asked ( Matt; ec-store.js wpeasycart_subscription_state() shows them for a new email ). */ ?>
+	<div class="ec_checkout_account_extras" data-wpec-account-fields="1"<?php echo $cartpage->account_waits() ? ' hidden' : ''; ?>>
+	<?php if ( get_option( 'ec_option_show_subscriber_feature' ) ) { ?>
+	<div class="ec_cart_input_row ec_checkout_account_subscribe">
+		<label class="ec_cart_check_label ec_agree_box" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+		<span class="ec_cart_check_text"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'account_register', 'account_register_subscribe' ) ); ?></span></label>
+	</div>
+	<?php } ?>
+
+	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
+	</div>
+
+	<?php if ( $cartpage->account_waits() ) {
+		$cartpage->display_checkout_account_waiting();
+	} ?>
+
+<?php } else if( $GLOBALS['ec_cart_data']->cart_data->user_id == "" ) { ?>
+	<?php /* 6.0.5: the sign in link at the fields' size, the question quiet and Log in in the store's colour ( ec-store.css
+	   .ec_cart_contact_header_v2 ). The open form has its own Cancel beside Sign in, so the heading no longer shows a second one. */ ?>
+	<div class="ec_cart_header ec_cart_header_no_border ec_cart_contact_header_v2" id="ec_cart_contact_header">
 		<span><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'contact' ) ); ?></span>
-		<div style="float:right; font-size:14px; text-transform:none; letter-spacing:1px;">
-			<a href="" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_link"><?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_already_have_account' ); ?></a>
-			<a href="" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_cancel_link" style="display:none"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ); ?></a>
-		</div>
+		<a href="" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_link" class="ec_cart_login_header_link ec_cart_login_toggle_v2"><span class="ec_cart_login_toggle_question"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_login', 'cart_login_already_have_account2' ) ); ?></span> <span class="ec_cart_login_toggle_action"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_login', 'cart_login_already_have_account_login' ) ); ?></span></a>
 	</div>
 
 	<div id="ec_user_login_form">
@@ -153,12 +178,15 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'not_activated' ); ?>
 		</div>
 
-		<div class="ec_cart_button_row">
+		<?php /* 6.0.5: Forgot your password at the left, then Cancel and Sign in as two buttons of one height ( ec-store.css .ec_cart_login_actions_v2;
+		   on a phone Forgot your password takes its own line and the two buttons share the row ). */ ?>
+		<div class="ec_cart_button_row ec_cart_login_actions_v2">
 			<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
-			<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_button' ); ?>" class="ec_cart_button" onclick="return ec_cart_validate_login_v2( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-login-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" style="width:unset; padding:14px 25px;" />
 			<a href="" onclick="return ec_cart_toggle_login_v2();" class="ec_account_login_cancel_link"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ); ?></a>
+			<input type="submit" value="<?php echo esc_attr( wp_easycart_language()->get_text( 'cart_login', 'cart_login_button' ) ); ?>" class="ec_cart_button" onclick="return ec_cart_validate_login_v2( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-login-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" />
 		</div>
 		<div class="ec_cart_create_account_row_v2">
+			<span class="ec_cart_create_account_question"><?php echo esc_html( wp_easycart_checkout_wait_text( 'create_account_question' ) ); ?></span>
 			<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'register' ) ); ?>"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'create_account_link' ) ); ?></a>
 		</div>
 
@@ -202,11 +230,18 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			<div class="ec_cart_error_row" id="ec_create_account_email_error">
 				<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'email_has_account' ) ); ?>
 			</div>
+			<?php if ( class_exists( 'wp_easycart_checkout_signup' ) ) { /* 6.0.5: a likely typo, and an email that has an account ( ec-store.js wpeasycart_checkout_email_known() ) */ ?>
+			<p class="ec_checkout_email_suggest" id="ec_contact_email_suggest" data-text="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_checkout_signup::text( 'checkout_email_suggest', 'Did you mean [email]?' ) ) ); ?>" aria-live="polite" hidden></p>
+			<div class="ec_checkout_email_known" id="ec_checkout_email_known" role="status" data-nonce="<?php echo esc_attr( wp_easycart_subscription_signup::nonce() ); ?>" hidden>
+				<span class="ec_checkout_email_known_text"><?php echo wp_kses_post( wp_easycart_checkout_signup::text( 'checkout_email_known', 'You already have an account with this email. Sign in for a faster checkout.' ) ); ?></span>
+				<button type="button" class="ec_checkout_email_known_signin"><?php echo esc_html( wp_strip_all_tags( wp_easycart_language()->get_text( 'cart_login', 'cart_login_button' ) ) ); ?></button>
+			</div>
+			<?php } ?>
 		<?php } ?>
 
 		<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
 		<div class="ec_cart_input_row">
-			<label class="ec_cart_check_label" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
+			<label class="ec_cart_check_label ec_agree_box" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" class="ec_account_register_input_field" value="1" />
 			<span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 		</div>
 		<?php } ?>
@@ -214,95 +249,24 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 
 	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
-	<?php if ( ( ! get_option( 'ec_option_allow_guest' ) || $cartpage->has_downloads ) && ( '' == $GLOBALS['ec_cart_data']->cart_data->email || ( '' != $GLOBALS['ec_cart_data']->cart_data->is_guest && $GLOBALS['ec_cart_data']->cart_data->is_guest ) || ! $GLOBALS['ec_user']->user_id ) ) { ?>
-	<div id="ec_user_create_form" style="display:block;">
-		<?php /* 6.0.4: the busy card the payment and the subscription page show ( .wpec-busy in ec-store.css ), in place of the 2015 dark cover; the position stays inline for store copies of ec-store.css from before it. */ ?>
-		<div id="ec_cart_create_account_loader" class="wpec-busy ec_cart_create_account_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
-			<div class="wpec-busy-card" role="status" aria-live="polite">
-				<span class="wpec-busy-spinner" aria-hidden="true"></span>
-				<span class="wpec-busy-status"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_payment_information', 'create_account_please_wait' ) ); ?></span>
-			</div>
-		</div>
-		
-		<div class="ec_cart_header ec_cart_header_no_border" id="ec_cart_create_account_header">
-			<?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_create_account' ); ?>
-		</div>
-
-		<div class="ec_cart_input_row ec_cart_account_required_message"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_account_required' ); ?></div>
-
-		<?php if( get_option( 'ec_option_use_contact_name' ) ){ ?>
-			<div class="ec_cart_input_row">
-				<div class="ec_cart_input_left_half">
-					<label for="ec_contact_first_name"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>*</label>
-					<?php $cartpage->ec_cart_display_contact_first_name_input(); ?>
-					<div class="ec_cart_error_row" id="ec_contact_first_name_error">
-						<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_first_name' ); ?>
-					</div>
-				</div>
-				<div class="ec_cart_input_right_half">
-					<label for="ec_contact_last_name"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>*</label>
-					<?php $cartpage->ec_cart_display_contact_last_name_input(); ?>
-					<div class="ec_cart_error_row" id="ec_contact_last_name_error">
-						<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ); ?>
-					</div>
-				</div>
-			</div>
-		<?php }?>
-
-		<div class="ec_cart_input_row">
-			<?php do_action( 'wpeasycart_pre_password_display' ); ?>
-			<label for="ec_contact_password"><?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_password' ); ?>*</label>
-			<?php $cartpage->ec_cart_display_contact_password_input(); ?>
-			<div class="ec_cart_error_row" id="ec_contact_password_error">
-				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_length_error' ); ?>
-			</div>
-		</div>
-
-		<?php if( get_option( 'ec_option_require_account_terms' ) ){ ?>
-			<div class="ec_cart_error_row" id="ec_account_terms_error">
-				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
-			</div>
-			<div class="ec_cart_input_row">
-				<input type="checkbox" name="ec_account_terms_agree" id="ec_account_terms_agree" class="ec_account_register_input_field" />
-				<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?>
-			</div>
-		<?php }?>
-
-		<?php if( wp_easycart_recaptcha_ready() ){ /* 6.0.2: as ec_ajax_subscription_create_account() requires */ ?>
-			<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
-			<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
-		<?php }?>
-
-		<div class="ec_cart_button_row">
-			<div class="ec_cart_button" id="ec_address_save" onclick="return subscription_create_account( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-subscription-create-account-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_create_account' )?></div>
-			<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
-		</div>
-
-		<?php if( wp_easycart_cart_is_dynamic() && wp_easycart_recaptcha_ready() ){ ?>
-		<script type="text/javascript">
-			if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
-				var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
-					'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
-					'callback' : wpeasycart_register_recaptcha_callback
-				});
-			}
-		</script>
-		<?php }?>
-	</div>
-	<?php } ?>
-
 <?php } else { // close section for NON logged in user ?>
 	<div class="ec_cart_header ec_cart_header_no_border">
 		<?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_title' ); ?>
 	</div>
 
-	<div class="ec_cart_input_row" id="ec_cart_logged_in_section">
-		<?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_text' ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_user']->first_name, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_user']->last_name, ENT_QUOTES ) ); ?>, <a href="<?php echo esc_attr( $cartpage->cart_page . $cartpage->permalink_divider . "ec_cart_action=logout" ); ?>" onclick="ec_cart_logout_v2();"><?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_logout_link' ); ?></a> <?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_text2' ); ?>
-	</div>
+	<?php /* 6.0.5: who is signed in as a card ( initials, name, email ) with "Not you? Sign out", in place of the sentence with a small
+	   "click here" ( wp_easycart_signed_in_card(), ec-store.css .ec_cart_signed_in_v2 ). */
+	wp_easycart_signed_in_card(
+		array(
+			'logout_url' => $cartpage->cart_page . $cartpage->permalink_divider . 'ec_cart_action=logout',
+			'onclick'    => 'ec_cart_logout_v2();',
+			'id'         => 'ec_cart_logged_in_section',
+		)
+	); ?>
 	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 <?php }?>
 
-<?php if ( ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) { ?>
+<?php if ( method_exists( $cartpage, 'account_waits' ) ? ! $cartpage->account_waits() : ( ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) ) { /* 6.0.5: an email locked for a purchase that makes the account opens it too */ ?>
 
 <?php if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) && get_option( 'ec_option_stripe_address_autocomplete' ) ) {
 	// Shipping First

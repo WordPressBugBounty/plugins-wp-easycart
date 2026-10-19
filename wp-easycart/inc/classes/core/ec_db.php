@@ -778,6 +778,11 @@ class ec_db{
 				"custom_price_label" => $row->custom_price_label,
 
 				"vat_rate" => $row->vat_rate,
+				"tax_class" => isset( $row->tax_class ) ? (string) $row->tax_class : '', /* 6.0.5: tax classes */
+				"unit_measure" => isset( $row->unit_measure ) ? (float) $row->unit_measure : 0, /* 6.0.5: unit prices ( wp_easycart_unit_price ) */
+				"unit_measure_unit" => isset( $row->unit_measure_unit ) ? (string) $row->unit_measure_unit : '',
+				"unit_base" => isset( $row->unit_base ) ? (string) $row->unit_base : '',
+				"usage_levels" => isset( $row->usage_levels ) ? (string) $row->usage_levels : '', /* 6.0.5: usage levels ( wp_easycart_subscription_levels ) */
 				"handling_price" => $row->handling_price,
 				"handling_price_each" => $row->handling_price_each,
 				"stock_quantity" => $row->stock_quantity,
@@ -2877,6 +2882,9 @@ class ec_db{
 		if ( class_exists( 'wp_easycart_order_source' ) ) {
 			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
 		}
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
+		}
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
 		}
@@ -2896,6 +2904,10 @@ class ec_db{
 		// included VAT, for accounting. Written after the insert so a store whose database upgrade has not run yet still checks out.
 		if ( $order_id && self::order_accounting_columns_ready() ) {
 			self::$mysqli->query( self::$mysqli->prepare( 'UPDATE ec_order SET giftcard_total = %s, vat_included = %d WHERE order_id = %d', round( (float) ( isset( $discount->giftcard_discount ) ? $discount->giftcard_discount : 0 ), 3 ), ( ! empty( $tax->vat_included ) ) ? 1 : 0, $order_id ) );
+		}
+		// 6.0.5: the VAT each rate charged ( tax classes ), and the tax for each line's rate as the lines are saved.
+		if ( $order_id && class_exists( 'wp_easycart_tax_classes' ) ) {
+			wp_easycart_tax_classes::record_order( $order_id, $tax );
 		}
 		// 6.0.2: what the order has been paid ( nothing yet, or its total when it is placed with a paid status ); the payment is
 		// recorded when its status counts as paid ( wp_easycart_order_payments ).
@@ -3290,11 +3302,14 @@ class ec_db{
 		if( $advanced_option_data->option_type == "file" )
 			$option_value = $tempcart_id . "/" . $option_value;
 		else if( $advanced_option_data->option_type == "dimensions1" || $advanced_option_data->option_type == "dimensions2" ){
-			$dimensions = json_decode( $advanced_option->optionitem_value ); 
+			/* 6.0.5: a value that is not a JSON list no longer reaches count( null ) ( a TypeError on PHP 8 ), and a size with fractions
+			   is written with its " x " between the width and the height, as the cart shows it ( it was 24 1/2"36 0" ). */
+			$dimensions = json_decode( $advanced_option->optionitem_value );
+			$dimensions = is_array( $dimensions ) ? $dimensions : array();
 			if( count( $dimensions ) == 2 ){ 
 				$option_value = $dimensions[0]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; } $option_value .= " x " . $dimensions[1]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; }; 
 			}else if( count( $dimensions ) == 4 ){ 
-				$option_value = $dimensions[0] . " " . $dimensions[1]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; } $option_value .= $dimensions[2] . " " . $dimensions[3]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; }
+				$option_value = $dimensions[0] . " " . $dimensions[1]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; } $option_value .= " x " . $dimensions[2] . " " . $dimensions[3]; if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ $option_value .= "\""; }
 			}
 		}
 
@@ -4784,8 +4799,14 @@ class ec_db{
 		) );
 		
 		$order_id = self::$mysqli->insert_id;
+		if ( $order_id && class_exists( 'wp_easycart_tax_classes' ) ) {
+			wp_easycart_tax_classes::record_order( $order_id, $tax ); /* 6.0.5: the VAT each rate charged */
+		}
 		if ( class_exists( 'wp_easycart_order_source' ) ) {
 			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
+		}
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
 		}
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
@@ -4836,6 +4857,9 @@ class ec_db{
 		) );
 
 		$orderdetail_id = self::$mysqli->insert_id;
+		if ( class_exists( 'wp_easycart_tax_classes' ) ) {
+			wp_easycart_tax_classes::record_line( $orderdetail_id, $product ); /* 6.0.5: the line's VAT rate */
+		}
 		self::announce_subscription_line( $orderdetail_id );
 
 		// If coupon used, update usage numbers
@@ -4857,18 +4881,16 @@ class ec_db{
 				if ( $advanced_option['option_type'] == "file" ) {
 					$option_item_value = $GLOBALS['ec_cart_data']->ec_cart_id . "/" .  $advanced_option['optionitem_value'];
 
-				} else if( $advanced_option['option_type'] == 'dimensions1' ) {
-					$option_item_value = $advanced_option['optionitem_value'][0]; 
-					if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ 
-						$option_item_value .= "\"";
+				} elseif ( wp_easycart_size_option::is_size( $advanced_option['option_type'] ) ) {
+					/*
+					 * 6.0.5: the session keeps a size as JSON ( ec_cartpage::get_advanced_option_vals() ), which this read as an array of
+					 * values, so the order kept characters of the JSON ( [" x " ). Written as a cart order's size is ( insert_order_option() ),
+					 * and a size that holds none is not recorded, as the cart leaves it out.
+					 */
+					$option_item_value = wp_easycart_size_option::text( $advanced_option['optionitem_value'] );
+					if ( '' === $option_item_value ) {
+						continue;
 					}
-					$option_item_value .= " x " . $advanced_option['optionitem_value'][1]; 
-					if( !get_option( 'ec_option_enable_metric_unit_display' ) ){ 
-						$option_item_value .= "\"";
-					}
-
-				} else if( $advanced_option['option_type'] == 'dimensions2' ) {
-					$option_item_value = $advanced_option['optionitem_value'][0] . " " . $advanced_option['optionitem_value'][1] . "\" x " . $advanced_option['optionitem_value'][2] . " " . $advanced_option['optionitem_value'][3] . "\"";
 				}
 
 				$optionitem_price = ""; 
@@ -4937,6 +4959,9 @@ class ec_db{
 		$order_id = self::$mysqli->insert_id;
 		if ( class_exists( 'wp_easycart_order_source' ) ) {
 			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
+		}
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
 		}
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
@@ -5160,6 +5185,7 @@ class ec_db{
 		}
 
 		$first_order = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT * FROM ec_order WHERE subscription_id = %d ORDER BY order_id ASC", $subscription->subscription_id ) );
+		$order_card  = self::subscription_order_card( $subscription, $user ); /* 6.0.5: the card this subscription bills */
 
 		if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 			$order_gateway = 'stripe';
@@ -5191,11 +5217,14 @@ class ec_db{
 						$first_order->billing_address_line_2, $first_order->billing_city, $first_order->billing_state, $first_order->billing_country, $first_order->billing_zip,
 						$first_order->billing_phone, $first_order->shipping_first_name, $first_order->shipping_last_name, $first_order->shipping_company_name, $first_order->shipping_address_line_1,
 						$first_order->shipping_address_line_2, $first_order->shipping_city, $first_order->shipping_state, $first_order->shipping_country, $first_order->shipping_zip,
-						$first_order->shipping_phone, $user->default_card_type, $user->default_card_last4, $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
+						$first_order->shipping_phone, $order_card['type'], $order_card['last4'], $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
 					
 			$order_id = self::$mysqli->insert_id;
 			if ( class_exists( 'wp_easycart_order_source' ) ) {
 				wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+			}
+			if ( class_exists( 'wp_easycart_order_currency' ) ) {
+				wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
 			}
 			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
@@ -5243,11 +5272,14 @@ class ec_db{
 						$user->billing_address_line_2, $user->billing_city, $user->billing_state, $user->billing_country, $user->billing_zip,
 						$user->billing_phone, $user->shipping_first_name, $user->shipping_last_name, $user->shipping_company_name, $user->shipping_address_line_1,
 						$user->shipping_address_line_2, $user->shipping_city, $user->shipping_state, $user->shipping_country, $user->shipping_zip,
-						$user->shipping_phone, $user->default_card_type, $user->default_card_last4, $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
+						$user->shipping_phone, $order_card['type'], $order_card['last4'], $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
 					
 			$order_id = self::$mysqli->insert_id;
 			if ( class_exists( 'wp_easycart_order_source' ) ) {
 				wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+			}
+			if ( class_exists( 'wp_easycart_order_currency' ) ) {
+				wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
 			}
 			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
@@ -5271,6 +5303,12 @@ class ec_db{
 			}
 			if ( ! $title || $sub_row->type == 'invoiceitem' ) {
 				$title = $sub_row->description;
+			} elseif ( class_exists( 'wp_easycart_subscription_levels' ) && is_object( $subscription ) ) {
+				/* 6.0.5: a renewal names the usage level it bills ( Growth – Monthly · 25,000 subscribers ) */
+				wp_easycart_subscription_levels::fill( $subscription );
+				if ( ! empty( $subscription->usage_level ) && '' !== (string) $subscription->usage_label && false === strpos( (string) $title, (string) $subscription->usage_label ) ) {
+					$title = wp_easycart_subscription_levels::title( $title, (string) $subscription->usage_label );
+				}
 			}
 			$first_orderdetail_row = ( $first_order ) ? self::$mysqli->get_row( self::$mysqli->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d AND product_id = %d', $first_order->order_id, $subscription->product_id ) ) : false;
 			$product = self::get_product( '', $subscription->product_id );
@@ -5391,6 +5429,25 @@ class ec_db{
 
 	}
 	
+	/**
+	 * The card a renewal order records: the one the subscription bills ( wp_easycart_subscription_cards ), else the account's last
+	 * card, which was every renewal's card before 6.0.5 ( wrong whenever the customer's subscriptions bill different cards ).
+	 *
+	 * @since 6.0.5
+	 * @param object $subscription get_stripe_subscription() row.
+	 * @param object $user         ec_user row.
+	 * @return array type, last4.
+	 */
+	private static function subscription_order_card( $subscription, $user ) {
+		if ( class_exists( 'wp_easycart_subscription_cards' ) && is_object( $subscription ) && ! empty( $subscription->subscription_id ) ) {
+			return wp_easycart_subscription_cards::order_card( (int) $subscription->subscription_id, $user );
+		}
+		return array(
+			'type'  => ( is_object( $user ) && isset( $user->default_card_type ) ) ? (string) $user->default_card_type : '',
+			'last4' => ( is_object( $user ) && isset( $user->default_card_last4 ) ) ? (string) $user->default_card_last4 : '',
+		);
+	}
+
 	public static function insert_stripe_failed_order( $subscription, $webhook_data ){
 		
 		$user = self::get_stripe_user( $webhook_data->customer );
@@ -5406,7 +5463,8 @@ class ec_db{
 		$last_name = $user->last_name;
 		if( $user->billing_last_name != "" )
 			$last_name = $user->billing_last_name;
-		
+		$order_card = self::subscription_order_card( $subscription, $user ); /* 6.0.5: the card this subscription bills */
+
 		self::$mysqli->insert( 	'ec_order',
 						array( 	'user_id'					=> $user->user_id,
 								'user_email'				=> $user->email,
@@ -5423,8 +5481,8 @@ class ec_db{
 								'billing_country'			=> $user->billing_country,
 								'billing_zip'				=> $user->billing_zip,
 								'billing_phone'				=> $user->billing_phone,
-								'payment_method'			=> $user->default_card_type,
-								'creditcard_digits'			=> $user->default_card_last4,
+								'payment_method'			=> $order_card['type'],
+								'creditcard_digits'			=> $order_card['last4'],
 								'stripe_charge_id'			=> ( ( $webhook_data->charge ) ? $webhook_data->charge : '' ),
 								'subscription_id'			=> $subscription->subscription_id ),
 						array( '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d' ) );
@@ -5432,6 +5490,9 @@ class ec_db{
 		$order_id = self::$mysqli->insert_id;
 		if ( class_exists( 'wp_easycart_order_source' ) ) {
 			wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+		}
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::stamp( $order_id ); /* 6.0.5: the currency it was placed in */
 		}
 		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
 			wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
@@ -5594,7 +5655,8 @@ class ec_db{
 	}
 	
 	public static function get_subscription_payments( $subscription_id, $user_id ){
-		$sql = "SELECT ec_order.order_id, CONVERT_TZ( ec_order.order_date, @@session.time_zone, '+00:00' ) as order_date, ec_order.grand_total FROM ec_order WHERE ec_order.subscription_id = %d AND ec_order.user_id = %d";
+		/* 6.0.5: oldest first, by order number ( My Account lists them newest first and shows ten at a time ). */
+		$sql = "SELECT ec_order.order_id, CONVERT_TZ( ec_order.order_date, @@session.time_zone, '+00:00' ) as order_date, ec_order.grand_total FROM ec_order WHERE ec_order.subscription_id = %d AND ec_order.user_id = %d ORDER BY ec_order.order_id ASC";
 		return self::$mysqli->get_results( self::$mysqli->prepare( $sql, $subscription_id, $user_id ) );
 	}
 	

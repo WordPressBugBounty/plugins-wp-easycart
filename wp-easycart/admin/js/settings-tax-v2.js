@@ -498,4 +498,23 @@
 			$svc.find( '[data-ecst-drawer-open]' ).text( 'off' === s ? texts.set_up : texts.edit );
 		} );
 	} );
+
+	/* 6.0.5: the recommended tax settings card ( wp_easycart_admin_tax_setup ): a choice ( state, province, PST, EU customers ) redraws
+	   what would change, and what Apply sends ( the action's .ecst-action-input, "state:TX|eu:oss" ). */
+	$( document ).on( 'change', '#ectx_setup [data-ectx-choice]', function() {
+		var $card = $( '#ectx_setup' ), $input = $card.find( '.ectx-setup-actions .ecst-action-input' ), parts = [];
+		$card.find( '[data-ectx-choice]' ).each( function() { parts.push( this.getAttribute( 'data-ectx-choice' ) + ':' + this.value ); } );
+		$.each( String( $input.val() || '' ).split( '|' ), function( i, part ) { if ( /^included:/.test( part ) ) { parts.push( part ); } } );
+		var value = parts.join( '|' ), $list = $card.find( '[data-ectx-changes]' ).attr( 'aria-busy', 'true' );
+		$input.val( value );
+		var ajax = ( window.ecst_vars && window.ecst_vars.ajax ) ? window.ecst_vars.ajax : window.ajaxurl;
+		$.post( ajax, { action: 'ecv2_tax_setup_preview', nonce: $card.attr( 'data-nonce' ), input: value, context: 'card' } ).done( function( r ) {
+			if ( r && r.success && r.data ) {
+				$list.html( r.data.html );
+				$card.find( '[data-ectx-apply]' ).text( r.data.button ).prop( 'disabled', ! r.data.count );
+				$card.find( '.ectx-setup-notes, .ectx-setup-fine' ).remove();
+				$card.find( '.ectx-setup-card' ).append( r.data.notes );
+			}
+		} ).always( function() { $list.removeAttr( 'aria-busy' ); } );
+	} );
 } )( jQuery );

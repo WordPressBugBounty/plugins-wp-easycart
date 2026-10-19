@@ -3,6 +3,7 @@
  *
  * Entry points:
  *   ecosv2_open( { origin: 'product'|'standalone', type: 'basic-combo', after: 'edit'|'close' } )
+ *     6.0.5: type 'combo' / 'swatch' opens Dropdown / Swatches as a modifier ( "What each choice does", Pro ).
  *     after: 'edit' sends the merchant to the full option editor for the new set once it is
  *     created ( default on the Option Sets screens ); 'close' just closes ( product editors,
  *     which pick the new set up from the ecosv2:created event ).
@@ -32,17 +33,29 @@
 	var VARIATION = { 'basic-combo': 1, 'basic-swatch': 1 };            // stock-creating, free
 	var LISTED    = { 'radio': 1, 'checkbox': 1, 'grid': 1 };            // PRO types that still take a list of choices
 	var NUMERIC   = { 'number': 1, 'dimensions1': 1, 'dimensions2': 1 };
+	var SIZE      = { 'dimensions1': 1, 'dimensions2': 1 }; /* 6.0.5: a size has no price of its own ( its area scales the product price ) */
 	var TEXTUAL   = { 'text': 1, 'textarea': 1 };
 
 	var SWATCH    = { 'basic-swatch': 1, 'swatch': 1 };                  // types whose choices carry a color / image
 
-	var state = { origin: 'standalone', type: 'basic-combo', after: 'close', label_touched: false, saving: false, hints: {} };
+	/* 6.0.5: Dropdown / Swatches made as modifiers save as these types ( "What each choice does" ). */
+	var AS_MODIFIER = { 'basic-combo': 'combo', 'basic-swatch': 'swatch' };
+
+	var state = { origin: 'standalone', type: 'basic-combo', kind: 'variation', after: 'close', label_touched: false, saving: false, hints: {}, ctx: null };
 
 	function $box() { return $( '#ecosv2_box' ); }
 	function $f( id ) { return $( '#' + id ); }
 	function val( id ) { return $.trim( String( $f( id ).val() == null ? '' : $f( id ).val() ) ); }
 	function esc( s ) { return $( '<span>' ).text( s == null ? '' : s ).html(); }
-	function fmt( n ) { var d = parseInt( V.decimals, 10 ); if ( isNaN( d ) ) { d = 2; } return ( V.currency || '$' ) + Number( n ).toFixed( d ); }
+	/* 6.0.5: the store's own format ( symbol before or after, separators, decimals: ecosv2_vars.money ). */
+	function fmt( n ) {
+		var m = V.money || {}, d = parseInt( null == m.decimals ? V.decimals : m.decimals, 10 ), x = Number( n ) || 0;
+		if ( isNaN( d ) ) { d = 2; }
+		var p = Math.abs( x ).toFixed( d ).split( '.' ), s = null == m.symbol ? ( V.currency || '$' ) : m.symbol;
+		var t = p[0].replace( /\B(?=(\d{3})+(?!\d))/g, null == m.group ? ',' : m.group ) + ( p[1] ? ( m.dec || '.' ) + p[1] : '' );
+		var sp = m.space ? '\u00a0' : ''; /* 6.0.5: 93,00 € */
+		return ( x < 0 ? '-' : '' ) + ( ( undefined === m.before || m.before ) ? s + sp + t : t + sp + s );
+	}
 	function toast( msg, type ) {
 		if ( typeof window.ecv2_toast === 'function' ) { window.ecv2_toast( msg, type || 'success' ); return; }
 		var $t = $( '<div class="ecosv2-toast">' ).toggleClass( 'is-error', type === 'error' ).text( msg ).appendTo( 'body' );
@@ -52,6 +65,28 @@
 	function takes_list( t ) { return !! ( VARIATION[ t ] || LISTED[ t ] ); }
 	function has_pro() { return $box().attr( 'data-pro' ) === '1'; }
 	function is_swatch_type( t ) { return !! SWATCH[ t ]; }
+	/* The type the set is saved as: the tile's, or its modifier type when a Dropdown / Swatches tile makes add-ons. */
+	function etype() { return ( 'modifier' === state.kind && AS_MODIFIER[ state.type ] ) ? AS_MODIFIER[ state.type ] : state.type; }
+	function paint_type() {
+		$box().attr( 'data-type', etype() );
+		$f( 'ecosv2_type_hint' ).text( state.hints[ etype() ] || '' );
+		$( '#ecosv2_kind input[name="ecosv2_kind"]' ).each( function() {
+			this.checked = ( this.value === state.kind );
+			$( this ).closest( '.ecosv2-kind-opt' ).toggleClass( 'is-on', this.checked );
+		} );
+		paint_sub();
+	}
+	/* Opened from a product: where the new set goes. */
+	function paint_sub() {
+		var ctx = state.ctx;
+		if ( ! ctx ) { return; }
+		var who = ctx.title !== '' ? ctx.title : ( L.this_product || 'this product' );
+		if ( VARIATION[ etype() ] ) {
+			$f( 'ecosv2_sub_product' ).html( ( L.sub_product || 'It will be added to <strong>%1</strong> as slot %2. Reusable on any other product too.' ).replace( '%1', esc( who ) ).replace( '%2', ctx.slot ) );
+		} else {
+			$f( 'ecosv2_sub_product' ).html( ( L.sub_product_mod || 'It will be added to <strong>%1</strong> as a modifier. Reusable on any other product too.' ).replace( '%1', esc( who ) ) );
+		}
+	}
 
 	/* Swatch value: "#rrggbb" or "#rrggbb,#rrggbb" ( color, every store ) or an image URL ( PRO ).
 	 * Same format and rules as the full option editor ( option-editor-v2.js / sanitize_icon() ). */
@@ -89,12 +124,24 @@
 			return;
 		}
 		state.type = t;
-		$box().attr( 'data-type', t );
 		$( '.ecosv2-tile' ).removeClass( 'is-on' );
 		$( el ).addClass( 'is-on' );
-		$f( 'ecosv2_type_hint' ).text( state.hints[ t ] || '' );
+		paint_type();
 		render();
 	};
+
+	/* 6.0.5: what each Dropdown / Swatches choice does. A modifier needs Pro ( a free store gets the upsell and stays on variations ). */
+	function set_kind( kind ) {
+		if ( 'modifier' === kind && ! has_pro() ) {
+			state.kind = 'variation';
+			paint_type();
+			if ( typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products', feature: 'modifiers' } ); }
+			return;
+		}
+		state.kind = ( 'modifier' === kind ) ? 'modifier' : 'variation';
+		paint_type();
+		render();
+	}
 
 	/* ------------------------------------------------------------------ */
 	/* Naming                                                              */
@@ -153,17 +200,26 @@
 				sku:    $.trim( $r.find( '.ecosv2-sku' ).val() ),
 				price:  $.trim( $r.find( '.ecosv2-pr' ).val() ),
 				weight: $.trim( $r.find( '.ecosv2-wt' ).val() ),
-				icon:   is_swatch_type( state.type ) ? ( $r.find( '.ecosv2-swatch' ).attr( 'data-icon' ) || '' ) : ''
+				icon:   is_swatch_type( etype() ) ? ( $r.find( '.ecosv2-swatch' ).attr( 'data-icon' ) || '' ) : ''
 			};
 		} ).get();
 	}
 
+	/* 6.0.5: the smallest copy at least 400px on its short side ( a 200px swatch on a sharp screen ), else the full image: the thumbnail
+	   ( 150px, 80px on some sites ) showed small in large swatches. The storefront picks the copy each swatch size needs ( ec_optionitem::swatch_image_url() ). */
+	function swatch_image( a ) {
+		var best = null;
+		$.each( a.sizes || {}, function( k, s ) {
+			if ( s && s.url && Math.min( s.width, s.height ) >= 400 && ( ! best || s.width * s.height < best.width * best.height ) ) { best = s; }
+		} );
+		return best ? best.url : a.url;
+	}
 	function pick_image( btn ) {
 		if ( ! window.wp || ! wp.media ) { toast( L.no_media || 'The media library is not available on this page.', 'error' ); return; }
 		var frame = wp.media( { title: L.pick_photo || 'Choose a photo', button: { text: L.use_photo || 'Use this photo' }, multiple: false, library: { type: 'image' } } );
 		frame.on( 'select', function() {
 			var a = frame.state().get( 'selection' ).first().toJSON();
-			set_swatch( btn, ( a.sizes && a.sizes.thumbnail ) ? a.sizes.thumbnail.url : a.url );
+			set_swatch( btn, swatch_image( a ) );
 		} );
 		frame.open();
 	}
@@ -250,9 +306,14 @@
 	/* ------------------------------------------------------------------ */
 
 	function render() {
-		var t = state.type, pro = has_pro(), list = takes_list( t );
+		var t = etype(), pro = has_pro(), list = takes_list( state.type );
 		$f( 'ecosv2_choices' ).prop( 'hidden', ! list );
-		$f( 'ecosv2_modifier' ).prop( 'hidden', list || ! pro );
+		/* 6.0.5: "What each choice does" only for Dropdown and Swatches; every modifier shows Required ( a list modifier has no input price ). */
+		$f( 'ecosv2_kind' ).prop( 'hidden', ! VARIATION[ state.type ] );
+		$f( 'ecosv2_modifier' ).prop( 'hidden', !! VARIATION[ t ] || ! pro );
+		$f( 'ecosv2_input_price_row' ).prop( 'hidden', list || !! SIZE[ t ] );
+		var $pt = $f( 'ecosv2_input_price_t' );
+		$pt.text( 'number' === t ? $pt.attr( 'data-each' ) : $pt.attr( 'data-input' ) ); /* 6.0.5: a number box charges it for each 1 entered */
 		$f( 'ecosv2_meta_num' ).prop( 'hidden', ! NUMERIC[ t ] );
 		$f( 'ecosv2_meta_text' ).prop( 'hidden', ! TEXTUAL[ t ] );
 		$f( 'ecosv2_error_text' ).prop( 'hidden', ! $f( 'ecosv2_required' ).is( ':checked' ) );
@@ -270,11 +331,12 @@
 		// Preview.
 		var label = val( 'ecosv2_label' ) || $f( 'ecosv2_label' ).attr( 'placeholder' );
 		$f( 'ecosv2_preview_label' ).text( label );
-		$f( 'ecosv2_preview_meta' ).text( t === 'basic-combo' ? ( L.dropdown || 'Dropdown' ) : t === 'basic-swatch' ? ( L.swatches || 'Swatches' ) : '' );
+		var kind_note = ( 'combo' === t || 'swatch' === t ) ? ' · ' + ( L.modifier || 'Modifier' ) : '';
+		$f( 'ecosv2_preview_meta' ).text( ( t === 'basic-combo' || t === 'combo' ) ? ( L.dropdown || 'Dropdown' ) + kind_note : ( t === 'basic-swatch' || t === 'swatch' ) ? ( L.swatches || 'Swatches' ) + kind_note : '' );
 		var $b = $f( 'ecosv2_preview_body' ).empty();
 		if ( ! named.length ) {
 			$b.append( $( '<span class="ecosv2-preview-empty">' ).text( L.preview_empty || 'Add a choice to see it here.' ) );
-		} else if ( t === 'basic-combo' || t === 'radio' || t === 'checkbox' || t === 'grid' ) {
+		} else if ( t === 'basic-combo' || t === 'combo' || t === 'radio' || t === 'checkbox' || t === 'grid' ) {
 			var first = named[ 0 ];
 			$b.append( $( '<div class="ecosv2-preview-dd">' ).append( $( '<span>' ).text( first.name + ( parseFloat( first.price ) ? ' (+' + fmt( first.price ) + ')' : '' ) ) ).append( '<span>▾</span>' ) );
 			$b.append( $( '<div class="ecosv2-hint ecosv2-preview-list">' ).text( $.map( named, function( r ) { return r.name + ( parseFloat( r.price ) ? ' +' + fmt( r.price ) : '' ); } ).join( ' · ' ) ) );
@@ -299,6 +361,7 @@
 
 	function reset() {
 		state.label_touched = false;
+		state.kind = 'variation';
 		$f( 'ecosv2_name' ).val( '' ); $f( 'ecosv2_label' ).val( '' );
 		$f( 'ecosv2_rows' ).empty();
 		$f( 'ecosv2_pastebox' ).val( '' ); $f( 'ecosv2_paste' ).prop( 'hidden', true );
@@ -327,16 +390,19 @@
 		reset();
 		// Default type: what the caller asked for, else Dropdown ( a modifier request on free falls back too ).
 		var t = opts.type || 'basic-combo';
+		/* 6.0.5: a modifier Dropdown / Swatches opens its tile with "Adds to the item" chosen. */
+		if ( ( 'combo' === t || 'swatch' === t ) ) {
+			state.kind = has_pro() ? 'modifier' : 'variation';
+			t = ( 'combo' === t ) ? 'basic-combo' : 'basic-swatch';
+		}
 		var $tile = $( '.ecosv2-tile[data-type="' + t + '"]' ).not( '.is-locked' );
 		if ( ! $tile.length ) { $tile = $( '.ecosv2-tile[data-type="basic-combo"]' ); }
 		state.type = $tile.attr( 'data-type' );
 		$( '.ecosv2-tile' ).removeClass( 'is-on' ); $tile.addClass( 'is-on' );
-		$box().attr( 'data-type', state.type );
-		$f( 'ecosv2_type_hint' ).text( state.hints[ state.type ] || '' );
+		state.ctx = ctx;
+		paint_type();
 
 		if ( ctx ) {
-			var who = ctx.title !== '' ? ctx.title : ( L.this_product || 'this product' );
-			$f( 'ecosv2_sub_product' ).html( ( L.sub_product || 'It will be added to <strong>%1</strong> as slot %2. Reusable on any other product too.' ).replace( '%1', esc( who ) ).replace( '%2', ctx.slot ) );
 			$( '#ecpsv2_box' ).addClass( 'is-receded' );
 		}
 
@@ -380,7 +446,7 @@
 		var payload = {
 			action:            'ec_admin_ajax_ecv2_save_option_set',
 			wp_easycart_nonce: val( 'wp_easycart_optionset_quick_edit_nonce' ),
-			option_type:       state.type,
+			option_type:       etype(),
 			option_name:       name,
 			option_label:      val( 'ecosv2_label' ) || $f( 'ecosv2_label' ).attr( 'placeholder' ),
 			items:             JSON.stringify( list ? items : [] ),
@@ -401,7 +467,7 @@
 			announce( r );
 			toast( ( L.created || '“%s” created.' ).replace( '%s', r.option_name ) );
 			if ( state.origin === 'standalone' ) {
-				if ( next === 'another' ) { reset(); if ( takes_list( state.type ) ) { ecosv2_add_row( '', '', false ); ecosv2_add_row( '', '', false ); } render(); $f( 'ecosv2_name' ).trigger( 'focus' ); return; }
+				if ( next === 'another' ) { var kept = state.kind; reset(); state.kind = kept; paint_type(); if ( takes_list( state.type ) ) { ecosv2_add_row( '', '', false ); ecosv2_add_row( '', '', false ); } render(); $f( 'ecosv2_name' ).trigger( 'focus' ); return; }
 				if ( state.after === 'edit' && r.edit_url ) {
 					/* Keep the panel busy while the editor loads, so nothing can be double-submitted. */
 					state.saving = true; loader( true );
@@ -456,6 +522,7 @@
 		$b.on( 'input', '#ecosv2_name', function() { mark( 'ecosv2_name', 'ecosv2_name_err', false ); derive_label(); render(); } );
 		$b.on( 'input', '#ecosv2_label', function() { state.label_touched = ( this.value !== '' ); render(); } );
 		$b.on( 'input change', '#ecosv2_rows input, #ecosv2_required', function() { render(); } );
+		$b.on( 'change', '#ecosv2_kind input[name="ecosv2_kind"]', function() { if ( this.checked ) { set_kind( this.value ); } } );
 		$b.on( 'click', '#ecosv2_rows .ecosv2-rm', function() { $( this ).closest( '.ecosv2-irow' ).remove(); render(); } );
 		$b.on( 'click', '#ecosv2_rows .ecosv2-swatch', function() { open_swatch_popover( this ); } );
 		$b.find( '.ecosv2-body' ).on( 'scroll', close_swatch_popover );

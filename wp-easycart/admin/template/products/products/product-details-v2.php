@@ -78,18 +78,22 @@ $has_pro_media_legacy = has_action( 'wp_easycart_admin_product_details_after_ima
 
 /* 6.0.4 ( editor plan Phase 2 ): the sections in the order a product is built, price in one place ( Pricing ), stock beside the
    variants that hold it, Shipping on its own ( a download or a service has none ). The keys are unchanged; Shipping is new. */
+/* 6.0.5: Type settings is named for the product's type ( Subscription settings, Download settings … ); the rail keeps one word. */
+$ecdv2_type_section = method_exists( $this, 'type_section_v2' ) ? $this->type_section_v2() : array( 'rail' => __( 'Type settings', 'wp-easycart' ), 'title' => __( 'Type settings', 'wp-easycart' ), 'desc' => __( 'Settings for the product type: subscription billing, the download, and purchase rules.', 'wp-easycart' ) );
 $tabs = apply_filters( 'wp_easycart_admin_product_details_v2_tabs', array(
 	'general'   => array( 'label' => __( 'Basics', 'wp-easycart' ), 'icon' => 'dashicons-tag', 'group' => 'essentials', 'desc' => __( 'Its name, SKU and what shoppers read about it.', 'wp-easycart' ) ),
 	'media'     => array( 'label' => __( 'Media', 'wp-easycart' ), 'icon' => 'dashicons-format-gallery', 'group' => 'essentials', 'desc' => __( 'Photos and videos. The first picture is the one on product cards.', 'wp-easycart' ) ),
-	'pricing'   => array( 'label' => __( 'Pricing', 'wp-easycart' ), 'icon' => 'dashicons-money-alt', 'group' => 'essentials', 'desc' => __( 'The price and compare-at price, how the price shows, volume and B2B prices, and tax.', 'wp-easycart' ) ),
+	'pricing'   => array( 'label' => __( 'Pricing', 'wp-easycart' ), 'icon' => 'dashicons-money-alt', 'group' => 'essentials', 'desc' => __( 'The price and compare-at price, what it costs you, how the price shows, and volume and B2B prices.', 'wp-easycart' ) ),
 	/* 6.0.4: Shipping is an essential for anything that ships ( the rail and the page follow this order ). */
 	'shipping'  => array( 'label' => __( 'Shipping', 'wp-easycart' ), 'icon' => 'dashicons-car', 'group' => 'essentials', 'desc' => __( 'Whether it ships, its package, what it adds to shipping, and customs.', 'wp-easycart' ) ),
+	/* 6.0.5 ( Matt: tax was rolled into Pricing ): its own essential, after Shipping as checkout totals it. */
+	'tax'       => array( 'label' => __( 'Tax', 'wp-easycart' ), 'icon' => 'dashicons-calculator', 'group' => 'essentials', 'desc' => __( 'Which taxes checkout charges on it, at what rate, and the code your tax service reads.', 'wp-easycart' ) ),
 	'options'   => array( 'label' => __( 'Options & variants', 'wp-easycart' ), 'icon' => 'dashicons-admin-settings', 'group' => 'catalog', 'desc' => __( 'Sizes, colours and add-ons, and each variant\'s SKU, price and stock.', 'wp-easycart' ) ),
 	'inventory' => array( 'label' => __( 'Inventory', 'wp-easycart' ), 'icon' => 'dashicons-archive', 'group' => 'catalog', 'desc' => __( 'How stock is counted, limits on a purchase, back-in-stock requests and stock history.', 'wp-easycart' ) ),
 	'organize'  => array( 'label' => __( 'Storefront', 'wp-easycart' ), 'icon' => 'dashicons-store', 'group' => 'advanced', 'desc' => __( 'Where it shows in your store: menus, related products, specials and sort order.', 'wp-easycart' ) ),
 	/* 6.0.4: the product card's badge and picture effects, which most products never use ( they were under Media ). */
 	'design'    => array( 'label' => __( 'Design', 'wp-easycart' ), 'icon' => 'dashicons-art', 'group' => 'advanced', 'desc' => __( 'A badge on its product card, and how its picture reacts to the pointer.', 'wp-easycart' ) ),
-	'behavior'  => array( 'label' => __( 'Type settings', 'wp-easycart' ), 'icon' => 'dashicons-admin-generic', 'group' => 'advanced', 'desc' => __( 'Settings for the product type: subscription billing, the download, and purchase rules.', 'wp-easycart' ) ),
+	'behavior'  => array( 'label' => $ecdv2_type_section['rail'], 'title' => $ecdv2_type_section['title'], 'icon' => 'dashicons-admin-generic', 'group' => 'advanced', 'desc' => $ecdv2_type_section['desc'] ),
 	'seo'       => array( 'label' => __( 'Search & marketing', 'wp-easycart' ), 'icon' => 'dashicons-search', 'group' => 'advanced', 'desc' => __( 'How it shows in search engines, AI assistants and Google Shopping, and your marketing services.', 'wp-easycart' ) ),
 	'notes'     => array( 'label' => __( 'After purchase', 'wp-easycart' ), 'icon' => 'dashicons-email-alt', 'group' => 'advanced', 'desc' => __( 'Notes for customers who bought it: on the order confirmation page, in the order email and in their account.', 'wp-easycart' ) ),
 	'activity'  => array( 'label' => __( 'Activity', 'wp-easycart' ), 'icon' => 'dashicons-chart-bar', 'group' => 'insights', 'new' => true, 'desc' => __( 'Sales and customers tied to this product.', 'wp-easycart' ) ),
@@ -159,7 +163,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 	$mode   = $ecdv2_mode_of( $key );
 	$active = ( 'page' === $ecdv2_view ) ? ( 'edit' === $mode ) : ( 'general' === $key );
 	$folded = ! $is_new && $ecdv2_is_folded( $key );
-	$label  = isset( $tabs[ $key ]['label'] ) ? $tabs[ $key ]['label'] : $key;
+	$label  = isset( $tabs[ $key ]['title'] ) ? $tabs[ $key ]['title'] : ( isset( $tabs[ $key ]['label'] ) ? $tabs[ $key ]['label'] : $key );
 	/* The panels show in the rail's order ( the template prints Offers among the editing panels ). */
 	$order  = isset( $ecdv2_tab_order[ $key ] ) ? (int) $ecdv2_tab_order[ $key ] : 99;
 	echo '<div class="ecdv2-panel' . ( $active ? ' is-active' : '' ) . ( $folded ? ' is-collapsed' : '' ) . esc_attr( $extra_class ) . '" data-ecdv2-panel="' . esc_attr( $key ) . '" data-ecdv2-mode="' . esc_attr( $mode ) . '" style="order:' . esc_attr( $order ) . ';" role="' . ( 'page' === $ecdv2_view ? 'region' : 'tabpanel' ) . '" aria-labelledby="ecdv2_panel_title_' . esc_attr( $key ) . '">';
@@ -174,7 +178,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 	}
 	echo '</div>';
 	if ( ! empty( $tabs[ $key ]['desc'] ) ) {
-		echo '<p class="ecdv2-panel-desc">' . esc_html( $tabs[ $key ]['desc'] ) . '</p>';
+		echo '<p class="ecdv2-panel-desc" id="ecdv2_panel_desc_' . esc_attr( $key ) . '">' . esc_html( $tabs[ $key ]['desc'] ) . '</p>';
 	}
 	echo '<p class="ecdv2-panel-sum" data-ecdv2-sum="' . esc_attr( $key ) . '"></p>';
 	echo '</div>';
@@ -391,7 +395,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 					?>
 					<button type="button" role="tab" class="ecdv2-tab<?php echo ( 'general' === $tab_key ) ? ' is-active' : ''; ?><?php echo ( 'general' !== $tab_key ) ? ' ecdv2-requires-save' : ''; ?>" data-ecdv2-tab="<?php echo esc_attr( $tab_key ); ?>" data-ecdv2-mode="<?php echo esc_attr( $ecdv2_tab_mode ); ?>" onclick="ecdv2.go_tab( '<?php echo esc_attr( $tab_key ); ?>' );">
 						<span class="dashicons <?php echo esc_attr( $tab['icon'] ); ?>"></span>
-						<span><?php echo esc_html( $tab['label'] ); ?></span>
+						<span class="ecdv2-tab-label"><?php echo esc_html( $tab['label'] ); ?></span>
 						<?php if ( ! empty( $tab['new'] ) ) { ?><span class="ecdv2-tab-new"><?php esc_attr_e( 'NEW', 'wp-easycart' ); ?></span><?php } ?>
 						<span class="ecdv2-tab-todo-dot" title="<?php esc_attr_e( 'Something to finish here', 'wp-easycart' ); ?>"></span>
 						<span class="ecdv2-tab-dirty-dot" title="<?php esc_attr_e( 'Unsaved changes', 'wp-easycart' ); ?>"></span>
@@ -536,7 +540,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 				<?php } ?>
 			</div>
 
-			<!-- ===== PRICING & TAX ===== -->
+			<!-- ===== PRICING ===== -->
 			<?php $ecdv2_open_panel( 'pricing', ' ecdv2-requires-save' ); ?>
 				<?php if ( ! $is_new ) { ?>
 					<?php /* 6.0.4 ( editor plan Phase 2 ): the price and compare-at price lead Pricing, with every other place the
@@ -546,6 +550,8 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 						<?php do_action( 'wp_easycart_admin_product_details_basic_start', $product ); ?>
 						<?php do_action( 'wp_easycart_admin_product_details_basic_fields' ); ?>
 					<?php $this->section_close(); ?>
+					<?php /* 6.0.5: what shoppers see under a reduced price, and the price before a reduction that began before 6.0.5. */ ?>
+					<?php if ( class_exists( 'wp_easycart_admin_price_history' ) ) { wp_easycart_admin_price_history::print_card( $product ); } ?>
 				<?php } ?>
 				<?php do_action( 'wp_easycart_admin_product_details_pricing_start', $product ); ?>
 				<?php $this->section_open( 'pricing', __( 'Cost and price display', 'wp-easycart' ), __( 'What one item costs you, and how the price shows to shoppers', 'wp-easycart' ) ); ?>
@@ -557,9 +563,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 					<?php do_action( 'wp_easycart_admin_product_details_advanced_pricing_fields' ); ?>
 				</div></div>
 
-				<?php $this->section_open( 'tax', __( 'Tax', 'wp-easycart' ), __( 'Whether tax and VAT are charged on it', 'wp-easycart' ) ); ?>
-					<?php do_action( 'wp_easycart_admin_product_details_tax_fields' ); ?>
-				<?php $this->section_close(); ?>
+				<?php /* 6.0.5: tax has its own section ( Tax, after Shipping ). */ ?>
 			</div>
 
 			<!-- ===== OFFERS ===== -->
@@ -675,6 +679,16 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 				</div>
 			</div>
 
+			<!-- ===== TAX ===== -->
+			<?php
+			/* 6.0.5 ( Matt: tax was rolled into Pricing, and hard to read ): its own section, laid out as Shipping is: what the store
+			   charges, the switch of the tax it charges, the rate with what a shopper pays, the tax service's code, and the taxes the
+			   store does not charge folded away ( print_tax_section_v2(); every card saves with the tax section, as before ). */
+			$ecdv2_open_panel( 'tax', ' ecdv2-requires-save' );
+			$this->print_tax_section_v2();
+			?>
+			</div>
+
 			<!-- ===== ORGANIZATION ===== -->
 			<?php $ecdv2_open_panel( 'organize', ' ecdv2-requires-save' ); ?>
 				<?php if ( $is_new ) { ?>
@@ -722,6 +736,7 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 
 			<!-- ===== TYPE & BEHAVIOR ===== -->
 			<?php $ecdv2_open_panel( 'behavior', ' ecdv2-requires-save' ); ?>
+				<?php if ( method_exists( $this, 'print_type_bar_v2' ) ) { $this->print_type_bar_v2(); } /* 6.0.5: what the product is, Change type goes to the summary column's card */ ?>
 				<?php $this->section_open( 'general_options', __( 'Purchase rules', 'wp-easycart' ), __( 'How it can be bought', 'wp-easycart' ), array( 'except' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'role_id', 'sort_position', 'mailerlite_group_name' ) ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 				<?php $this->section_close(); ?>
@@ -729,6 +744,8 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 				<?php $this->section_open( 'subscription', __( 'Subscription', 'wp-easycart' ), __( 'Recurring billing (Stripe required)', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_subscription_fields' ); ?>
 				<?php $this->section_close(); ?>
+
+				<?php if ( ! $is_new && method_exists( $this, 'print_access_pages_v2' ) ) { $this->print_access_pages_v2(); } /* 6.0.5: the limited pages its buyers can open */ ?>
 
 				<?php $this->section_open( 'downloads', __( 'Digital Download', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_downloads_fields' ); ?>
@@ -775,6 +792,9 @@ $ecdv2_open_panel = function( $key, $extra_class = '', $head = array() ) use ( $
 					$this->section_open( 'seo', __( 'Search engine listing', 'wp-easycart' ), __( 'The text and picture search results show for its page', 'wp-easycart' ) );
 					do_action( 'wp_easycart_admin_product_details_seo_fields' );
 					$this->section_close();
+				} else {
+					/* 6.0.5: WP EasyCart's own description, still saved and exported, shows under Yoast's while it holds text. */
+					$this->print_seo_fallback_v2();
 				}
 				$ecdv2_seo_panes['search'] = array(
 					'label' => __( 'Search engines', 'wp-easycart' ),

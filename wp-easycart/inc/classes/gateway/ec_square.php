@@ -87,6 +87,77 @@ class ec_square extends ec_gateway{
 	}
 
 	/**
+	 * A country as Square's payment request takes it ( ISO 3166-1 alpha-2, upper case ), or ''.
+	 *
+	 * @since 6.0.5
+	 * @param mixed $country A country code.
+	 * @return string
+	 */
+	public static function clean_country( $country ) {
+		$country = strtoupper( trim( (string) $country ) );
+		if ( 'UK' === $country ) {
+			$country = 'GB';
+		}
+		return preg_match( '/^[A-Z]{2}$/', $country ) ? $country : '';
+	}
+
+	/**
+	 * The country of the location that takes the payments, for Apple Pay and Google Pay's payment request ( countryCode ):
+	 * the one saved, else Square's answer for the location ( get_locations() saves it; Square is asked at most every 15
+	 * minutes ), else the store's own country ( wp_easycart_carriers::store_country() ), else ''. Before 6.0.5 the checkout
+	 * printed the saved country as it was, and only the Square panel saved one ( a location chosen and saved there ), so a
+	 * store whose panel had saved "Your default Square location" ( no country ), or was never saved, printed '' and Square
+	 * refused both wallets: "Country code '' is not a valid ISO country code".
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	public function location_country() {
+		$country = self::clean_country( get_option( 'ec_option_square_location_country' ) );
+		if ( '' !== $country ) {
+			return $country;
+		}
+		if ( false === get_transient( 'wpec_square_country_asked' ) ) {
+			set_transient( 'wpec_square_country_asked', 1, 15 * MINUTE_IN_SECONDS );
+			$this->get_locations();
+			$country = self::clean_country( get_option( 'ec_option_square_location_country' ) );
+			if ( '' !== $country ) {
+				return $country;
+			}
+		}
+		if ( class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) ) {
+			$country = self::clean_country( wp_easycart_carriers::store_country() );
+		}
+		return $country;
+	}
+
+	/**
+	 * Save the country of the location saved for the mode, from Square's list, when it is not the one saved. Called by
+	 * get_locations() whenever Square answers, so the country follows the location ( a reconnect, a location changed in the
+	 * panel, the first location saved for a store that had none ) without the panel being saved again.
+	 *
+	 * @since 6.0.5
+	 * @param array $locations Square's locations.
+	 * @return void
+	 */
+	private static function save_location_country( $locations ) {
+		$location_id = self::saved_location_id();
+		if ( '' === $location_id ) {
+			return;
+		}
+		foreach ( (array) $locations as $location ) {
+			if ( ! is_object( $location ) || ! isset( $location->id ) || (string) $location->id !== $location_id ) {
+				continue;
+			}
+			$country = self::clean_country( isset( $location->country ) ? $location->country : '' );
+			if ( '' !== $country && (string) get_option( 'ec_option_square_location_country' ) !== $country ) {
+				update_option( 'ec_option_square_location_country', $country );
+			}
+			return;
+		}
+	}
+
+	/**
 	 * The location to use when none is chosen: the first active one Square lists ( ListLocations lists inactive locations
 	 * too, which take no payments ), else the first.
 	 *
@@ -149,9 +220,14 @@ class ec_square extends ec_gateway{
 				"postal_code" => (string) ( ( '' != $this->user->shipping->zip ) ? $this->user->shipping->zip : $this->user->billing->zip ),
 				"country" => strtoupper( (string) ( ( '' != $this->user->shipping->country ) ? $this->user->shipping->country : $this->user->billing->country ) ),
 			),
-			"buyer_email_address" => (string) $this->user->email,
 			"location_id" => $location_id
 		);
+		/* 6.0.5: the shopper's email, else the one typed at checkout, and only when it is one: Square refuses the whole payment over a
+		   buyer_email_address that is not an email ( INVALID_EMAIL_ADDRESS ), and the field is optional. */
+		$buyer_email = self::buyer_email( isset( $this->user->email ) ? $this->user->email : '' );
+		if ( '' !== $buyer_email ) {
+			$json_arr['buyer_email_address'] = $buyer_email;
+		}
 
 		if( $square_order_id ){
 			$json_arr['order_id']   = $square_order_id;
@@ -176,6 +252,22 @@ class ec_square extends ec_gateway{
 
 		return $json_arr;
 
+	}
+
+	/**
+	 * The email to send Square as buyer_email_address: the one given, else the checkout session's, or '' when neither is an email
+	 * ( a guest's session holds "guest" until the details step ).
+	 *
+	 * @since 6.0.5
+	 * @param string $email The shopper's email.
+	 * @return string
+	 */
+	public static function buyer_email( $email ) {
+		$email = trim( (string) $email );
+		if ( ! is_email( $email ) && isset( $GLOBALS['ec_cart_data']->cart_data->email ) ) {
+			$email = trim( (string) $GLOBALS['ec_cart_data']->cart_data->email );
+		}
+		return is_email( $email ) ? $email : '';
 	}
 
 	function get_gateway_url( ){
@@ -807,15 +899,15 @@ class ec_square extends ec_gateway{
 				if( $locations[$i]->id == self::saved_location_id() ){
 					$found = true;
 					update_option( 'ec_option_square_currency', $locations[$i]->currency );
-					if ( isset( $locations[$i]->country ) && '' !== (string) $locations[$i]->country ) {
-						update_option( 'ec_option_square_location_country', strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', (string) $locations[$i]->country ), 0, 2 ) ) );
-					}
+					/* 6.0.5: the country is saved by get_locations() ( save_location_country() ) */
 				}
 			}
 			if( !$found ){
 				update_option( 'ec_option_square_currency', $locations[0]->currency );
 			}
-		}else{
+		}else if ( '' === (string) get_option( 'ec_option_square_currency' ) ) {
+			/* 6.0.5: only when none is saved. Square not answering ( a network error, no token yet ) used to set a store
+			   that sells in pounds or euros to USD. */
 			update_option( 'ec_option_square_currency', 'USD' );
 		}
 	}
@@ -873,6 +965,7 @@ class ec_square extends ec_gateway{
 			if ( ! $listed ) {
 				update_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id', (string) $first->id );
 			}
+			self::save_location_country( $locations ); /* 6.0.5: the wallets' country follows the location */
 		}
 		if( count( $locations ) > 0 && isset( $locations[0]->merchant_id ) ){
 			if( get_option( 'ec_option_square_is_sandbox' ) ){
@@ -2469,54 +2562,18 @@ class ec_square extends ec_gateway{
 		return false;
 	}
 
+	/**
+	 * Apple Pay on the web for a live Square store. The Square panels' saves call this while digital wallets are on in live mode.
+	 * Since 6.0.5 wp_easycart_square_apple_pay sets the domain up ( Square's file served or written into .well-known, the address
+	 * checked, then the domain registered with Square ) and the Payments page shows the result; this asks for that check now.
+	 *
+	 * @return bool Whether Apple Pay was already set up on the domain.
+	 */
 	function register_domain( ){
-
-		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
-		$location_id = $this->payment_location_id();
-
-		$domain = get_site_url( null, '', 'https' );
-		$url_info = parse_url( $domain );
-		if ( isset( $url_info['host'] ) ) {
-			$domain = $url_info['host'];
-		} else {
-			$domain = str_replace( 'https://', '', str_replace( 'https://www.', '', $domain ) );
+		if ( class_exists( 'wp_easycart_square_apple_pay' ) ) {
+			return wp_easycart_square_apple_pay::recheck_soon();
 		}
-
-		$gateway_url = 'https://connect.squareup.com/v2/apple-pay/domains';
-		$gateway_data = array( "domain_name" => $domain );
-
-		$headr = array(
-			'Accept' => 'application/json',
-			'Content-Type' => 'application/json',
-			'Authorization' => ' Bearer ' . $access_token,
-			'Square-Version' => '2022-05-12'
-		);
-
-		$request = new WP_Http;
-		$response = $request->request( 
-			$gateway_url, 
-			array( 
-				'method' => 'POST',
-				'headers' => $headr,
-				'body' => json_encode( $gateway_data ),
-				'timeout' => 30
-			)
-		);
-		if( is_wp_error( $response ) ){
-			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
-			return false;
-		}else{
-			$this->mysqli->insert_response( 0, 0, "Square Domain Registration Response", print_r( $response, true ) );
-		}
-
-		$response_arr = json_decode( $response['body'] );
-
-		if( isset( $response_arr->errors ) && count( $response_arr->errors ) > 0 ){
-			return false;
-		}else{
-			return true;
-		}
-
+		return false;
 	}
 
 }

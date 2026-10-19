@@ -339,7 +339,11 @@
 .ecv2-product-title-text { color:var(--ecv2-g800); font-weight:500; cursor:default; line-height:1.4; }
 .ecv2-product-row-actions { display:flex; align-items:center; gap:0; opacity:0; transition:opacity 0.15s ease; flex-wrap:wrap; line-height:1; }
 .ecv2-row:hover .ecv2-product-row-actions,
+.ecv2-row:focus-within .ecv2-product-row-actions,
 .ecv2-cell-editing .ecv2-product-row-actions { opacity:1; }
+/* 6.0.5 ( admin review M14 ): no hover on touch screens, and a finger needs 24px. */
+@media ( hover: none ) { .ecv2-product-row-actions { opacity:1; } }
+@media screen and ( max-width: 782px ) { .ecv2-row-action-link { display:inline-flex; align-items:center; min-height:24px; padding:0 4px; } }
 .ecv2-row-action-link { color:var(--ecv2-g500); font-size:12px; text-decoration:none; padding:1px 0; }
 .ecv2-row-action-link:hover { color:var(--ecv2-primary); }
 .ecv2-row-action-link-danger { color:var(--ecv2-g500); }
@@ -1917,3 +1921,68 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecv2-sd-picked-text { flex:1 1 auto; min-width:0; }
 .ecv2-sd-picked .ecv2-btn { flex:0 0 auto; }
 .ecv2-sd-strategy.is-disabled .ecv2-sd-search-input { cursor:not-allowed; }
+
+/* 6.0.5 ( admin review L6 ): what the Incomplete products are missing, each reason a filter. */
+.ecv2-incomplete-reasons { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+.ecv2-incomplete-reasons-lead { display:inline-flex; align-items:center; gap:4px; margin-right:2px; font-weight:600; color:var(--ecv2-g700); }
+.ecv2-incomplete-reasons-lead .dashicons { font-size:16px; width:16px; height:16px; color:var(--ecv2-amber, #b45309); }
+.ecv2-incomplete-reason { display:inline-flex; align-items:center; min-height:28px; padding:2px 10px; border:1px solid var(--ecv2-g300); border-radius:999px; background:#fff; color:var(--ecv2-g700); font-size:12.5px; text-decoration:none; }
+.ecv2-incomplete-reason:hover, .ecv2-incomplete-reason:focus-visible { border-color:var(--ec-brand, #2ebd59); color:var(--ecv2-g900, #111827); }
+.ecv2-incomplete-reason.is-on { border-color:var(--ec-brand, #2ebd59); background:var(--ecv2-g50); font-weight:600; }
+.ecv2-incomplete-all { border-style:dashed; }
+
+/* 6.0.5 ( admin review L7 ): on phones the products and orders lists are card rows instead of a table wider than the screen ( names
+   wrapped in a narrow column, each row action on its own line, stock and status off to the side ). Products: picture, name and price
+   on one line, stock and Active underneath; orders: number and total, the customer, then the date and status. The ⋯ menu holds the row
+   actions. Other columns a person chose show under the main line. */
+@container ecv2 (max-width:600px) {
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table-scroll,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table-scroll { overflow-x:visible; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table { display:block; min-width:0; width:100%; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > thead,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > thead,
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody { display:block; width:100%; }
+	/* the header keeps only its select-all box */
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > thead > tr,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > thead > tr { display:flex; align-items:center; padding:6px 8px; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > thead th:not(.ecv2-col-check),
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > thead th:not(.ecv2-col-check) { display:none; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row { display:grid; column-gap:10px; row-gap:6px; align-items:center; padding:12px 8px; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td { display:block; min-width:0; width:auto; max-width:none; padding:0; border:0; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-col-check,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-col-check { grid-area:check; align-self:start; padding-top:2px; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-col-actions,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-col-actions { grid-area:menu; align-self:start; justify-self:end; }
+
+	/* rows that are not records ( no results, an inline editor ) take the full width */
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr:not(.ecv2-row),
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr:not(.ecv2-row),
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr:not(.ecv2-row) > td,
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr:not(.ecv2-row) > td { display:block; width:auto; }
+
+	/* products */
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row { grid-template-columns:24px 48px minmax(0,1fr) auto 32px; grid-template-areas:"check img title price menu" "check img stock status menu"; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell { grid-column:3 / 5; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-image1 { grid-area:img; align-self:start; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-image1 img,
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-image1 .ecv2-image-wrap { width:48px; height:48px; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-title { grid-area:title; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-product-title-text { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; font-weight:600; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-product-row-actions { display:none; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-price { grid-area:price; justify-self:end; text-align:right; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-stock_quantity { grid-area:stock; }
+	.ecv2-wrap[data-table-id="ec_admin_product_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-is_visible { grid-area:status; justify-self:end; }
+
+	/* orders */
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row { grid-template-columns:24px minmax(0,1fr) auto 32px; grid-template-areas:"check num total menu" "check cust cust menu" "check date status menu"; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell { grid-column:2 / 4; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-order_number { grid-area:num; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-grand_total { grid-area:total; justify-self:end; text-align:right; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-billing_name { grid-area:cust; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-orderstatus_id { grid-area:status; justify-self:end; }
+	.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-view-table .ecv2-table > tbody > tr.ecv2-row > td.ecv2-cell-order_date { grid-area:date; color:var(--ecv2-g500); font-size:12.5px; white-space:nowrap; }
+}

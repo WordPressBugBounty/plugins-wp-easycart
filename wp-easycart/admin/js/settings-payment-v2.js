@@ -17,7 +17,12 @@
 
 	function toast( msg, kind ) {
 		if ( ! msg ) { return; }
-		if ( typeof window.ecv2_toast === 'function' ) { return window.ecv2_toast( msg, kind || 'success' ); }
+		if ( typeof window.ecv2_toast === 'function' ) {
+			/* 6.0.5: catalog-v2.js appends to #ecv2-toast-container, which settings pages do not print; without it every toast on
+			   this page was dropped ( settings-page-v2.js does the same ). */
+			if ( ! document.getElementById( 'ecv2-toast-container' ) ) { $( '<div id="ecv2-toast-container" role="status" aria-live="polite"></div>' ).appendTo( 'body' ); }
+			return window.ecv2_toast( msg, kind || 'success' );
+		}
 		var $t = $( '<div class="ecdv2-toast" role="status" style="position:fixed;bottom:24px;right:24px;z-index:99999;background:#111827;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px"></div>' ).text( msg ).appendTo( 'body' );
 		setTimeout( function() { $t.fadeOut( 200, function() { $t.remove(); } ); }, 2400 );
 	}
@@ -30,8 +35,8 @@
 	function post( action, data, ok, fail ) {
 		data = $.extend( { action: action, nonce: V.nonce }, data );
 		return $.post( V.ajax, data ).done( function( r ) {
-			if ( r && r.success ) { ok( r.data || {} ); } else { fail( ( r && r.data && r.data.message ) ? r.data.message : T.request_failed ); }
-		} ).fail( function() { fail( T.request_failed ); } );
+			if ( r && r.success ) { ok( r.data || {} ); } else { fail( ( r && r.data && r.data.message ) ? r.data.message : T.request_failed, ( r && r.data ) || {} ); }
+		} ).fail( function() { fail( T.request_failed, {} ); } );
 	}
 	function esc( s ) { return $( '<i>' ).text( s == null ? '' : String( s ) ).html(); }
 	function reload( delay ) { setTimeout( function() { window.location.reload(); }, delay || 700 ); }
@@ -89,7 +94,7 @@
 		if ( ! $active.length || ! $more.length ) { drawer.reload = true; return; }
 		var keep = catalogState();
 		closeMenus();
-		if ( typeof sections.active === 'string' ) { $active.html( sections.active ); placeSummary(); }
+		if ( typeof sections.active === 'string' ) { $active.html( sections.active ); placeSummary(); applePayAuto( $active ); }
 		if ( typeof sections.more === 'string' ) { $more.html( sections.more ); restoreCatalog( keep ); }
 		if ( typeof sections.subs === 'string' ) { $( '#ecst-ecst_payment_subscriptions .ecst-row-html' ).html( sections.subs ); }
 	}
@@ -131,7 +136,7 @@
 	}
 	function snapshot() {
 		if ( drawer.mode === 'v2' ) { return JSON.stringify( collect() ); }
-		if ( drawer.mode === 'manual' ) { return String( $( '#ecpay_manual_title' ).val() ) + '' + String( $( '#ecpay_manual_message' ).val() ) + '' + manualRoles().join( ',' ); }
+		if ( drawer.mode === 'manual' ) { return String( $( '#ecpay_manual_title' ).val() ) + '' + String( $( '#ecpay_manual_message' ).val() ) + '' + manualRoles().join( ',' ) + '' + bankSnapshot(); }
 		if ( drawer.mode === 'legacy-single' ) { return legacyParts().join( LEGACY_SEP ); }
 		return '';
 	}
@@ -310,6 +315,7 @@
 			$body.html( d.html || '' );
 			if ( kind === 'manual' ) {
 				drawer.mode = 'manual';
+				bankScheme(); /* 6.0.5: the account type's fields in its order */
 				$( '#ecpay_drawer_save' ).prop( 'hidden', false );
 				$( '#ecpay_manual_title' ).trigger( 'focus' );
 			} else if ( d.mode === 'v2' ) {
@@ -335,6 +341,7 @@
 				buildTabs( $body );
 			}
 			drawer.initial = snapshot();
+			applePayAuto( $body );
 			setChips( d.state || null );
 			applyState( d.state || null );
 			updateDirty();
@@ -407,6 +414,32 @@
 		} ).always( function() { setBusy( false ); } );
 	}
 
+	/* 6.0.5: Bill later's bank details ( wp_easycart_bank_details ): the account type's fields, in its order. */
+	function bankScheme() {
+		var $f = $( '#ecpay_bank' );
+		if ( ! $f.length ) { return; }
+		var scheme = String( $( '#ecpay_bank_scheme' ).val() || '' );
+		var order = $f.data( 'order' ) || {}, optional = $f.data( 'optional' ) || {};
+		var $wrap = $f.find( '.ecpay-bank-fields' );
+		$wrap.children( '.ecpay-bank-field' ).each( function() {
+			var on = -1 !== ( ' ' + $( this ).attr( 'data-schemes' ) + ' ' ).indexOf( ' ' + scheme + ' ' );
+			this.hidden = ! on;
+			$( this ).find( '.ecpay-bank-optional' ).prop( 'hidden', -1 === $.inArray( $( this ).attr( 'data-field' ), optional[ scheme ] || [] ) );
+		} );
+		$.each( order[ scheme ] || [], function( i, field ) {
+			$wrap.append( $wrap.children( '[data-field="' + field + '"]' ) );
+		} );
+	}
+	function bankValues() {
+		var out = {};
+		$( '#ecpay_bank .ecpay-bank-in' ).each( function() { out[ $( this ).attr( 'data-bank' ) ] = String( $( this ).val() || '' ); } );
+		return out;
+	}
+	function bankSnapshot() {
+		if ( ! $( '#ecpay_bank' ).length ) { return ''; }
+		return String( $( '#ecpay_bank_scheme' ).val() ) + JSON.stringify( bankValues() );
+	}
+
 	/* 6.0.2: the roles Bill later is offered to ( none ticked = everyone ). */
 	function manualRoles() {
 		return $( '#ecpay_manual_roles .ecpay-manual-role:checked' ).map( function() { return String( this.value ); } ).get();
@@ -414,15 +447,24 @@
 
 	function saveManual( enable, $button ) {
 		setBusy( true, $button );
-		post( 'ecv2_payment_manual_save', { title: $( '#ecpay_manual_title' ).val(), message: $( '#ecpay_manual_message' ).val(), roles: manualRoles(), roles_sent: 1, enable: enable ? '1' : '0' }, function( d ) {
+		var data = { title: $( '#ecpay_manual_title' ).val(), message: $( '#ecpay_manual_message' ).val(), roles: manualRoles(), roles_sent: 1, enable: enable ? '1' : '0' };
+		if ( $( '#ecpay_bank' ).length ) {
+			data.bank_scheme = String( $( '#ecpay_bank_scheme' ).val() || '' );
+			data.bank = bankValues();
+		}
+		$( '#ecpay_bank .ecpay-bank-in' ).removeClass( 'is-invalid' ).removeAttr( 'aria-invalid' );
+		post( 'ecv2_payment_manual_save', data, function( d ) {
 			setBusy( false );
 			toast( d.message || T.saved, 'success' );
 			drawer.initial = snapshot();
 			replaceSections( d.sections );
 			if ( d.state ) { applyState( d.state ); } else { updateDirty(); }
-		}, function( m ) {
+		}, function( m, d ) {
 			setBusy( false );
 			toast( m, 'error' );
+			if ( d && d.field && document.getElementById( d.field ) ) {
+				$( '#' + d.field ).addClass( 'is-invalid' ).attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+			}
 		} );
 	}
 
@@ -484,7 +526,8 @@
 		if ( e.key === 'Enter' ) { e.preventDefault(); save( false, $( '#ecpay_drawer_save' ) ); }
 	} );
 	$( document ).on( 'submit.ecpay', '#ecpay_gwform', function( e ) { e.preventDefault(); } );
-	$( document ).on( 'input.ecpay', '#ecpay_manual_title, #ecpay_manual_message', updateDirty );
+	$( document ).on( 'input.ecpay', '#ecpay_manual_title, #ecpay_manual_message, #ecpay_bank .ecpay-bank-in', updateDirty );
+	$( document ).on( 'change.ecpay', '#ecpay_bank_scheme', function() { bankScheme(); updateDirty(); } );
 	$( document ).on( 'change.ecpay', '#ecpay_manual_roles .ecpay-manual-role', function() {
 		$( this ).closest( '.ecst-pill' ).toggleClass( 'is-on', this.checked );
 		updateDirty();
@@ -753,8 +796,11 @@
 			if ( show ) { shown++; }
 		} );
 		var $toggle = $( '#ecpay_older_toggle' );
+		/* 6.0.5: gateways that do not take payments where the store is fold away with the older ones. */
+		var away = $cat.attr( 'data-away' ) === '1';
+		var showText = away && T.other_show ? T.other_show : T.older_show, hideText = away && T.other_hide ? T.other_hide : T.older_hide;
 		if ( ! q && olderInFilter > 0 ) {
-			$toggle.prop( 'hidden', false ).attr( 'aria-expanded', olderOpen ? 'true' : 'false' ).html( esc( olderOpen ? T.older_hide : T.older_show ) + ( olderOpen ? '' : ' <em>' + olderInFilter + '</em>' ) );
+			$toggle.prop( 'hidden', false ).attr( 'aria-expanded', olderOpen ? 'true' : 'false' ).html( esc( olderOpen ? hideText : showText ) + ( olderOpen ? '' : ' <em>' + olderInFilter + '</em>' ) );
 		} else {
 			$toggle.prop( 'hidden', true );
 		}
@@ -797,6 +843,62 @@
 		setTimeout( function() { $t[0].scrollIntoView( { behavior: 'smooth', block: 'center' } ); }, 80 );
 		setTimeout( function() { $t.removeClass( 'ecst-flash' ); }, 2600 );
 	} )();
+
+	/* ================================================================== */
+	/* 6.0.5: Apple Pay on a live Square store ( wp_easycart_square_apple_pay ) */
+	/* ================================================================== */
+	/* Check again / Replace run the set-up now; a block the server marked stale runs it as soon as it shows. The answer
+	   replaces the block and redraws the Square line ( behind the drawer too ). */
+	function applePay( $block, run ) {
+		if ( ! $block.length || $block.hasClass( 'is-busy' ) ) { return; }
+		var where = String( $block.attr( 'data-ecpay-applepay' ) || 'drawer' );
+		$block.addClass( 'is-busy' ).attr( 'aria-busy', 'true' );
+		var $btns = $block.find( '[data-ecpay-applepay-run]' ).prop( 'disabled', true ).addClass( 'is-busy' );
+		var $clicked = $btns.filter( '[data-ecpay-applepay-run="' + run + '"]' ).first();
+		if ( $clicked.length ) { $clicked.data( 'label', $clicked.text() ).text( T.working ); }
+		post( 'ecv2_payment_square_apple_pay', { run: run || 'check', where: where }, function( d ) {
+			if ( where === 'drawer' && $.contains( document, $block[ 0 ] ) ) {
+				if ( d.html ) { $block.replaceWith( d.html ); } else { $block.remove(); }
+			}
+			if ( d.sections ) { replaceSections( d.sections ); }
+			if ( run && d.message ) { toast( d.message, d.tone === 'ok' ? 'success' : 'error' ); }
+		}, function( m ) {
+			$block.removeClass( 'is-busy' ).removeAttr( 'aria-busy' );
+			$btns.prop( 'disabled', false ).removeClass( 'is-busy' );
+			if ( $clicked.length ) { $clicked.text( $clicked.data( 'label' ) ); }
+			toast( m, 'error' );
+		} );
+	}
+	var applePayAutoRuns = 0; /* a check that keeps coming back stale never loops */
+	function applePayAuto( ctx ) {
+		$( ctx || document ).find( '[data-ecpay-applepay][data-stale="1"]' ).each( function() {
+			if ( this.wpecApplePayRan || applePayAutoRuns >= 3 ) { return; }
+			applePayAutoRuns++;
+			this.wpecApplePayRan = true;
+			applePay( $( this ), '' );
+		} );
+	}
+	$( document ).on( 'click', '[data-ecpay-applepay-run]', function( e ) {
+		e.preventDefault();
+		applePay( $( this ).closest( '[data-ecpay-applepay]' ), String( $( this ).attr( 'data-ecpay-applepay-run' ) || 'check' ) );
+	} );
+	/* The note for the host ( the host's firewall turns Square away ): Copy, else the text stays selected to copy by hand. */
+	$( document ).on( 'click', '[data-ecpay-applepay] .ecpay-applepay-copy', function( e ) {
+		e.preventDefault();
+		var $b = $( this ), $note = $b.closest( 'details' ).find( '.ecpay-applepay-note' ), text = String( $note.val() || '' );
+		var label = $b.data( 'label' ) || $b.text();
+		$b.data( 'label', label );
+		var done = function() { $b.text( String( $b.attr( 'data-copied' ) || label ) ); setTimeout( function() { $b.text( label ); }, 1600 ); };
+		var copied = false;
+		$note.trigger( 'select' ); /* selected either way, so Ctrl+C works when the browser allows no copy */
+		try { copied = document.execCommand( 'copy' ); } catch ( err ) { copied = false; }
+		if ( copied ) {
+			done();
+		} else if ( window.navigator && navigator.clipboard && window.isSecureContext ) {
+			navigator.clipboard.writeText( text ).then( done, function() { /* the text stays selected */ } );
+		}
+	} );
+	applePayAuto( $wrap );
 
 	window.ecpay = { open: function( key, title ) { openDrawer( 'gateway', key, title ); }, openManual: function() { openDrawer( 'manual', 'manual', T.manual_title ); }, close: requestClose, refresh: refreshState };
 } )( jQuery );

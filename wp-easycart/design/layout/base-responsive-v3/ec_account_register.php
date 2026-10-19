@@ -174,7 +174,7 @@
 		<?php if( get_option( 'ec_option_require_account_terms' ) ){ ?>
 		<div class="ec_cart_button_row ec_account_check_row">
 			<?php /* 6.0.4: a click on the words ticks the box, as on the checkout */ ?>
-			<label class="ec_cart_check_label"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?></span></label>
+			<label class="ec_cart_check_label ec_agree_box"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" /> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?></span></label>
 		</div>
 		<div class="ec_cart_error_row" id="ec_terms_error">
 			<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
@@ -189,7 +189,7 @@
 
 		<div class="ec_cart_button_row">
 			<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
-			<label class="ec_cart_check_label ec_account_subscribe_label"><?php $this->display_account_register_is_subscriber_input( ); ?> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
+			<label class="ec_cart_check_label ec_agree_box ec_account_subscribe_label"><?php $this->display_account_register_is_subscriber_input( ); ?> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 			<?php }?>
 			<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_button' ); ?>" class="ec_account_button" onclick="<?php $ec_register_js_function = apply_filters( 'wpeasycart_register_js_function', 'return ec_account_register_button_click2( );' ); echo esc_attr( $ec_register_js_function ); ?>" />
 		</div>

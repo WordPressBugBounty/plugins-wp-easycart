@@ -230,6 +230,10 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Plan_Table_Widget' ) && class_exists
 				'ec_line'      => array( __( 'Borders', 'wp-easycart' ), '--wpec-plan-line', '' ),
 				'ec_card'      => array( __( 'Card background', 'wp-easycart' ), '--wpec-plan-card', '' ),
 				'ec_soft'      => array( __( 'Soft background', 'wp-easycart' ), '--wpec-plan-soft', __( 'The Contact us card and the current plan\'s button.', 'wp-easycart' ) ),
+				/* 6.0.5: the new parts of a card ( WP EasyCart PRO 6.0.5 ). */
+				'ec_highlight' => array( __( 'Highlighted card background', 'wp-easycart' ), '--wpec-plan-highlight', __( 'The highlighted tier. Empty keeps the card background.', 'wp-easycart' ) ),
+				'ec_dark'      => array( __( 'Dark buttons', 'wp-easycart' ), '--wpec-plan-dark', __( 'Buttons set to Dark in the plan.', 'wp-easycart' ) ),
+				'ec_link'      => array( __( 'Second links', 'wp-easycart' ), '--wpec-plan-link', __( 'The link under a button. Empty uses the accent.', 'wp-easycart' ) ),
 			);
 			foreach ( $colors as $id => $color ) {
 				$this->add_control(

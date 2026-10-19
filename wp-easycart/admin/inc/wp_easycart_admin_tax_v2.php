@@ -37,16 +37,16 @@ class wp_easycart_admin_tax_v2 {
 		return array(
 			'alberta'               => array( 'name' => __( 'Alberta', 'wp-easycart' ), 'gst' => .05, 'pst' => .00, 'hst' => .00 ),
 			'british_columbia'      => array( 'name' => __( 'British Columbia', 'wp-easycart' ), 'gst' => .05, 'pst' => .07, 'hst' => .00 ),
-			'manitoba'              => array( 'name' => __( 'Manitoba', 'wp-easycart' ), 'gst' => .05, 'pst' => .08, 'hst' => .00 ),
-			'new_brunswick'         => array( 'name' => __( 'New Brunswick', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .13 ),
-			'newfoundland'          => array( 'name' => __( 'Newfoundland and Labrador', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .13 ),
+			'manitoba'              => array( 'name' => __( 'Manitoba', 'wp-easycart' ), 'gst' => .05, 'pst' => .07, 'hst' => .00 ),
+			'new_brunswick'         => array( 'name' => __( 'New Brunswick', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .15 ),
+			'newfoundland'          => array( 'name' => __( 'Newfoundland and Labrador', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .15 ),
 			'northwest_territories' => array( 'name' => __( 'Northwest Territories', 'wp-easycart' ), 'gst' => .05, 'pst' => .00, 'hst' => .00 ),
-			'nova_scotia'           => array( 'name' => __( 'Nova Scotia', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .15 ),
+			'nova_scotia'           => array( 'name' => __( 'Nova Scotia', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .14 ),
 			'nunavut'               => array( 'name' => __( 'Nunavut', 'wp-easycart' ), 'gst' => .05, 'pst' => .00, 'hst' => .00 ),
 			'ontario'               => array( 'name' => __( 'Ontario', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .13 ),
-			'prince_edward_island'  => array( 'name' => __( 'Prince Edward Island', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .14 ),
+			'prince_edward_island'  => array( 'name' => __( 'Prince Edward Island', 'wp-easycart' ), 'gst' => .00, 'pst' => .00, 'hst' => .15 ),
 			'quebec'                => array( 'name' => __( 'Quebec', 'wp-easycart' ), 'gst' => .05, 'pst' => .09975, 'hst' => .00 ),
-			'saskatchewan'          => array( 'name' => __( 'Saskatchewan', 'wp-easycart' ), 'gst' => .05, 'pst' => .05, 'hst' => .00 ),
+			'saskatchewan'          => array( 'name' => __( 'Saskatchewan', 'wp-easycart' ), 'gst' => .05, 'pst' => .06, 'hst' => .00 ),
 			'yukon'                 => array( 'name' => __( 'Yukon', 'wp-easycart' ), 'gst' => .05, 'pst' => .00, 'hst' => .00 ),
 		);
 	}
@@ -65,6 +65,82 @@ class wp_easycart_admin_tax_v2 {
 	public static function canada_options() {
 		$options = get_option( 'ec_option_canada_tax_options' );
 		return is_array( $options ) ? $options : array();
+	}
+
+	/**
+	 * Rates an older WP EasyCart filled in that the provinces have since changed ( percent ), so a saved cell still at one
+	 * is out of date: Nova Scotia's HST fell to 14% in April 2025; New Brunswick, Newfoundland and Labrador and Prince Edward
+	 * Island charge 15% HST, Manitoba 7% RST and Saskatchewan 6% PST.
+	 *
+	 * @since 6.0.5
+	 * @return array Province key => type => old percent.
+	 */
+	public static function retired_rates() {
+		return array(
+			'manitoba'             => array( 'pst' => 8 ),
+			'new_brunswick'        => array( 'hst' => 13 ),
+			'newfoundland'         => array( 'hst' => 13 ),
+			'nova_scotia'          => array( 'hst' => 15 ),
+			'prince_edward_island' => array( 'hst' => 14 ),
+			'saskatchewan'         => array( 'pst' => 5 ),
+		);
+	}
+
+	/**
+	 * Saved Canada grid cells still at a retired rate ( retired_rates() ), for every role.
+	 *
+	 * @since 6.0.5
+	 * @param array|null $options The grid option ( null reads it ).
+	 * @return array Cells: key, role, province, type, from ( percent ), to ( percent ), collect ( the role collects in that province ).
+	 */
+	public static function outdated_rates( $options = null ) {
+		$options   = is_array( $options ) ? $options : self::canada_options();
+		$provinces = self::provinces();
+		$cells     = array();
+		foreach ( self::retired_rates() as $province => $types ) {
+			foreach ( self::roles() as $role ) {
+				foreach ( $types as $type => $old ) {
+					$key = 'ec_option_' . $province . '_tax_' . $role . '_' . $type;
+					if ( ! isset( $options[ $key ] ) || ! is_numeric( $options[ $key ] ) ) {
+						continue;
+					}
+					$stored  = (float) $options[ $key ];
+					$percent = ( $stored < 1 ) ? $stored * 100 : $stored; // a fraction; the classic grid kept whole numbers as typed.
+					if ( abs( $percent - $old ) > 0.0001 ) {
+						continue;
+					}
+					$cells[] = array(
+						'key'      => $key,
+						'role'     => $role,
+						'province' => $province,
+						'type'     => $type,
+						'from'     => $old,
+						'to'       => round( $provinces[ $province ][ $type ] * 100, 3 ),
+						'collect'  => isset( $options[ 'ec_option_collect_' . $province . '_tax_' . $role ] ),
+					);
+				}
+			}
+		}
+		return $cells;
+	}
+
+	/**
+	 * Puts today's rate in every saved cell still at a retired rate ( outdated_rates() ); other cells are left as saved.
+	 *
+	 * @since 6.0.5
+	 * @return int Cells changed.
+	 */
+	public static function update_outdated_rates() {
+		$options   = self::canada_options();
+		$provinces = self::provinces();
+		$cells     = self::outdated_rates( $options );
+		foreach ( $cells as $cell ) {
+			$options[ $cell['key'] ] = $provinces[ $cell['province'] ][ $cell['type'] ];
+		}
+		if ( $cells ) {
+			update_option( 'ec_option_canada_tax_options', $options );
+		}
+		return count( $cells );
 	}
 
 	/** Ship-to states with their country: id, name, code, country iso2, country name. */

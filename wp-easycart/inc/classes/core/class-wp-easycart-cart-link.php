@@ -217,8 +217,15 @@ class wp_easycart_cart_link {
 			/* Attribution: stamped into the session; ec_db::insert_order copies
 			 * it onto the order so use_count (clicks) can be compared against
 			 * orders (conversions). One save covers this, the legacy coupon
-			 * slot set in apply_codes(), and the clear-cart reset above. */
-			$GLOBALS['ec_cart_data']->cart_data->cart_link_id = (int) $link->cart_link_id;
+			 * slot set in apply_codes(), and the clear-cart reset above.
+			 * 6.0.5: only where the session row has the column ( ec_tempcart_data.cart_link_id,
+			 * EC_UPGRADE_DB 125; the session loads with SELECT *, so the property is there exactly
+			 * when the column is ). save_cart_data() writes every property as a column, and before
+			 * 6.0.5 the column did not exist: every link that added items failed the whole save
+			 * ( "Unknown column 'cart_link_id'" ), losing the link's classic coupon too. */
+			if ( property_exists( $GLOBALS['ec_cart_data']->cart_data, 'cart_link_id' ) ) {
+				$GLOBALS['ec_cart_data']->cart_data->cart_link_id = (int) $link->cart_link_id;
+			}
 			$GLOBALS['ec_cart_data']->save_session_to_db();
 		}
 		if ( $codes_applied || ( $link->clear_cart && $added ) ) {

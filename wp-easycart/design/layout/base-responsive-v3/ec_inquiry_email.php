@@ -125,20 +125,11 @@ if ( $product->use_both_option_types || $product->use_advanced_optionset ) {
 				$price_multiplier = $price_multiplier * $advanced_option_details->optionitem_price_multiplier * $advanced_option['optionitem_value'];
 			}
 		} elseif ( 'dimensions1' == $advanced_option_data->option_type || 'dimensions2' == $advanced_option_data->option_type ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- database string.
-			$dimensions = json_decode( $advanced_option['optionitem_value'] );
-			$dimensions = is_array( $dimensions ) ? $dimensions : array();
-			if ( 2 === count( $dimensions ) ) {
-				if ( ! get_option( 'ec_option_enable_metric_unit_display' ) ) {
-					$product->price = $product->price * ( ( $dimensions[0] / 12 ) * ( $dimensions[1] / 12 ) );
-				} else {
-					$product->price = $product->price * ( ( $dimensions[0] / 1000 ) * ( $dimensions[1] / 1000 ) );
-				}
-			} elseif ( 4 === count( $dimensions ) ) {
-				if ( ! get_option( 'ec_option_enable_metric_unit_display' ) ) {
-					$product->price = $product->price * ( ( ( intval( $dimensions[0] ) + wp_easycart_inquiry_get_dimension_decimal( $dimensions[1] ) ) / 12 ) * ( ( intval( $dimensions[2] ) + wp_easycart_inquiry_get_dimension_decimal( $dimensions[3] ) ) / 12 ) );
-				} else {
-					$product->price = $product->price * ( ( ( intval( $dimensions[0] ) + wp_easycart_inquiry_get_dimension_decimal( $dimensions[1] ) ) / 1000 ) * ( ( intval( $dimensions[2] ) + wp_easycart_inquiry_get_dimension_decimal( $dimensions[3] ) ) / 1000 ) );
-				}
+			// 6.0.5: the area the cart scales by ( wp_easycart_size_option::factor() ), and only for a size whose width and height are each
+			// a positive number: an empty size left the price alone already, and 0 or a negative side priced it at nothing or below.
+			$ec_inq_size_factor = class_exists( 'wp_easycart_size_option' ) ? wp_easycart_size_option::factor( $advanced_option['optionitem_value'] ) : null;
+			if ( null !== $ec_inq_size_factor ) {
+				$product->price = $product->price * $ec_inq_size_factor;
 			}
 		} else {
 			if ( 0 != $advanced_option_details->optionitem_price ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric strings from the database.
@@ -237,6 +228,12 @@ if ( $product->use_both_option_types || $product->use_advanced_optionset ) {
 			}
 		} elseif ( 'grid' == $advanced_option['option_type'] ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- sanitized string.
 			$ed::option_detail( wp_kses_post( $advanced_option['option_label'] ), esc_html( $advanced_option['optionitem_name'] . ' (' . $advanced_option['optionitem_value'] . ')' ) );
+		} elseif ( class_exists( 'wp_easycart_size_option' ) && wp_easycart_size_option::is_size( $advanced_option['option_type'] ) ) {
+			/* 6.0.5: a size as the cart writes it ( 24" x 36" ); it printed the JSON kept for it ( ["24","36"] ). */
+			$ec_inq_size_text = wp_easycart_size_option::text( $advanced_option['optionitem_value'] );
+			if ( '' !== $ec_inq_size_text ) {
+				$ed::option_detail( wp_kses_post( $advanced_option['option_label'] ), esc_html( $ec_inq_size_text ) );
+			}
 		} else {
 			$ed::option_detail( wp_kses_post( $advanced_option['option_label'] ), esc_html( $advanced_option['optionitem_value'] ) );
 		}

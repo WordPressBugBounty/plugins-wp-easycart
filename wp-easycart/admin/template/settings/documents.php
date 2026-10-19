@@ -206,7 +206,7 @@ return array(
 				'ec_option_pdf_seller_details' => array(
 					'type'        => 'textarea',
 					'label'       => __( 'Business details', 'wp-easycart' ),
-					'desc'        => __( 'Your registered business name, address and VAT number, printed at the top of the PDF. EU invoices must show them.', 'wp-easycart' ),
+					'desc'        => __( 'Your registered business name, address and VAT number, printed at the top of the PDF. EU invoices must show them. Leave it empty to use Settings › Store details › Business details.', 'wp-easycart' ),
 					'default'     => '',
 					'placeholder' => "Store Name Ltd.\n1 Example Street, 10115 Berlin, Germany\nVAT ID: DE123456789",
 					'pro'         => true,

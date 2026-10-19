@@ -22,8 +22,9 @@ $ectr_end_ts    = strtotime( date( 'Y-m-d', strtotime( $ectr_license->support_en
 $ectr_ended     = ( $ectr_end_ts < strtotime( date( 'Y-m-d' ) ) );
 $ectr_days      = $ectr_ended ? 0 : max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( $ectr_end_ts ) : (int) round( ( $ectr_end_ts - strtotime( date( 'Y-m-d' ) ) ) / DAY_IN_SECONDS ) );
 $ectr_end_label = date_i18n( get_option( 'date_format' ), $ectr_end_ts );
-$ectr_upgrade   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/' . ( '' !== $ectr_key ? '?transaction_key=' . rawurlencode( $ectr_key ) : '' );
-$ectr_premium   = $ectr_upgrade . ( '' !== $ectr_key ? '&' : '?' ) . 'license_type=Premium';
+/* 6.0.5: a trial chooses a plan on the pricing page ( the one-time trial upgrade is retired ). */
+$ectr_upgrade   = wp_easycart_admin_edition::trial_url( 'pro' );
+$ectr_premium   = wp_easycart_admin_edition::trial_url( 'premium' );
 $ectr_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
 $ectr_activate  = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=activateregistration' );
 $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=updateregistrationemail' );
@@ -63,10 +64,10 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 			<span class="ecreg-path-tag"><?php echo $ectr_ended ? esc_html__( 'Pick up where you left off', 'wp-easycart' ) : esc_html__( 'Keep everything', 'wp-easycart' ); ?></span>
 			<span class="dashicons dashicons-star-filled ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Upgrade this trial', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Your trial key becomes the license — no reinstall, no re-entering anything. Pro includes every paid feature plus a year of priority support and updates; Premium adds every extension.', 'wp-easycart' ); ?></p>
+			<p><?php esc_html_e( 'Choose a plan and your store keeps everything it has now, with no reinstall. Pro includes every paid feature plus priority support and updates, billed yearly or monthly; Premium adds every extension.', 'wp-easycart' ); ?></p>
 			<ul class="ecreg-path-list">
 				<li><?php esc_html_e( 'Instant — the site stays exactly as configured', 'wp-easycart' ); ?></li>
-				<li><?php esc_html_e( 'Removes the 2% gateway fee for good', 'wp-easycart' ); ?></li>
+				<li><?php esc_html_e( 'Removes the 2% gateway fee', 'wp-easycart' ); ?></li>
 				<li><?php esc_html_e( 'One license per site; move it any time', 'wp-easycart' ); ?></li>
 			</ul>
 			<div class="ecreg-path-actions">

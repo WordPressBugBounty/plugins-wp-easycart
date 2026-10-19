@@ -923,6 +923,7 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .ec-details-content-no-breadcrumbs{ padding-top:0px; margin-top:0px; border-top:none; }
 .ec_details_mobile_title_area{ display:none; width:100%; text-align:center; margin:-15px 0 15px; border-bottom:1px solid #CCC; padding:0 0 15px; }
 .ec_details_title{ font-size:22px !important; font-family: 'Lato', Arial, sans-serif !important; color:#222222 !important; }
+.ec_details_mobile_title_area > div.ec_details_title{ display:block; font-weight:bold; margin:0.67em 0; }
 .ec_details_review_holder{ width:100%; height:25px; }
 .ec_details_review_stars{ display:table; margin:0 auto; }
 .ec_details_reviews{ float:left; width:100%; text-align:center; margin-top:2px; font-size:13px; font-weight:bold; color:#999; font-family:'Lato', Arial, sans-serif !important; }
@@ -1051,6 +1052,9 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .ec_details_swatches_ele > li{ display:flex; overflow:hidden; opacity:.6; list-style-type:none !important; padding:0; clear:none !important; }
 .ec_details_swatches > li > img, .ec_details_swatches > li > a > img{ max-width:100%; border-radius:6px; overflow:hidden; border:2px solid transparent; opacity:0.90; }
 .ec_details_swatches_ele > li > img, .ec_details_swatches_ele > li > a > img{ max-width:100%; overflow:hidden; opacity:0.90; }
+/* 6.0.5: a picture fills its swatch at the size the option set chooses ( 5 to 200px ): it showed at its own size, the 80px thumbnail the
+   swatch picker saved, inside a 140px swatch. Square like the cropped thumbnails were ( object-fit ), so a larger copy keeps the look. */
+.ec_details_swatches > li > img, .ec_details_swatches > li > a > img, .ec_details_swatches_ele > li > img, .ec_details_swatches_ele > li > a > img{ width:100%; height:auto; aspect-ratio:1 / 1; object-fit:cover; }
 .ec_details_swatches > li > img:hover, .ec_details_swatches > li > a:hover > img, .ec_details_swatches > li.ec_selected > img, .ec_details_swatches > li.ec_selected > a > img{ opacity:1.0; }
 .ec_details_swatches_ele > li > img:hover, .ec_details_swatches_ele > li > a:hover > img, .ec_details_swatches_ele > li.ec_selected > img, .ec_details_swatches_ele > li.ec_selected > a > img{ opacity:1.0; }
 .ec_details_swatches > li.ec_active, .ec_details_swatches_ele > li.ec_active{ opacity:1; cursor:pointer; }
@@ -1630,6 +1634,12 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 
 /* Cart Totals + Details Inputs */
 #paypal-button-container > div{ max-width:100% !important; margin:0 auto !important; }
+/* 6.0.5: payment buttons stay at the page's own level. PayPal's script places its button frames at z-index 100 ( 200 while they load )
+   inside a holder with no z-index of its own, so they slid over sticky headers ( most themes use 99 or less ). Each holder the payment
+   scripts draw into is now its own layer: what they draw keeps its order inside it, and the header stays on top. Their full-page windows
+   ( PayPal's popup cover, QR code, Apple Pay and Google Pay sheets ) are drawn on the body, and the "processing" covers sit beside the
+   holders, so they still cover the page. */
+[id^="paypal-button-container"], #ec-pay-paypal, #payment-request-button, #wpec-express-checkout-element, #wp-easycart-square-apple-pay-button, #wp-easycart-square-google-pay-button{ isolation:isolate; }
 .ec_cart_header{ float:left; width:100%; font-family:'Lato', Arial, sans-serif !important; color:#222222; letter-spacing:1.5px; line-height:1.5em; font-size:15px; font-weight:bold; border-bottom:3px solid #CCC; text-transform:uppercase; padding:9px 0; margin-top:15px; }
 .ec_cart_header.ec_top{ margin-top:0px; }
 .ec_cart_login_header_link{ float:right; font-size:13px; text-transform:none; font-weight:normal; }
@@ -1789,7 +1799,15 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 #wp-easycart-square-payment-status-container.is-success{color: #333333;}
 #wp-easycart-square-payment-status-container.is-failure{color: #cc0023;}
 #wp-easycart-square-payment-status-container.is-failure::before{ content: ' '; -webkit-mask: url( 'data:image/svg+xml,%3Csvg width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath fill-rule=%27evenodd%27 clip-rule=%27evenodd%27 d=%27M16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16C12.4183 16 16 12.4183 16 8ZM8 9C8.55229 9 9 8.55228 9 8V5C9 4.44771 8.55229 4 8 4C7.44772 4 7 4.44771 7 5V8C7 8.55228 7.44772 9 8 9ZM8 10C8.55229 10 9 10.4477 9 11C9 11.5523 8.55229 12 8 12C7.44772 12 7 11.5523 7 11C7 10.4477 7.44772 10 8 10Z%27/%3E%3C/svg%3E' ); mask: url(' data:image/svg+xml,%3Csvg width=%2716%27 height=%2716%27 viewBox=%270 0 16 16%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath fill-rule=%27evenodd%27 clip-rule=%27evenodd%27 d=%27M16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16C12.4183 16 16 12.4183 16 8ZM8 9C8.55229 9 9 8.55228 9 8V5C9 4.44771 8.55229 4 8 4C7.44772 4 7 4.44771 7 5V8C7 8.55228 7.44772 9 8 9ZM8 10C8.55229 10 9 10.4477 9 11C9 11.5523 8.55229 12 8 12C7.44772 12 7 11.5523 7 11C7 10.4477 7.44772 10 8 10Z%27/%3E%3C/svg%3E' ); background-color: #cc0023; display: inline-block; height: 16px; width: 16px; vertical-align: -3px; margin-right: 8px; }
-#wp-easycart-square-apple-pay-button{ width:100%; display:inline-block; -webkit-appearance:-apple-pay-button; -apple-pay-button-type:plain; -apple-pay-button-style:black; }
+/* 6.0.5: Square's Apple Pay button is a div Safari draws with -apple-pay-button, which sets no cursor: the hand and a focus ring, as every
+   button; Google Pay's height ( 40px ) with space before it; nothing where it cannot be drawn ( any browser but Safari ) or when Apple Pay
+   did not start ( [hidden], set by the Square script ). */
+#wp-easycart-square-apple-pay-button{ box-sizing:border-box; width:100%; height:40px; margin:0 0 12px; display:inline-block; vertical-align:top; cursor:pointer; border-radius:4px; -webkit-appearance:-apple-pay-button; -apple-pay-button-type:plain; -apple-pay-button-style:black; }
+#wp-easycart-square-apple-pay-button:focus-visible{ outline:2px solid var(--wpec-main-color, #2563eb); outline-offset:2px; }
+#wp-easycart-square-apple-pay-button[hidden]{ display:none !important; }
+@supports not ( -webkit-appearance:-apple-pay-button ){
+	#wp-easycart-square-apple-pay-button{ display:none !important; }
+}
 #wp-easycart-square-google-pay-button{ float:left; width:100%; }
 #wp-easycart-square-google-pay-button .gpay-card-info-container{ width:100%; }
 
@@ -1823,9 +1841,13 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 @media only screen and ( max-width:699px ){
 	.ec_order_success_loader{ display:none !important; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w699"]) .ec_order_success_loader{ display:none !important; }
 @media only screen and ( max-width:479px ){
 	.ec_cart_success_continue_shopping_button > a, .ec_cart_success_continue_shopping_button_v2 > a{ display:block; text-align:center; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w479"]) .ec_cart_success_continue_shopping_button > a, :where(.ec_cart_page[data-wpec-fit~="w479"]) .ec_cart_success_continue_shopping_button_v2 > a{ display:block; text-align:center; }
 
 /* 6.0.4: the order confirmation page ( ec_cart_success.php, wp_easycart_order_confirmation ). A thank-you card with a check mark
    drawn in the store's colour, Print receipt in its corner and the next steps as buttons ( the first filled, Continue shopping
@@ -1968,6 +1990,14 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_cart_bottom_nav_right{ float:right; }
 .ec_cart_bottom_nav_back{ font-size:15px !important; font-weight:normal; color:#444; font-family:'Lato', Arial, sans-serif !important; text-decoration:none; }
 .ec_cart_bottom_nav_back:hover{ color:#222; }
+/* 6.0.5: the order button names the payment it asks for ( "Place order and pay", "Zahlungspflichtig bestellen" ): its words set the
+   one-page button's width, and wrap instead of running out of the button */
+.ec_cart_page input#ec_cart_submit_order{ white-space:normal; overflow-wrap:break-word; height:auto; max-width:100%; }
+@media only screen and ( min-width:990px ){
+	.ec_cart_bottom_nav_v2 > .ec_cart_bottom_nav_right.ec_cart_button_column{ width:auto; min-width:25%; max-width:100%; }
+}
+/* 6.0.5: a cart under 990px wide on a wider screen keeps the narrow layout's full-width button ( wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_bottom_nav_v2 > .ec_cart_bottom_nav_right.ec_cart_button_column{ width:100%; min-width:0; }
 
 /* 6.0.2: checkout protection notice ( ec-checkout-protection.js ), full width above Place order, in the store's colours
    ( head_content.php sets the variables ). */
@@ -2006,10 +2036,29 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 	.wpec-busy-spinner{ border-color:CanvasText; border-top-color:Highlight; }
 }
 
-.ec_cart_express_button_container{ display:flex; width:100%; flex-direction:row; justify-content:space-between; column-gap:10px; }
-.ec_cart_express_button_container > div{ width:50% !important; margin:0px !important; }
-.ec_cart_express_button_container.ec_cart_express_button_container_single > div{ width:100% !important; }
-.wp-easycart-square-express-checkout{ display:flex; flex-direction:column; }
+/* 6.0.5: the one-page checkout's Express checkout strip ( ec_cart_information_v2.php ) is one grid of equal buttons, as WooCommerce's and
+   Shopify's checkouts ( it put Square's two wallets in one half, touching, and PayPal's own list in the other, each at its own height ).
+   Every button has the strip's height and corners ( --wpec-express-height / --wpec-express-radius, ec_cartpage::express_button_style() )
+   and 12px between them ( Google asks for 8px of clear space, Apple a tenth of the height ). As many go on a row as fit at 160px or more,
+   the rows shared out evenly ( wpeasycart_express_layout() in ec-checkout-onepage.js sets --wpec-express-basis: four buttons are two and
+   two, never three and one ), one under another on a narrow phone. Holders that only wrap buttons step aside ( display:contents ); a
+   wallet shows once its script started it ( .is-ready ); each PayPal button is a cell ( .wpec-express-paypal ), or PayPal's own list
+   takes a full row where an older copy of ec_cart_paypal_button_code.php draws it. */
+.ec_cart_express_button_container{ display:flex; flex-wrap:wrap; align-items:stretch; width:100%; min-height:var(--wpec-express-height, 48px); gap:var(--wpec-express-gap, 12px); }
+.ec_cart_express_button_container > .wp-easycart-square-express-checkout,
+.ec_cart_express_button_container > #ec-stripe-wallet-button,
+.ec_cart_express_button_container > #paypal-button-container.wpec-express-split{ display:contents; }
+.ec_cart_express_button_container #wp-easycart-square-apple-pay-button,
+.ec_cart_express_button_container #wp-easycart-square-google-pay-button,
+.ec_cart_express_button_container #payment-request-button,
+.ec_cart_express_button_container #paypal-button-container > .wpec-express-paypal,
+.ec_cart_express_button_container > #paypal-button-container{ flex:1 1 var(--wpec-express-basis, 160px); box-sizing:border-box; min-width:0; max-width:100%; width:auto !important; height:var(--wpec-express-height, 48px); margin:0 !important; padding:0; float:none !important; border-radius:var(--wpec-express-radius, 4px); isolation:isolate; }
+.ec_cart_express_button_container #payment-request-button{ overflow:hidden; }
+.ec_cart_express_button_container > #paypal-button-container:not(.wpec-express-split){ flex-basis:100%; height:auto; }
+.ec_cart_express_button_container #wp-easycart-square-apple-pay-button:not(.is-ready),
+.ec_cart_express_button_container #wp-easycart-square-google-pay-button:not(.is-ready),
+.ec_cart_express_button_container #payment-request-button:not(.is-ready){ display:none !important; }
+.ec_cart_express_button_container > .ec_cart_error{ flex:1 1 100%; margin:0; }
 
 .ec_cart_create_account_row_v2{ float:left; width:100%; text-align:left; margin:9px 0; }
 .ec_cart_create_account_row_v2 > a{ font-size:13px !important; font-weight:normal; color:#444; font-family:'Lato', Arial, sans-serif !important; text-decoration:none; }
@@ -2147,6 +2196,10 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 	.ec_cart_page .ec_cart_table_price{ display:none; }
 	.ec_cart_page .ec_cart_table_mobile_price{ display:block; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+.ec_cart_page:where([data-wpec-fit~="w989"]) .ec_cart_table_headers, .ec_cart_page:where([data-wpec-fit~="w989"]) .ec_cart_table_row{ grid-template-columns:minmax(0,1fr) 140px 100px; }
+.ec_cart_page:where([data-wpec-fit~="w989"]) .ec_cart_table_price{ display:none; }
+.ec_cart_page:where([data-wpec-fit~="w989"]) .ec_cart_table_mobile_price{ display:block; }
 @media only screen and ( max-width:599px ){
 	.ec_cart_page .ec_cart_table_headers{ display:none; }
 	.ec_cart_page .ec_cart_table_body{ margin-top:-1px; }
@@ -2162,6 +2215,18 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 	.wpec-cart-loading .wpec-cart-loading-row{ padding:16px; }
 	.wpec-cart-loading .wpec-cart-loading-image{ flex-basis:64px; height:64px; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_headers{ display:none; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_body{ margin-top:-1px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_row{ grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"details details" "quantity total"; row-gap:12px; padding:16px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_column_details{ grid-area:details; gap:14px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_image{ flex-basis:64px; width:64px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_image > img{ width:64px; height:64px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_column_quantity{ grid-area:quantity; flex-direction:row; flex-wrap:wrap; align-items:center; justify-self:start; gap:4px 14px; margin-inline-start:78px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table .ec_cartitem_delete{ margin-top:0; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_column_total{ grid-area:total; display:block; align-self:center; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_subtotal_row{ gap:16px; }
+.ec_cart_page:where([data-wpec-fit~="w599"]) .ec_cart_table_subtotal{ flex-basis:100%; max-width:none; padding:18px 16px; }
 
 .ec_cart_express_checkout{ float:left; width:100%; }
 #wpec-express-checkout-element{ float:left; width:100%; margin:15px 0; }
@@ -2239,6 +2304,62 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 
 .ec_cart_button_row a.ec_account_login_link{ font-size:12px; padding:13px 0; }
 .ec_cart_button_row a.ec_account_login_cancel_link{ float:right; background:none !important; color:#222; font-size:12px; margin-right:25px; padding:13px; }
+/* 6.0.5: the checkout's sign in in a modern look ( Matt: the "Returning customer" sign out link, Forgot your password, Cancel and Create
+   account read too small ). The one-page checkout ( ec_cart_information_v2.php ), the classic checkout ( ec_checkout_details.php ) and the
+   subscription page ( ec_cart_subscription.php ) print these classes; a store's copy of them from before keeps its look. Links
+   at the fields' size ( 15px ), Cancel and Sign in two buttons of one height, and who is signed in as a card. Kept at or below 0,3,1 where
+   the Elementor Checkout widget's Headings, Links and Buttons controls ( 0,3,0 and up ) style the same parts. */
+.ec_cart_header.ec_cart_contact_header_v2{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 16px; }
+.ec_cart_contact_header_v2 > a.ec_cart_login_toggle_v2{ float:none; font-size:15px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; text-decoration:none; }
+.ec_cart_contact_header_v2 .ec_cart_login_toggle_question{ color:var(--wpec-muted-color, #666666); }
+.ec_cart_contact_header_v2 .ec_cart_login_toggle_action{ font-weight:600; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; }
+.ec_cart_contact_header_v2 > a.ec_cart_login_toggle_v2:hover .ec_cart_login_toggle_action{ text-decoration-thickness:2px; }
+.ec_cart_contact_header_v2 > a.ec_cart_login_toggle_v2:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:3px; border-radius:2px; }
+/* Forgot your password at the start, Cancel and Sign in at the end; in a narrow column Forgot your password takes its own line and the two
+   buttons share the row. The space above is padding: clearing the floated fields swallows a top margin. */
+.ec_cart_button_row.ec_cart_login_actions_v2{ display:flex; flex-wrap:wrap; align-items:center; gap:12px; float:none; clear:both; width:100%; margin:0; padding:18px 0 0; container:wpec-login / inline-size; }
+.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_link{ float:none; margin:0; margin-inline-end:auto; padding:10px 0; font-size:15px; font-weight:400; line-height:1.4; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; }
+.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_link:hover{ text-decoration-thickness:2px; }
+.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_cancel_link{ display:inline-flex; align-items:center; justify-content:center; float:none; box-sizing:border-box; min-height:44px; margin:0; padding:10px 20px; border:1px solid rgba(127,127,127,.4); border-radius:8px; font-size:14px; font-weight:600; line-height:1.2; letter-spacing:.04em; text-align:center; text-transform:uppercase; text-decoration:none; white-space:nowrap; transition:background-color .15s ease, border-color .15s ease; }
+.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_cancel_link:hover{ border-color:currentColor; background:rgba(127,127,127,.08) !important; }
+.ec_cart_button_row.ec_cart_login_actions_v2 > a:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+.ec_cart_login_actions_v2 > .ec_cart_button{ float:none; width:auto; min-width:120px; min-height:44px; margin:0; padding:12px 24px; border-radius:8px; font-size:14px; font-weight:600; letter-spacing:.04em; }
+@container wpec-login ( max-width:440px ){
+	.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_link{ flex:1 0 100%; padding:2px 0 4px; }
+	.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_cancel_link, .ec_cart_login_actions_v2 > .ec_cart_button{ flex:1 1 40%; min-width:0; }
+}
+.ec_cart_login_actions_v2 ~ .ec_cart_create_account_row_v2{ clear:both; margin:20px 0 4px; padding:16px 0 0; border-top:1px solid rgba(127,127,127,.2); font-size:15px; line-height:1.5; }
+.ec_cart_login_actions_v2 ~ .ec_cart_create_account_row_v2 > .ec_cart_create_account_question{ color:var(--wpec-muted-color, #666666); margin-inline-end:4px; }
+.ec_cart_login_actions_v2 ~ .ec_cart_create_account_row_v2 > a{ font-size:15px !important; font-weight:600; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; }
+.ec_cart_login_actions_v2 ~ .ec_cart_create_account_row_v2 > a:hover{ text-decoration-thickness:2px; }
+/* Signed in: initials, name and email, then "Not you? Sign out" ( under the name in a narrow column ). */
+.ec_cart_input_row.ec_cart_signed_in_v2{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; box-sizing:border-box; margin:10px 0 25px; padding:14px 16px; border:1px solid rgba(127,127,127,.24); border-radius:var(--wpec-radius-control, 8px); background:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); font-size:15px; line-height:1.4; container:wpec-signed-in / inline-size; }
+/* The one-page checkout's card keeps its id, whose older rule gives it padding:0 0 25px. */
+#ec_cart_logged_in_section.ec_cart_signed_in_v2{ padding:14px 16px; }
+.ec_cart_signed_in_v2 .ec_cart_signed_in_avatar{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 40px; width:40px; height:40px; border-radius:50%; background:rgba(127,127,127,.14); color:var(--wpec-text-color, #222222); font-size:15px; font-weight:600; line-height:1; letter-spacing:.02em; }
+@supports ( background:color-mix( in srgb, red 10%, transparent ) ){
+	.ec_cart_signed_in_v2 .ec_cart_signed_in_avatar{ background:color-mix( in srgb, var(--wpec-main-color, #222222) 12%, transparent ); color:color-mix( in srgb, var(--wpec-main-color, #222222) 45%, var(--wpec-text-color, #222222) ); }
+}
+.ec_cart_signed_in_v2 .ec_cart_signed_in_who{ display:flex; flex-direction:column; flex:1 1 180px; min-width:0; }
+.ec_cart_signed_in_v2 .ec_cart_signed_in_name{ font-size:15px; font-weight:600; overflow-wrap:anywhere; }
+.ec_cart_signed_in_v2 .ec_cart_signed_in_email{ font-size:14px; color:var(--wpec-muted-color, #666666); overflow-wrap:anywhere; }
+.ec_cart_signed_in_v2 .ec_cart_signed_in_switch{ flex:0 0 auto; margin-inline-start:auto; color:var(--wpec-muted-color, #666666); font-size:15px; }
+.ec_cart_signed_in_switch > a.ec_cart_login_header_link{ float:none; font-size:15px; font-weight:600; text-transform:none; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; white-space:nowrap; }
+.ec_cart_signed_in_switch > a.ec_cart_login_header_link:hover{ text-decoration-thickness:2px; }
+.ec_cart_signed_in_switch > a.ec_cart_login_header_link:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; border-radius:2px; }
+/* Parts the card printed empty ( the subscription page's, filled in by ec-store.js once an account is made there ). */
+.ec_cart_signed_in_v2 .ec_cart_signed_in_avatar:empty, .ec_cart_signed_in_v2 .ec_cart_signed_in_email:empty{ display:none; }
+@container wpec-signed-in ( max-width:400px ){
+	.ec_cart_signed_in_v2 .ec_cart_signed_in_switch{ flex:1 0 100%; margin:0; padding-inline-start:54px; }
+}
+/* The subscription page writes its fields at 14px: its sign in links follow. */
+:where(.ec_cart_subscription) .ec_cart_contact_header_v2 > a.ec_cart_login_toggle_v2, :where(.ec_cart_subscription) .ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_link{ font-size:14px; }
+/* The classic checkout's "Returning Customer" tick box: its words are its label. */
+.ec_cart_header > label.ec_cart_login_check_label{ display:inline; float:none; width:auto; margin:0; padding:0; font:inherit; letter-spacing:inherit; text-transform:inherit; color:inherit; cursor:pointer; }
+.ec_cart_header.wpeasycart_returning_customer > input[type="checkbox"]{ cursor:pointer; }
+@media ( prefers-reduced-motion:reduce ){
+	.ec_cart_button_row.ec_cart_login_actions_v2 > a.ec_account_login_cancel_link{ transition:none; }
+}
 .ec_cart_bottom_nav_v2 input{ margin-left:0px !important; }
 
 .ec_cart_payment .ec_cart_bottom_nav_v2{ flex-direction:row-reverse; }
@@ -2256,6 +2377,16 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 	.ec_cart_mobile_summary .ec_cart_input_row{ flex-direction:column; }
 	.ec_cart_mobile_summary .ec_cart_button{ margin-left:0px; margin-top:5px; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_right.ec_cart_right_v2{ background:#F8F8F8; padding-top:20px !important; padding:20px; margin-top:25px; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_right.ec_cart_right_v2 .ec_cart_header{ display:block; margin-top:0px; padding-top:0px; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_mobile_summary{ display:flex; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_bottom_nav_v2{ flex-direction:column-reverse; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_input_column, :where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_button_column{ width:100%; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_mobile_summary .ec_cart_input_row{ flex-direction:column; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_mobile_summary .ec_cart_button{ margin-left:0px; margin-top:5px; }
+/* ec-checkout-onepage.js sets the summary's top padding to 0 on screens 990px and wider ( !important, printed later ): a narrow cart keeps its 20px. */
+.ec_cart_page[data-wpec-fit~="w989"] .ec_cart_right.ec_cart_right_v2{ padding-top:20px !important; }
 
 /* Shipping Methods */
 .ec_cart_shipping_method_row{ float:left; width:100%; margin-top:10px; line-height:1.7em; }
@@ -2465,10 +2596,10 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 /* 6.0.3: the newsletter and terms choices as rows you can click anywhere on. */
 .ec_cart_page.ec_cart_subscription .ec_cart_input_row.ec_agreement_section{ margin:10px 0 0; font-weight:400; line-height:1.45; }
 .ec_cart_page.ec_cart_subscription .ec_agreement_section ~ .ec_cart_button_row{ margin-top:16px; }
-.ec_cart_page.ec_cart_subscription .ec_subscription_choice{ display:flex; align-items:flex-start; gap:12px; float:none; width:100%; box-sizing:border-box; margin:0; padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; background:#FFFFFF; color:#111827; font-family:inherit !important; font-size:14px; font-weight:500; line-height:1.45; cursor:pointer; transition:border-color .15s ease, background-color .15s ease; }
-.ec_cart_page.ec_cart_subscription .ec_subscription_choice:hover{ border-color:#d1d5db; background:#f9fafb; }
-.ec_cart_page.ec_cart_subscription .ec_subscription_choice:has( input:checked ){ border-color:var(--wpec-main-color, #222222); background:#f9fafb; }
-.ec_cart_page.ec_cart_subscription .ec_cart_input_row.ec_agreement_section .ec_subscription_choice input[type="checkbox"]{ flex:0 0 auto; float:none; width:18px !important; height:18px; margin:1px 0 0 !important; accent-color:var(--wpec-main-color, #222222); cursor:pointer; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice:not(.ec_agree_box){ display:flex; align-items:flex-start; gap:12px; float:none; width:100%; box-sizing:border-box; margin:0; padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; background:#FFFFFF; color:#111827; font-family:inherit !important; font-size:14px; font-weight:500; line-height:1.45; cursor:pointer; transition:border-color .15s ease, background-color .15s ease; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice:not(.ec_agree_box):hover{ border-color:#d1d5db; background:#f9fafb; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice:not(.ec_agree_box):has( input:checked ){ border-color:var(--wpec-main-color, #222222); background:#f9fafb; }
+.ec_cart_page.ec_cart_subscription .ec_cart_input_row.ec_agreement_section .ec_subscription_choice:not(.ec_agree_box) input[type="checkbox"]{ flex:0 0 auto; float:none; width:18px !important; height:18px; margin:1px 0 0 !important; accent-color:var(--wpec-main-color, #222222); cursor:pointer; }
 .ec_cart_page.ec_cart_subscription .ec_cart_header input[type="checkbox"]{ width:16px; height:16px; margin:0 8px 0 0; vertical-align:-3px; accent-color:var(--wpec-main-color, #222222); }
 
 /* Account Billing + Shipping */
@@ -2653,6 +2784,8 @@ td.ec_account_orderitem_total{ text-align:right; padding:0 12px 0 0 !important; 
 :where(.ec_account_order_details_v2) tr.ec_account_orderitem_row > td.ec_account_orderitem_details{ width:auto; padding-left:12px !important; }
 :where(.ec_account_order_details_v2) .ec_account_orderitem_image > img{ display:block; width:60px; min-width:0; max-width:none; height:60px; padding:0 !important; box-sizing:border-box; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-radius:var(--wpec-radius-control, 10px); background:rgba(127,127,127,.08); object-fit:cover; }
 :where(.ec_account_order_details_v2) .ec_account_order_details_item_display_title, :where(.ec_account_order_details_v2) .ec_account_order_details_item_display_title > a{ font-size:15px; font-weight:600; line-height:1.35; }
+/* Hovering never changes the item name's size: the classic .ec_account_order_details_item_display_title > a:hover gives it 12px ( 0,2,1 ). */
+:where(.ec_account_order_details_v2) .ec_account_order_details_item_display_title > a:is(:hover, :focus){ font-size:15px; font-weight:600; line-height:1.35; }
 :where(.ec_account_order_details_v2) .ec_account_order_details_item_display_option{ margin-top:2px; font-size:13px; font-weight:400; line-height:1.4; opacity:.78; }
 :where(.ec_account_order_details_v2) :is(td.ec_account_orderitem_price, td.ec_account_orderitem_quantity, td.ec_account_orderitem_total){ font-variant-numeric:tabular-nums; }
 @container ( min-width:760px ){
@@ -3326,6 +3459,12 @@ ul.ec_menu_vertical span{ float:right; }
 	.ecrow_12.after, .ecrow_13.after, .ecrow_14.after, .ecrow_15.after, .ecrow_23.after, .ecrow_25.after, .ecrow_35.after, .ecrow_34.after, .ecrow_45.after{ width:100%; }
 	
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_breadcrumb.ec_inactive, :where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_breadcrumb_divider{ display:none; }
+:where(.ec_cart_page[data-wpec-fit~="w989"]) .ec_cart_breadcrumb{ width:100%; text-align:center; font-size:22px; }
+:where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_left_half, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_left_half_third, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_right_half, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_right_half_third{ width:100%; padding:8px 0 0 0 !important; margin-left:0px !important; }
+:where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_left_half.ec_small_field > select, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_left_half.ec_small_field > input, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_right_half.ec_small_field > select, :where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_input_row > .ec_cart_input_right_half.ec_small_field > input{ width:100% !important; }
+:where(.ec_cart_page[data-wpec-fit~="w480"]) .ec_cart_success_continue_shopping_button > a{ float:left; width:100%; margin-bottom:10px; }
 
 @media only screen and ( max-width:599px ){
 	/* Responsive Cart Mobile */
@@ -3349,6 +3488,32 @@ ul.ec_menu_vertical span{ float:right; }
 	.ec_cartitem_delete > span{ display:block; }
 	.ec_cartitem_delete:before{ content: "" !important; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w599"]) .ec_cart_left.ec_cart_holder{ overflow-y:initial; margin-bottom:20px; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart{ min-width:0; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart, :where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart > thead, :where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart > tbody, :where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart th, :where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart > tbody > tr, :where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart > tbody > tr > td{ display:block; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart thead tr{ position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart > tbody > tr{ border:1px solid #eee; margin-bottom:10px; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart td{ border:none; position:relative; width:100%; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart tr.ec_cartitem_error_row{ display:none; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart .ec_cartitem_remove_column{ background:#eee; padding:10px !important; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart .ec_cartitem_details{ text-align:center; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart .ec_cartitem_title{ font-size:1.5em; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart td.ec_cartitem_details > dl > dt{ float:left; width:100%; text-align:center; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart .ec_cartitem_quantity > table{ max-width:150px; margin:0 auto; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart tr.ec_cartitem_row > td.ec_cartitem_price{ text-align:center; font-size:1.5em; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart tr.ec_cartitem_row > td.ec_cartitem_total{ display:none; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) table.ec_cart .ec_cartitem_updating{ left:0; top:100%; margin-left:5px; margin-top:-30px; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) .ec_cartitem_delete{ width:auto; border:none; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) .ec_cartitem_delete > span{ display:block; }
+:where(.ec_cart_page[data-wpec-fit~="w599"]) .ec_cartitem_delete:before{ content: "" !important; }
+/* WP EasyCart PRO's checkout fields and Offers ( their stylesheets load after this one, so these carry the cart's weight ). */
+.ec_cart_page[data-wpec-fit~="w600"] .wpec-cf-half, .ec_cart_page[data-wpec-fit~="w600"] .wpec-cf-placement > .wpec-cf-half, .ec_cart_page[data-wpec-fit~="w600"] .wpec-cf-after > .wpec-cf-half{ flex-basis:100%; width:100%; }
+.ec_cart_page[data-wpec-fit~="w600"] .wpec-gift .wpec-gift-card{ padding:14px; gap:12px; }
+.ec_cart_page[data-wpec-fit~="w600"] .wpec-gift .wpec-gift-icon{ width:38px; height:38px; }
+.ec_cart_page[data-wpec-fit~="w600"] .wpec-gift .wpec-gift-fields{ padding:14px; }
+.ec_cart_page[data-wpec-fit~="w600"] .ec_offer_gift_option{ flex-basis:85%; }
+.ec_cart_page[data-wpec-fit~="w600"] .ec_bundle_pricing{ flex-wrap:wrap; }
 
 .wp-easycart-running{ position:relative; }
 .wp-easycart-ld-ring{ opacity:0; visibility:hidden; position:absolute; top:9px; right:9px; width:1em; height:1em; transition: all .3s; transition-timing-function: ease-in; }
@@ -3382,6 +3547,9 @@ ul.ec_menu_vertical span{ float:right; }
 	.ec_cart_pickup_group{ flex-direction: column; }
 	.ec_cart_pickup_label{ margin-bottom:10px; }
 }
+/* 6.0.5: the same for a cart this narrow on a wider screen ( Settings › Design › Fit the cart to your theme's content area, wp_easycart_cart_fit ). */
+:where(.ec_cart_page[data-wpec-fit~="w489"]) .ec_cart_pickup_group{ flex-direction: column; }
+:where(.ec_cart_page[data-wpec-fit~="w489"]) .ec_cart_pickup_label{ margin-bottom:10px; }
 
 /* Pickup Location Selector */
 .wpeasycart-location-popup{ position:fixed; top:0; left: 0; width:100%; height:100%; background-color:rgba(0, 0, 0, 0.6); display:flex; justify-content:center; align-items:center; z-index:1000; }
@@ -3627,6 +3795,45 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 .ec_account_subscription_v2_payment_date{ flex:1 1 auto; }
 .ec_account_subscription_v2_payment_total{ font-weight:600; }
 .ec_account_subscription_v2 .ec_account_subscription_v2_payments a{ padding:4px 10px; border:1px solid var(--ec-sub-border); border-radius:6px; font-size:12px; font-weight:600; white-space:nowrap; text-decoration:none !important; color:var(--ec-sub-accent) !important; }
+/* 6.0.5: the subscription's own card and its expiry date, which subscriptions a new card moves, past payments ten at a time. */
+.ec_account_subscription_v2 .ec_account_subscription_v2_pm{ flex-wrap:wrap; row-gap:4px; }
+.ec_account_subscription_v2_card_expiry{ flex:1 0 100%; font-size:13px; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_card_expiry.is-expired{ color:var(--ec-sub-danger); font-weight:600; }
+.ec_account_subscription_v2_notice.is-card-failed{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply{ min-width:0; margin:0 0 16px; padding:0; border:0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply legend.ec_account_subscription_v2_label{ float:none; width:auto; margin:0 0 8px; padding:0; border:0; }
+/* Each choice is a box like the card field above it ( 1px #e1e1e1, 8px corners ), the one chosen with the field's focus ring. */
+.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_choice{ display:flex; align-items:center; gap:10px; min-height:46px; margin:0 0 8px; padding:10px 14px; border:1px solid #e1e1e1; border-radius:8px; background:#ffffff; font-size:14px; font-weight:400; line-height:1.4; color:#111111; cursor:pointer; transition:border-color 0.15s ease, box-shadow 0.15s ease; }
+.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_choice:hover{ border-color:#c4c4c4; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply_choice > span{ flex:1 1 0; min-width:0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply input[type="radio"], .ec_account_subscription_v2 .ec_account_subscription_v2_apply input[type="checkbox"]{ flex:0 0 auto; width:18px; height:18px; margin:0; accent-color:var(--ec-sub-accent); appearance:auto; cursor:pointer; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply input[type="radio"]{ -webkit-appearance:radio; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply input[type="checkbox"]{ -webkit-appearance:checkbox; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply input:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+/* A click puts no ring on the box ( themes outline any focused input ); keyboard focus rings the whole row below. */
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply input:focus:not(:focus-visible){ outline:0; }
+@supports selector( :has( * ) ){
+	.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_choice:has( input:checked ){ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); }
+	.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_choice:has( input:focus-visible ){ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+	.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_choice input:focus-visible{ outline:0; }
+}
+/* The other subscriptions to tick, under "This subscription and others I choose". */
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply_list{ min-width:0; margin:-2px 0 8px; padding:2px 14px; border:1px solid var(--ec-sub-border); border-radius:8px; background:var(--ec-sub-soft); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply_list[hidden]{ display:none; }
+.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_item{ display:grid; grid-template-columns:18px minmax( 0, 1fr ) auto; align-items:center; gap:2px 10px; margin:0; padding:10px 0; border-bottom:1px solid var(--ec-sub-border); font-size:14px; font-weight:400; line-height:1.4; color:#111111; cursor:pointer; }
+.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_item:last-of-type{ border-bottom:0; }
+.ec_account_subscription_v2_apply_name{ min-width:0; font-weight:600; word-break:break-word; }
+.ec_account_subscription_v2_apply_card{ justify-self:end; font-size:13px; color:var(--ec-sub-muted); white-space:nowrap; }
+/* Phones: the card under the subscription's name, lined up with it. */
+@media ( max-width:480px ){
+	.ec_account_subscription_v2 label.ec_account_subscription_v2_apply_item{ grid-template-columns:18px minmax( 0, 1fr ); }
+	.ec_account_subscription_v2_apply_card{ grid-column:2; justify-self:start; white-space:normal; }
+}
+.ec_account_subscription_v2 .ec_account_subscription_v2_apply_error{ margin:-2px 0 8px; }
+.ec_account_subscription_v2_history_foot{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; margin:14px 0 0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_history_count{ margin:0; padding:0; font-size:13px; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_history_actions{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+.ec_account_subscription_v2 a.ec_account_subscription_v2_all_orders{ font-size:14px; font-weight:600; color:var(--ec-sub-accent) !important; }
 /* 6.0.0 Account > Subscriptions list ( ec_account_subscriptions.php, ec_account_subscription_line.php ) */
 .ec_account_subscriptions_v2 .ec_account_subscriptions_v2_list{ display:flex; flex-direction:column; gap:12px; float:left; clear:both; width:100%; margin:16px 0 8px; padding:0; }
 .ec_account_subscription_card{ display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; width:100%; margin:0; padding:16px; background:var(--ec-sub-bg, #ffffff); border:1px solid var(--ec-sub-border, #e5e7eb); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04); box-sizing:border-box; color:#222222; font-size:14px; line-height:1.45; text-align:left; }
@@ -3797,7 +4004,13 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 .ec_account_v2 .ec_account_dashboard_card_v2 > .ec_cart_input_row:last-child > a::first-letter{ text-transform:uppercase; }
 
 /* Forms: sign in, create an account, forgotten and new password, the account's details and addresses. */
-:is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row{ display:flow-root; float:none; width:auto; margin:0 0 14px; padding:0; }
+:is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row{ display:flow-root; clear:both; float:none; width:auto; margin:0 0 14px; padding:0; }
+/* 6.0.5: the "Please enter your ..." notes stay in the form's flow. They float at full width ( 6.0.3's message look ), and a field row
+   ( a block formatting context ) goes beside a float rather than under it: a note shown between two fields pushed the next field out to
+   the right of the card ( Sign in's Password, cut to "Passwo" ). A note between two fields sits 8px under its field. */
+:is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_error_row{ float:none; }
+:is(.ec_account_forms_v2, .ec_account_entry_v2) form > .ec_cart_error_row{ margin:6px 0 14px; }
+:is(.ec_account_forms_v2, .ec_account_entry_v2) form > .ec_cart_input_row + .ec_cart_error_row{ margin-top:-6px; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row > label, :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row > div > label{ display:block; float:none; width:auto; margin:0 0 6px; padding:0; font-size:14px; font-weight:600; line-height:1.35; color:var(--ec-acc-text); }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row :is(input:not([type]), input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], input[type=date], input[type=url], input[type=input], select, textarea){ display:block; float:none; width:100% !important; max-width:100%; min-height:44px; margin:0; padding:10px 12px; box-sizing:border-box; border:1px solid var(--ec-acc-border); border-radius:var(--ec-acc-control); background-color:var(--ec-acc-panel); color:var(--ec-acc-text); font-family:inherit; font-size:15px; line-height:1.4; box-shadow:none; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_input_row textarea{ min-height:96px; }
@@ -3813,8 +4026,8 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button]{ border:1px solid var(--ec-acc-border) !important; background:var(--ec-acc-panel) !important; color:var(--ec-acc-text) !important; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button]:is(:hover, :focus-visible){ border-color:var(--ec-acc-text) !important; }
 /* Hovering never changes a button's size: the classic rules give the Cancel buttons ( .ec_account_*_information_button,
-   .ec_account_password_button ) 12px text !important on hover, so they shrank under the pointer. */
-:is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > .ec_account_button, :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button], :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > .ec_account_button:is(:hover, :focus, :active), :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button]:is(:hover, :focus, :active){ font-size:15px !important; font-weight:600 !important; line-height:1.2 !important; letter-spacing:0 !important; }
+   .ec_account_password_button ) and Create account ( .ec_account_login_create_account_button ) 12px text !important on hover, so they shrank under the pointer. */
+:is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > .ec_account_button, :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button], :is(.ec_account_forms_v2, .ec_account_entry_v2) a.ec_account_login_create_account_button, :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > .ec_account_button:is(:hover, :focus, :active), :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button]:is(:hover, :focus, :active), :is(.ec_account_forms_v2, .ec_account_entry_v2) a.ec_account_login_create_account_button:is(:hover, :focus, :active){ font-size:15px !important; font-weight:600 !important; line-height:1.2 !important; letter-spacing:0 !important; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > .ec_account_button:is(:hover, :focus, :active), :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a > input[type=button]:is(:hover, :focus, :active){ transform:none !important; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a{ float:none; margin:0; text-decoration:none !important; }
 :is(.ec_account_forms_v2, .ec_account_entry_v2) .ec_cart_button_row > a.ec_account_login_link{ order:2; font-size:14px; color:var(--ec-acc-text) !important; }
@@ -3919,4 +4132,518 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 @media ( forced-colors: active ){
 	.ec_cart_onepage_page .ec_cart_summary_qty{ border-color:CanvasText; }
 	.ec_cart_onepage_page .ec_cart_summary_badge{ border:1px solid CanvasText; }
+}
+/* 6.0.5: WP EasyCart Limit Access: the line above the sign-in form for a visitor sent from a limited page, and the account page's members-only view ( what unlocks the page ) */
+.ec_account_page_access_notice{ float:none; clear:both; display:block; width:100%; box-sizing:border-box; position:relative; margin:0 0 16px; padding:12px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e3a8a; font-family:inherit; font-size:14px; line-height:1.5; font-weight:500; text-align:start; }
+.ec_account_page_access_notice > div{ position:relative; min-height:20px; padding:0; padding-inline-start:30px; color:inherit; }
+.ec_account_page_access_notice > div::before{ content:""; position:absolute; inset-inline-start:0; top:1px; width:20px; height:20px; background-color:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M5 8h1V6a4 4 0 1 1 8 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm3 0h4V6a2 2 0 1 0-4 0Z'/%3E%3C/svg%3E") center / 20px 20px no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M5 8h1V6a4 4 0 1 1 8 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm3 0h4V6a2 2 0 1 0-4 0Z'/%3E%3C/svg%3E") center / 20px 20px no-repeat; }
+:where(.ec_account_members_only){ display:block; box-sizing:border-box; width:100%; max-width:600px; margin:0 auto 24px; padding:28px 24px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-radius:var(--wpec-radius-card, 16px); background:var(--wpec-panel-color, #FFFFFF); box-shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05); font-family:inherit; font-size:15px; line-height:1.5; text-align:start; }
+:where(.ec_account_members_only) .ec_account_members_only_title{ margin:0 0 8px; padding:0; font-family:inherit; font-size:22px; line-height:1.3; font-weight:600; letter-spacing:0; text-transform:none; }
+:where(.ec_account_members_only) .ec_account_members_only_intro, :where(.ec_account_members_only) .ec_account_members_only_contact{ margin:0 0 16px; padding:0; }
+:where(.ec_account_members_only) .ec_account_members_only_products{ margin:0 0 16px; padding:0; list-style:none; }
+:where(.ec_account_members_only) .ec_account_members_only_product{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0; padding:12px 0; border-top:1px solid rgba(127,127,127,.2); list-style:none; }
+:where(.ec_account_members_only) .ec_account_members_only_product:last-child{ border-bottom:1px solid rgba(127,127,127,.2); }
+:where(.ec_account_members_only) .ec_account_members_only_product_name{ flex:1 1 200px; min-width:0; font-weight:600; overflow-wrap:anywhere; }
+:where(.ec_account_members_only) .ec_account_members_only_product_price{ flex:0 0 auto; opacity:.75; }
+:where(.ec_account_members_only) .ec_account_members_only_button{ display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:44px; padding:0 20px; border:0; border-radius:var(--wpec-radius-control, 8px); background:var(--wpec-main-color, #222222); color:#FFFFFF !important; font-family:inherit; font-size:15px; line-height:1.2; font-weight:600; text-decoration:none !important; box-shadow:none; }
+:where(.ec_account_members_only) .ec_account_members_only_button:hover{ filter:brightness(1.08); }
+:where(.ec_account_members_only) .ec_account_members_only_button:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+:where(.ec_account_members_only) .ec_account_members_only_open{ margin:16px 0; }
+:where(.ec_account_members_only) .ec_account_members_only_links{ margin:0; font-size:14px; }
+:where(.ec_account_members_only) .ec_account_members_only_links a{ color:var(--wpec-main-color, #222222); text-decoration:underline; }
+@media only screen and ( max-width:480px ){
+	:where(.ec_account_members_only){ padding:20px 16px; }
+	:where(.ec_account_members_only) .ec_account_members_only_button{ width:100%; }
+}
+@media ( forced-colors: active ){
+	.ec_account_page_access_notice{ border-color:CanvasText; }
+	.ec_account_page_access_notice > div::before{ background-color:CanvasText; }
+	:where(.ec_account_members_only) .ec_account_members_only_button{ border:1px solid ButtonText; }
+}
+/* 6.0.5: Limit Access: "Pages you can open" on My Account's dashboard, and the pages an order opens on the order confirmation page */
+.ec_account_dashboard_pages, .ec_account_v2 .ec_account_dashboard_pages{ margin:0 0 24px; }
+.ec_account_dashboard_pages_list, .ec_order_success_pages_list{ margin:6px 0 0; padding:0; list-style:none; }
+.ec_account_dashboard_pages_list > li, .ec_order_success_pages_list > li{ margin:0; padding:8px 0; border-top:1px solid rgba(127,127,127,.18); list-style:none; }
+.ec_account_dashboard_pages_list > li:first-child, .ec_order_success_pages_list > li:first-child{ border-top:0; }
+.ec_account_dashboard_pages_list a, .ec_order_success_pages_list a{ font-weight:600; overflow-wrap:anywhere; }
+.ec_order_success_pages{ margin:16px 0; padding:16px 20px; box-sizing:border-box; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-radius:var(--wpec-radius-card, 16px); background:var(--wpec-panel-color, transparent); }
+.ec_order_success_pages_title{ margin:0; font-weight:600; }
+.ec_order_success_pages_list + .ec_order_success_pages_title{ margin-top:12px; }
+/* 6.0.5: product options ( radio and checkbox modifiers ) as rows the shopper can click anywhere ( Matt ). Each choice is a card at
+   least 48px tall ( Apple 44pt, Material 48dp, WCAG 2.5.8 ), 8px apart, with a 20px control drawn the same on every theme; the choice
+   made shows in the store's main color on the border, a light tint and the control ( never color alone ); a focus ring for the
+   keyboard; the price on the right. The 6.0.5 templates print the label ( .ec_details_choice ); copies made before keep their look,
+   and ec-store.js makes their rows clickable. The Elementor Add to Cart rows ( _ele ) keep their own look and controls. */
+.ec_details_choice{ position:relative; display:flex; align-items:center; gap:12px; box-sizing:border-box; width:100%; min-height:48px; margin:0 0 8px; padding:12px 16px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.15)); border-radius:var(--wpec-radius-control, 8px); background-color:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); font-size:15px; line-height:1.4; text-align:start; cursor:pointer; transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.ec_details_choice:last-child{ margin-bottom:0; }
+.ec_details_choice:hover{ border-color:var(--wpec-muted-color, #666666); }
+.ec_details_choice > input[type="radio"], .ec_details_choice > input[type="checkbox"]{ -webkit-appearance:none; -moz-appearance:none; appearance:none; position:static; display:block; flex:0 0 20px; box-sizing:border-box; width:20px; min-width:20px; height:20px; margin:0; padding:0; border:2px solid var(--wpec-muted-color, #666666); border-radius:50%; background:transparent; box-shadow:none; opacity:1; cursor:pointer; transition:border-color .15s ease, background-color .15s ease; }
+.ec_details_choice > input[type="checkbox"]{ border-radius:4px; }
+.ec_details_choice > input[type="radio"]:checked{ border-color:var(--wpec-main-color, #222222); background:radial-gradient( circle at center, var(--wpec-main-color, #222222) 0 4.5px, transparent 5.5px ); }
+.ec_details_choice > input[type="checkbox"]:checked{ border-color:var(--wpec-main-color, #222222); background:var(--wpec-main-color, #222222) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px 14px no-repeat; }
+.ec_details_choice > input[type="radio"]::before, .ec_details_choice > input[type="radio"]::after, .ec_details_choice > input[type="checkbox"]::before, .ec_details_choice > input[type="checkbox"]::after{ display:none; content:none; }
+.ec_details_choice > input:focus{ outline:none; }
+.ec_details_choice > input:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+.ec_details_choice > .ec_details_choice_label{ display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 12px; float:none; width:auto; min-width:0; margin:0; padding:0; color:inherit; font:inherit; font-weight:400; line-height:inherit; letter-spacing:normal; text-transform:none; cursor:pointer; }
+.ec_details_choice > .ec_details_choice_label::after{ content:""; position:absolute; top:0; right:0; bottom:0; left:0; } /* the whole row is the label */
+.ec_details_choice .ec_details_choice_name{ overflow-wrap:anywhere; }
+.ec_details_choice .ec_product_details_option_pricing{ color:var(--wpec-muted-color, #666666); font-size:14px; }
+@supports selector( :has( * ) ){
+	.ec_details_choice:has( > input:checked ){ border-color:var(--wpec-main-color, #222222); box-shadow:inset 0 0 0 1px var(--wpec-main-color, #222222); background-color:rgba(127,127,127,.06); background-color:color-mix( in srgb, var(--wpec-main-color, #222222) 8%, var(--wpec-panel-color, #FFFFFF) ); }
+	.ec_details_choice > input:focus-visible{ outline:none; }
+	.ec_details_choice:has( > input:focus-visible ){ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+}
+@media ( prefers-reduced-motion: reduce ){
+	.ec_details_choice, .ec_details_choice > input{ transition:none; }
+}
+@media ( forced-colors: active ){
+	.ec_details_choice > input[type="radio"], .ec_details_choice > input[type="checkbox"]{ -webkit-appearance:auto; appearance:auto; }
+	.ec_details_choice:has( > input:checked ){ outline:2px solid Highlight; }
+}
+/* Copies of the product templates made before 6.0.5 ( no label ): the row still shows it can be clicked ( ec-store.js ), and the
+   Elementor Add to Cart rows' label covers the whole row. */
+.ec_details_checkbox_row, .ec_details_radio_row{ cursor:pointer; }
+.ec_details_checkbox_row_ele, .ec_details_radio_row_ele{ position:relative; }
+.ec_details_checkbox_row_ele > label::after, .ec_details_radio_row_ele > label::after{ content:""; position:absolute; top:0; right:0; bottom:0; left:0; }
+
+/* 6.0.5: the lowest price of the last 30 days under a reduced price ( wp_easycart_price_history ) */
+.ec_product_prior_price{ clear:both; margin:4px 0 8px; font-size:13px; line-height:1.4; color:#666; }
+.ec_product_prior_price_listing{ margin:2px 0 6px; font-size:12px; }
+
+/* 6.0.5: the price per kg, litre, metre or item ( wp_easycart_unit_price, admin review M16 ) */
+.ec_product_unit_price{ clear:both; margin:2px 0 6px; font-size:13px; line-height:1.4; color:#595959; }
+.ec_product_unit_price_listing{ margin:2px 0 4px; font-size:12px; }
+
+/* 6.0.5: the town, region and postcode in the country's order ( ec-store.js wpeasycart_address_place(), wp_easycart_address::form_layout() ) */
+.ec_cart_input_row.wpec-address-place{ display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); column-gap:15px; margin-top:0; }
+.ec_cart_input_row.wpec-address-place > .wpec-address-cell{ float:none; width:auto; max-width:none; min-width:0; margin:9px 0 0 0; padding:0 !important; grid-column:span 6; box-sizing:border-box; }
+.ec_cart_input_row.wpec-address-place > .wpec-address-city{ order:1; }
+.ec_cart_input_row.wpec-address-place > .wpec-address-state{ order:2; }
+.ec_cart_input_row.wpec-address-place > .wpec-address-zip{ order:3; }
+.ec_cart_input_row.wpec-address-place[data-layout="csz"] > .wpec-address-state, .ec_cart_input_row.wpec-address-place[data-layout="csz"] > .wpec-address-zip{ grid-column:span 3; }
+.ec_cart_input_row.wpec-address-place[data-layout="zc"] > .wpec-address-zip{ order:1; grid-column:span 2; }
+.ec_cart_input_row.wpec-address-place[data-layout="zc"] > .wpec-address-city{ order:2; grid-column:span 4; }
+.ec_cart_input_row.wpec-address-place[data-layout="zc"] > .wpec-address-state{ order:3; }
+.ec_cart_input_row.wpec-address-place[data-layout="cz"] > .wpec-address-city{ grid-column:span 4; }
+.ec_cart_input_row.wpec-address-place[data-layout="cz"] > .wpec-address-zip{ order:2; grid-column:span 2; }
+.ec_cart_input_row.wpec-address-place[data-layout="cz"] > .wpec-address-state{ order:3; }
+.ec_cart_input_row.wpec-address-place[data-layout="stack"] > .wpec-address-zip{ grid-column:span 3; }
+.ec_cart_input_row.wpec-address-place[data-layout="cs"] > .wpec-address-city, .ec_cart_input_row.wpec-address-place[data-layout="cs"] > .wpec-address-state{ grid-column:span 3; }
+.ec_cart_input_row.wpec-address-place.wpec-address-nozip > .wpec-address-zip{ display:none; }
+
+/* 6.0.5: Bill later bank details ( wp_easycart_bank_details::html() ) */
+.ec_bank_details{ margin:10px 0 0; padding:0; }
+.ec_bank_details .ec_bank_details_row{ display:flex; flex-wrap:wrap; gap:2px 8px; margin:0 0 4px; }
+.ec_bank_details dt{ font-weight:600; margin:0; }
+.ec_bank_details dt::after{ content:":"; }
+.ec_bank_details dd{ margin:0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+
+/* 6.0.5: terms and newsletter tick boxes ( Matt: like the subscription panel's "Use this card for" choices ). The box around the words is the
+   label: a click anywhere ticks it. A drawn tick box, the ticked one ringed in the store's colour, keyboard focus on the whole box. The 6.0.5
+   templates print label.ec_cart_check_label.ec_agree_box; copies made before keep their look. */
+label.ec_cart_check_label.ec_agree_box{ display:flex; align-items:flex-start; gap:12px; float:none; position:relative; top:auto; left:auto; box-sizing:border-box; width:100%; min-height:48px; margin:0; padding:13px 16px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.15)); border-radius:var(--wpec-radius-control, 8px); background:var(--wpec-panel-color, #FFFFFF); color:inherit; font-family:inherit; font-size:15px; font-style:normal; font-weight:400; line-height:1.45; letter-spacing:normal; text-align:left; text-transform:none; transform:none; pointer-events:auto; cursor:pointer; -webkit-user-select:none; user-select:none; transition:border-color .15s ease, box-shadow .15s ease; }
+label.ec_cart_check_label.ec_agree_box:hover{ border-color:var(--wpec-muted-color, #666666); }
+/* Floating labels move every label in a row; not this one. */
+.wp-easycart-label-type-floating .ec_cart_input_row label.ec_cart_check_label.ec_agree_box{ position:relative; top:auto; left:auto; transform:none; padding:13px 16px; background:var(--wpec-panel-color, #FFFFFF); pointer-events:auto; }
+label.ec_cart_check_label.ec_agree_box .ec_cart_check_text{ flex:1 1 auto; min-width:0; color:inherit; font:inherit; letter-spacing:inherit; text-transform:none; overflow-wrap:anywhere; }
+label.ec_cart_check_label.ec_agree_box a{ color:var(--wpec-main-color, #222222); text-decoration:underline; }
+label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]{ -webkit-appearance:none; -moz-appearance:none; appearance:none; position:static; display:block; flex:0 0 20px; float:none; box-sizing:border-box; width:20px !important; min-width:20px; height:20px; margin:1px 0 0 !important; padding:0; border:2px solid var(--wpec-muted-color, #666666); border-radius:5px; background:var(--wpec-panel-color, #FFFFFF); box-shadow:none; opacity:1; cursor:pointer; transition:border-color .15s ease, background-color .15s ease; }
+label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]:checked{ border-color:var(--wpec-main-color, #222222); background:var(--wpec-main-color, #222222) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px 14px no-repeat; }
+label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]::before, label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]::after{ display:none; content:none; }
+label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]:focus{ outline:none; }
+label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+@supports selector( :has( * ) ){
+	label.ec_cart_check_label.ec_agree_box:has( > input:checked ){ border-color:var(--wpec-main-color, #222222); box-shadow:inset 0 0 0 1px var(--wpec-main-color, #222222); }
+	label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]:focus-visible{ outline:none; }
+	label.ec_cart_check_label.ec_agree_box:has( > input:focus-visible ){ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+}
+/* Rows of agreements: a little space between two boxes, the error note under its box. */
+.ec_cart_input_row:has( > label.ec_agree_box ) + .ec_cart_input_row:has( > label.ec_agree_box ){ margin-top:8px; }
+/* In the subscription panel: the card field's border and the panel's type and colour. */
+.ec_account_subscription_v2 label.ec_cart_check_label.ec_agree_box{ min-height:46px; padding:12px 14px; border-color:#e1e1e1; font-size:14px; }
+.ec_account_subscription_v2 label.ec_cart_check_label.ec_agree_box:hover{ border-color:#c4c4c4; }
+.ec_account_subscription_v2 label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]{ margin-top:0 !important; }
+.ec_account_subscription_v2 label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]:checked{ border-color:var(--ec-sub-accent); background-color:var(--ec-sub-accent); }
+@supports selector( :has( * ) ){
+	.ec_account_subscription_v2 label.ec_cart_check_label.ec_agree_box:has( > input:checked ){ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); }
+}
+@media ( prefers-reduced-motion:reduce ){
+	label.ec_cart_check_label.ec_agree_box, label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]{ transition:none; }
+}
+@media ( forced-colors:active ){
+	label.ec_cart_check_label.ec_agree_box > input[type="checkbox"]{ -webkit-appearance:auto; appearance:auto; }
+	label.ec_cart_check_label.ec_agree_box:has( > input:checked ){ outline:2px solid Highlight; }
+}
+
+/* 6.0.5: the subscription page's email first ( ec_cart_subscription.php #ec_subscription_account, the class wp_easycart_subscription_signup;
+   Matt: after Sign up the page looked empty ). The step shows its parts by data-state: email ( the field and Continue ), existing ( the
+   email card and the account's password ), new ( the email card and a password for a new account ), later ( the email card and a note ).
+   The checkout below waits blurred and out of reach while #ec_subscription_after_account has data-locked ( its body is inert as well ).
+   Store copies of the template from before print none of these classes. */
+.ec_subscription_account{ float:left; width:100%; }
+.ec_subscription_account .ec_subscription_email_locked, .ec_subscription_account #ec_user_contact_form, .ec_subscription_account #ec_user_login_form{ display:none; }
+.ec_subscription_account:not([data-state="email"]) .ec_subscription_email_entry{ display:none; }
+.ec_subscription_account:not([data-state="email"]) .ec_subscription_email_locked{ display:flex; margin-bottom:16px; }
+.ec_subscription_account[data-state="later"] .ec_subscription_email_locked{ margin-bottom:25px; }
+.ec_subscription_account[data-state="new"] #ec_user_contact_form, .ec_subscription_account[data-state="existing"] #ec_user_login_form{ display:block; }
+.ec_subscription_account #ec_user_contact_form, .ec_subscription_account #ec_user_login_form{ float:left; width:100%; }
+.ec_subscription_account .ec_subscription_email_field{ display:flex; flex-wrap:wrap; gap:8px; float:left; box-sizing:border-box; width:100%; margin:0; } /* a float like the label above it: a flex box beside a floated label shrinks to nothing */
+.ec_cart_page .ec_subscription_account .ec_cart_input_row .ec_subscription_email_field > input{ flex:999 1 220px; width:auto; min-width:0; margin:0; }
+.ec_subscription_account .ec_subscription_email_field > .ec_cart_button{ display:inline-flex; align-items:center; justify-content:center; flex:1 0 auto; float:none; box-sizing:border-box; width:auto; min-width:120px; min-height:44px; margin:0; padding:10px 22px; border:none !important; border-radius:var(--wpec-radius-control, 8px); background-color:var(--wpec-main-color, #222222); color:#FFFFFF !important; background-image:none; font-size:14px; font-weight:600; line-height:1.2; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
+.ec_subscription_account .ec_subscription_email_field > .ec_cart_button:hover, .ec_subscription_set_password_field > .ec_cart_button:hover{ background-color:var(--wpec-second-color, var(--wpec-main-color, #222222)); }
+.ec_subscription_account .ec_subscription_email_field > .ec_cart_button[aria-busy="true"]{ opacity:.65; cursor:progress; }
+.ec_subscription_account .ec_subscription_email_field > .ec_cart_button:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+.ec_subscription_account .ec_subscription_account_hint{ clear:both; margin:8px 0 0; padding:0; color:var(--wpec-muted-color, #666666); font-size:13px; line-height:1.5; }
+.ec_subscription_account .ec_subscription_email_busy:empty{ display:none !important; }
+.ec_subscription_account .ec_subscription_email_change{ cursor:pointer; }
+.ec_subscription_account .ec_subscription_account_note:empty{ display:none; }
+.ec_subscription_after_account{ position:relative; float:left; width:100%; }
+.ec_subscription_after_account > .ec_subscription_preview_body{ float:left; width:100%; transition:filter .25s ease, opacity .25s ease; }
+.ec_subscription_after_account[data-locked="1"] > .ec_subscription_preview_body{ filter:blur(3px); opacity:.55; pointer-events:none; -webkit-user-select:none; user-select:none; }
+.ec_subscription_after_account > .ec_subscription_preview_note{ display:none; } /* shown while locked, unless quiet: the step above already says what to do next */
+.ec_subscription_after_account[data-locked="1"]:not(.ec_subscription_quiet) > .ec_subscription_preview_note{ display:flex; align-items:center; gap:8px; position:absolute; top:28px; left:50%; z-index:2; box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); margin:0; padding:10px 18px; border:1px solid rgba(127,127,127,.24); border-radius:999px; background:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); box-shadow:0 6px 20px rgba(0,0,0,.08); font-size:14px; line-height:1.4; text-align:center; transform:translateX(-50%); }
+.ec_subscription_after_account[data-locked="1"] > .ec_subscription_preview_note::before{ content:""; flex:0 0 16px; width:16px; height:16px; background-color:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat; }
+.ec_subscription_after_account .ec_subscription_preview_payment{ display:none; }
+.ec_subscription_after_account[data-locked="1"]:not(.ec_subscription_has_payment) .ec_subscription_preview_payment{ display:block; float:left; width:100%; }
+.ec_subscription_preview_payment .ec_subscription_preview_field{ display:flex; align-items:center; gap:12px; box-sizing:border-box; height:46px; padding:0 14px; border:1px solid #d1d5db; border-radius:var(--wpec-radius-control, 8px); }
+.ec_subscription_preview_payment .ec_subscription_preview_field > span{ height:10px; border-radius:5px; background:rgba(127,127,127,.22); }
+.ec_subscription_preview_payment .ec_subscription_preview_field > span:nth-child(1){ flex:1 1 55%; }
+.ec_subscription_preview_payment .ec_subscription_preview_field > span:nth-child(2){ flex:0 0 18%; }
+.ec_subscription_preview_payment .ec_subscription_preview_field > span:nth-child(3){ flex:0 0 12%; }
+.ec_subscription_preview_payment .ec_subscription_preview_button{ margin:18px 0 0; padding:13px 16px; border-radius:var(--wpec-radius-control, 8px); background:var(--wpec-main-color, #222222); color:#FFFFFF; font-size:14px; font-weight:600; letter-spacing:.04em; text-align:center; text-transform:uppercase; }
+/* After paying: the account the purchase made sets its password ( the order confirmation, the subscription in My Account, the dashboard ). */
+.ec_subscription_set_password{ clear:both; box-sizing:border-box; margin:0 0 24px; padding:18px 20px; border:1px solid rgba(127,127,127,.24); border-radius:var(--wpec-radius-card, 12px); background:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); font-size:15px; line-height:1.5; }
+.ec_subscription_set_password [hidden]{ display:none !important; }
+.ec_subscription_set_password h3.ec_subscription_set_password_title{ margin:0 0 6px !important; padding:0 !important; border:0 !important; font-family:inherit !important; font-size:17px !important; font-weight:700 !important; line-height:1.3 !important; letter-spacing:0 !important; text-transform:none !important; color:inherit !important; }
+.ec_subscription_set_password p{ margin:0 0 12px; padding:0; font-size:15px; line-height:1.5; }
+.ec_subscription_set_password p.ec_subscription_set_password_later{ margin:12px 0 0; color:var(--wpec-muted-color, #666666); font-size:13px; }
+.ec_subscription_set_password p.ec_subscription_set_password_error{ margin:8px 0 0; color:#b42318; font-size:14px; }
+.ec_subscription_set_password p.ec_subscription_set_password_done{ display:flex; align-items:center; gap:10px; margin:0; font-weight:600; }
+.ec_subscription_set_password p.ec_subscription_set_password_done::before{ content:""; flex:0 0 20px; width:20px; height:20px; background-color:#067647; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E") center / contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E") center / contain no-repeat; }
+.ec_subscription_set_password_row > label{ display:block; margin:0 0 6px; font-size:14px; font-weight:600; }
+.ec_subscription_set_password_field{ display:flex; flex-wrap:wrap; gap:8px; }
+.ec_subscription_set_password_field > input.ec_subscription_set_password_input{ flex:999 1 220px; box-sizing:border-box; width:auto; min-width:0; min-height:44px; margin:0; padding:10px 12px; border:1px solid #d1d5db; border-radius:var(--wpec-radius-control, 8px); background:#FFFFFF; color:#222222; font-size:16px; line-height:1.4; }
+.ec_subscription_set_password_field > input.ec_subscription_set_password_input:focus{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:1px; }
+.ec_subscription_set_password_field > .ec_cart_button{ display:inline-flex; align-items:center; justify-content:center; flex:1 0 auto; float:none; box-sizing:border-box; width:auto; min-height:44px; margin:0; padding:10px 22px; border:none !important; border-radius:var(--wpec-radius-control, 8px); background-color:var(--wpec-main-color, #222222); background-image:none; color:#FFFFFF !important; font-size:14px; font-weight:600; line-height:1.2; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
+.ec_subscription_set_password_field > .ec_cart_button[aria-busy="true"]{ opacity:.65; cursor:progress; }
+@media ( prefers-reduced-motion:reduce ){
+	.ec_subscription_after_account > .ec_subscription_preview_body{ transition:none; }
+}
+@media ( forced-colors:active ){
+	.ec_subscription_after_account[data-locked="1"] > .ec_subscription_preview_body{ opacity:.4; }
+}
+
+/* 6.0.5: the short subscription checkout ( #ec_cart_billing_form[data-short], wp_easycart_subscription_short ): the country, the state or
+   province and the postcode on one line, wrapping on a narrow page; the state shows only where the country has a list ( its free text box
+   never ), the postcode only where the country uses one ( ec-store.js wpeasycart_subscription_short_place() sets hidden on the cells ). */
+.ec_cart_page .ec_cart_input_row.ec_subscription_short_place{ display:flex; flex-wrap:wrap; gap:0 15px; }
+.ec_cart_page .ec_subscription_short_place > .ec_subscription_short_cell{ flex:1 1 150px; box-sizing:border-box; min-width:0; float:none; width:auto; margin:0; padding:0; }
+.ec_cart_page .ec_subscription_short_place > .ec_subscription_short_country{ flex:2 1 200px; }
+.ec_cart_page .ec_subscription_short_place > .ec_subscription_short_cell[hidden]{ display:none !important; }
+.ec_cart_page .ec_subscription_short_place select, .ec_cart_page .ec_subscription_short_place input[type="text"]{ box-sizing:border-box; width:100%; max-width:100%; }
+#ec_cart_billing_form[data-short] input#ec_cart_billing_state{ display:none !important; }
+
+/* 6.0.5: a subscription page that keeps the full billing address while the short checkout is on says why, to store managers only
+   ( wp_easycart_subscription_short::print_manager_note(): the subscription ships, or a tax service needs the street ). */
+.ec_cart_page .ec_subscription_short_note{ float:left; box-sizing:border-box; width:100%; margin:12px 0 4px; padding:10px 12px; border:1px dashed #d97706; border-radius:var(--wpec-radius-control, 8px); background:#fffbeb; color:#78350f; font-size:14px; line-height:1.45; }
+.ec_cart_page .ec_subscription_short_note_who{ display:block; margin-top:4px; color:#92400e; font-size:12px; }
+
+/* 6.0.5: the checkout's Contact ( ec_checkout_account.php, wp_easycart_checkout_signup ): the subscription page's email step
+   ( .ec_subscription_account above ) on both checkouts. Guest checkout ( data-state optional ) keeps the email open and signs in under it
+   ( data-signin ); the one-page checkout's newsletter row hides for an email that has an account; the classic page's billing and
+   shipping wait blurred while an order that needs an account waits for the email ( [data-wpec-after-account], inert too ). Notes
+   under the email: a likely typo ( .ec_checkout_email_suggest ) and an email that has an account ( .ec_checkout_email_known ). Every
+   password has a Show button inside its field ( .ec_password_toggle ). */
+.ec_checkout_account[data-state="optional"] .ec_subscription_email_entry{ display:block; }
+.ec_checkout_account[data-signin="1"] #ec_user_login_form{ display:block; }
+.ec_checkout_account[data-signin="1"] .ec_checkout_create_choice, .ec_checkout_account[data-signin="1"] #ec_user_create_form{ display:none !important; }
+.ec_checkout_account .ec_checkout_create_choice{ float:left; width:100%; margin-top:6px; }
+.ec_checkout_account #ec_user_create_form{ float:left; width:100%; }
+.ec_checkout_account[data-state="existing"] ~ .ec_checkout_account_subscribe{ display:none; }
+.ec_checkout_after_account{ float:left; width:100%; }
+[data-wpec-after-account]{ transition:filter .25s ease, opacity .25s ease; }
+[data-wpec-after-account][data-locked="1"]{ filter:blur(3px); opacity:.55; pointer-events:none; -webkit-user-select:none; user-select:none; }
+.ec_checkout_email_suggest{ clear:both; margin:8px 0 0; padding:0; color:var(--wpec-text-color, #222222); font-size:14px; line-height:1.5; }
+.ec_checkout_email_suggest[hidden], .ec_checkout_email_known[hidden]{ display:none !important; }
+.ec_cart_page .ec_checkout_email_suggest > button.ec_checkout_email_suggest_use{ display:inline; float:none; width:auto; min-height:0; margin:0; padding:0; border:0 !important; border-radius:0; background:none !important; box-shadow:none; color:var(--wpec-main-color, #222222) !important; font:inherit; font-weight:600; letter-spacing:normal; text-transform:none; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.ec_checkout_email_known{ clear:both; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; box-sizing:border-box; margin:10px 0 12px; padding:10px 12px 10px 14px; border:1px solid rgba(127,127,127,.3); border-radius:var(--wpec-radius-control, 8px); background:rgba(127,127,127,.06); color:var(--wpec-text-color, #222222); font-size:14px; line-height:1.45; }
+@supports ( color:color-mix( in srgb, red 50%, blue ) ) {
+	.ec_checkout_email_known{ border-color:color-mix( in srgb, var(--wpec-main-color, #222222) 35%, transparent ); background:color-mix( in srgb, var(--wpec-main-color, #222222) 6%, transparent ); }
+}
+.ec_checkout_email_known_text{ flex:1 1 220px; min-width:0; }
+.ec_cart_page .ec_checkout_email_known > button.ec_checkout_email_known_signin{ flex:0 0 auto; float:none; width:auto; min-height:36px; margin:0; padding:6px 16px; border:1px solid var(--wpec-main-color, #222222) !important; border-radius:var(--wpec-radius-control, 8px); background:transparent !important; box-shadow:none; color:var(--wpec-main-color, #222222) !important; font:inherit; font-weight:600; letter-spacing:normal; text-transform:none; cursor:pointer; }
+.ec_cart_page .ec_checkout_email_known > button.ec_checkout_email_known_signin:hover{ background:rgba(127,127,127,.08) !important; }
+.ec_cart_page .ec_checkout_email_known > button:focus-visible, .ec_cart_page .ec_checkout_email_suggest > button:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+.ec_password_field{ position:relative; display:block; float:left; box-sizing:border-box; width:100%; }
+.ec_cart_page .ec_cart_input_row .ec_password_field > input{ box-sizing:border-box; width:100%; padding-right:78px; }
+.ec_cart_page .ec_password_field > button.ec_password_toggle{ position:absolute; top:50%; right:6px; float:none; width:auto; min-width:0; min-height:32px; margin:0; padding:4px 10px; border:0 !important; border-radius:6px; background:transparent !important; box-shadow:none; color:var(--wpec-main-color, #222222) !important; font-family:inherit; font-size:13px; font-weight:600; line-height:1.2; letter-spacing:normal; text-transform:none; cursor:pointer; transform:translateY(-50%); }
+.ec_cart_page .ec_password_field > button.ec_password_toggle:hover{ background:rgba(127,127,127,.1) !important; }
+.ec_cart_page .ec_password_field > button.ec_password_toggle:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:1px; }
+[dir="rtl"] .ec_cart_page .ec_cart_input_row .ec_password_field > input{ padding-right:12px; padding-left:78px; }
+[dir="rtl"] .ec_cart_page .ec_password_field > button.ec_password_toggle{ right:auto; left:6px; }
+.ec_checkout_waiting{ position:relative; float:left; box-sizing:border-box; width:100%; margin:16px 0 24px; }
+.ec_checkout_waiting_parts{ filter:blur(2px); opacity:.5; -webkit-user-select:none; user-select:none; }
+.ec_checkout_waiting_part{ display:flex; flex-direction:column; gap:10px; margin:0 0 22px; }
+.ec_checkout_waiting_title{ color:var(--wpec-text-color, #222222); font-size:15px; font-weight:600; line-height:1.3; }
+.ec_checkout_waiting_field{ display:block; box-sizing:border-box; height:44px; border:1px solid #d1d5db; border-radius:var(--wpec-radius-control, 8px); }
+.ec_checkout_waiting_field.ec_checkout_waiting_field_short{ width:60%; }
+.ec_checkout_waiting > .ec_checkout_waiting_note{ display:flex; align-items:center; gap:8px; position:absolute; top:34px; left:50%; z-index:2; box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); margin:0; padding:10px 18px; border:1px solid rgba(127,127,127,.24); border-radius:999px; background:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); box-shadow:0 6px 20px rgba(0,0,0,.08); font-size:14px; line-height:1.4; text-align:center; transform:translateX(-50%); }
+.ec_checkout_account:not([data-state="email"]) ~ .ec_checkout_waiting > .ec_checkout_waiting_note{ display:none; } /* the step says what comes next */
+.ec_checkout_waiting.ec_checkout_waiting_classic{ z-index:3; height:0; margin:0; }
+.ec_checkout_waiting > .ec_checkout_waiting_note::before{ content:""; flex:0 0 16px; width:16px; height:16px; background-color:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat; }
+@media ( prefers-reduced-motion: reduce ) {
+	[data-wpec-after-account]{ transition:none; }
+}
+/* 6.0.5: the email step's human check ( wp_easycart_email_lookups ), and the checkout's questions that wait for the email */
+.ec_subscription_email_check{ margin:10px 0 4px; }
+.ec_subscription_email_check[hidden], [data-wpec-account-fields][hidden]{ display:none !important; }
+.ec_subscription_email_check .ec_subscription_email_check_text{ margin:0 0 8px !important; padding:0 !important; font-size:14px; line-height:1.45; }
+.ec_subscription_email_check .ec_subscription_email_check_box{ min-height:65px; }
+
+/* 6.0.5: the subscription page's usage level ( wp_easycart_subscription_levels::print_picker() ): a pricing table's level, changed
+   here with Update ( the page opens again, as the quantity's Update does ). Printed before the checkout section, so it sets its own
+   sizes: themes style labels and buttons. */
+form.ec_subscription_level{ display:flex; flex-direction:column; gap:8px; margin:0 0 18px; padding:0; }
+form.ec_subscription_level .ec_subscription_level_label{ display:block; margin:0; font-size:15px; font-weight:600; line-height:1.4; letter-spacing:0; text-transform:none; }
+form.ec_subscription_level .ec_subscription_level_row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+form.ec_subscription_level .ec_subscription_level_select{ flex:1 1 220px; max-width:380px; min-height:44px; margin:0; padding:0 12px; border:1px solid #CCCCCC; border-radius:8px; background-color:#FFFFFF; color:inherit; font-family:inherit; font-size:15px; }
+form.ec_subscription_level .ec_subscription_level_update{ float:none; width:auto; height:44px; margin:0; padding:0 18px; border:0; border-radius:8px; background:var(--wpec-main-color, #222222); background-image:none; color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:600; line-height:1; letter-spacing:0.04em; text-transform:uppercase; text-shadow:none; box-shadow:none; cursor:pointer; }
+form.ec_subscription_level .ec_subscription_level_update:hover, form.ec_subscription_level .ec_subscription_level_update:focus{ background:var(--wpec-second-color, #666666); color:#FFFFFF; }
+form.ec_subscription_level .ec_subscription_level_select:focus-visible, form.ec_subscription_level .ec_subscription_level_update:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+@media ( max-width:767px ){ form.ec_subscription_level .ec_subscription_level_select{ font-size:16px; } }
+
+/* 6.0.5: My Account's usage level in Change plan ( wp_easycart_subscription_levels::print_account_field() ): the panel's field look. */
+.ec_account_subscription_v2 .ec_account_subscription_v2_level select.ec_account_subscription_v2_level_select{ display:block; width:100%; max-width:440px; height:40px; margin:0; padding:0 36px 0 12px; border:1px solid #e1e1e1; border-radius:8px; background-color:#ffffff; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-size:12px 8px; color:#111111; font-family:inherit; font-size:15px; line-height:1.2; -webkit-appearance:none; appearance:none; box-shadow:none; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_level select.ec_account_subscription_v2_level_select:focus{ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); outline:none; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_level .ec_account_subscription_v2_hint{ margin:6px 0 0; font-size:13px; line-height:1.45; color:var(--ec-sub-muted); }
+@media ( max-width:767px ){ .ec_account_subscription_v2 .ec_account_subscription_v2_level select.ec_account_subscription_v2_level_select{ font-size:16px; } }
+
+/* 6.0.5: the subscription page's choices under the item in its summary ( wp_easycart_subscription_choices ): the usage level a quiet
+   line ( "750 tasks per month · Change", a <details> summary ) that opens its list, the billing period pills or a switch of links ( the
+   pricing table's look ). Without scripts an open list shows its Update button. */
+.ec_cart_page .ec_subscription_picks {
+	clear: both;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	margin: -2px 0 14px;
+	padding: 0;
+	font-size: 14px;
+	line-height: 1.45;
+}
+.ec_cart_page .ec_subscription_pick {
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+	max-width: 100%;
+	line-height: 1.45;
+}
+.ec_cart_page form.ec_subscription_pick {
+	align-self: stretch;
+}
+.ec_cart_page .ec_subscription_pick_box {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.ec_cart_page .ec_subscription_pick_line {
+	display: block;
+	width: fit-content;
+	max-width: 100%;
+	margin: 0;
+	padding: 2px 0;
+	border-radius: 4px;
+	list-style: none;
+	cursor: pointer;
+	color: inherit;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.45;
+}
+.ec_cart_page .ec_subscription_pick_line::-webkit-details-marker {
+	display: none;
+}
+.ec_cart_page .ec_subscription_pick_line::marker {
+	content: '';
+}
+.ec_cart_page .ec_subscription_pick_line:focus-visible {
+	outline: 2px solid var(--wpec-main-color, #222222);
+	outline-offset: 2px;
+}
+.ec_cart_page .ec_subscription_pick_box[open] > .ec_subscription_pick_line {
+	display: none;
+}
+.ec_cart_page .ec_subscription_pick_text {
+	color: var(--wpec-text-muted, #5f6873);
+}
+.ec_cart_page .ec_subscription_pick_change {
+	margin-inline-start: 6px;
+	color: var(--wpec-main-color, #222222);
+	font-weight: 600;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.ec_cart_page .ec_subscription_pick_sr,
+.ec_cart_page .ec_subscription_pick.is-scripted .ec_subscription_pick_label {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect( 0 0 0 0 );
+	white-space: nowrap;
+	border: 0;
+}
+.ec_cart_page .ec_subscription_pick_field {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.ec_cart_page .ec_subscription_pick_label {
+	flex: 1 0 100%;
+	margin: 0;
+	font-size: 14px;
+	color: var(--wpec-text-muted, #5f6873);
+}
+.ec_cart_page .ec_subscription_pick_field select.ec_subscription_pick_select {
+	flex: 1 1 200px;
+	width: auto;
+	max-width: 100%;
+	min-width: 0;
+	min-height: 40px;
+	margin: 0;
+	padding: 6px 32px 6px 10px;
+	border: 1px solid #e1e1e1;
+	border-radius: 8px;
+	background-color: #ffffff;
+	color: inherit;
+	font: inherit;
+	font-size: 15px;
+	text-overflow: ellipsis;
+}
+.ec_cart_page .ec_subscription_pick_field select.ec_subscription_pick_select:focus {
+	outline: 2px solid var(--wpec-main-color, #222222);
+	outline-offset: 1px;
+}
+.ec_cart_page .ec_subscription_pick_field .ec_subscription_pick_go {
+	flex: 0 0 auto;
+	width: auto;
+	min-height: 40px;
+	margin: 0;
+	padding: 0 16px;
+}
+.ec_cart_page .ec_subscription_pick.is-scripted .ec_subscription_pick_go {
+	display: none;
+}
+.ec_cart_page .ec_subscription_pick.is-scripted.is-keyed .ec_subscription_pick_go {
+	display: inline-flex;
+	align-items: center;
+}
+.ec_cart_page .ec_subscription_pick.is-busy {
+	opacity: 0.6;
+	pointer-events: none;
+}
+.ec_cart_page .ec_subscription_pick_links {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.ec_cart_page .ec_subscription_pick_links_pills {
+	gap: 3px;
+	padding: 3px;
+	border: 1px solid #e5e7eb;
+	border-radius: 999px;
+	background: #f3f4f6;
+}
+.ec_cart_page .ec_subscription_pick_pill,
+.ec_cart_page .ec_subscription_pick_pill:hover,
+.ec_cart_page .ec_subscription_pick_pill:focus {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--wpec-text-muted, #5f6873);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.3;
+	text-decoration: none !important;
+	box-shadow: none;
+}
+.ec_cart_page .ec_subscription_pick_links_pills .ec_subscription_pick_pill {
+	padding: 6px 12px;
+	border-radius: 999px;
+}
+.ec_cart_page a.ec_subscription_pick_pill:hover,
+.ec_cart_page .ec_subscription_pick_pill.is-current {
+	color: #111827;
+}
+.ec_cart_page .ec_subscription_pick_links_pills .ec_subscription_pick_pill.is-current {
+	background: #ffffff;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
+}
+.ec_cart_page a.ec_subscription_pick_pill:focus-visible,
+.ec_cart_page a.ec_subscription_pick_track:focus-visible {
+	outline: 2px solid var(--wpec-main-color, #222222);
+	outline-offset: 2px;
+}
+.ec_cart_page .ec_subscription_pick_track {
+	position: relative;
+	display: inline-block;
+	flex: 0 0 auto;
+	width: 40px;
+	height: 24px;
+	border-radius: 999px;
+	background: #9aa3ad;
+	cursor: pointer;
+	text-decoration: none !important;
+}
+.ec_cart_page .ec_subscription_pick_track > span {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #ffffff;
+	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.25 );
+	transition: transform 0.2s ease;
+}
+.ec_cart_page .ec_subscription_pick_links_switch[data-on="1"] .ec_subscription_pick_track {
+	background: var(--wpec-main-color, #222222);
+}
+.ec_cart_page .ec_subscription_pick_links_switch[data-on="1"] .ec_subscription_pick_track > span {
+	transform: translateX( 16px );
+}
+.ec_cart_page .ec_subscription_pick_badge {
+	display: inline-block;
+	padding: 3px 7px;
+	border-radius: 999px;
+	background: #eef2f6;
+	background: color-mix( in srgb, var(--wpec-main-color, #222222) 12%, #ffffff );
+	color: var(--wpec-main-color, #222222);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+.ec_cart_page .ec_subscription_pick_offer {
+	margin: -4px 0 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--wpec-text-muted, #5f6873);
+}
+/* The choices belong to the item: the title row's rule moves under them. */
+@supports selector( :has( * ) ) {
+	.ec_cart_page .ec_cart_price_row:has( + .ec_subscription_picks ) {
+		border-bottom: 0;
+		padding-bottom: 0;
+	}
+	.ec_cart_page .ec_cart_price_row + .ec_subscription_picks {
+		margin: 0;
+		padding: 6px 0 12px;
+		border-bottom: 1px solid #eef0f2;
+	}
 }

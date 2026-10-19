@@ -13,6 +13,10 @@
 (function( $ ) {
 	'use strict';
 
+	/* 6.0.5 ( admin review M17 ): words through T() / TN() ( wp_easycart_admin_js_text: window.ecv2_t / ecv2_tn ), English without it. */
+	var T = window.ecv2_t || function( text ) { var a = arguments, i = 1; return String( text ).replace( /%(?:(\d+)\$)?([sd%])/g, function( m, n, k ) { return '%' === k ? '%' : String( n ? a[ +n ] : a[ i++ ] ); } ); };
+	var TN = window.ecv2_tn || function( one, many, n ) { return T.apply( null, [ 1 === Number( n ) ? one : many ].concat( Array.prototype.slice.call( arguments, 2 ) ) ); };
+
 	var ecv2_undo_stack = [];
 	var ECV2_UNDO_MAX = 20;
 
@@ -116,11 +120,11 @@
 			}
 			$buttons.prop( 'disabled', false );
 			$btn.text( label );
-			ecv2_toast( ( r && r.data && r.data.message ) ? r.data.message : 'The clean-up could not be run. Please try again.', 'error' );
+			ecv2_toast( ( r && r.data && r.data.message ) ? r.data.message : T( 'The clean-up could not be run. Please try again.' ), 'error' );
 		} ).fail( function() {
 			$buttons.prop( 'disabled', false );
 			$btn.text( label );
-			ecv2_toast( 'The clean-up could not be run. Please try again.', 'error' );
+			ecv2_toast( T( 'The clean-up could not be run. Please try again.' ), 'error' );
 		} );
 	}
 	/* "Fix now" runs in batches of 200 products ( 6.0.0 ): loop on { done, next, processed } and carry the running
@@ -135,7 +139,7 @@
 		function fail( message ) {
 			$buttons.prop( 'disabled', false );
 			$btn.text( label );
-			ecv2_toast( message || 'The clean-up could not be run. Please try again.', 'error' );
+			ecv2_toast( message || T( 'The clean-up could not be run. Please try again.' ), 'error' );
 		}
 		function step( after, fixed, excerpts ) {
 			$btn.text( 'Fixing…' + ( processed ? ' ' + processed : '' ) );
@@ -174,7 +178,7 @@
 		if ( ! img || img.dataset.ecv2Fallback === '1' ) return;
 		img.dataset.ecv2Fallback = '1';
 		var ph_class = img.getAttribute( 'data-ecv2-placeholder-class' ) || 'ecv2-product-thumb-placeholder';
-		var title = ( typeof ecv2_lang !== 'undefined' && ecv2_lang.image_missing ) ? ecv2_lang.image_missing : 'Image could not be loaded';
+		var title = ( typeof ecv2_lang !== 'undefined' && ecv2_lang.image_missing ) ? ecv2_lang.image_missing : T( 'Image could not be loaded' );
 		var placeholder = document.createElement( 'div' );
 		placeholder.className = ph_class + ' ecv2-thumb-missing';
 		placeholder.setAttribute( 'title', title );
@@ -1858,7 +1862,7 @@
 		}
 
 		var discount = ( ( ecv2_sale_current_price - sale_price ) / ecv2_sale_current_price * 100 ).toFixed( 0 );
-		$( '#ecv2-sale-discount-badge' ).text( discount + '% off' ).show();
+		$( '#ecv2-sale-discount-badge' ).text( T( '%d%% off', discount ) ).show();
 
 		// Warnings.
 		if ( sale_price >= ecv2_sale_current_price ) {
@@ -1873,7 +1877,7 @@
 		$( '#ecv2-sale-preview-content' ).html(
 			'<span style="text-decoration:line-through; color:#9ca3af; margin-right:8px;">' + ecv2_sale_current_price.toFixed(2) + '</span>' +
 			'<strong style="color:var(--ecv2-primary); font-size:18px;">' + sale_price.toFixed(2) + '</strong>' +
-			' <span style="background:var(--ecv2-primary-light); color:var(--ecv2-primary); padding:2px 6px; border-radius:8px; font-size:12px;">' + discount + '% off</span>'
+			' <span style="background:var(--ecv2-primary-light); color:var(--ecv2-primary); padding:2px 6px; border-radius:8px; font-size:12px;">' + T( '%d%% off', discount ) + '</span>'
 		);
 		$( '#ecv2-sale-preview' ).show();
 
@@ -2174,7 +2178,7 @@
 			$preview.html(
 				'<span class="ecv2-price-menu-preview-list">' + list_val.toFixed( 2 ) + '</span> ' +
 				'<span class="ecv2-price-menu-preview-current">' + price_val.toFixed( 2 ) + '</span> ' +
-				'<span class="ecv2-price-menu-preview-tag">' + pct + '% off</span>'
+				'<span class="ecv2-price-menu-preview-tag">' + T( '%d%% off', pct ) + '</span>'
 			).show();
 		} else if ( list_val > 0 && list_val <= price_val ) {
 			$preview.html(
@@ -2744,7 +2748,7 @@
 		// Basic tracking: inline qty editor.
 		if ( type === 'basic' ) {
 			menu_html += '<div class="ecv2-stock-menu-section">';
-			menu_html += '<label class="ecv2-stock-menu-label">' + ecv2_lang.stock_saved.replace( ecv2_lang.stock_saved, 'Stock Quantity' ) + '</label>';
+			menu_html += '<label class="ecv2-stock-menu-label">' + T( 'Stock quantity' ) + '</label>';
 			menu_html += '<div class="ecv2-stock-menu-inline">';
 			menu_html += '<input type="number" class="ecv2-stock-menu-input" value="' + qty + '" step="1" data-original="' + qty + '" />';
 			menu_html += '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" onclick="ecv2_save_stock_qty( this );">Save</button>';
@@ -2771,9 +2775,9 @@
 		menu_html += '<div class="ecv2-stock-menu-label ecv2-stock-menu-label-section">Change Tracking Type</div>';
 
 		var types = [
-			{ key: 'unlimited', name: 'Unlimited',               desc: 'Do not track stock',     pro: false },
-			{ key: 'basic',     name: 'Basic Tracking',          desc: 'Track overall quantity', pro: false },
-			{ key: 'option',    name: 'Option/Variant Tracking', desc: 'Track per variation',    pro: true  }
+			{ key: 'unlimited', name: T( 'Not tracked' ),   desc: T( 'Do not track stock' ),     pro: false },
+			{ key: 'basic',     name: T( 'Total' ),         desc: T( 'Track overall quantity' ), pro: false },
+			{ key: 'option',    name: T( 'Per variant' ),   desc: T( 'Track per variation' ),    pro: true  }
 		];
 		for ( var i = 0; i < types.length; i++ ) {
 			var t = types[ i ];
@@ -3167,7 +3171,7 @@
 
 			// Video badge.
 			if ( img.type === 'video' || img.type === 'youtube' || img.type === 'vimeo' ) {
-				var badge_label = img.type === 'youtube' ? 'YouTube' : ( img.type === 'vimeo' ? 'Vimeo' : 'Video' );
+				var badge_label = img.type === 'youtube' ? 'YouTube' : ( img.type === 'vimeo' ? 'Vimeo' : T( 'Video' ) );
 				$item.append( '<span class="ecv2-imgmgr-video-badge"><span class="dashicons dashicons-controls-play"></span> ' + badge_label + '</span>' );
 			}
 

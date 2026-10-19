@@ -87,6 +87,9 @@ if ( ! class_exists( 'wp_easycart_subscription_options' ) ) :
 			}
 			if ( self::owner() !== (int) $product_id ) {
 				$data->subscription_quantity = '';
+				if ( property_exists( $data, 'subscription_level' ) ) {
+					$data->subscription_level = ''; /* 6.0.5: a usage level chosen for another product */
+				}
 			}
 			if ( self::ready() ) {
 				$data->subscription_product_id = (int) $product_id;
@@ -109,6 +112,9 @@ if ( ! class_exists( 'wp_easycart_subscription_options' ) ) :
 			$data->subscription_quantity        = '';
 			if ( self::ready() ) {
 				$data->subscription_product_id = 0;
+			}
+			if ( property_exists( $data, 'subscription_level' ) ) {
+				$data->subscription_level = ''; /* 6.0.5 */
 			}
 			self::$answers = array();
 		}

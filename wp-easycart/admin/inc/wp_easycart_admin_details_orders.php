@@ -101,6 +101,10 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 		}
 		$this->order = $order;
 		$this->id = $this->order->order_id;
+		/* 6.0.5 ( FREE #402 ): a line removed before 6.0.5 left its package waiting for a label; it is taken out as the order opens. */
+		if ( class_exists( 'wp_easycart_shipments' ) && method_exists( 'wp_easycart_shipments', 'tidy_lines' ) ) {
+			wp_easycart_shipments::tidy_lines( (int) $this->id );
+		}
 		$this->order->order_fees = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY order_fee_id ASC', $this->id ) );
 		$now_server = $this->wpdb->get_var( 'SELECT NOW() AS the_time' );
 		$now_timestamp = strtotime( $now_server );
@@ -123,7 +127,14 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 			$this->print_record_not_found_notice();
 			return;
 		}
+		/* 6.0.5 ( Matt's H2 ): the order's amounts in the currency it was placed in, whatever the store uses now. */
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::push( $this->order );
+		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-details.php' );
+		if ( class_exists( 'wp_easycart_order_currency' ) ) {
+			wp_easycart_order_currency::pop();
+		}
 	}
 
 	public function basic_fields() {

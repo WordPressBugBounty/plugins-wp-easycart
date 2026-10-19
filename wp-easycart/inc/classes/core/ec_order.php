@@ -222,6 +222,12 @@ class ec_order{
 		else if( $GLOBALS['ec_cart_data']->cart_data->order_notes )
 			$this->order_customer_notes = sanitize_textarea_field( $GLOBALS['ec_cart_data']->cart_data->order_notes );
 		
+		/* 6.0.5: an order that needs an account, from a new customer who chooses the password after paying: the account is made now,
+		   so the order ( its downloads, the pages it opens ) is the account's ( wp_easycart_checkout_signup ). */
+		if ( class_exists( 'wp_easycart_checkout_signup' ) ) {
+			wp_easycart_checkout_signup::before_order( $this->user, ( isset( $this->cart->cart ) ? $this->cart->cart : array() ), $this );
+		}
+
 		$this->order_id = $this->mysqli->insert_order( $this->cart, $this->user, $this->shipping, $this->tax, $this->discount, $this->order_totals, $this->payment, $payment_type, "5", $this->order_customer_notes, $order_gateway );
 		
 		if ( -1 == $this->order_id ) {

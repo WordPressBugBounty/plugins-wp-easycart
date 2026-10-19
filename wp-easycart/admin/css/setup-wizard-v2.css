@@ -130,6 +130,19 @@
 .ecwz-tg input:disabled + span { opacity: .5; cursor: not-allowed; }
 .ecwz-tg-row { display: flex; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
 .ecwz-tg-row .ecwz-t { font-weight: 500; }
+/* 6.0.5: VAT / GST choices on the location step */
+.ecwz-vat { margin: 14px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--z-g200); }
+.ecwz-vat[hidden], .ecwz-vat-eu[hidden] { display: none; }
+.ecwz-vat-eu { margin: 14px 0 0; padding: 0; border: 0; min-width: 0; }
+.ecwz-vat-eu legend { padding: 0; margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--z-g800); }
+/* 6.0.5: Where do you ship? ( the shipping step; hidden while "I don't ship anything" is chosen ) */
+.ecwz-shipto { margin: 22px 0 0; padding: 0; border: 0; min-width: 0; }
+.ecwz-shipto legend { padding: 0; margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--z-g900); }
+#ecwz_ship_cards:has( [data-ship="none"] input:checked ) ~ .ecwz-shipto { display: none; }
+.ecwz-vat-choice { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; margin: 0 0 8px; border: 1px solid var(--z-g200); border-radius: var(--z-r); font-size: 13px; line-height: 1.45; color: var(--z-g600); cursor: pointer; }
+.ecwz-vat-choice input { margin: 3px 0 0; accent-color: var(--z-brand); flex: none; }
+.ecwz-vat-choice b { display: block; color: var(--z-g900); font-weight: 600; }
+.ecwz-vat-choice:has( input:checked ) { border-color: var(--z-brand); background: color-mix( in srgb, var(--z-brand) 6%, transparent ); }
 .ecwz-check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 13px; line-height: 1.5; }
 .ecwz-check-row input[type="checkbox"] { margin: 3px 0 0; accent-color: var(--z-brand); flex-shrink: 0; }
 .ecwz-check-row-sm { margin-top: 10px; font-size: 12.5px; color: var(--z-g600); }
@@ -333,4 +346,66 @@
 }
 @media (prefers-reduced-motion: reduce) {
 	.ecwz *, .ecwz *::before, .ecwz *::after { transition: none !important; }
+}
+
+/* 6.0.5: the recommended tax settings for the country ( wp_easycart_tax_setup ). */
+.ecwz-tax { margin-top: 10px; }
+.ecwz-tax.is-off .ecwz-tax-summary { opacity: .6; }
+.ecwz-tax-summary[aria-busy="true"] { opacity: .5; }
+.ecwz-tax-lines { margin: 0; padding: 12px 14px; list-style: none; border: 1px solid var(--z-g200); border-radius: var(--z-r); background: color-mix( in srgb, var(--z-brand) 4%, transparent ); font-size: 13px; color: var(--z-g800); }
+.ecwz-tax-lines li { position: relative; margin: 2px 0; padding-left: 18px; }
+.ecwz-tax-lines li::before { content: ""; position: absolute; left: 2px; top: .45em; width: 8px; height: 5px; border-left: 2px solid var(--z-brand); border-bottom: 2px solid var(--z-brand); transform: rotate( -45deg ); }
+.ecwz-tax-changes-title { margin: 12px 0 4px; font-size: 12.5px; font-weight: 600; color: var(--z-g800); }
+.ecwz-tax .ectx-setup-list { list-style: none; margin: 0; padding: 0; }
+.ecwz-tax .ectx-setup-list li { display: grid; grid-template-columns: minmax( 0, 1fr ) minmax( 0, auto ); gap: 2px 12px; padding: 7px 0; border-top: 1px solid var(--z-g100); font-size: 12.5px; }
+.ecwz-tax .ectx-setup-label { min-width: 0; font-weight: 600; color: var(--z-g800); }
+.ecwz-tax .ectx-setup-ft { text-align: right; }
+.ecwz-tax .ectx-setup-ft s { color: var(--z-g400); }
+.ecwz-tax .ectx-setup-why { grid-column: 1 / -1; font-size: 12px; color: var(--z-g500); }
+.ecwz-tax-notes { margin: 10px 0 0; padding-left: 18px; font-size: 12px; color: var(--z-g500); line-height: 1.45; }
+.ecwz-tax-none { margin: 0; font-size: 12.5px; color: var(--z-g500); }
+
+/* =========================================================
+   6.0.5: the setup wizard review
+   ========================================================= */
+/* Enter in a field continues ( the first submit button of the form ), Save & exit is a submit button too. */
+.ecwz-default-submit { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+.ecwz-foot { position: relative; }
+/* Location: the state or province beside the country, asked for when the store's tax needs it. */
+.ecwz-state-wrap { min-width: 140px; }
+.ecwz-state-wrap[hidden] { display: none; }
+.ecwz-field-error { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: #b91c1c; }
+.ecwz-field-error[hidden] { display: none; }
+.ecwz .select2-container.ecwz-invalid .select2-selection--single { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220, 38, 38, .15); }
+.ecwz-lab label { font: inherit; color: inherit; cursor: default; }
+/* What the country and currency mean: how prices look, weight and size units. */
+.ecwz-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 12.5px; color: var(--z-g500); }
+.ecwz-facts strong { color: var(--z-g800); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ecwz-ico svg { display: block; }
+/* Summary rail: Edit shows without hovering ( touch screens never hover; keyboard users found it only by tabbing ). */
+.ecwz-edit { opacity: .8; }
+.ecwz-sum li:hover .ecwz-edit, .ecwz-edit:hover, .ecwz-edit:focus { opacity: 1; text-decoration: underline; }
+/* "Save your changes on this step?" */
+.ecwz-modal { position: fixed; inset: 0; z-index: 100050; display: grid; place-items: center; padding: 16px; background: rgba(17, 24, 39, .45); }
+.ecwz-modal-card { width: 100%; max-width: 440px; padding: 20px 22px 16px; border-radius: var(--z-r); background: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
+.ecwz-modal-card h3 { margin: 0 0 6px; padding: 0; font-size: 16px; font-weight: 650; color: var(--z-g900); }
+.ecwz-modal-card p { margin: 0 0 18px; font-size: 13.5px; line-height: 1.5; color: var(--z-g600); }
+.ecwz-modal-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 480px) {
+	.ecwz-modal-act { flex-direction: column-reverse; align-items: stretch; }
+	.ecwz-modal-act .ecwz-btn { justify-content: center; }
+	.ecwz-modal-act .ecwz-grow { display: none; }
+}
+/* Phones: one line of steps, the current one named, the others as numbered 44px buttons ( their names stay for screen readers ). */
+@media (max-width: 600px) {
+	.ecwz-steps { display: flex; gap: 6px; }
+	.ecwz-step { flex: 0 0 auto; }
+	.ecwz-step.is-current { flex: 1 1 auto; min-width: 0; }
+	.ecwz-step > a { min-height: 44px; padding: 6px 10px 6px 42px; }
+	.ecwz-step:not(.is-current) > a { width: 44px; padding: 0; }
+	.ecwz-step:not(.is-current) .ecwz-step-num { left: 50%; transform: translate(-50%, -50%); }
+	.ecwz-step:not(.is-current) strong, .ecwz-step:not(.is-current) small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+	.ecwz-step.is-current small { display: none; }
+	.ecwz-head { margin-bottom: 12px; }
+	.ecwz-head .ecwz-skip { align-self: flex-start; padding-left: 0; }
 }

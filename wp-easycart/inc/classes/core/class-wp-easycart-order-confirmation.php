@@ -291,10 +291,7 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 					if ( ! is_array( $offer ) || ! isset( $offer['amount'] ) || (float) $offer['amount'] <= 0 ) {
 						continue;
 					}
-					$label = isset( $offer['label'] ) ? trim( wp_strip_all_tags( (string) $offer['label'] ) ) : '';
-					if ( isset( $offer['code'] ) && '' !== (string) $offer['code'] ) {
-						$label .= ' (' . trim( wp_strip_all_tags( (string) $offer['code'] ) ) . ')';
-					}
+					$label = wp_easycart_order_discounts::display_label( $offer, 'confirmation' ); // 6.0.5: the code only while the store shows codes.
 					$add( 'offer', $label, '-' . self::money( $offer['amount'] ) );
 				}
 			}
@@ -304,7 +301,11 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 			if ( method_exists( $order, 'has_duty' ) && $order->has_duty() ) {
 				$add( 'duty', self::label( 'cart_success', 'cart_payment_complete_order_totals_duty', 'Duty' ), self::money( $order->duty_total ) );
 			}
-			if ( method_exists( $order, 'has_vat' ) && $order->has_vat() ) {
+			$vat_rows = ( class_exists( 'wp_easycart_tax_classes' ) && method_exists( $order, 'has_vat' ) && $order->has_vat() ) ? wp_easycart_tax_classes::rows( $order, wp_strip_all_tags( self::label( 'cart_success', 'cart_payment_complete_order_totals_vat', 'VAT @' ) ) ) : array();
+			foreach ( $vat_rows as $vat_i => $vat_row ) {
+				$add( 'vat' . ( $vat_i ? '_' . $vat_i : '' ), $vat_row[0], self::money( $vat_row[1] ) ); /* 6.0.5: one row per rate ( tax classes ) */
+			}
+			if ( ! $vat_rows && method_exists( $order, 'has_vat' ) && $order->has_vat() ) {
 				$vat = self::label( 'cart_success', 'cart_payment_complete_order_totals_vat', 'VAT @' );
 				if ( isset( $order->vat_rate ) && (float) $order->vat_rate > 0 ) {
 					$vat = rtrim( $vat ) . ' ' . rtrim( rtrim( number_format( (float) $order->vat_rate, 3, '.', '' ), '0' ), '.' ) . '%';
@@ -407,11 +408,12 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 				);
 			}
 			/* My Account's own rows: the code ( or its message, as the store sets it ), the gift card as the store names it, a VAT number. */
-			if ( ! empty( $order->promo_code ) && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $order ) ) {
+			$coupon = ! empty( $order->promo_code ) ? self::shown( $order, 'display_order_promocode' ) : '';
+			if ( '' !== $coupon && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $order ) ) { // 6.0.5: none while codes are hidden and the coupon has no message.
 				$facts[] = array(
 					'key'   => 'coupon',
 					'label' => self::label( 'account_order_details', 'account_orders_details_coupon_code', 'Coupon Code' ),
-					'value' => self::shown( $order, 'display_order_promocode' ),
+					'value' => $coupon,
 				);
 			}
 			if ( ! empty( $order->giftcard_id ) ) {
@@ -425,7 +427,7 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 				$facts[] = array(
 					'key'   => 'vat_number',
 					'label' => self::label( 'cart_billing_information', 'cart_billing_information_vat_registration_number', 'VAT Registration Number' ),
-					'value' => trim( stripslashes( (string) $order->vat_registration_number ) ),
+					'value' => trim( stripslashes( (string) $order->vat_registration_number ) ) . ( ( class_exists( 'wp_easycart_vat' ) && '' !== wp_easycart_vat::reverse_charge_text( $order ) ) ? ' · ' . wp_easycart_vat::reverse_charge_text( $order ) : '' ), /* 6.0.5: "Reverse charge" */
 				);
 			}
 			if ( get_option( 'ec_option_user_order_notes' ) && isset( $order->order_customer_notes ) && '' !== trim( (string) $order->order_customer_notes ) ) {
@@ -462,17 +464,12 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 					$property = $type . '_' . $field;
 					return isset( $order->$property ) ? trim( stripslashes( (string) $order->$property ) ) : '';
 				};
-				$name  = trim( $get( 'first_name' ) . ' ' . $get( 'last_name' ) );
-				$place = trim( $get( 'city' ) . ( ( '' !== $get( 'city' ) && '' !== $get( 'state' ) ) ? ', ' : '' ) . $get( 'state' ) . ' ' . $get( 'zip' ) );
+				$place = trim( $get( 'city' ) . $get( 'state' ) . $get( 'zip' ) );
 				if ( '' === $get( 'address_line_1' ) && '' === $place && '' === $get( 'country' ) ) { /* My Account's rule: any part of it */
 					continue;
 				}
-				$lines              = array_values(
-					array_filter(
-						array( $name, $get( 'company_name' ), $get( 'address_line_1' ), $get( 'address_line_2' ), $place, ( '' !== $get( 'country_name' ) ) ? $get( 'country_name' ) : $get( 'country' ), $get( 'phone' ) ),
-						'strlen'
-					)
-				);
+				/* 6.0.5: in the country's own order ( wp_easycart_address ). */
+				$lines = wp_easycart_address::lines( $order, $type, array( 'phone' => true ) );
 				$addresses[ $type ] = array(
 					'label' => self::label( 'cart_success', $phrase[0], $phrase[1] ),
 					'lines' => $lines,
@@ -539,13 +536,15 @@ if ( ! class_exists( 'wp_easycart_order_confirmation' ) ) :
 			if ( class_exists( 'wp_easycart_order_pay' ) && method_exists( 'wp_easycart_order_pay', 'available' ) && wp_easycart_order_pay::available() && (float) $order->grand_total > 0 ) {
 				$link = (string) wp_easycart_order_pay::url( (int) $order->order_id );
 			}
-			if ( '' === $text && '' === $link ) {
+			$bank = class_exists( 'wp_easycart_bank_details' ) ? wp_easycart_bank_details::html( (int) $order->order_id ) : ''; /* 6.0.5 */
+			if ( '' === $text && '' === $link && '' === $bank ) {
 				return;
 			}
 			echo '<section class="ec_order_success_card ec_order_success_payment"><h3 class="ec_order_success_card_title">' . esc_html( self::text( 'elementor_checkout', 'confirmation_payment', 'How to pay' ) ) . '</h3>';
 			if ( '' !== $text ) {
 				echo '<div class="ec_order_success_payment_text">' . nl2br( esc_html( wp_strip_all_tags( $text ) ) ) . '</div>';
 			}
+			echo $bank; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_bank_details::html() escapes every value.
 			if ( '' !== $link ) {
 				echo '<p class="ec_order_success_payment_note">' . esc_html( self::text( 'elementor_checkout', 'confirmation_pay_link_note', 'You can pay for this order online.' ) ) . '</p>';
 				echo '<a class="ec_order_success_payment_button" href="' . esc_url( $link ) . '">' . esc_html( self::text( 'elementor_checkout', 'confirmation_pay_now', 'Pay now' ) ) . '</a>';

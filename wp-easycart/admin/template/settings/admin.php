@@ -193,8 +193,8 @@ return array(
 				),
 				'ec_option_disable_easycart_ad' => array(
 					'type'     => 'toggle',
-					'label'    => __( 'Hide the text notifications promo', 'wp-easycart' ),
-					'desc'     => __( 'Removes the "Add text notifications" panels from the order screens and store status page. Disappears on its own once a text notifications plan is active.', 'wp-easycart' ),
+					'label'    => __( 'Hide the text notifications card', 'wp-easycart' ),
+					'desc'     => __( 'Removes the Text notifications card from the Extensions page. It shows again once text notifications are on.', 'wp-easycart' ),
 					'default'  => 0,
 					'pro'      => true,
 					'advanced' => true,

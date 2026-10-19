@@ -70,7 +70,7 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 			$this->set_default_sort( 'date_created', 'DESC' );
 			$this->set_header( __( 'Customers', 'wp-easycart' ) );
 			$this->set_icon( 'admin-users' );
-			$this->set_importer( true, __( 'Import Users', 'wp-easycart' ) ); /* the base prints the button; print_page_header() below swaps the legacy form for the V2 importer dialog */
+			$this->set_importer( true, __( 'Import Customers', 'wp-easycart' ) ); /* the base prints the button; print_page_header() below swaps the legacy form for the V2 importer dialog */
 			$this->set_docs_link( 'users', 'user-accounts' );
 			$this->set_add_new( true, 'add-new', __( 'Add Customer', 'wp-easycart' ) );
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
@@ -276,7 +276,7 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 		 */
 		protected function print_page_header() {
 			ob_start(); parent::print_page_header(); $html = ob_get_clean();
-			$btn = '<a href="#" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" id="ecv2-user-import-btn" data-nonce="' . esc_attr( wp_create_nonce( wp_easycart_admin_user_import::NONCE ) ) . '" onclick="return ecv2u_import.open( this );"><span class="dashicons dashicons-upload"></span> ' . esc_html__( 'Import Users', 'wp-easycart' ) . '</a>';
+			$btn = '<a href="#" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" id="ecv2-user-import-btn" data-nonce="' . esc_attr( wp_create_nonce( wp_easycart_admin_user_import::NONCE ) ) . '" onclick="return ecv2u_import.open( this );"><span class="dashicons dashicons-upload"></span> ' . esc_html__( 'Import Customers', 'wp-easycart' ) . '</a>';
 			$html = preg_replace( '/<a onclick="ec_admin_importer_open_close\([^"]*"[^>]*>.*?<\/a>/s', $btn, $html, 1 );
 			$html = preg_replace( '/<div id="[a-z_]+_importer" class="ec_importer_form">.*?<\/div>\s*<div id="[a-z_]+_importer_status" class="ec_importer_status"><\/div>/s', '', $html, 1 );
 			echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $html is the parent's already-escaped header output with an esc_attr()/esc_html()-built button swapped in.

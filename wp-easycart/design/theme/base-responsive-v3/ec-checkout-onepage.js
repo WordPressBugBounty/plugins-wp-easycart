@@ -532,6 +532,85 @@ function wpeasycart_onepage_summary_queue() {
 	}
 } )();
 
+/*
+ * 6.0.5: the Express checkout strip ( .ec_cart_express_button_container, ec_cart_information_v2.php ). Its buttons ( Apple Pay, Google Pay,
+ * the Stripe wallet button, each PayPal button ) share rows evenly: as many on a row as fit at the smallest button width ( 160px ), then
+ * the rows balanced, so four buttons are two and two and five are three and two, never a row with one button left over beside empty
+ * space; the last row's buttons stretch to fill it. Only buttons on show count ( a wallet whose script did not start it is hidden ). The
+ * strip is laid out again when it changes size or a button comes or goes, and each payment script calls this once its buttons are drawn.
+ * Writes --wpec-express-basis ( each button's share of a row, ec-store.css ) and data-wpec-express-count / -cols on the strip.
+ */
+var wpeasycart_express = {
+	min: 160,
+	items: '#wp-easycart-square-apple-pay-button, #wp-easycart-square-google-pay-button, #payment-request-button, #paypal-button-container > .wpec-express-paypal, .ec_cart_express_button_container > #paypal-button-container:not(.wpec-express-split)',
+	frame: 0
+};
+
+function wpeasycart_express_lay( box ) {
+	var shown = 0;
+	var items = box.querySelectorAll( wpeasycart_express.items );
+	for ( var i = 0; i < items.length; i++ ) {
+		if ( items[ i ].getClientRects().length ) {
+			shown++;
+		}
+	}
+	var gap = parseFloat( window.getComputedStyle( box ).columnGap ) || 0;
+	var fit = Math.max( 1, Math.floor( ( box.clientWidth + gap ) / ( wpeasycart_express.min + gap ) ) );
+	var count = Math.max( shown, 1 );
+	var cols = Math.min( count, fit );
+	cols = Math.ceil( count / Math.ceil( count / cols ) );
+	/* Half a pixel under an exact share, so rounding never pushes a row's last button onto the next row ( the buttons grow to fill it ). */
+	var basis = 'calc( ( 100% - ' + ( ( cols - 1 ) * gap ) + 'px ) / ' + cols + ' - 0.5px )';
+	if ( box.wpecExpressBasis !== basis ) {
+		box.wpecExpressBasis = basis;
+		box.style.setProperty( '--wpec-express-basis', basis );
+	}
+	box.setAttribute( 'data-wpec-express-count', String( shown ) );
+	box.setAttribute( 'data-wpec-express-cols', String( cols ) );
+}
+
+function wpeasycart_express_queue() {
+	if ( wpeasycart_express.frame ) {
+		return;
+	}
+	var later = window.requestAnimationFrame || function( callback ) {
+		return window.setTimeout( callback, 16 );
+	};
+	wpeasycart_express.frame = later( function() {
+		wpeasycart_express.frame = 0;
+		wpeasycart_express_layout();
+	} );
+}
+
+function wpeasycart_express_layout() {
+	var boxes = document.querySelectorAll( '.ec_cart_express_button_container' );
+	for ( var i = 0; i < boxes.length; i++ ) {
+		if ( ! boxes[ i ].wpecExpressWatched ) {
+			boxes[ i ].wpecExpressWatched = true;
+			if ( window.ResizeObserver ) {
+				new window.ResizeObserver( wpeasycart_express_queue ).observe( boxes[ i ] );
+			}
+			if ( window.MutationObserver ) {
+				new window.MutationObserver( wpeasycart_express_queue ).observe( boxes[ i ], { childList: true, subtree: true, attributes: true, attributeFilter: [ 'hidden', 'class', 'style' ] } );
+			}
+		}
+		wpeasycart_express_lay( boxes[ i ] );
+	}
+}
+window.wpeasycart_express_layout = wpeasycart_express_layout;
+
+( function() {
+	window.addEventListener( 'resize', wpeasycart_express_queue );
+	if ( 'loading' === document.readyState ) {
+		document.addEventListener( 'DOMContentLoaded', wpeasycart_express_queue );
+	} else {
+		wpeasycart_express_queue();
+	}
+	if ( window.jQuery ) {
+		window.jQuery( document ).on( 'wpeasycart_cart_updated', wpeasycart_express_queue );
+	}
+} )();
+
 /* An older ec-store.js ( a theme's copy, or the minified build ) validates without handing over to Place order: wrap it. */
 ( function() {
 	if ( 'function' !== typeof window.ec_validate_submit_order || window.ec_validate_submit_order.length > 0 ) {

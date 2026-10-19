@@ -387,7 +387,9 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 						'brand_w_hint'   => __( 'Share of the page', 'wp-easycart' ),
 						'brand_height'   => __( 'Height limit', 'wp-easycart' ),
 						'brand_h_hint'   => __( '0 = no limit', 'wp-easycart' ),
-						'brand_position' => __( 'Position', 'wp-easycart' ),
+						/* 6.0.5: Line up ( left, center, right ); where the logo sits is the profile's Logo position. */
+						'brand_position' => __( 'Line up', 'wp-easycart' ),
+						'brand_lu_note'  => __( 'This profile’s logo position puts the logo beside other content, where it lines up with it. Line up applies when the logo is on a line of its own.', 'wp-easycart' ),
 						/* translators: %s: Left, Center or Right. */
 						'brand_st_pos'   => __( 'Store ( %s )', 'wp-easycart' ),
 						'brand_left'     => __( 'Left', 'wp-easycart' ),
@@ -459,6 +461,62 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 		}
 
 		/**
+		 * Does a store's copy of a template read a profile choice ( its key appears in the file )? A copy made before the choice
+		 * existed never draws it.
+		 *
+		 * @since 6.0.5
+		 * @param string $path The copy ( wp_easycart_documents::override_path() ).
+		 * @param string $key  Choice key ( wp_easycart_documents::options() ).
+		 * @return bool
+		 */
+		private static function copy_reads( $path, $key ) {
+			if ( '' === (string) $path || ! is_readable( $path ) ) {
+				return false;
+			}
+			$code = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- a local template file in the store's data folder, read to look for one word.
+			return is_string( $code ) && false !== strpos( $code, (string) $key );
+		}
+
+		/**
+		 * A small page drawing for a choice's pill ( the logo positions ), or '' for a choice without drawings. Fixed markup.
+		 *
+		 * @since 6.0.5
+		 * @param string $type  Document type.
+		 * @param string $key   Choice key.
+		 * @param string $value Choice value.
+		 * @return string SVG.
+		 */
+		private static function choice_icon( $type, $key, $value ) {
+			if ( 'logo_place' !== $key ) {
+				return '';
+			}
+			/* Each: the logo box ( x, y, width ), then the text lines ( x, y, width ); the rule under a PDF's heading is a line too. */
+			if ( 'packing_slip' === $type ) {
+				$pages = array(
+					'top'    => array( array( 7, 3, 8 ), array( array( 3, 10, 9 ), array( 3, 13, 5 ), array( 10, 13, 5 ), array( 3, 17, 16 ), array( 3, 20, 16 ), array( 3, 23, 12 ) ) ),
+					'beside' => array( array( 3, 3, 7 ), array( array( 12, 3.5, 7 ), array( 14, 6.5, 5 ), array( 3, 12, 7 ), array( 13, 12, 6 ), array( 3, 17, 16 ), array( 3, 20, 16 ), array( 3, 23, 12 ) ) ),
+				);
+			} else {
+				$pages = array(
+					'top'    => array( array( 7, 3, 8 ), array( array( 3, 10, 7 ), array( 13, 10, 6 ), array( 3, 12.5, 6 ), array( 13, 12.5, 6 ), array( 3, 15.5, 16 ), array( 3, 19, 16 ), array( 3, 22, 12 ) ) ),
+					'seller' => array( array( 3, 3, 7 ), array( array( 3, 9, 7 ), array( 3, 11.5, 6 ), array( 13, 3, 6 ), array( 13, 5.5, 6 ), array( 3, 15.5, 16 ), array( 3, 19, 16 ), array( 3, 22, 12 ) ) ),
+					'title'  => array( array( 12, 3, 7 ), array( array( 3, 3, 7 ), array( 3, 5.5, 6 ), array( 13, 9, 6 ), array( 13, 11.5, 6 ), array( 3, 15.5, 16 ), array( 3, 19, 16 ), array( 3, 22, 12 ) ) ),
+					'below'  => array( array( 7, 10.5, 8 ), array( array( 3, 3, 7 ), array( 3, 5.5, 6 ), array( 13, 3, 6 ), array( 13, 5.5, 6 ), array( 3, 8.5, 16 ), array( 3, 19, 16 ), array( 3, 22, 12 ) ) ),
+				);
+			}
+			if ( ! isset( $pages[ $value ] ) ) {
+				return '';
+			}
+			$page = $pages[ $value ];
+			$svg  = '<svg class="ecdoc-pill-ico" width="26" height="33" viewBox="0 0 22 28" aria-hidden="true" focusable="false"><rect class="ecdoc-ico-page" x="0.5" y="0.5" width="21" height="27" rx="2"/>';
+			foreach ( $page[1] as $line ) {
+				$svg .= '<rect class="ecdoc-ico-line" x="' . $line[0] . '" y="' . $line[1] . '" width="' . $line[2] . '" height="1.4" rx="0.7"/>';
+			}
+			$svg .= '<rect class="ecdoc-ico-logo" x="' . $page[0][0] . '" y="' . $page[0][1] . '" width="' . $page[0][2] . '" height="4" rx="1"/></svg>';
+			return $svg;
+		}
+
+		/**
 		 * Section 'render' callable: one document's profile editor.
 		 *
 		 * @param array $page    Declaration.
@@ -516,12 +574,18 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			?>
 			<div class="ecdoc<?php echo $doc_lock ? ' is-locked' : ''; ?>" id="ecdoc_<?php echo esc_attr( $type ); ?>" data-type="<?php echo esc_attr( $type ); ?>"<?php echo $doc_lock ? ' data-locked="1"' : ''; ?>>
 				<script type="application/json" class="ecdoc-data"><?php echo wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
-				<div class="ecdoc-profiles" role="tablist" aria-label="<?php esc_attr_e( 'Profiles', 'wp-easycart' ); ?>">
+				<?php /* 6.0.5 ( admin review M14 ): a tab list holds only tabs; locked profiles and New profile sit after it. */ ?>
+				<div class="ecdoc-profiles">
+					<div class="ecdoc-profile-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Profiles', 'wp-easycart' ); ?>">
+					<?php foreach ( $profiles as $id => $profile ) : ?>
+						<?php if ( ! $profile['locked'] ) : ?>
+							<button type="button" class="ecdoc-tab<?php echo ( $id === $default ) ? ' is-active' : ''; ?>" role="tab" aria-selected="<?php echo ( $id === $default ) ? 'true' : 'false'; ?>" data-profile="<?php echo esc_attr( $id ); ?>"><span class="ecdoc-tab-name"><?php echo esc_html( $profile['name'] ); ?></span><?php if ( $id === $default ) : ?> <span class="ecdoc-default"><?php esc_html_e( 'Default', 'wp-easycart' ); ?></span><?php endif; ?></button>
+						<?php endif; ?>
+					<?php endforeach; ?>
+					</div>
 					<?php foreach ( $profiles as $id => $profile ) : ?>
 						<?php if ( $profile['locked'] ) : ?>
 							<button type="button" class="ecdoc-tab is-locked" onclick="<?php echo esc_attr( $upsell ); ?>" title="<?php echo esc_attr( $profile['desc'] ); ?>"><?php echo esc_html( $profile['name'] ); ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge( $lock_feature ) ); ?></span></button>
-						<?php else : ?>
-							<button type="button" class="ecdoc-tab<?php echo ( $id === $default ) ? ' is-active' : ''; ?>" role="tab" aria-selected="<?php echo ( $id === $default ) ? 'true' : 'false'; ?>" data-profile="<?php echo esc_attr( $id ); ?>"><span class="ecdoc-tab-name"><?php echo esc_html( $profile['name'] ); ?></span><?php if ( $id === $default ) : ?> <span class="ecdoc-default"><?php esc_html_e( 'Default', 'wp-easycart' ); ?></span><?php endif; ?></button>
 						<?php endif; ?>
 					<?php endforeach; ?>
 					<?php if ( $pro ) : ?>
@@ -571,13 +635,27 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 					<div class="ecdoc-fields">
 						<p class="ecdoc-desc"></p>
 						<?php foreach ( $choices as $key => $choice ) : ?>
-							<div class="ecdoc-choice" data-option="<?php echo esc_attr( $key ); ?>">
+							<?php
+							/* 6.0.5: a choice only the shipped template draws ( the logo position ) does nothing on a store's copy that never reads it. */
+							$copy_lacks = ! empty( $choice['template'] ) && '' !== $override && ! self::copy_reads( $override, $key );
+							$has_icons  = '' !== self::choice_icon( $type, $key, (string) key( $choice['choices'] ) );
+							?>
+							<div class="ecdoc-choice<?php echo $has_icons ? ' has-icons' : ''; ?><?php echo $copy_lacks ? ' is-off' : ''; ?>" data-option="<?php echo esc_attr( $key ); ?>"<?php if ( ! empty( $choice['needs'] ) ) : ?> data-needs="<?php echo esc_attr( $choice['needs'] ); ?>"<?php endif; ?><?php if ( ! empty( $choice['heading'] ) ) : ?> data-heading="<?php echo esc_attr( implode( ',', (array) $choice['heading'] ) ); ?>"<?php endif; ?><?php if ( $copy_lacks ) : ?> data-copy="1"<?php endif; ?>>
 								<span class="ecdoc-sw-text"><b><?php echo esc_html( $choice['label'] ); ?></b><?php if ( ! empty( $choice['desc'] ) ) : ?><small><?php echo esc_html( $choice['desc'] ); ?></small><?php endif; ?></span>
 								<span class="ecdoc-pills" role="radiogroup" aria-label="<?php echo esc_attr( $choice['label'] ); ?>">
 									<?php foreach ( $choice['choices'] as $value => $label ) : ?>
-										<label><input type="radio" name="<?php echo esc_attr( 'ecdoc_' . $type . '_' . $key ); ?>" value="<?php echo esc_attr( $value ); ?>" data-option-key="<?php echo esc_attr( $key ); ?>"<?php disabled( $doc_lock ); ?>><span><?php echo esc_html( $label ); ?></span></label>
+										<label><input type="radio" name="<?php echo esc_attr( 'ecdoc_' . $type . '_' . $key ); ?>" value="<?php echo esc_attr( $value ); ?>" data-option-key="<?php echo esc_attr( $key ); ?>"<?php disabled( $doc_lock || $copy_lacks ); ?>><span><?php echo self::choice_icon( $type, $key, (string) $value ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed SVG markup from choice_icon(), no input in it. ?><?php echo esc_html( $label ); ?></span></label>
 									<?php endforeach; ?>
 								</span>
+								<?php if ( $copy_lacks ) : ?>
+									<small class="ecdoc-choice-note" data-note="copy"><?php esc_html_e( 'Your store’s copy of this template prints the logo where it always has, so this choice does not change it.', 'wp-easycart' ); ?></small>
+								<?php endif; ?>
+								<?php if ( 'logo' === ( isset( $choice['needs'] ) ? $choice['needs'] : '' ) ) : ?>
+									<small class="ecdoc-choice-note" data-note="needs" hidden><?php esc_html_e( 'This profile hides the logo. Switch Logo on to choose where it goes.', 'wp-easycart' ); ?></small>
+								<?php endif; ?>
+								<?php if ( ! empty( $choice['heading'] ) ) : ?>
+									<small class="ecdoc-choice-note" data-note="heading" hidden><?php esc_html_e( 'With the business details and the heading both off there is no heading, so the logo sits at the top of the page.', 'wp-easycart' ); ?></small>
+								<?php endif; ?>
 							</div>
 						<?php endforeach; ?>
 						<?php foreach ( $groups as $group => $group_label ) : ?>

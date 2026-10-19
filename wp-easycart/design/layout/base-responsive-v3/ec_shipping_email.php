@@ -337,7 +337,7 @@ foreach ( $ec_ship_offer_order_summary as $ec_ship_offer_row ) {
 	if ( ! isset( $ec_ship_offer_row['label'] ) || ! isset( $ec_ship_offer_row['amount'] ) || (float) $ec_ship_offer_row['amount'] <= 0 ) {
 		continue;
 	}
-	$ec_ship_totals[] = array( esc_html( $ec_ship_offer_row['label'] . ( ( isset( $ec_ship_offer_row['code'] ) && '' !== (string) $ec_ship_offer_row['code'] ) ? ' (' . $ec_ship_offer_row['code'] . ')' : '' ) ), $ed::ltr( '-' . $ec_ship_currency->get_currency_display( (float) $ec_ship_offer_row['amount'] ) ) );
+	$ec_ship_totals[] = array( esc_html( wp_easycart_order_discounts::display_label( $ec_ship_offer_row, 'shipped' ) ), $ed::ltr( '-' . $ec_ship_currency->get_currency_display( (float) $ec_ship_offer_row['amount'] ) ) );
 }
 if ( $ec_ship_order->discount_total > 0 ) {
 	$ec_ship_totals[] = array( wp_kses_post( $ec_ship_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_discount' ) ), $ed::ltr( '-' . $ec_ship_currency->get_currency_display( $ec_ship_order->discount_total ) ) );

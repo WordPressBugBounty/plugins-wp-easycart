@@ -120,3 +120,5 @@ tr.eccnt-region td{background:var(--ecv2-g50);font-size:13px}tr.eccnt-region td:
 /* Region delete straight from the list row ( 6.0.1 ): the actions cell turns into a small confirm. */
 tr.eccnt-region.is-confirming > td { background:#fef6f6; }
 /* 6.0.1: the in-row Delete? strip and the region delete link are gone; region rows use the "..." menu and the shared confirm dialog. */
+/* 6.0.5: Update UK regions */
+.eccnt-uk-notice{margin:0 0 14px;display:grid;gap:8px}.eccnt-uk-notice .ecv2-flash{margin:0}.eccnt-uk-actions{display:flex;justify-content:flex-end}

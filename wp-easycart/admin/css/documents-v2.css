@@ -10,6 +10,7 @@
 
 /* Profiles */
 .ecdoc-profiles { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--ecdoc-line); }
+.ecdoc-profile-tabs { display:flex; flex-wrap:wrap; gap:6px; } /* 6.0.5: the tab list inside the row */
 .ecdoc-tab { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:5px 12px; border:1px solid var(--ecv2-g300, #d1d5db); border-radius:999px; background:#fff; color:var(--ecv2-g700, #374151); font-size:13px; font-weight:500; line-height:1.3; cursor:pointer; transition:background .15s, border-color .15s, color .15s; }
 .ecdoc-tab:hover { border-color:var(--ecst-accent); color:var(--ecv2-g900, #111827); }
 .ecdoc-tab:focus-visible { outline:none; box-shadow:0 0 0 3px var(--ecst-accent-soft); }
@@ -214,6 +215,22 @@ body.admin-bar .ecdoc-drawer { top:32px; }
 .ecdoc-pills label:first-child span { border-left:0; }
 .ecdoc-pills input:checked + span { background:var(--ecst-accent); color:var(--ecst-on-accent); }
 .ecdoc-pills input:focus-visible + span { box-shadow:inset 0 0 0 2px var(--ecst-accent-soft); }
+/* 6.0.5: the logo position: a drawn page on each choice, two to a row under the label. */
+.ecdoc-choice.has-icons { flex-direction:column; align-items:stretch; gap:8px; }
+.ecdoc-choice.has-icons .ecdoc-pills { display:grid; grid-template-columns:repeat( 2, minmax( 0, 1fr ) ); gap:6px; overflow:visible; border:0; border-radius:0; }
+.ecdoc-choice.has-icons .ecdoc-pills span,
+.ecdoc-choice.has-icons .ecdoc-pills label:first-child span { display:flex; align-items:center; gap:8px; height:100%; box-sizing:border-box; padding:6px 8px; border:1px solid var(--ecv2-g300, #d1d5db); border-radius:8px; line-height:1.25; }
+.ecdoc-choice.has-icons .ecdoc-pills input:checked + span { background:var(--ecst-accent-soft, #eef4fb); color:var(--ecv2-g800, #1f2937); border-color:var(--ecst-accent, #2271b1); box-shadow:inset 0 0 0 1px var(--ecst-accent, #2271b1); }
+.ecdoc-choice.has-icons .ecdoc-pills input:focus-visible + span { outline:2px solid var(--ecst-accent, #2271b1); outline-offset:1px; }
+.ecdoc-pill-ico { flex:0 0 26px; }
+.ecdoc-ico-page { fill:#fff; stroke:var(--ecv2-g400, #9ca3af); }
+.ecdoc-ico-line { fill:var(--ecv2-g400, #9ca3af); }
+.ecdoc-ico-logo { fill:var(--ecst-accent, #2271b1); }
+.ecdoc-choice.is-off .ecdoc-pills { opacity:.5; }
+.ecdoc-choice.is-off .ecdoc-pills label { cursor:not-allowed; }
+.ecdoc-choice-note { display:block; font-size:12px; line-height:1.4; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-choice-note[hidden] { display:none; }
+.ecdoc-bd-hint { margin:6px 0 0; font-size:12px; line-height:1.4; color:var(--ecv2-g500, #6b7280); }
 /* A PRO document without PRO: its Standard profile, read only, with a real preview. */
 .ecdoc.is-locked .ecdoc-fields { opacity:.62; }
 .ecdoc.is-locked .ecdoc-sw, .ecdoc.is-locked .ecdoc-pills label { cursor:not-allowed; }

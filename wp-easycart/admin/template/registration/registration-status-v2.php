@@ -134,9 +134,9 @@ $ecrs_off_until  = ( $ecrs_offline && ! empty( $ecrs_data->offline_until ) ) ? (
 	$ecrs_end_ts    = ! empty( $ecrs_license->support_end_date ) ? strtotime( $ecrs_license->support_end_date ) : 0;
 	$ecrs_days      = $ecrs_end_ts ? max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( $ecrs_end_ts ) : (int) round( ( $ecrs_end_ts - time() ) / DAY_IN_SECONDS ) ) : 0;
 	$ecrs_lapsed    = ( $ecrs_end_ts && $ecrs_days <= 0 );
-	$ecrs_renew     = wp_easycart_admin_edition::renew_url(); /* 6.0.4: the account for AutoPay, the pricing page for Elite, else the Pro or Premium renewal */
-	/* 6.0.2: a licensed Pro store upgrades at the Pro discount; other stores buy on premium-support-extensions. */
-	$ecrs_upgrade   = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_url() : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecrs_key );
+	$ecrs_renew     = wp_easycart_admin_edition::renew_url(); /* The WP EasyCart account ( 6.0.5: every paid license ) */
+	/* 6.0.2: the store's own Premium offer ( 6.0.5: the account's Change plan for a Pro license, else the pricing page ). */
+	$ecrs_upgrade   = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_url() : 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 	$ecrs_ring_r    = 26; $ecrs_ring_c = 2 * M_PI * $ecrs_ring_r;
 	$ecrs_ring_pct  = ( $ecrs_auto && ! $ecrs_lapsed ) ? 1 : ( $ecrs_end_ts ? min( 1, $ecrs_days / 365 ) : 1 );
 	?>
@@ -187,7 +187,7 @@ $ecrs_off_until  = ( $ecrs_offline && ! empty( $ecrs_data->offline_until ) ) ? (
 		<span class="dashicons dashicons-clock"></span>
 		<span>
 			<strong><?php echo esc_html( sprintf( _n( 'Support & updates end tomorrow ( %2$s ).', 'Support & updates end in %1$d days ( %2$s ).', $ecrs_days, 'wp-easycart' ), $ecrs_days, date_i18n( get_option( 'date_format' ), $ecrs_end_ts ) ) ); ?></strong>
-			<?php esc_html_e( 'Renewing now adds a full year on top. If it lapses:', 'wp-easycart' ); ?>
+			<?php esc_html_e( 'Turn on AutoPay in your WP EasyCart account and your license renews by itself. If it lapses:', 'wp-easycart' ); ?>
 			<ul class="ecreg-stakes"><?php foreach ( array_slice( wp_easycart_admin_upsell::renewal_stakes(), 0, 4 ) as $ecrs_stake ) : ?><li><?php echo esc_html( $ecrs_stake ); ?></li><?php endforeach; ?></ul>
 		</span>
 		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecrs_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew now', 'wp-easycart' ); ?></a>
@@ -297,7 +297,7 @@ $ecrs_off_until  = ( $ecrs_offline && ! empty( $ecrs_data->offline_until ) ) ? (
 		<div class="ecreg-path">
 			<span class="dashicons dashicons-star-filled ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Upgrade to Premium', 'wp-easycart' ); ?></h3>
-			<p><?php echo esc_html( 'upgrade' === $ecrs_offer['mode'] ? __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Pro customers upgrade at a discount, and your key stays the same.', 'wp-easycart' ) : __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Your key stays the same.', 'wp-easycart' ) ); ?></p>
+			<p><?php echo esc_html( 'upgrade' === $ecrs_offer['mode'] ? __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Change your plan in your WP EasyCart account, and your key stays the same.', 'wp-easycart' ) : __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Your key stays the same.', 'wp-easycart' ) ); ?></p>
 			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_upgrade ); ?>" target="_blank"><?php echo esc_html( $ecrs_offer['cta'] ); ?> <span class="dashicons dashicons-external"></span></a>
 		</div>
 		<?php else : ?>

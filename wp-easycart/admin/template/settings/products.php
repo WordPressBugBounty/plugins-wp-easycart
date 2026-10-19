@@ -871,6 +871,15 @@ return array(
 					'keywords' => array( 'coupon', 'discount', 'savings', 'line item' ),
 					'legacy'   => array( 'page' => 'products', 'section' => 'Price Display Options', 'label' => 'Discounts: Show Coupon Line Discount' ),
 				),
+				/* 6.0.5: EU price indication rules ( wp_easycart_price_history ); never saved = on for a store in the EU or the EEA. */
+				'ec_option_show_prior_price' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Show the lowest price of the last 30 days under a reduced price', 'wp-easycart' ),
+					'desc'     => __( 'EU rules ask for it wherever a price reduction is announced: under a struck-through compare-at price or an offer, on product pages and in store lists. On by default for stores in the EU.', 'wp-easycart' ),
+					'default'  => ( function_exists( 'get_option' ) && class_exists( 'wp_easycart_price_history' ) && wp_easycart_price_history::default_on() ) ? 1 : 0,
+					'keywords' => array( 'omnibus', '30 days', 'lowest price', 'prior price', 'sale', 'eu', 'compare at' ),
+					'legacy'   => array( 'page' => 'products', 'section' => 'Price Display Options', 'label' => '( new in 6.0.5 )' ),
+				),
 				'ec_option_hide_price_seasonal' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Hide prices on seasonal (catalog-only) products', 'wp-easycart' ),

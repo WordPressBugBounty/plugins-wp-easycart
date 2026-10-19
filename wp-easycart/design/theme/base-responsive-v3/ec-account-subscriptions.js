@@ -12,6 +12,8 @@
  * 3-D Secure is confirmed with Stripe.js here, then the store asks Stripe whether it applied. Template copies from
  * before 6.0.3 get the same flow ( the review box is made here ) whenever the store runs it
  * ( wpeasycart_ajax_object.subscription_changes ). Monthly / Yearly tabs filter the plans of a plan group.
+ *
+ * 6.0.5: past payments ten at a time ( Load more ), and the card form's "This subscription and others I choose" list.
  */
 ( function( $, window, document ) {
 	'use strict';
@@ -169,7 +171,9 @@
 			$quantity.attr( 'aria-invalid', valid ? 'false' : 'true' );
 			$panel.find( '[data-ec-sub-step="-1"]' ).prop( 'disabled', valid && quantity <= 1 );
 		}
-		var changed = plan !== currentPlan || ( valid && quantity !== currentQuantity );
+		/* 6.0.5: a usage level of this plan ( the field shows while the plan stays the same ) */
+		var level = chosenLevel( $panel );
+		var changed = plan !== currentPlan || ( valid && quantity !== currentQuantity ) || '' !== level;
 		$panel.find( '[data-ec-sub-save="plan"]' ).prop( 'disabled', ! ( changed && valid ) );
 		/* 6.0.3: a plan on another billing schedule is charged at once, so its own notice shows instead of the usual one. */
 		var $intervalNotice = $panel.find( '.ec_account_subscription_v2_interval_notice' );
@@ -192,6 +196,18 @@
 
 	window.ec_show_update_subscription_details = function() {
 		return openPanel( 'plan' );
+	};
+
+	/* 6.0.5: Change subscribers opens Change plan on the level field. */
+	window.ec_show_update_subscription_level = function() {
+		var result = openPanel( 'plan' );
+		var $select = $( PANELS.plan.panel ).first().find( '.ec_account_subscription_v2_level select' );
+		if ( $select.length ) {
+			window.setTimeout( function() {
+				$select.trigger( 'focus' );
+			}, 50 );
+		}
+		return result;
 	};
 
 	window.ec_account_subscription_close_panel = function( key ) {
@@ -225,8 +241,20 @@
 		var $quantity = $panel.find( 'input.ec_account_subscription_v2_qty' );
 		return {
 			product_id: String( $panel.find( 'input[name="ec_selected_plan"]' ).val() || $panel.attr( 'data-current-plan' ) || '' ),
-			quantity: $quantity.length ? parseInt( $quantity.val(), 10 ) || 1 : 0
+			quantity: $quantity.length ? parseInt( $quantity.val(), 10 ) || 1 : 0,
+			level: chosenLevel( $panel ) /* 6.0.5: '' keeps the level */
 		};
+	}
+
+	/** 6.0.5: the usage level chosen, '' when it is the one the subscription has ( or another plan is chosen ). */
+	function chosenLevel( $panel ) {
+		var $field = $panel.find( '.ec_account_subscription_v2_level' );
+		var $select = $field.find( 'select' );
+		if ( ! $select.length || $field.prop( 'hidden' ) ) {
+			return '';
+		}
+		var level = String( $select.val() || '' );
+		return level === String( $panel.attr( 'data-current-level' ) || '' ) ? '' : level;
 	}
 
 	/** The review box and the error line ( made here for template copies from before 6.0.3 ). */
@@ -460,6 +488,15 @@
 			closeReview( $panel );
 		}
 		$panel.find( 'input[name="ec_selected_plan"]' ).val( this.value );
+		/* 6.0.5: the level field is this plan's; another plan keeps the level ( or the nearest it sells ) */
+		var $levelField = $panel.find( '.ec_account_subscription_v2_level' );
+		if ( $levelField.length ) {
+			var samePlan = String( this.value ) === String( $panel.attr( 'data-current-plan' ) || '' );
+			$levelField.prop( 'hidden', ! samePlan );
+			if ( ! samePlan ) {
+				$levelField.find( 'select' ).val( String( $panel.attr( 'data-current-level' ) || '' ) );
+			}
+		}
 		$panel.find( '.ec_account_subscription_v2_plan' ).removeClass( 'is-selected' );
 		$( this ).closest( '.ec_account_subscription_v2_plan' ).addClass( 'is-selected' );
 		planState( $panel.get( 0 ) );
@@ -483,6 +520,29 @@
 		planState( $( this ).closest( '.ec_account_subscription_upgrade_row' ).get( 0 ) );
 	} );
 
+	$( document ).on( 'change', '.ec_account_subscription_v2_level select', function() {
+		var $panel = $( this ).closest( '.ec_account_subscription_upgrade_row' );
+		if ( $panel.find( '.ec_account_subscription_v2_review' ).length ) {
+			closeReview( $panel );
+		}
+		planState( $panel.get( 0 ) );
+	} );
+
+	/* 6.0.5: a subscriber sent here from a pricing table to another level ( ?change_level=<level> ) finds it chosen. */
+	$( function() {
+		var match = /[?&]change_level=([a-z0-9_\-]+)/.exec( window.location.search || '' );
+		var $panel = $( PANELS.plan.panel ).first();
+		var $select = $panel.find( '.ec_account_subscription_v2_level select' );
+		if ( ! match || ! $select.length || ! $select.find( 'option[value="' + match[ 1 ] + '"]' ).length ) {
+			return;
+		}
+		if ( /[?&]change_plan=(\d+)/.test( window.location.search || '' ) && String( ( /[?&]change_plan=(\d+)/.exec( window.location.search ) || [] )[ 1 ] ) !== String( $panel.attr( 'data-current-plan' ) || '' ) ) {
+			return;
+		}
+		openPanel( 'plan' );
+		$select.val( match[ 1 ] ).trigger( 'change' );
+	} );
+
 	/* Enter in the plan panel would submit the shared form into the card update; run Save instead. */
 	$( document ).on( 'keydown', '.ec_account_subscription_v2 .ec_account_subscription_upgrade_row input', function( event ) {
 		if ( 13 === event.which ) {
@@ -503,5 +563,48 @@
 		if ( 27 === event.which ) {
 			closePanel( $( this ).is( PANELS.plan.panel ) ? 'plan' : 'payment' );
 		}
+	} );
+
+	/*
+	 * 6.0.5: past payments show ten at a time. Load more shows the next ones, says how many show and moves focus to the first one
+	 * it showed; it goes once every payment shows ( View all orders stays ).
+	 */
+	$( document ).on( 'click', '[data-ec-sub-more]', function( event ) {
+		event.preventDefault();
+		var $button = $( this );
+		var $card = $button.closest( '.ec_account_subscription_v2_history' );
+		var $items = $card.find( '.ec_account_subscription_v2_payments > li' );
+		var step = parseInt( $button.attr( 'data-ec-sub-more' ), 10 ) || 10;
+		var $next = $items.filter( '[hidden]' ).slice( 0, step );
+		$next.removeAttr( 'hidden' );
+		var shown = $items.not( '[hidden]' ).length;
+		var $count = $card.find( '.ec_account_subscription_v2_history_count' );
+		var words = $count.attr( 'data-text' ) || '';
+		if ( words ) {
+			$count.text( words.replace( '[shown]', String( shown ) ).replace( '[total]', String( $items.length ) ) );
+		}
+		if ( shown >= $items.length ) {
+			$button.attr( 'hidden', 'hidden' );
+		}
+		var $focus = $next.first().find( 'a' ).first();
+		if ( $focus.length ) {
+			$focus.trigger( 'focus' );
+		}
+	} );
+
+	/* 6.0.5: "This subscription and others I choose" lists the customer's other subscriptions to tick. */
+	$( document ).on( 'change', '.ec_account_subscription_v2_apply input[name="ec_card_apply"]', function() {
+		var $field = $( this ).closest( '.ec_account_subscription_v2_apply' );
+		var $list = $field.find( '.ec_account_subscription_v2_apply_list' );
+		if ( 'some' === $field.find( 'input[name="ec_card_apply"]:checked' ).val() ) {
+			$list.removeAttr( 'hidden' );
+		} else {
+			$list.attr( 'hidden', 'hidden' );
+		}
+		$field.find( '.ec_account_subscription_v2_apply_error' ).attr( 'hidden', 'hidden' );
+	} );
+
+	$( document ).on( 'change', '.ec_account_subscription_v2_apply input[name="ec_card_apply_ids[]"]', function() {
+		$( this ).closest( '.ec_account_subscription_v2_apply' ).find( '.ec_account_subscription_v2_apply_error' ).attr( 'hidden', 'hidden' );
 	} );
 } )( window.jQuery, window, document );

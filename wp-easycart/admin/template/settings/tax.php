@@ -204,11 +204,18 @@ if ( ! function_exists( 'ecst_tax_sync_vat' ) ) {
 	 */
 	function ecst_tax_sync_vat() {
 		global $wpdb;
-		$enabled    = (int) get_option( 'ec_option_use_vat_tax' );
-		$by_country = (int) get_option( 'ec_vat_by_country' );
-		$included   = (int) get_option( 'ec_vat_pricing_method' ) ? 1 : 0;
-		$rate       = (float) get_option( 'ec_default_vat_rate' );
-		$row_id     = $wpdb->get_var( 'SELECT taxrate_id FROM ec_taxrate WHERE tax_by_vat = 1 OR tax_by_single_vat = 1' );
+		/* 6.0.5: a setting never saved on this page ( VAT the setup wizard or an older version set up ) reads what the row says, so
+		   changing one VAT setting no longer turns VAT off or flips prices to exclude it. */
+		$row     = $wpdb->get_row( 'SELECT * FROM ec_taxrate WHERE tax_by_vat = 1 OR tax_by_single_vat = 1 LIMIT 1' );
+		$setting = function ( $key, $fallback ) {
+			$value = get_option( $key, null );
+			return ( null === $value || false === $value ) ? $fallback : $value;
+		};
+		$enabled    = (int) $setting( 'ec_option_use_vat_tax', $row ? 1 : 0 );
+		$by_country = (int) $setting( 'ec_vat_by_country', $row ? (int) $row->tax_by_vat : 0 );
+		$included   = (int) $setting( 'ec_vat_pricing_method', $row ? (int) $row->vat_included : 0 ) ? 1 : 0;
+		$rate       = (float) $setting( 'ec_default_vat_rate', $row ? (float) $row->vat_rate : 0 );
+		$row_id     = $row ? $row->taxrate_id : null;
 		if ( ! $enabled ) {
 			if ( $row_id ) {
 				do_action( 'wpeasycart_taxrate_deleting', $row_id );
@@ -255,6 +262,53 @@ if ( ! function_exists( 'ecst_tax_on_save_canada' ) ) {
 			}
 		}
 		update_option( 'ec_option_canada_tax_options', $options );
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_fill_eu_rates' ) ) {
+	/**
+	 * Action fill_eu_rates: each EU country's standard VAT rate in Countries & Regions ( wp_easycart_vat::fill_eu() ), and VAT by
+	 * country, for a store over the €10,000 distance-sales threshold or registered for the One-Stop Shop.
+	 *
+	 * @since 6.0.5
+	 * @return array|string
+	 */
+	function ecst_tax_fill_eu_rates() {
+		if ( ! class_exists( 'wp_easycart_vat' ) ) {
+			return __( 'This needs WP EasyCart 6.0.5.', 'wp-easycart' );
+		}
+		$count = wp_easycart_vat::fill_eu( 'oss' );
+		if ( (int) get_option( 'ec_option_use_vat_tax' ) || $GLOBALS['wpdb']->get_var( 'SELECT taxrate_id FROM ec_taxrate WHERE tax_by_vat = 1 OR tax_by_single_vat = 1' ) ) {
+			update_option( 'ec_vat_by_country', 1 );
+			ecst_tax_sync_vat();
+		}
+		update_option( 'ec_option_eu_vat_mode', 'oss' );
+		return array(
+			/* translators: %d: number of countries */
+			'message' => sprintf( _n( 'VAT rate filled in for %d EU country.', 'VAT rates filled in for %d EU countries.', $count, 'wp-easycart' ), $count ),
+			'reload'  => true,
+		);
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_canada_current_rates' ) ) {
+	/**
+	 * Action canada_current_rates: saved rates a province has since changed get today's rate
+	 * ( wp_easycart_admin_tax_v2::update_outdated_rates() ); the page reloads with the grid redrawn.
+	 *
+	 * @since 6.0.5
+	 * @return array|string
+	 */
+	function ecst_tax_canada_current_rates() {
+		$changed = wp_easycart_admin_tax_v2::update_outdated_rates();
+		if ( ! $changed ) {
+			return __( 'Your saved rates are already today\'s rates.', 'wp-easycart' );
+		}
+		return array(
+			/* translators: %d: number of rates changed */
+			'message' => sprintf( _n( '%d rate updated.', '%d rates updated.', $changed, 'wp-easycart' ), $changed ),
+			'reload'  => true,
+		);
 	}
 }
 
@@ -480,7 +534,7 @@ if ( ! function_exists( 'ecst_tax_render_vat_country_rates' ) ) {
 		$show      = (int) get_option( 'ec_option_use_vat_tax' ) && (int) get_option( 'ec_vat_by_country' );
 		?>
 		<div class="ectx-rates" data-kind="vat" id="ectx_vat_countries"<?php echo $show ? '' : ' hidden'; ?>>
-			<p class="ectx-intro"><?php esc_html_e( 'Rate per country, used once the shopper enters their country at checkout. Countries not listed are not charged VAT. "Apply to business" charges the country rate to VAT-registered businesses too, instead of the business rate.', 'wp-easycart' ); ?></p>
+			<p class="ectx-intro"><?php esc_html_e( 'Rate per country, used once the shopper enters their country at checkout. Countries not listed are not charged VAT. "Apply to business" charges the country rate to VAT-registered businesses too, instead of the business rate; businesses in your own country always pay your usual VAT.', 'wp-easycart' ); ?></p>
 			<div class="ectx-frame"<?php echo empty( $rows ) ? ' hidden' : ''; ?>>
 			<table class="ecv2-table ectx-table ectx-table-vat">
 				<thead>
@@ -528,8 +582,26 @@ if ( ! function_exists( 'ecst_tax_render_canada_grid' ) ) {
 		$provinces = wp_easycart_admin_tax_v2::provinces();
 		$roles     = wp_easycart_admin_tax_v2::roles();
 		$types     = array( 'gst' => __( 'GST', 'wp-easycart' ), 'pst' => __( 'PST', 'wp-easycart' ), 'hst' => __( 'HST', 'wp-easycart' ) );
+		/* 6.0.5: provinces collected in at a rate the province has since changed ( saved by an older WP EasyCart ). */
+		$outdated  = array();
+		foreach ( wp_easycart_admin_tax_v2::outdated_rates( $options ) as $cell ) {
+			if ( $cell['collect'] ) {
+				/* translators: 1: province, 2: tax ( HST, PST ), 3: the saved percent, 4: today's percent */
+				$outdated[ $cell['province'] . '_' . $cell['type'] ] = sprintf( __( '%1$s %2$s %3$s%% ( now %4$s%% )', 'wp-easycart' ), $provinces[ $cell['province'] ]['name'], $types[ $cell['type'] ], $cell['from'], $cell['to'] );
+			}
+		}
 		?>
 		<div class="ectx-canada" id="ectx_canada"<?php echo $enabled ? '' : ' hidden'; ?>>
+			<?php if ( $outdated ) : ?>
+				<div class="ecst-action ectx-canada-old">
+					<div class="ecst-action-text">
+						<b><?php esc_html_e( 'Some provinces have changed their rates', 'wp-easycart' ); ?></b>
+						<span><?php echo esc_html( implode( ' · ', $outdated ) ); ?></span>
+						<span><?php esc_html_e( 'Checkout charges the rates saved here until you change them.', 'wp-easycart' ); ?></span>
+					</div>
+					<button type="button" class="ecv2-btn ecv2-btn-primary" data-action="canada_current_rates" data-sec="canada" data-confirm-title="<?php esc_attr_e( 'Use today\'s rates?', 'wp-easycart' ); ?>" data-confirm="<?php esc_attr_e( 'Checkout charges the new rates from now on, for every customer role. Rates you set yourself are kept.', 'wp-easycart' ); ?>" data-confirm-ok="<?php esc_attr_e( 'Use today\'s rates', 'wp-easycart' ); ?>"><?php esc_html_e( 'Use today\'s rates', 'wp-easycart' ); ?></button>
+				</div>
+			<?php endif; ?>
 			<div class="ectx-canada-bar">
 				<label for="ectx_canada_role"><?php esc_html_e( 'Customer role', 'wp-easycart' ); ?></label>
 				<select id="ectx_canada_role" class="ecv2-select ectx-role">
@@ -622,6 +694,68 @@ if ( ! function_exists( 'ecst_tax_test_vatlayer' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_tax_check_vat_number' ) ) {
+	/**
+	 * Action vat_number_check: one number checked as checkout checks it ( wp_easycart_vat::number_status(); a GB number asks HMRC
+	 * again, through WP EasyCart Connect, and names the business ).
+	 *
+	 * @since 6.0.5
+	 * @param array  $action Action declaration.
+	 * @param array  $page   Page declaration.
+	 * @param string $input  The number typed.
+	 * @return string|WP_Error
+	 */
+	function ecst_tax_check_vat_number( $action, $page, $input = '' ) {
+		if ( ! class_exists( 'wp_easycart_vat' ) ) {
+			return new WP_Error( 'vat', __( 'This check is not available.', 'wp-easycart' ) );
+		}
+		$number  = wp_easycart_vat::clean( $input );
+		$country = wp_easycart_vat::number_country( $number );
+		if ( '' === $number ) {
+			return new WP_Error( 'vat', __( 'Type a VAT number with its country code, such as GB123456789.', 'wp-easycart' ) );
+		}
+		if ( '' === $country ) {
+			return new WP_Error( 'vat', __( 'Start the number with its country code, such as GB or DE.', 'wp-easycart' ) );
+		}
+		if ( 'GB' === $country ) {
+			$check = wp_easycart_vat::hmrc_check( $number, true );
+			if ( 'valid' === $check['status'] ) {
+				/* translators: 1: VAT number, 2: business name, 3: address */
+				return sprintf( __( 'HMRC: %1$s is registered to %2$s ( %3$s ).', 'wp-easycart' ), $number, '' !== $check['name'] ? $check['name'] : __( 'a business', 'wp-easycart' ), '' !== $check['address'] ? $check['address'] : __( 'no address given', 'wp-easycart' ) );
+			}
+			if ( 'invalid' === $check['status'] ) {
+				/* translators: %s: VAT number */
+				return new WP_Error( 'vat', sprintf( __( 'HMRC: %s is not a registered UK VAT number.', 'wp-easycart' ), $number ) );
+			}
+			$reasons = array(
+				'missing'          => __( 'the UK check is not available yet', 'wp-easycart' ),
+				'not_set_up'       => __( 'the UK check is not available yet', 'wp-easycart' ),
+				'rate_limited'     => __( 'too many checks right now; try again shortly', 'wp-easycart' ),
+				'hmrc_unavailable' => __( 'HMRC did not answer; try again shortly', 'wp-easycart' ),
+				'unreachable'      => __( 'WP EasyCart Connect could not be reached from this server', 'wp-easycart' ),
+			);
+			/* translators: 1: VAT number, 2: why */
+			return new WP_Error( 'vat', sprintf( __( 'Could not check %1$s: %2$s. Until it can be checked, the business pays VAT.', 'wp-easycart' ), $number, isset( $reasons[ $check['reason'] ] ) ? $reasons[ $check['reason'] ] : __( 'no answer', 'wp-easycart' ) ) );
+		}
+		if ( ! wp_easycart_vat::in_eu( $country ) && 'XI' !== $country ) {
+			/* translators: %s: country code */
+			return new WP_Error( 'vat', sprintf( __( 'Numbers from %s are not checked: only EU, Northern Ireland ( XI ) and UK ( GB ) numbers are.', 'wp-easycart' ), $country ) );
+		}
+		delete_transient( 'wpec_vies_' . md5( $number ) );
+		$status = wp_easycart_vat::number_status( $number );
+		if ( 'valid' === $status ) {
+			/* translators: %s: VAT number */
+			return sprintf( __( 'VIES: %s is a valid VAT number.', 'wp-easycart' ), $number );
+		}
+		if ( 'invalid' === $status ) {
+			/* translators: %s: VAT number */
+			return new WP_Error( 'vat', sprintf( __( 'VIES: %s is not a valid VAT number.', 'wp-easycart' ), $number ) );
+		}
+		/* translators: %s: VAT number */
+		return new WP_Error( 'vat', sprintf( __( 'VIES did not answer for %s; try again shortly. Until it can be checked, the business pays VAT.', 'wp-easycart' ), $number ) );
+	}
+}
+
 if ( ! function_exists( 'ecst_tax_render_service_heading' ) ) {
 	/**
 	 * 6.0.2: an automated service's row ( the same row as AvaTax's ): name, what it does, whether it is on, and Edit, which
@@ -667,7 +801,155 @@ $ecst_tax_vat    = ecst_tax_rate_row( 'vat' );
 
 $ecst_tax_taxjar_countries = array( 'US', 'CA', 'AU', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB' );
 
-return array(
+if ( ! function_exists( 'ecst_tax_sanitize_class_countries' ) ) {
+	/**
+	 * A tax class's rates by country ( 6.0.5 ): "DE=7,FR=5.5", two-letter codes in capitals, rates from 0 to 100, each country once.
+	 *
+	 * @param mixed $value Posted.
+	 * @return string
+	 */
+	function ecst_tax_sanitize_class_countries( $value ) {
+		$out   = array();
+		$pairs = array();
+		foreach ( explode( ',', (string) $value ) as $token ) {
+			if ( false !== strpos( $token, '=' ) ) {
+				$pairs[] = $token;
+			} elseif ( $pairs && 1 === preg_match( '/^\s*\d+\s*$/', $token ) ) {
+				$pairs[ count( $pairs ) - 1 ] .= '.' . trim( $token ); /* a decimal comma typed in the rate ( 5,5 ) */
+			}
+		}
+		foreach ( $pairs as $pair ) {
+			$parts = explode( '=', $pair, 2 );
+			if ( 2 !== count( $parts ) ) {
+				continue;
+			}
+			$code = strtoupper( trim( $parts[0] ) );
+			$rate = str_replace( ',', '.', trim( $parts[1] ) );
+			if ( 1 === preg_match( '/^[A-Z]{2}$/', $code ) && is_numeric( $rate ) && (float) $rate >= 0 && (float) $rate <= 100 && ! isset( $out[ $code ] ) ) {
+				$out[ $code ] = $code . '=' . rtrim( rtrim( number_format( (float) $rate, 3, '.', '' ), '0' ), '.' );
+			}
+		}
+		return implode( ',', $out );
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_sections_used' ) ) {
+	/**
+	 * Which tax sections the store uses ( 6.0.5 ): a rate, a switch or a service set in them. A used section is never folded.
+	 *
+	 * @return array section => bool.
+	 */
+	function ecst_tax_sections_used() {
+		$used = array(
+			'collect'   => true,
+			'vat'       => (bool) ecst_tax_rate_row( 'vat' ),
+			'duty'      => (bool) ecst_tax_rate_row( 'duty' ),
+			'canada'    => function_exists( 'get_option' ) && (bool) get_option( 'ec_option_enable_easy_canada_tax' ),
+			'state'     => false,
+			'country'   => false,
+			'automated' => false,
+		);
+		if ( ecst_tax_db() ) {
+			global $wpdb;
+			$used['state']   = 0 < (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_taxrate WHERE tax_by_state = 1' );
+			$used['country'] = 0 < (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_taxrate WHERE tax_by_country = 1' );
+		}
+		if ( function_exists( 'get_option' ) ) {
+			$provider          = (string) get_option( 'ec_option_tax_provider', '' );
+			$used['automated'] = ( '' !== trim( (string) get_option( 'ec_option_tax_cloud_api_id', '' ) ) && '' !== trim( (string) get_option( 'ec_option_tax_cloud_api_key', '' ) ) )
+				|| (bool) get_option( 'ec_option_tax_jar_enable' )
+				|| ( '' !== $provider && 'none' !== $provider );
+		}
+		if ( ! $used['automated'] && class_exists( 'wp_easycart_tax_providers' ) && method_exists( 'wp_easycart_tax_providers', 'active_id' ) ) {
+			$used['automated'] = '' !== (string) wp_easycart_tax_providers::active_id();
+		}
+		return $used;
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_rename_gst' ) ) {
+	/**
+	 * The VAT section's words with GST for VAT ( a GST store, wp_easycart_vat::name() ): titles, hints, labels, descriptions, buttons
+	 * and choice labels; never the tax name's own choices, keywords or legacy labels.
+	 *
+	 * @param array $node Section, field, action or a list of them.
+	 * @return array
+	 */
+	function ecst_tax_rename_gst( $node ) {
+		foreach ( $node as $key => $value ) {
+			if ( 'ec_option_vat_name' === $key || 'keywords' === $key || 'legacy' === $key ) {
+				continue;
+			}
+			if ( is_string( $value ) && in_array( $key, array( 'title', 'hint', 'label', 'desc', 'button', 'confirm', 'confirm_title', 'confirm_button', 'placeholder' ), true ) ) {
+				$node[ $key ] = wp_easycart_vat::rename( $value );
+			} elseif ( is_array( $value ) && 'options' === $key ) {
+				foreach ( $value as $option_value => $option_label ) {
+					if ( is_string( $option_label ) ) {
+						$node[ $key ][ $option_value ] = wp_easycart_vat::rename( $option_label );
+					}
+				}
+			} elseif ( is_array( $value ) ) {
+				$node[ $key ] = ecst_tax_rename_gst( $value );
+			}
+		}
+		if ( isset( $node['keywords'] ) && is_array( $node['keywords'] ) ) {
+			$node['keywords'][] = 'gst';
+		}
+		return $node;
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_arrange' ) ) {
+	/**
+	 * The store's own tax system first ( 6.0.5, admin review M5 ): a US store leads with rates by state and tax services, a Canadian
+	 * store with provincial tax, every other store with VAT ( GST where it is called so ); sections the store does not use fold under
+	 * "Other tax systems" ( the engine's 'fold' ). A section with a rate, a switch or a service set is never folded. Without a store
+	 * country nothing moves.
+	 *
+	 * @param array $page Declaration.
+	 * @return array
+	 */
+	function ecst_tax_arrange( $page ) {
+		$sections = $page['sections'];
+		if ( isset( $sections['vat'] ) && class_exists( 'wp_easycart_vat' ) && method_exists( 'wp_easycart_vat', 'name' ) && 'GST' === wp_easycart_vat::name() ) {
+			$sections['vat'] = ecst_tax_rename_gst( $sections['vat'] );
+		}
+		$country = ( class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+		if ( '' === $country ) {
+			$page['sections'] = $sections;
+			return $page;
+		}
+		if ( 'US' === $country ) {
+			$lead = array( 'setup', 'collect', 'state', 'automated' );
+		} elseif ( 'CA' === $country ) {
+			$lead = array( 'setup', 'collect', 'canada' );
+		} else {
+			$lead = array( 'setup', 'collect', 'vat' );
+		}
+		$used    = ecst_tax_sections_used();
+		$ordered = array();
+		foreach ( $lead as $key ) {
+			if ( isset( $sections[ $key ] ) ) {
+				$ordered[ $key ] = $sections[ $key ];
+			}
+		}
+		foreach ( $sections as $key => $section ) {
+			if ( isset( $ordered[ $key ] ) ) {
+				continue;
+			}
+			if ( empty( $used[ $key ] ) ) {
+				$section['fold'] = true;
+			}
+			$ordered[ $key ] = $section;
+		}
+		$page['sections']   = $ordered;
+		$page['fold_title'] = __( 'Other tax systems', 'wp-easycart' );
+		$page['fold_hint']  = __( 'Tax rules your store does not use yet, such as other countries\' systems and duty', 'wp-easycart' );
+		return $page;
+	}
+}
+
+$ecst_tax_page = array(
 	'slug'        => 'tax',
 	'title'       => __( 'Taxes', 'wp-easycart' ),
 	'description' => __( 'What tax you collect and where: a flat rate, rates by state or country, VAT, Canadian GST/PST/HST, duty, or an automated service.', 'wp-easycart' ),
@@ -744,6 +1026,21 @@ return array(
 					'keywords' => array( 'vat', 'value added', 'eu', 'europe' ),
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Enable VAT' ),
 				),
+				/* 6.0.5: what the tax is called ( wp_easycart_vat::name() ): the admin, the checkout, receipts and invoices follow it. */
+				'ec_option_vat_name' => array(
+					'type'     => 'select',
+					'label'    => __( 'Tax name', 'wp-easycart' ),
+					'desc'     => __( 'What the tax is called in your admin, at checkout, on receipts and on invoices.', 'wp-easycart' ),
+					'default'  => '',
+					'options'  => array(
+						''    => __( 'Automatic: GST in Australia, New Zealand, Singapore, Malaysia and India, VAT elsewhere', 'wp-easycart' ),
+						'VAT' => __( 'VAT', 'wp-easycart' ),
+						'GST' => __( 'GST', 'wp-easycart' ),
+					),
+					'parent'   => 'ec_option_use_vat_tax',
+					'keywords' => array( 'gst', 'vat', 'tax name', 'australia', 'new zealand', 'tax invoice' ),
+					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Tax name ( 6.0.5 )' ),
+				),
 				'ec_vat_by_country' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Rate varies by country', 'wp-easycart' ),
@@ -786,10 +1083,73 @@ return array(
 					'keywords' => array( 'vat', 'shipping', 'exempt' ),
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'VAT on Shipping', 'note' => 'classic toggle showed the inverse; the stored value is unchanged' ),
 				),
+				/* 6.0.5 ( admin review M6 ): tax classes, chosen per product in its Tax card ( wp_easycart_tax_classes ). */
+				'ec_option_tax_class_reduced_rate' => array(
+					'type'     => 'number',
+					'label'    => __( 'Reduced rate', 'wp-easycart' ),
+					'desc'     => __( 'For products set to the reduced rate in their Tax card, such as food or books. Leave it empty to charge them the standard rate.', 'wp-easycart' ),
+					'default'  => '',
+					'unit'     => '%',
+					'min'      => 0,
+					'max'      => 100,
+					'step'     => 0.001,
+					'parent'   => 'ec_option_use_vat_tax',
+					'keywords' => array( 'tax class', 'reduced rate', 'vat rate', 'books', 'food', 'gst' ),
+					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Reduced rate ( 6.0.5 )' ),
+				),
+				'ec_option_tax_class_reduced_countries' => array(
+					'type'      => 'pairs',
+					'separator' => ',',
+					'pair'      => array(
+						'key'   => array( 'label' => __( 'Country', 'wp-easycart' ), 'placeholder' => 'DE', 'maxlength' => 2, 'upper' => true ),
+						'value' => array( 'label' => __( 'Rate %', 'wp-easycart' ), 'placeholder' => '7', 'inputmode' => 'decimal' ),
+						'join'  => '=',
+						'add'   => __( 'Add a country', 'wp-easycart' ),
+					),
+					'label'     => __( 'Reduced rate by country', 'wp-easycart' ),
+					'desc'      => __( 'A country\'s own reduced rate, used for customers there ( for example DE 7, FR 5.5 ); other countries pay the reduced rate above.', 'wp-easycart' ),
+					'default'   => '',
+					'parent'    => 'ec_option_use_vat_tax',
+					'advanced'  => true,
+					'sanitize'  => 'ecst_tax_sanitize_class_countries',
+					'keywords'  => array( 'tax class', 'reduced rate', 'by country', 'oss' ),
+					'legacy'    => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Reduced rate by country ( 6.0.5 )' ),
+				),
+				'ec_option_tax_class_reduced2_rate' => array(
+					'type'     => 'number',
+					'label'    => __( 'Second reduced rate', 'wp-easycart' ),
+					'desc'     => __( 'For products set to the second reduced rate, where your country has two. Leave it empty to charge them the standard rate.', 'wp-easycart' ),
+					'default'  => '',
+					'unit'     => '%',
+					'min'      => 0,
+					'max'      => 100,
+					'step'     => 0.001,
+					'parent'   => 'ec_option_use_vat_tax',
+					'keywords' => array( 'tax class', 'reduced rate', 'vat rate', 'books', 'food', 'gst' ),
+					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Second reduced rate ( 6.0.5 )' ),
+				),
+				'ec_option_tax_class_reduced2_countries' => array(
+					'type'      => 'pairs',
+					'separator' => ',',
+					'pair'      => array(
+						'key'   => array( 'label' => __( 'Country', 'wp-easycart' ), 'placeholder' => 'DE', 'maxlength' => 2, 'upper' => true ),
+						'value' => array( 'label' => __( 'Rate %', 'wp-easycart' ), 'placeholder' => '5', 'inputmode' => 'decimal' ),
+						'join'  => '=',
+						'add'   => __( 'Add a country', 'wp-easycart' ),
+					),
+					'label'     => __( 'Second reduced rate by country', 'wp-easycart' ),
+					'desc'      => __( 'A country\'s own second reduced rate, used for customers there.', 'wp-easycart' ),
+					'default'   => '',
+					'parent'    => 'ec_option_use_vat_tax',
+					'advanced'  => true,
+					'sanitize'  => 'ecst_tax_sanitize_class_countries',
+					'keywords'  => array( 'tax class', 'reduced rate', 'by country', 'oss' ),
+					'legacy'    => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Second reduced rate by country ( 6.0.5 )' ),
+				),
 				'ec_option_vat_custom_rate' => array(
 					'type'     => 'number',
 					'label'    => __( 'Rate for VAT-registered businesses', 'wp-easycart' ),
-					'desc'     => __( 'Charged instead of the country rate when a shopper enters a VAT registration number at checkout and their country is not marked "Apply to business" below. Needs the VAT number field turned on under Checkout.', 'wp-easycart' ),
+					'desc'     => __( 'Charged instead of the country rate to a business abroad that enters a VAT number at checkout, unless its country is marked "Apply to business" below; businesses in your own country pay your usual VAT. For a store in the EU, the number must belong to another EU country and check out in the EU’s VIES service ( a UK number with HMRC ), and documents then say "Reverse charge". Needs the VAT number field turned on under Checkout.', 'wp-easycart' ),
 					'default'  => '0',
 					'unit'     => '%',
 					'min'      => 0,
@@ -834,6 +1194,18 @@ return array(
 			'render'  => 'ecst_tax_render_vat_country_rates',
 			/* 6.0.2: checks the saved Vatlayer key with a number now ( wp_easycart_vatlayer::test() ). */
 			'actions' => array(
+				/* 6.0.5: a number checked as checkout checks it ( VIES for EU numbers, HMRC for GB numbers ). */
+				array(
+					'id'       => 'vat_number_check',
+					'label'    => __( 'Check a VAT number', 'wp-easycart' ),
+					'desc'     => __( 'Checks a number the way checkout does: EU numbers with the EU’s VIES service, UK ( GB ) numbers with HMRC. Shows whether it is registered and, for UK numbers, the business it belongs to.', 'wp-easycart' ),
+					'button'   => __( 'Check number', 'wp-easycart' ),
+					'input'    => array(
+						'label'       => __( 'VAT number', 'wp-easycart' ),
+						'placeholder' => __( 'e.g. GB123456789 or DE123456789', 'wp-easycart' ),
+					),
+					'callback' => 'ecst_tax_check_vat_number',
+				),
 				array(
 					'id'       => 'vatlayer_test',
 					'label'    => __( 'Test Vatlayer', 'wp-easycart' ),
@@ -844,6 +1216,17 @@ return array(
 						'placeholder' => __( 'VAT number ( optional )', 'wp-easycart' ),
 					),
 					'callback' => 'ecst_tax_test_vatlayer',
+				),
+				/* 6.0.5 */
+				array(
+					'id'             => 'fill_eu_rates',
+					'label'          => __( 'Fill in EU VAT rates', 'wp-easycart' ),
+					'desc'           => __( 'Sets each EU country’s standard rate in the table below and charges VAT by country: for stores selling over €10,000 a year to consumers in other EU countries, or registered for the One-Stop Shop. Other countries keep their rates.', 'wp-easycart' ),
+					'button'         => __( 'Fill in rates', 'wp-easycart' ),
+					'confirm_title'  => __( 'Fill in EU VAT rates?', 'wp-easycart' ),
+					'confirm'        => __( 'The 27 EU countries get their standard VAT rate, replacing what is set for them now.', 'wp-easycart' ),
+					'confirm_button' => __( 'Fill in rates', 'wp-easycart' ),
+					'callback'       => 'ecst_tax_fill_eu_rates',
 				),
 			),
 		),
@@ -861,7 +1244,17 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Canada Tax Options', 'label' => 'Enable Canada Tax' ),
 				),
 			),
-			'render' => 'ecst_tax_render_canada_grid',
+			'render'  => 'ecst_tax_render_canada_grid',
+			/* 6.0.5: the grid shows it only while a province is collected in at a rate it has since changed. */
+			'actions' => array(
+				array(
+					'id'       => 'canada_current_rates',
+					'label'    => __( 'Use today\'s rates', 'wp-easycart' ),
+					'desc'     => __( 'Replaces rates the provinces have since changed ( Nova Scotia, New Brunswick, Newfoundland and Labrador, Prince Edward Island, Manitoba, Saskatchewan ).', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => 'ecst_tax_canada_current_rates',
+				),
+			),
 		),
 
 		'duty' => array(
@@ -1135,3 +1528,38 @@ return array(
 		),
 	),
 );
+
+/* 6.0.5: recommended tax settings by store country ( wp_easycart_admin_tax_setup ): a card first while it has something to offer ( and
+   always for the settings actions, so a click on a card drawn a moment ago still finds its action ). */
+if ( class_exists( 'wp_easycart_admin_tax_setup' ) && ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || wp_easycart_admin_tax_setup::card_needed() ) ) {
+	$ecst_tax_page['sections'] = array(
+		'setup' => array(
+			'title'   => __( 'Recommended for your country', 'wp-easycart' ),
+			'hint'    => __( 'Today\'s rates and the settings stores in your country are expected to use', 'wp-easycart' ),
+			'fields'  => array(),
+			'render'  => array( 'wp_easycart_admin_tax_setup', 'render_card' ),
+			'actions' => array(
+				array(
+					'id'       => 'tax_setup_apply',
+					'label'    => __( 'Apply the recommended tax settings', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => array( 'wp_easycart_admin_tax_setup', 'action_apply' ),
+				),
+				array(
+					'id'       => 'tax_setup_keep',
+					'label'    => __( 'Keep my tax settings', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => array( 'wp_easycart_admin_tax_setup', 'action_keep' ),
+				),
+				array(
+					'id'       => 'tax_setup_undo',
+					'label'    => __( 'Undo the recommended tax settings', 'wp-easycart' ),
+					'inline'   => true,
+					'callback' => array( 'wp_easycart_admin_tax_setup', 'action_undo' ),
+				),
+			),
+		),
+	) + $ecst_tax_page['sections'];
+}
+
+return ecst_tax_arrange( $ecst_tax_page );

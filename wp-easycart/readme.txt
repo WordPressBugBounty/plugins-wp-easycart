@@ -1,10 +1,10 @@
 === WP EasyCart: Shopping Cart and eCommerce Store ===
 Contributors: levelfourdevelopment, ecommercecart
-Tags: shopping cart, store, e-commerce, paypal, square
+Tags: ecommerce, shopping cart, online store, store, sell online
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 6.0.4
+Stable tag: 6.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,7 +62,7 @@ It suits online shops that ship, restaurants, cafés and bakeries taking pickup 
 * Coupons, promotions and abandoned cart emails.
 * Order editing and refunds, invoices and credit notes, payment terms, and orders you create for phone customers.
 * Full reports on products, customers, profit, carts and more, a Google product feed, and MailerLite, Kit and ActiveCampaign sync.
-* One-to-one support and 12 months of updates. Try Pro free for 14 days from WP EasyCart › Registration; no card needed.
+* One-to-one support and updates for as long as your plan is active, billed yearly or monthly. Try Pro free for 14 days from WP EasyCart › Registration; no card needed.
 
 = Premium: everything in Pro, plus =
 
@@ -101,9 +101,9 @@ Free is a complete store. Pro adds the features a growing store needs, such as 3
 
 Yes. Start a 14-day free trial of Pro from WP EasyCart › Registration. No card is needed, and WP EasyCart installs everything for you.
 
-= How do licenses work? =
+= How do Pro and Premium plans work? =
 
-A Pro or Premium license covers one website and includes 12 months of updates and support. Licenses never renew on their own; renew from your account at wpeasycart.com whenever you choose. It also runs on up to 3 development copies of your store, such as localhost or a staging site, while your live store keeps it, and you can move a license to a new live site.
+A Pro or Premium plan covers one website, with updates and support for as long as it is active. Plans are billed yearly or monthly and renew automatically; cancel any time from your account at wpeasycart.com. A license bought before plans renewed automatically keeps working until its end date, and you renew it by turning on AutoPay in your account. Your license key also runs on up to 3 development copies of your store, such as localhost or a staging site, while your live store keeps it, and you can move it to a new live site.
 
 = Will it work with my theme? =
 
@@ -133,9 +133,9 @@ Yes. `wp easycart info` shows the version, whether the database is up to date an
 
 Start with the [documentation](https://docs.wpeasycart.com/). Pro and Premium stores get one-to-one support from our team at [support.wpeasycart.com](https://support.wpeasycart.com/).
 
-= Where do I report a security issue? =
+= Where do I report security bugs found in this plugin? =
 
-Please report security issues through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/671ca790-0ba3-4d49-809a-c02f0323bb0a). The Patchstack team will help verify the issue and let us know.
+Please report security bugs found in the source code of the WP EasyCart plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/9e5fb218-ee51-4edb-a598-42c772012454). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
 == Screenshots ==
 
@@ -159,16 +159,64 @@ Please report security issues through the [Patchstack Vulnerability Disclosure P
 WP EasyCart connects to these services only when you use the feature that needs them.
 
 * **WP EasyCart Connect** ( connect.wpeasycart.com ) connects your Stripe, Square and PayPal accounts and passes their payment notifications to your store, installs WP EasyCart PRO when you start a trial or add a license, and, only if you choose to share anonymous usage data, receives a weekly summary of how the store is set up ( no customer or order details ); turning sharing off deletes what it kept. [Privacy policy](https://www.wpeasycart.com/privacy-policy/), [terms](https://www.wpeasycart.com/terms-and-conditions/).
+* **WP EasyCart documentation** ( docs.wpeasycart.com ) supplies the list of help articles the admin search looks through, once a week, while you manage the store. Nothing you type in the search is sent. [Privacy policy](https://www.wpeasycart.com/privacy-policy/).
 * **WP EasyCart demo data** ( support.wpeasycart.com ) supplies sample products and images when you install demo data from the setup wizard.
 * **Stripe** processes card and wallet payments when you connect Stripe. It receives the order total and the customer's payment and billing details. [Privacy policy](https://stripe.com/privacy), [terms](https://stripe.com/legal).
 * **Square** processes payments when you connect Square. It receives the order total and the customer's payment and billing details. [Privacy policy](https://squareup.com/legal/general/privacy), [terms](https://squareup.com/legal/general/ua).
 * **PayPal** processes payments when you connect PayPal. It receives the order and the customer's details needed for payment. [Privacy policy](https://www.paypal.com/webapps/mpp/ua/privacy-full), [terms](https://www.paypal.com/webapps/mpp/ua/useragreement-full).
 * **Google reCAPTCHA** and **Cloudflare Turnstile** check that a shopper is a person, only when you turn them on. [Google privacy policy](https://policies.google.com/privacy), [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
 * **Google Analytics** and the **Meta Pixel** receive store events, such as product views and purchases, only when you add their IDs, and only after the shopper consents when your store asks for consent. [Google privacy policy](https://policies.google.com/privacy), [Meta privacy policy](https://www.facebook.com/privacy/policy/).
+* **EU VIES** ( ec.europa.eu ), the European Commission's VAT number check, receives the VAT number a customer enters, and nothing else, when your store is in the EU and collects VAT numbers, to decide whether a business in another EU country pays the business rate. [Privacy policy](https://commission.europa.eu/privacy-policy-websites-managed-european-commission_en).
+* **HMRC** ( through WP EasyCart Connect ), the UK's Check a UK VAT number service, receives a UK ( GB ) VAT number a customer enters, and nothing else, when your store collects VAT numbers and needs to know whether a UK business is registered. Connect passes the number to HMRC and returns the answer. [HMRC privacy notice](https://www.gov.uk/government/publications/data-protection-act-dpa-information-hm-revenue-and-customs-hold-about-you), [WP EasyCart privacy policy](https://www.wpeasycart.com/privacy-policy/).
 * **Vatlayer** receives the VAT number a customer enters, when you turn on VAT number checks. **TaxCloud** receives the order's address and items when you turn it on with WP EasyCart PRO.
 * **Amazon S3** serves download files you choose to store there.
 
 == Changelog ==
+= 6.0.5 =
+* New Feature - One admin search: press Ctrl K ( ⌘K on a Mac ) on any WP EasyCart screen to find orders, customers, products, settings and help articles in one window.
+* New Feature - Recommended tax settings for your country, in the setup wizard and Settings › Taxes, for the US, Canada, the UK, the EU, Australia, New Zealand and more, with a list of what changes and a one-click undo.
+* New Feature - Reduced and zero VAT or GST rates for chosen products, with a rate for each country where it differs, set in the product editor's new Tax section and listed rate by rate on receipts and invoices.
+* New Feature - The lowest price of the last 30 days shows under a reduced price on product pages and in store lists, as EU pricing rules require.
+* New Feature - Unit prices beside the price, such as €13.27 / kg, on product pages, in store lists and in the Google product feed.
+* New Feature - Email-first checkout for subscriptions and for orders that need an account: existing customers sign in right under their email, and with a setting new customers pay first and choose their password afterwards.
+* New Feature - A short subscription checkout, as a setting, for subscriptions that ship nothing: name, country and postcode with the payment on one screen.
+* New Feature - Usage-based pricing tables: customers pick how much they need, such as 10 seats or 25,000 subscribers, and can move up or down later in My Account.
+* New Feature - The cart and checkout fit narrow theme layouts and sidebars, on for new stores and recommended when your theme needs it.
+* New Feature - A WP EasyCart widget on the WordPress Dashboard with today's sales and the orders waiting to ship.
+* Improvement - Apple Pay with Square sets itself up on your live store, and the Payments page says when anything still needs doing, with a note for your web host when its firewall blocks Square.
+* Improvement - Limit Access is easier to set up: an on/off switch, one screen listing every limited page, a preview as a visitor, a buy button for visitors without access, no redirect loops, and members-only content kept private everywhere.
+* Improvement - Pricing tables can include tiers that link to another page, such as Contact us, give each card its own badge and button, and turn back into a Change plan list.
+* Improvement - The one-page checkout's express payment buttons line up as one even set, side by side on wide screens and stacked on phones.
+* Improvement - Product option choices are cards you can click anywhere on, the checkout's tick boxes match them, option sets ask whether each choice makes a variation or adds to the item, and swatches go up to 200px.
+* Improvement - Signing in at checkout is quicker: the classic checkout starts with the email, offers to sign in when it has an account, points out a likely typo and never asks for the email or password twice.
+* Improvement - Addresses follow each country's own format in emails, invoices, My Account and the admin, address forms ask for the region and postcode the way each country does, and the UK lists today's counties.
+* Improvement - Set your store's country and units in Settings › Store details, including ounces and grams with a one-click conversion of saved weights, and write prices with a space where your country does, such as 1 234,56 €.
+* Improvement - The setup wizard sets your country's currency, price format, units, VAT, shipping countries and starter rates, and remembers your answers when you go back.
+* Improvement - EU stores charge VAT the right way across the EU, below the €10,000 threshold or through the One-Stop Shop, and VAT numbers are checked with the EU's VIES service or HMRC before the business rate applies.
+* Improvement - Settings › Taxes leads with your country's tax system, and stores in Australia, New Zealand and other GST countries see GST in place of VAT, with Australian invoices titled Tax invoice.
+* Improvement - Your registered business name, address and tax number print on receipts and shipped emails, and your logo can sit higher on invoices, credit notes and packing slips.
+* Improvement - Bill later is now Pay by bank transfer, with your bank details in your country's own format at checkout, on the order confirmation and in invoice emails.
+* Improvement - The Payments page, the setup wizard and Settings › Shipping lead with the payment gateways and carriers that serve your country.
+* Improvement - The order button says that payment is owed, such as Place order and pay, as EU and UK consumer law requires.
+* Improvement - Customers choose which of their subscriptions a new card is for, and each subscription in My Account shows its own card and its last ten payments.
+* Improvement - Add to cart links take a quantity, such as ?ec_add_to_cart=SKU&quantity=4, and search engines no longer add products to carts through them.
+* Improvement - Choose whether receipts, invoices, order emails, the order confirmation and My Account show the discount code a customer used, so a private code is never printed.
+* Improvement - With Yoast SEO, the products CSV export and import include each product's Yoast meta description.
+* Improvement - When your server can't reach Stripe, shoppers see that card payments are unavailable instead of an error, and other ways to pay keep working.
+* Improvement - The admin works better on tablets, with screen readers and from the keyboard, its dates follow your WordPress date format, and more of it is translated, with Danish, German, Spanish, French and Italian covering everything new.
+* Bug Fix - The product page shows the price the cart charges for every option, including sizes, number boxes and wholesale and volume prices, and size options check the width and height a shopper enters.
+* Bug Fix - Orders keep the currency they were placed in after the store's currency changes.
+* Bug Fix - Square payments work for billing addresses outside the US, on stores whose Square location country was never saved and for guests on stores using WordPress User Sync, and Square's Apple Pay button works from the keyboard.
+* Bug Fix - Payment buttons no longer slide over a theme's sticky header, and Stripe card payments work with block themes such as Twenty Twenty-Five.
+* Bug Fix - Add to Cart no longer spins on cached store pages, and cart links keep their coupon code and count the orders they bring in.
+* Bug Fix - The option set editor saves prices for number, text, date and file options again and keeps negative prices, large swatches and prices written with a comma, and admin prices use your store's currency format.
+* Bug Fix - Canadian tax uses today's rates, and the one-page checkout shows the right GST, PST or HST as soon as a province is chosen.
+* Bug Fix - Reprinted receipts and invoices show the VAT the order was charged, and changing one VAT setting no longer switches VAT off.
+* Bug Fix - Offers that leave out items on sale now leave them out in the cart too, as the product page shows.
+* Bug Fix - The admin no longer says your license has expired when this site has no license of its own.
+* Bug Fix - CSV exports open in Excel with accented letters and dashes intact.
+* Bug Fix - Product pages have a single main heading and give search engines shipping weights in your store's own unit.
+
 = 6.0.4 =
 * New Feature - Your license also runs on up to 3 development copies, such as localhost or a staging site, beside your live store: enter the key on the copy and the live store keeps its license, and see or remove the copies on the Registration page.
 * New Feature - EU withdrawal button, as EU law requires since 19 June 2026: shoppers withdraw from an order online with a "Withdraw from contract here" button, a short form and a confirm step, and get an emailed receipt, while you get an email and the order is flagged for you; products can be marked as having no right of withdrawal, and guests can find their order with its number and email.

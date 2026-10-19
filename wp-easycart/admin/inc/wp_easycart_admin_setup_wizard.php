@@ -193,19 +193,27 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 			}
 		}
 
-		/** Shared button bar for steps 1-4. */
+		/**
+		 * Shared button bar for steps 1-4.
+		 *
+		 * 6.0.5: Save & exit saves the step ( it was a link that left without saving ). Back, the stepper and the summary's Edit links
+		 * carry data-ecwz-goto: with changes on the page, setup-wizard-v2.js asks first and can save them on the way ( wizard_goto ).
+		 * A hidden first submit button keeps Enter in a field on Continue.
+		 */
 		public function render_footer( $step, $primary_label = '' ) {
 			if ( '' == $primary_label ) {
 				$primary_label = __( 'Continue', 'wp-easycart' );
 			}
+			echo '<input type="hidden" name="wizard_goto" id="ecwz_goto" value="">';
 			echo '<div class="ecwz-foot">';
+			echo '<button type="submit" class="ecwz-default-submit" tabindex="-1" aria-hidden="true">' . esc_html( $primary_label ) . '</button>';
 			if ( $step > self::STEP_LOCATION ) {
-				echo '<a class="ecwz-btn ecwz-btn-ghost" href="' . esc_url( $this->step_url( $step - 1 ) ) . '">&larr; ' . esc_html__( 'Back', 'wp-easycart' ) . '</a>';
+				echo '<a class="ecwz-btn ecwz-btn-ghost" href="' . esc_url( $this->step_url( $step - 1 ) ) . '" data-ecwz-goto="' . esc_attr( $step - 1 ) . '">&larr; ' . esc_html__( 'Back', 'wp-easycart' ) . '</a>';
 			}
 			/* translators: 1: current step, 2: total steps */
 			echo '<span class="ecwz-hint">' . esc_html( sprintf( __( 'Step %1$d of %2$d', 'wp-easycart' ), $step, self::STEP_FINISH ) ) . '</span>';
 			echo '<span class="ecwz-grow"></span>';
-			echo '<a class="ecwz-btn ecwz-btn-ghost" href="' . esc_url( $this->exit_url() ) . '">' . esc_html__( 'Save & exit', 'wp-easycart' ) . '</a>';
+			echo '<button type="submit" class="ecwz-btn ecwz-btn-ghost" name="wizard_goto" value="exit" data-ecwz-exit="1">' . esc_html__( 'Save & exit', 'wp-easycart' ) . '</button>';
 			echo '<button type="submit" class="ecwz-btn ecwz-btn-primary">' . esc_html( $primary_label ) . '</button>';
 			echo '</div>';
 		}
@@ -550,6 +558,19 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 				   and it lives in Settings > Integrations for the stores that want it. */
 			);
 
+			/* 6.0.5: tax set up as the store's country expects ( wp_easycart_admin_tax_setup ), before "Recommended settings healthy". */
+			$tax_item = class_exists( 'wp_easycart_admin_tax_setup' ) ? wp_easycart_admin_tax_setup::checklist_item() : null;
+			if ( $tax_item ) {
+				$ordered = array();
+				foreach ( $items as $k => $item ) {
+					if ( 'rec' === $k ) {
+						$ordered['tax'] = $tax_item;
+					}
+					$ordered[ $k ] = $item;
+				}
+				$items = $ordered;
+			}
+
 			// Moving from Square or WooCommerce: suggest the cart importer right after "Create your first product".
 			$importer = $this->get_cart_importer_suggestion();
 			if ( $importer ) {
@@ -699,19 +720,254 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 		}
 
 		/* =====================================================================
+		   COUNTRY DATA ( 6.0.5: one copy for the location step and its save )
+		   ===================================================================== */
+
+		/** Currencies written without decimals, and with three ( ISO 4217 ). */
+		const ZERO_DECIMALS  = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
+		const THREE_DECIMALS = array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' );
+
+		/** Countries that weigh in pounds and measure in inches ( the US and its territories, Liberia, Myanmar ). */
+		const IMPERIAL = array( 'US', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM', 'LR', 'MM' );
+
+		/** What the wizard remembers of its own answers ( the country it pinned, zones it added or took away, where the store ships ). */
+		const OPT_ANSWERS = 'ec_option_wizard_answers';
+
+		/** @var array|null admin/data/setup-wizard-countries.php */
+		private static $data = null;
+
+		/**
+		 * The wizard's country data: countries, formats, states, currency_names, currency_symbols, currency_of.
+		 *
+		 * @since 6.0.5
+		 * @param string $part Key.
+		 * @return array
+		 */
+		public static function data( $part ) {
+			if ( null === self::$data ) {
+				$file       = EC_PLUGIN_DIRECTORY . '/admin/data/setup-wizard-countries.php';
+				self::$data = file_exists( $file ) ? (array) include $file : array();
+			}
+			return isset( self::$data[ $part ] ) ? (array) self::$data[ $part ] : array();
+		}
+
+		/**
+		 * The currency a country prices in.
+		 *
+		 * @since 6.0.5
+		 * @param string $cc ISO code.
+		 * @return string ISO 4217 code.
+		 */
+		public static function currency_for( $cc ) {
+			$cc   = strtoupper( (string) $cc );
+			$map  = self::data( 'currency_of' );
+			$code = isset( $map[ $cc ] ) ? (string) $map[ $cc ] : 'USD';
+			/**
+			 * The currency the setup wizard offers a store in a country.
+			 *
+			 * @since 6.0.5
+			 * @param string $code ISO 4217 code.
+			 * @param string $cc   ISO country code.
+			 */
+			return (string) apply_filters( 'wp_easycart_setup_wizard_country_currency', $code, $cc );
+		}
+
+		/**
+		 * What the wizard saves for a store in a country: its currency, how amounts are written ( the country's way ), the currency's
+		 * decimals, and the units ( pounds and inches in the US, kilograms and centimetres elsewhere ).
+		 *
+		 * @since 6.0.5
+		 * @param string $cc       ISO code.
+		 * @param string $currency ISO 4217 code ( default: the country's ).
+		 * @return array currency, before, space, dec, thou, decimals, weight ( lbs | kgs ), metric
+		 */
+		public static function facts( $cc, $currency = '' ) {
+			$cc       = strtoupper( (string) $cc );
+			$own      = self::currency_for( $cc );
+			$currency = '' !== (string) $currency ? strtoupper( (string) $currency ) : $own;
+			$formats  = self::data( 'formats' );
+			$row      = isset( $formats[ $cc ] ) ? $formats[ $cc ] : null;
+			$format   = ( class_exists( 'ec_currency' ) && method_exists( 'ec_currency', 'country_format' ) ) ? ec_currency::country_format( $cc ) : null;
+			if ( ! is_array( $format ) ) {
+				$pos    = $row ? (string) $row[0] : 'left';
+				$format = array(
+					'before' => 0 === strpos( $pos, 'left' ),
+					'space'  => false !== strpos( $pos, '_space' ),
+					'dec'    => $row ? (string) $row[2] : '.',
+					'thou'   => $row ? ( ' ' === $row[1] ? "\xC2\xA0" : (string) $row[1] ) : ',',
+				);
+			}
+			if ( in_array( $currency, self::ZERO_DECIMALS, true ) ) {
+				$decimals = 0;
+			} elseif ( in_array( $currency, self::THREE_DECIMALS, true ) ) {
+				$decimals = 3;
+			} else {
+				/* The older table's decimals hold for the country's own currency ( forints are written without ). */
+				$decimals = ( $row && $currency === $own ) ? (int) $row[3] : 2;
+			}
+			$imperial = in_array( $cc, self::IMPERIAL, true );
+			$facts    = array(
+				'currency' => $currency,
+				'before'   => (bool) $format['before'],
+				'space'    => (bool) $format['space'],
+				'dec'      => (string) $format['dec'],
+				'thou'     => (string) $format['thou'],
+				'decimals' => $decimals,
+				'weight'   => $imperial ? 'lbs' : 'kgs',
+				'metric'   => ! $imperial,
+			);
+			/**
+			 * What the setup wizard saves for a store in a country.
+			 *
+			 * @since 6.0.5
+			 * @param array  $facts currency, before, space, dec, thou, decimals, weight ( lbs | kgs ), metric.
+			 * @param string $cc    ISO country code.
+			 */
+			return (array) apply_filters( 'wp_easycart_setup_wizard_country_facts', $facts, $cc );
+		}
+
+		/**
+		 * The wizard's own answers ( what it did, so it can undo it when the merchant changes an answer ).
+		 *
+		 * @since 6.0.5
+		 * @return array
+		 */
+		public function answers() {
+			$answers = get_option( self::OPT_ANSWERS, array() );
+			return is_array( $answers ) ? $answers : array();
+		}
+
+		/**
+		 * Keep ( or with null forget ) one of the wizard's answers.
+		 *
+		 * @param string $key   Key.
+		 * @param mixed  $value Value, or null.
+		 */
+		private function remember( $key, $value ) {
+			$answers = $this->answers();
+			if ( null === $value ) {
+				unset( $answers[ $key ] );
+			} else {
+				$answers[ $key ] = $value;
+			}
+			update_option( self::OPT_ANSWERS, $answers, false );
+		}
+
+		/**
+		 * The languages the store can show shoppers: every language shipped with WP EasyCart ( file => name ).
+		 *
+		 * @since 6.0.5
+		 * @return array
+		 */
+		public static function store_languages() {
+			$out = array();
+			if ( class_exists( 'wp_easycart_admin_language_v2' ) ) {
+				$names = wp_easycart_admin_language_v2::names();
+				foreach ( wp_easycart_admin_language_v2::shipped_files() as $file ) {
+					$out[ $file ] = isset( $names[ $file ] ) ? $names[ $file ] : $file;
+				}
+				foreach ( wp_easycart_admin_language_v2::installed() as $file => $name ) {
+					if ( ! isset( $out[ $file ] ) ) {
+						$out[ $file ] = $name;
+					}
+				}
+			}
+			if ( empty( $out ) ) {
+				$out['en-us'] = __( 'English (US)', 'wp-easycart' );
+			}
+			asort( $out );
+			return $out;
+		}
+
+		/**
+		 * The language the location step offers: the store's, or on a first run the WordPress site's language when WP EasyCart ships it
+		 * ( a German site gets German, not US English ).
+		 *
+		 * @since 6.0.5
+		 * @return string Language file.
+		 */
+		public function store_language_choice() {
+			$current = sanitize_key( (string) get_option( 'ec_option_language' ) );
+			$current = '' !== $current ? $current : 'en-us';
+			if ( 'en-us' !== $current || $this->completed_through() >= self::STEP_LOCATION ) {
+				return $current;
+			}
+			$map    = array(
+				'de' => 'german',
+				'fr' => 'fr-fr',
+				'es' => 'es',
+				'nl' => 'dutch',
+				'da' => 'da-dk',
+				'el' => 'greek',
+				'hu' => 'hu-hun',
+				'lv' => 'lv-lat',
+				'ru' => 'ru-rus',
+			);
+			$locale = (string) get_locale();
+			$lang   = strtolower( substr( $locale, 0, 2 ) );
+			if ( in_array( $locale, array( 'zh_TW', 'zh_HK' ), true ) ) {
+				$lang = 'zh-tw';
+				$map['zh-tw'] = 'ch-tr';
+			}
+			$languages = self::store_languages();
+			return ( isset( $map[ $lang ] ) && isset( $languages[ $map[ $lang ] ] ) ) ? $map[ $lang ] : $current;
+		}
+
+		/**
+		 * Switch the storefront's language, installing a shipped one first.
+		 *
+		 * @param string $file Language file.
+		 * @return bool Changed.
+		 */
+		private function save_store_language( $file ) {
+			$file      = sanitize_key( (string) $file );
+			$languages = self::store_languages();
+			if ( '' === $file || ! isset( $languages[ $file ] ) || $file === (string) get_option( 'ec_option_language' ) ) {
+				return false;
+			}
+			$installed = class_exists( 'wp_easycart_admin_language_v2' ) ? wp_easycart_admin_language_v2::installed() : array();
+			if ( function_exists( 'wp_easycart_language' ) && ! isset( $installed[ $file ] ) ) {
+				wp_easycart_language()->add_new_language( $file );
+			}
+			update_option( 'ec_option_language', $file );
+			$this->remember( 'language', $file );
+			return true;
+		}
+
+		/**
+		 * After a step is saved: the step the merchant asked for ( Back, a step in the stepper, Edit in the summary ), Save & exit's
+		 * products list, else the next step.
+		 *
+		 * @since 6.0.5
+		 * @param int $next The next step.
+		 */
+		private function go_next( $next ) {
+			$goto = isset( $_POST['wizard_goto'] ) ? sanitize_key( wp_unslash( $_POST['wizard_goto'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- called by the step handlers after their nonce check.
+			if ( 'exit' === $goto ) {
+				wp_redirect( $this->exit_url() );
+			} elseif ( '' !== $goto && ctype_digit( $goto ) && (int) $goto >= self::STEP_LOCATION && (int) $goto <= self::STEP_DONE ) {
+				wp_redirect( $this->step_url( (int) $goto ) );
+			} else {
+				wp_redirect( $this->step_url( $next ) );
+			}
+			exit;
+		}
+
+		/* =====================================================================
 		   PRESETS & GATEWAY STATE ( shared by templates and handlers )
 		   ===================================================================== */
 
 		public function get_shipping_presets() {
-			return array(
+			$presets = array(
 				'static' => array(
 					'label' => __( 'Flat rates', 'wp-easycart' ),
 					'sub'   => __( 'Recommended to start', 'wp-easycart' ),
 					'desc'  => __( 'Customers choose a service level. Simple and predictable.', 'wp-easycart' ),
 					'rates' => array(
-						array( 'shipping_label' => __( 'Standard Shipping 7-10 Days', 'wp-easycart' ), 'shipping_order' => 1, 'shipping_rate' => '7.99' ),
-						array( 'shipping_label' => __( 'Priority 3 Day Shipping', 'wp-easycart' ), 'shipping_order' => 2, 'shipping_rate' => '14.99' ),
-						array( 'shipping_label' => __( 'Priority 2 Day Shipping', 'wp-easycart' ), 'shipping_order' => 3, 'shipping_rate' => '19.99' ),
+						/* 6.0.5: names shoppers anywhere understand ( shown at checkout ); the store adds its own delivery times. */
+						array( 'shipping_label' => __( 'Standard shipping', 'wp-easycart' ), 'shipping_order' => 1, 'shipping_rate' => '7.99' ),
+						array( 'shipping_label' => __( 'Express shipping', 'wp-easycart' ), 'shipping_order' => 2, 'shipping_rate' => '14.99' ),
+						array( 'shipping_label' => __( 'Next-day shipping', 'wp-easycart' ), 'shipping_order' => 3, 'shipping_rate' => '19.99' ),
 					),
 				),
 				'price' => array(
@@ -739,12 +995,350 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					),
 				),
 			);
+			/* 6.0.5: the weight tiers in the store's unit. A kilogram store starts at about the same weights ( 10, 25, 50, 250 kg; it
+			   started at 20 to 500 kg ), and an ounce or gram store gets the pound or kilogram tiers in its own unit. */
+			if ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'carrier_factor' ) ) {
+				$kg_tiers = array( '0.00', '10.00', '25.00', '50.00', '250.00' );
+				$is_kg    = method_exists( 'wp_easycart_packages', 'carrier_unit' ) && 'kg' === wp_easycart_packages::carrier_unit();
+				$factor   = (float) wp_easycart_packages::carrier_factor();
+				foreach ( $presets['weight']['rates'] as $i => $rate ) {
+					$tier = $is_kg ? (float) $kg_tiers[ $i ] : (float) $rate['trigger_rate'];
+					$presets['weight']['rates'][ $i ]['trigger_rate'] = number_format( $factor > 0 ? $tier / $factor : $tier, 2, '.', '' );
+				}
+			}
+			return $presets;
 		}
 
 		/**
 		 * Existing ( non-demo ) shipping rate rows per calculation type.
 		 * @return array { static:int, price:int, weight:int }
 		 */
+		/* ------------------------------------------------------------------ */
+		/* 6.0.5 ( admin review M10 ): where the store ships, and its country first */
+		/* ------------------------------------------------------------------ */
+
+		/** Places nobody ships to ( Antarctica, Bouvet Island, South Georgia, Heard and McDonald Islands, the French Southern and US Minor Outlying Islands ). */
+		const NO_DELIVERY = array( 'AQ', 'BV', 'GS', 'HM', 'TF', 'UM' );
+
+		/**
+		 * The store's region for the ship-to question: the largest default zone ( a continent ) that holds the store's country.
+		 *
+		 * @param string $country ISO code.
+		 * @return array|null name, countries
+		 */
+		public function ship_to_region( $country ) {
+			global $wpdb;
+			$zone = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT z.zone_id, z.zone_name, COUNT( DISTINCT a.iso2_cnt ) AS n FROM ec_zone z
+					INNER JOIN ec_zone_to_location l ON l.zone_id = z.zone_id AND l.iso2_cnt = %s AND ( l.code_sta = '' OR l.code_sta = '-1' )
+					INNER JOIN ec_zone_to_location a ON a.zone_id = z.zone_id
+					WHERE NOT EXISTS ( SELECT 1 FROM ec_zone_to_location s WHERE s.zone_id = z.zone_id AND s.code_sta <> '' AND s.code_sta <> '-1' )
+					GROUP BY z.zone_id, z.zone_name HAVING n > 1 ORDER BY n DESC LIMIT 1",
+					$country
+				)
+			);
+			if ( ! $zone ) {
+				return null;
+			}
+			/* Only codes the store lists as countries ( the default Europe zone also holds a stray "DC" ). */
+			$countries = array_map( 'strtoupper', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT l.iso2_cnt FROM ec_zone_to_location l INNER JOIN ec_country c ON c.iso2_cnt = l.iso2_cnt WHERE l.zone_id = %d', (int) $zone->zone_id ) ) );
+			$countries = array_values( array_diff( array_unique( array_merge( $countries, array( $country ) ) ), self::NO_DELIVERY ) );
+			return array( 'name' => (string) $zone->zone_name, 'countries' => $countries );
+		}
+
+		/**
+		 * The countries switched on for delivery now, sorted.
+		 *
+		 * @return array
+		 */
+		private function ship_to_active() {
+			global $wpdb;
+			$active = array_map( 'strtoupper', (array) $wpdb->get_col( 'SELECT iso2_cnt FROM ec_country WHERE ship_to_active = 1' ) );
+			sort( $active );
+			return $active;
+		}
+
+		/**
+		 * The ship-to choices for the store's country, and which one to show chosen.
+		 *
+		 * 6.0.5: the answer the wizard gave last is shown again while the list is still the one it made, for the store's country now
+		 * ( a store that shipped only within the UK and changes its country to Germany is offered "Only within Germany", where the list
+		 * matched no choice and "Worldwide" was ticked ). A list the merchant changed under Countries & Regions matches no choice: then
+		 * "Keep the countries I ship to now" ( keep ) is offered and chosen, so continuing never undoes it.
+		 *
+		 * @return array country, name, region ( array|null ), current country | region | world | keep | '', count
+		 */
+		public function ship_to_state() {
+			$country = class_exists( 'wp_easycart_carriers' ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+			$active  = $this->ship_to_active();
+			if ( '' === $country ) {
+				return array( 'country' => '', 'name' => '', 'region' => null, 'current' => '', 'count' => count( $active ) );
+			}
+			$region  = $this->ship_to_region( $country );
+			$current = 'keep';
+			$world   = $this->ship_to_list( 'world', $country, $region );
+			if ( array( $country ) === $active ) {
+				$current = 'country';
+			} elseif ( $region && $this->ship_to_list( 'region', $country, $region ) === $active ) {
+				$current = 'region';
+			} elseif ( $world === $active || count( $active ) >= count( $world ) ) {
+				$current = 'world';
+			}
+			$answers = $this->answers();
+			if ( isset( $answers['ship_to'], $answers['ship_to_list'] ) && (array) $answers['ship_to_list'] === $active && in_array( $answers['ship_to'], array( 'country', 'region', 'world' ), true ) ) {
+				$current = ( 'region' === $answers['ship_to'] && ! $region ) ? 'world' : $answers['ship_to'];
+			}
+			return array(
+				'country' => $country,
+				'name'    => class_exists( 'wp_easycart_address' ) ? wp_easycart_address::country_name( $country ) : $country,
+				'region'  => $region,
+				'current' => $current,
+				'count'   => count( $active ),
+			);
+		}
+
+		/**
+		 * The countries a choice switches on, sorted.
+		 *
+		 * @param string     $choice  country | region | world.
+		 * @param string     $country ISO code.
+		 * @param array|null $region  ship_to_region().
+		 * @return array
+		 */
+		private function ship_to_list( $choice, $country, $region ) {
+			global $wpdb;
+			if ( 'country' === $choice ) {
+				return array( $country );
+			}
+			if ( 'region' === $choice && $region ) {
+				$list = $region['countries'];
+			} else {
+				$list = array_values( array_diff( array_map( 'strtoupper', (array) $wpdb->get_col( 'SELECT iso2_cnt FROM ec_country' ) ), self::NO_DELIVERY ) );
+			}
+			$list = array_values( array_filter( array_unique( array_map( 'strtoupper', $list ) ), function ( $c ) {
+				return (bool) preg_match( '/^[A-Z]{2}$/', $c );
+			} ) );
+			sort( $list );
+			return $list;
+		}
+
+		/**
+		 * Switches on the countries the store ships to: its own ( country ), its region ( region ) or everywhere people live ( world ).
+		 * keep leaves the list as it is.
+		 *
+		 * @param string $choice country | region | world | keep.
+		 * @return int countries switched on
+		 */
+		public function apply_ship_to( $choice ) {
+			global $wpdb;
+			$state = $this->ship_to_state();
+			if ( '' === $state['country'] || ! in_array( $choice, array( 'country', 'region', 'world' ), true ) ) {
+				return count( $this->ship_to_active() );
+			}
+			if ( 'region' === $choice && ! $state['region'] ) {
+				$choice = 'world';
+			}
+			$keep = $this->ship_to_list( $choice, $state['country'], $state['region'] );
+			if ( 'world' === $choice ) {
+				$wpdb->query( 'UPDATE ec_country SET ship_to_active = 1' );
+				$wpdb->query( "UPDATE ec_country SET ship_to_active = 0 WHERE iso2_cnt IN ( '" . implode( "', '", self::NO_DELIVERY ) . "' )" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- a fixed list of codes.
+			} else {
+				$wpdb->query( 'UPDATE ec_country SET ship_to_active = 0' );
+				$wpdb->query( "UPDATE ec_country SET ship_to_active = 1 WHERE iso2_cnt IN ( '" . implode( "', '", $keep ) . "' )" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- two-letter codes checked in ship_to_list().
+			}
+			if ( function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( 'wpeasycart-countries' );
+			}
+			/* 6.0.5: remember the answer and the list it made, so the step shows it again ( ship_to_state() ). */
+			$this->remember( 'ship_to', $choice );
+			$this->remember( 'ship_to_list', $this->ship_to_active() );
+			return count( $this->ship_to_active() );
+		}
+
+		/**
+		 * The store's country first in country lists ( checkout, Countries & Regions ), only while the lists still have the order a
+		 * new store starts with ( the US, Canada, Australia, then A to Z ).
+		 *
+		 * 6.0.5: a country the wizard pinned before goes back to its place first, so changing the store's country on the way back moves
+		 * the new one to the top ( the first country chosen used to stay there, also when the store turned out to be in the US ).
+		 *
+		 * @param string $country ISO code.
+		 * @return bool changed
+		 */
+		public function pin_store_country( $country ) {
+			global $wpdb;
+			$country = strtoupper( (string) $country );
+			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
+				return false;
+			}
+			$changed = false;
+			$pinned  = array_map( 'strtoupper', (array) $wpdb->get_col( 'SELECT iso2_cnt FROM ec_country WHERE sort_order < 10 ORDER BY sort_order ASC' ) );
+			$first   = isset( $pinned[0] ) ? $pinned[0] : '';
+			$rest    = array_values( array_diff( $pinned, array( $first ) ) );
+			$shape   = count( $pinned ) === ( in_array( $first, array( 'CA', 'AU' ), true ) ? 3 : 4 ) && $rest === array_values( array_diff( array( 'US', 'CA', 'AU' ), array( $first ) ) );
+			if ( '' !== $first && 'US' !== $first && $first !== $country && $shape ) {
+				/* The order pin_store_country() left for another country: put that country back where it was. */
+				if ( ! in_array( $first, array( 'CA', 'AU' ), true ) ) {
+					$answers = $this->answers();
+					$pin     = isset( $answers['pin'] ) ? $answers['pin'] : null;
+					$was = ( is_array( $pin ) && isset( $pin['country'], $pin['sort'] ) && $first === $pin['country'] && (int) $pin['sort'] >= 10 ) ? (int) $pin['sort'] : $this->free_sort_order();
+					$wpdb->update( 'ec_country', array( 'sort_order' => $was ), array( 'iso2_cnt' => $first ) );
+				}
+				$wpdb->query( "UPDATE ec_country SET sort_order = CASE iso2_cnt WHEN 'US' THEN 1 WHEN 'CA' THEN 2 ELSE 3 END WHERE iso2_cnt IN ( 'US', 'CA', 'AU' )" );
+				$this->remember( 'pin', null );
+				$pinned  = array( 'US', 'CA', 'AU' );
+				$changed = true;
+			}
+			if ( array( 'US', 'CA', 'AU' ) === $pinned && 'US' !== $country ) {
+				$was = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT sort_order FROM ec_country WHERE iso2_cnt = %s', $country ) );
+				$wpdb->query( "UPDATE ec_country SET sort_order = 4 WHERE iso2_cnt IN ( 'US', 'CA', 'AU' )" );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_country SET sort_order = 1 WHERE iso2_cnt = %s', $country ) );
+				/* The other two keep their place after the store's country, in their old order. */
+				$wpdb->query( "UPDATE ec_country SET sort_order = CASE iso2_cnt WHEN 'US' THEN 2 WHEN 'CA' THEN 3 WHEN 'AU' THEN 4 ELSE sort_order END WHERE iso2_cnt IN ( 'US', 'CA', 'AU' ) AND iso2_cnt <> '" . esc_sql( $country ) . "'" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- escaped above.
+				$this->remember( 'pin', array( 'country' => $country, 'sort' => $was ) );
+				$changed = true;
+			}
+			if ( $changed && function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( 'wpeasycart-countries' );
+			}
+			return $changed;
+		}
+
+		/**
+		 * The place in A to Z a country pinned before 6.0.5 had: the one sort order left free when it moved to the top.
+		 *
+		 * @return int
+		 */
+		private function free_sort_order() {
+			global $wpdb;
+			$expect = 10;
+			foreach ( array_map( 'intval', (array) $wpdb->get_col( 'SELECT sort_order FROM ec_country WHERE sort_order >= 10 ORDER BY sort_order ASC' ) ) as $order ) {
+				if ( $order > $expect ) {
+					return $expect;
+				}
+				$expect = $order + 1;
+			}
+			return $expect;
+		}
+
+		/**
+		 * Whether anything uses a shipping zone: a row of a table with a zone_id column, or flex fees and offers ( their rules can
+		 * name zones ).
+		 *
+		 * @param int $zone_id Zone.
+		 * @return bool
+		 */
+		private function zone_in_use( $zone_id ) {
+			global $wpdb;
+			foreach ( (array) $wpdb->get_col( "SHOW TABLES LIKE 'ec\\_%'" ) as $table ) {
+				if ( in_array( $table, array( 'ec_zone', 'ec_zone_to_location', 'ec_timezone' ), true ) || ! preg_match( '/^ec_[a-z0-9_]+$/', $table ) ) {
+					continue;
+				}
+				if ( $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM $table LIKE %s", 'zone_id' ) ) && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE zone_id = %d", (int) $zone_id ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- a table name checked above.
+					return true;
+				}
+			}
+			foreach ( array( 'ec_fee', 'ec_offer' ) as $table ) {
+				if ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) && (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- a fixed table name.
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * A new store outside the US gets a shipping zone for its own country, and loses the US-only zones it started with
+		 * ( "Lower 48 States", "Alaska and Hawaii" ) while nothing uses them: no rate, no fee, no offer, no order yet.
+		 *
+		 * 6.0.5: when the store's country changes on the way back, the zone added for the country before goes ( while nothing uses it ),
+		 * and a store that turns out to be in the US gets the US zones back.
+		 *
+		 * @param string $country ISO code.
+		 * @return array added ( zone id or 0 ), removed ( count ), restored ( count ), dropped ( count )
+		 */
+		public function seed_zones( $country ) {
+			global $wpdb;
+			$country = strtoupper( (string) $country );
+			$out     = array( 'added' => 0, 'removed' => 0, 'restored' => 0, 'dropped' => 0 );
+			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
+				return $out;
+			}
+			$answers = $this->answers();
+			$added   = isset( $answers['zones_added'] ) ? (array) $answers['zones_added'] : array();
+			foreach ( $added as $cc => $zone_id ) {
+				if ( $cc === $country ) {
+					continue;
+				}
+				if ( ! $this->zone_in_use( (int) $zone_id ) ) {
+					$wpdb->delete( 'ec_zone_to_location', array( 'zone_id' => (int) $zone_id ), array( '%d' ) );
+					$out['dropped'] += (int) $wpdb->delete( 'ec_zone', array( 'zone_id' => (int) $zone_id ), array( '%d' ) );
+				}
+				unset( $added[ $cc ] );
+			}
+			if ( 'US' === $country ) {
+				if ( ! empty( $answers['us_zones']['zones'] ) ) {
+					foreach ( (array) $answers['us_zones']['zones'] as $row ) {
+						if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT zone_id FROM ec_zone WHERE zone_id = %d', (int) $row['zone_id'] ) ) ) {
+							$out['restored'] += (int) $wpdb->insert( 'ec_zone', (array) $row );
+							foreach ( (array) $answers['us_zones']['locations'] as $location ) {
+								if ( (int) $location['zone_id'] === (int) $row['zone_id'] ) {
+									$wpdb->insert( 'ec_zone_to_location', (array) $location );
+								}
+							}
+						}
+					}
+				}
+				$this->remember( 'us_zones', null );
+				$this->remember( 'zones_added', $added ? $added : null );
+				return $out;
+			}
+			$own = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT z.zone_id FROM ec_zone z INNER JOIN ec_zone_to_location l ON l.zone_id = z.zone_id
+					GROUP BY z.zone_id HAVING COUNT(*) = 1 AND MAX( l.iso2_cnt ) = %s AND MAX( l.code_sta ) IN ( '', '-1' )",
+					$country
+				)
+			);
+			if ( ! $own ) {
+				$name = class_exists( 'wp_easycart_address' ) ? wp_easycart_address::country_name( $country ) : $country;
+				$wpdb->insert( 'ec_zone', array( 'zone_name' => $name ) );
+				$out['added'] = (int) $wpdb->insert_id;
+				if ( $out['added'] ) {
+					$wpdb->insert( 'ec_zone_to_location', array( 'zone_id' => $out['added'], 'iso2_cnt' => $country, 'code_sta' => '' ) );
+					$added[ $country ] = $out['added'];
+				}
+			}
+			$us_zones = $wpdb->get_results( "SELECT * FROM ec_zone WHERE ( zone_id = 8 AND zone_name = 'Lower 48 States' ) OR ( zone_id = 9 AND zone_name = 'Alaska and Hawaii' )", ARRAY_A );
+			if ( $us_zones ) {
+				$ids    = implode( ',', array_map( 'intval', wp_list_pluck( $us_zones, 'zone_id' ) ) );
+				$in_use = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_shippingrate WHERE zone_id IN ( $ids )" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+					+ (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_order' );
+				foreach ( array( 'ec_fee', 'ec_offer' ) as $table ) {
+					if ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+						$in_use += (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- a fixed table name.
+					}
+				}
+				if ( 0 === $in_use ) {
+					/* Kept, so a store that turns out to be in the US gets them back. */
+					$this->remember(
+						'us_zones',
+						array(
+							'zones'     => $us_zones,
+							'locations' => $wpdb->get_results( "SELECT * FROM ec_zone_to_location WHERE zone_id IN ( $ids )", ARRAY_A ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+						)
+					);
+					$wpdb->query( "DELETE FROM ec_zone_to_location WHERE zone_id IN ( $ids )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+					$out['removed'] = (int) $wpdb->query( "DELETE FROM ec_zone WHERE zone_id IN ( $ids )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+				}
+			}
+			$this->remember( 'zones_added', $added ? $added : null );
+			if ( function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( 'wpeasycart-zone-ids-' . $country . '-' );
+			}
+			return $out;
+		}
+
 		public function get_shipping_rate_counts() {
 			global $wpdb;
 			$row = $wpdb->get_row( 'SELECT COALESCE( SUM( is_method_based ), 0 ) AS m, COALESCE( SUM( is_price_based ), 0 ) AS p, COALESCE( SUM( is_weight_based ), 0 ) AS w FROM ec_shippingrate WHERE is_demo_item = 0' );
@@ -840,1793 +1434,122 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 			}
 		}
 
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- each step handler below reads $_POST only after wp_easycart_admin_verification()->verify_access() checked its nonce, a method the sniff cannot see.
 		public function process_location_submit() {
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
 				return false;
 			}
 			if ( isset( $_POST['ec_admin_form_action'] ) && 'process-wizard-location' == $_POST['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-process-wizard-location' ) ) {
-					$countries = array(
-						'US' => __( 'United States (US)', 'wp-easycart' ),
-						'CA' => __( 'Canada', 'wp-easycart' ),
-						'GB' => __( 'United Kingdom (UK)', 'wp-easycart' ),
-						'AU' => __( 'Australia', 'wp-easycart' ),
-						'AF' => __( 'Afghanistan', 'wp-easycart' ),
-						'AX' => __( '&#197;land Islands', 'wp-easycart' ),
-						'AL' => __( 'Albania', 'wp-easycart' ),
-						'DZ' => __( 'Algeria', 'wp-easycart' ),
-						'AS' => __( 'American Samoa', 'wp-easycart' ),
-						'AD' => __( 'Andorra', 'wp-easycart' ),
-						'AO' => __( 'Angola', 'wp-easycart' ),
-						'AI' => __( 'Anguilla', 'wp-easycart' ),
-						'AQ' => __( 'Antarctica', 'wp-easycart' ),
-						'AG' => __( 'Antigua and Barbuda', 'wp-easycart' ),
-						'AR' => __( 'Argentina', 'wp-easycart' ),
-						'AM' => __( 'Armenia', 'wp-easycart' ),
-						'AW' => __( 'Aruba', 'wp-easycart' ),
-						'AU' => __( 'Australia', 'wp-easycart' ),
-						'AT' => __( 'Austria', 'wp-easycart' ),
-						'AZ' => __( 'Azerbaijan', 'wp-easycart' ),
-						'BS' => __( 'Bahamas', 'wp-easycart' ),
-						'BH' => __( 'Bahrain', 'wp-easycart' ),
-						'BD' => __( 'Bangladesh', 'wp-easycart' ),
-						'BB' => __( 'Barbados', 'wp-easycart' ),
-						'BY' => __( 'Belarus', 'wp-easycart' ),
-						'BE' => __( 'Belgium', 'wp-easycart' ),
-						'PW' => __( 'Belau', 'wp-easycart' ),
-						'BZ' => __( 'Belize', 'wp-easycart' ),
-						'BJ' => __( 'Benin', 'wp-easycart' ),
-						'BM' => __( 'Bermuda', 'wp-easycart' ),
-						'BT' => __( 'Bhutan', 'wp-easycart' ),
-						'BO' => __( 'Bolivia', 'wp-easycart' ),
-						'BQ' => __( 'Bonaire, Saint Eustatius and Saba', 'wp-easycart' ),
-						'BA' => __( 'Bosnia and Herzegovina', 'wp-easycart' ),
-						'BW' => __( 'Botswana', 'wp-easycart' ),
-						'BV' => __( 'Bouvet Island', 'wp-easycart' ),
-						'BR' => __( 'Brazil', 'wp-easycart' ),
-						'IO' => __( 'British Indian Ocean Territory', 'wp-easycart' ),
-						'VG' => __( 'British Virgin Islands', 'wp-easycart' ),
-						'BN' => __( 'Brunei', 'wp-easycart' ),
-						'BG' => __( 'Bulgaria', 'wp-easycart' ),
-						'BF' => __( 'Burkina Faso', 'wp-easycart' ),
-						'BI' => __( 'Burundi', 'wp-easycart' ),
-						'KH' => __( 'Cambodia', 'wp-easycart' ),
-						'CM' => __( 'Cameroon', 'wp-easycart' ),
-						'CA' => __( 'Canada', 'wp-easycart' ),
-						'CV' => __( 'Cape Verde', 'wp-easycart' ),
-						'KY' => __( 'Cayman Islands', 'wp-easycart' ),
-						'CF' => __( 'Central African Republic', 'wp-easycart' ),
-						'TD' => __( 'Chad', 'wp-easycart' ),
-						'CL' => __( 'Chile', 'wp-easycart' ),
-						'CN' => __( 'China', 'wp-easycart' ),
-						'CX' => __( 'Christmas Island', 'wp-easycart' ),
-						'CC' => __( 'Cocos (Keeling) Islands', 'wp-easycart' ),
-						'CO' => __( 'Colombia', 'wp-easycart' ),
-						'KM' => __( 'Comoros', 'wp-easycart' ),
-						'CG' => __( 'Congo (Brazzaville)', 'wp-easycart' ),
-						'CD' => __( 'Congo (Kinshasa)', 'wp-easycart' ),
-						'CK' => __( 'Cook Islands', 'wp-easycart' ),
-						'CR' => __( 'Costa Rica', 'wp-easycart' ),
-						'HR' => __( 'Croatia', 'wp-easycart' ),
-						'CU' => __( 'Cuba', 'wp-easycart' ),
-						'CW' => __( 'Cura&ccedil;ao', 'wp-easycart' ),
-						'CY' => __( 'Cyprus', 'wp-easycart' ),
-						'CZ' => __( 'Czech Republic', 'wp-easycart' ),
-						'DK' => __( 'Denmark', 'wp-easycart' ),
-						'DJ' => __( 'Djibouti', 'wp-easycart' ),
-						'DM' => __( 'Dominica', 'wp-easycart' ),
-						'DO' => __( 'Dominican Republic', 'wp-easycart' ),
-						'EC' => __( 'Ecuador', 'wp-easycart' ),
-						'EG' => __( 'Egypt', 'wp-easycart' ),
-						'SV' => __( 'El Salvador', 'wp-easycart' ),
-						'GQ' => __( 'Equatorial Guinea', 'wp-easycart' ),
-						'ER' => __( 'Eritrea', 'wp-easycart' ),
-						'EE' => __( 'Estonia', 'wp-easycart' ),
-						'ET' => __( 'Ethiopia', 'wp-easycart' ),
-						'FK' => __( 'Falkland Islands', 'wp-easycart' ),
-						'FO' => __( 'Faroe Islands', 'wp-easycart' ),
-						'FJ' => __( 'Fiji', 'wp-easycart' ),
-						'FI' => __( 'Finland', 'wp-easycart' ),
-						'FR' => __( 'France', 'wp-easycart' ),
-						'GF' => __( 'French Guiana', 'wp-easycart' ),
-						'PF' => __( 'French Polynesia', 'wp-easycart' ),
-						'TF' => __( 'French Southern Territories', 'wp-easycart' ),
-						'GA' => __( 'Gabon', 'wp-easycart' ),
-						'GM' => __( 'Gambia', 'wp-easycart' ),
-						'GE' => __( 'Georgia', 'wp-easycart' ),
-						'DE' => __( 'Germany', 'wp-easycart' ),
-						'GH' => __( 'Ghana', 'wp-easycart' ),
-						'GI' => __( 'Gibraltar', 'wp-easycart' ),
-						'GR' => __( 'Greece', 'wp-easycart' ),
-						'GL' => __( 'Greenland', 'wp-easycart' ),
-						'GD' => __( 'Grenada', 'wp-easycart' ),
-						'GP' => __( 'Guadeloupe', 'wp-easycart' ),
-						'GU' => __( 'Guam', 'wp-easycart' ),
-						'GT' => __( 'Guatemala', 'wp-easycart' ),
-						'GG' => __( 'Guernsey', 'wp-easycart' ),
-						'GN' => __( 'Guinea', 'wp-easycart' ),
-						'GW' => __( 'Guinea-Bissau', 'wp-easycart' ),
-						'GY' => __( 'Guyana', 'wp-easycart' ),
-						'HT' => __( 'Haiti', 'wp-easycart' ),
-						'HM' => __( 'Heard Island and McDonald Islands', 'wp-easycart' ),
-						'HN' => __( 'Honduras', 'wp-easycart' ),
-						'HK' => __( 'Hong Kong', 'wp-easycart' ),
-						'HU' => __( 'Hungary', 'wp-easycart' ),
-						'IS' => __( 'Iceland', 'wp-easycart' ),
-						'IN' => __( 'India', 'wp-easycart' ),
-						'ID' => __( 'Indonesia', 'wp-easycart' ),
-						'IR' => __( 'Iran', 'wp-easycart' ),
-						'IQ' => __( 'Iraq', 'wp-easycart' ),
-						'IE' => __( 'Ireland', 'wp-easycart' ),
-						'IM' => __( 'Isle of Man', 'wp-easycart' ),
-						'IL' => __( 'Israel', 'wp-easycart' ),
-						'IT' => __( 'Italy', 'wp-easycart' ),
-						'CI' => __( 'Ivory Coast', 'wp-easycart' ),
-						'JM' => __( 'Jamaica', 'wp-easycart' ),
-						'JP' => __( 'Japan', 'wp-easycart' ),
-						'JE' => __( 'Jersey', 'wp-easycart' ),
-						'JO' => __( 'Jordan', 'wp-easycart' ),
-						'KZ' => __( 'Kazakhstan', 'wp-easycart' ),
-						'KE' => __( 'Kenya', 'wp-easycart' ),
-						'KI' => __( 'Kiribati', 'wp-easycart' ),
-						'KW' => __( 'Kuwait', 'wp-easycart' ),
-						'KG' => __( 'Kyrgyzstan', 'wp-easycart' ),
-						'LA' => __( 'Laos', 'wp-easycart' ),
-						'LV' => __( 'Latvia', 'wp-easycart' ),
-						'LB' => __( 'Lebanon', 'wp-easycart' ),
-						'LS' => __( 'Lesotho', 'wp-easycart' ),
-						'LR' => __( 'Liberia', 'wp-easycart' ),
-						'LY' => __( 'Libya', 'wp-easycart' ),
-						'LI' => __( 'Liechtenstein', 'wp-easycart' ),
-						'LT' => __( 'Lithuania', 'wp-easycart' ),
-						'LU' => __( 'Luxembourg', 'wp-easycart' ),
-						'MO' => __( 'Macao S.A.R., China', 'wp-easycart' ),
-						'MK' => __( 'Macedonia', 'wp-easycart' ),
-						'MG' => __( 'Madagascar', 'wp-easycart' ),
-						'MW' => __( 'Malawi', 'wp-easycart' ),
-						'MY' => __( 'Malaysia', 'wp-easycart' ),
-						'MV' => __( 'Maldives', 'wp-easycart' ),
-						'ML' => __( 'Mali', 'wp-easycart' ),
-						'MT' => __( 'Malta', 'wp-easycart' ),
-						'MH' => __( 'Marshall Islands', 'wp-easycart' ),
-						'MQ' => __( 'Martinique', 'wp-easycart' ),
-						'MR' => __( 'Mauritania', 'wp-easycart' ),
-						'MU' => __( 'Mauritius', 'wp-easycart' ),
-						'YT' => __( 'Mayotte', 'wp-easycart' ),
-						'MX' => __( 'Mexico', 'wp-easycart' ),
-						'FM' => __( 'Micronesia', 'wp-easycart' ),
-						'MD' => __( 'Moldova', 'wp-easycart' ),
-						'MC' => __( 'Monaco', 'wp-easycart' ),
-						'MN' => __( 'Mongolia', 'wp-easycart' ),
-						'ME' => __( 'Montenegro', 'wp-easycart' ),
-						'MS' => __( 'Montserrat', 'wp-easycart' ),
-						'MA' => __( 'Morocco', 'wp-easycart' ),
-						'MZ' => __( 'Mozambique', 'wp-easycart' ),
-						'MM' => __( 'Myanmar', 'wp-easycart' ),
-						'NA' => __( 'Namibia', 'wp-easycart' ),
-						'NR' => __( 'Nauru', 'wp-easycart' ),
-						'NP' => __( 'Nepal', 'wp-easycart' ),
-						'NL' => __( 'Netherlands', 'wp-easycart' ),
-						'NC' => __( 'New Caledonia', 'wp-easycart' ),
-						'NZ' => __( 'New Zealand', 'wp-easycart' ),
-						'NI' => __( 'Nicaragua', 'wp-easycart' ),
-						'NE' => __( 'Niger', 'wp-easycart' ),
-						'NG' => __( 'Nigeria', 'wp-easycart' ),
-						'NU' => __( 'Niue', 'wp-easycart' ),
-						'NF' => __( 'Norfolk Island', 'wp-easycart' ),
-						'MP' => __( 'Northern Mariana Islands', 'wp-easycart' ),
-						'KP' => __( 'North Korea', 'wp-easycart' ),
-						'NO' => __( 'Norway', 'wp-easycart' ),
-						'OM' => __( 'Oman', 'wp-easycart' ),
-						'PK' => __( 'Pakistan', 'wp-easycart' ),
-						'PS' => __( 'Palestinian Territory', 'wp-easycart' ),
-						'PA' => __( 'Panama', 'wp-easycart' ),
-						'PG' => __( 'Papua New Guinea', 'wp-easycart' ),
-						'PY' => __( 'Paraguay', 'wp-easycart' ),
-						'PE' => __( 'Peru', 'wp-easycart' ),
-						'PH' => __( 'Philippines', 'wp-easycart' ),
-						'PN' => __( 'Pitcairn', 'wp-easycart' ),
-						'PL' => __( 'Poland', 'wp-easycart' ),
-						'PT' => __( 'Portugal', 'wp-easycart' ),
-						'PR' => __( 'Puerto Rico', 'wp-easycart' ),
-						'QA' => __( 'Qatar', 'wp-easycart' ),
-						'RE' => __( 'Reunion', 'wp-easycart' ),
-						'RO' => __( 'Romania', 'wp-easycart' ),
-						'RU' => __( 'Russia', 'wp-easycart' ),
-						'RW' => __( 'Rwanda', 'wp-easycart' ),
-						'BL' => __( 'Saint Barth&eacute;lemy', 'wp-easycart' ),
-						'SH' => __( 'Saint Helena', 'wp-easycart' ),
-						'KN' => __( 'Saint Kitts and Nevis', 'wp-easycart' ),
-						'LC' => __( 'Saint Lucia', 'wp-easycart' ),
-						'MF' => __( 'Saint Martin (French part)', 'wp-easycart' ),
-						'SX' => __( 'Saint Martin (Dutch part)', 'wp-easycart' ),
-						'PM' => __( 'Saint Pierre and Miquelon', 'wp-easycart' ),
-						'VC' => __( 'Saint Vincent and the Grenadines', 'wp-easycart' ),
-						'SM' => __( 'San Marino', 'wp-easycart' ),
-						'ST' => __( 'S&atilde;o Tom&eacute; and Pr&iacute;ncipe', 'wp-easycart' ),
-						'SA' => __( 'Saudi Arabia', 'wp-easycart' ),
-						'SN' => __( 'Senegal', 'wp-easycart' ),
-						'RS' => __( 'Serbia', 'wp-easycart' ),
-						'SC' => __( 'Seychelles', 'wp-easycart' ),
-						'SL' => __( 'Sierra Leone', 'wp-easycart' ),
-						'SG' => __( 'Singapore', 'wp-easycart' ),
-						'SK' => __( 'Slovak Republic', 'wp-easycart' ),
-						'SI' => __( 'Slovenia', 'wp-easycart' ),
-						'SB' => __( 'Solomon Islands', 'wp-easycart' ),
-						'SO' => __( 'Somalia', 'wp-easycart' ),
-						'ZA' => __( 'South Africa', 'wp-easycart' ),
-						'GS' => __( 'South Georgia/Sandwich Islands', 'wp-easycart' ),
-						'KR' => __( 'South Korea', 'wp-easycart' ),
-						'SS' => __( 'South Sudan', 'wp-easycart' ),
-						'ES' => __( 'Spain', 'wp-easycart' ),
-						'LK' => __( 'Sri Lanka', 'wp-easycart' ),
-						'SD' => __( 'Sudan', 'wp-easycart' ),
-						'SR' => __( 'Suriname', 'wp-easycart' ),
-						'SJ' => __( 'Svalbard and Jan Mayen', 'wp-easycart' ),
-						'SZ' => __( 'Swaziland', 'wp-easycart' ),
-						'SE' => __( 'Sweden', 'wp-easycart' ),
-						'CH' => __( 'Switzerland', 'wp-easycart' ),
-						'SY' => __( 'Syria', 'wp-easycart' ),
-						'TW' => __( 'Taiwan', 'wp-easycart' ),
-						'TJ' => __( 'Tajikistan', 'wp-easycart' ),
-						'TZ' => __( 'Tanzania', 'wp-easycart' ),
-						'TH' => __( 'Thailand', 'wp-easycart' ),
-						'TL' => __( 'Timor-Leste', 'wp-easycart' ),
-						'TG' => __( 'Togo', 'wp-easycart' ),
-						'TK' => __( 'Tokelau', 'wp-easycart' ),
-						'TO' => __( 'Tonga', 'wp-easycart' ),
-						'TT' => __( 'Trinidad and Tobago', 'wp-easycart' ),
-						'TN' => __( 'Tunisia', 'wp-easycart' ),
-						'TR' => __( 'Turkey', 'wp-easycart' ),
-						'TM' => __( 'Turkmenistan', 'wp-easycart' ),
-						'TC' => __( 'Turks and Caicos Islands', 'wp-easycart' ),
-						'TV' => __( 'Tuvalu', 'wp-easycart' ),
-						'UG' => __( 'Uganda', 'wp-easycart' ),
-						'UA' => __( 'Ukraine', 'wp-easycart' ),
-						'AE' => __( 'United Arab Emirates', 'wp-easycart' ),
-						'GB' => __( 'United Kingdom (UK)', 'wp-easycart' ),
-						'US' => __( 'United States (US)', 'wp-easycart' ),
-						'UM' => __( 'United States (US) Minor Outlying Islands', 'wp-easycart' ),
-						'VI' => __( 'United States (US) Virgin Islands', 'wp-easycart' ),
-						'UY' => __( 'Uruguay', 'wp-easycart' ),
-						'UZ' => __( 'Uzbekistan', 'wp-easycart' ),
-						'VU' => __( 'Vanuatu', 'wp-easycart' ),
-						'VA' => __( 'Vatican', 'wp-easycart' ),
-						'VE' => __( 'Venezuela', 'wp-easycart' ),
-						'VN' => __( 'Vietnam', 'wp-easycart' ),
-						'WF' => __( 'Wallis and Futuna', 'wp-easycart' ),
-						'EH' => __( 'Western Sahara', 'wp-easycart' ),
-						'WS' => __( 'Samoa', 'wp-easycart' ),
-						'YE' => __( 'Yemen', 'wp-easycart' ),
-						'ZM' => __( 'Zambia', 'wp-easycart' ),
-						'ZW' => __( 'Zimbabwe', 'wp-easycart' ),
-					);
-
-					$locales =  array(
-						'US' => array(
-							'currency_code'  => 'USD',
-							'currency_pos'	=> 'left',
-							'thousand_sep'	=> ',',
-							'decimal_sep'	 => '.',
-							'num_decimals'	=> 2,
-							'weight_unit'	 => 'lbs',
-							'dimension_unit' => 'in',
-							'tax_rates'		=> array(
-								'AL' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'AL',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'AZ' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'AZ',
-										'rate'     => '5.6000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'AR' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'AR',
-										'rate'     => '6.5000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'CA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'CA',
-										'rate'     => '7.5000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'CO' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'CO',
-										'rate'     => '2.9000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'CT' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'CT',
-										'rate'     => '6.3500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'DC' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'DC',
-										'rate'     => '5.7500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'FL' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'FL',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'GA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'GA',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'GU' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'GU',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'HI' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'HI',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'ID' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'ID',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'IL' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'IL',
-										'rate'     => '6.2500',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'IN' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'IN',
-										'rate'     => '7.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'IA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'IA',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'KS' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'KS',
-										'rate'     => '6.1500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'KY' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'KY',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'LA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'LA',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'ME' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'ME',
-										'rate'     => '5.5000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'MD' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MD',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'MA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MA',
-										'rate'     => '6.2500',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'MI' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MI',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'MN' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MN',
-										'rate'     => '6.8750',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'MS' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MS',
-										'rate'     => '7.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'MO' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'MO',
-										'rate'     => '4.225',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'NE' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NE',
-										'rate'     => '5.5000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'NV' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NV',
-										'rate'     => '6.8500',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'NJ' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NJ',
-										'rate'     => '7.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'NM' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NM',
-										'rate'     => '5.1250',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'NY' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NY',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'NC' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'NC',
-										'rate'     => '4.7500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'ND' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'ND',
-										'rate'     => '5.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'OH' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'OH',
-										'rate'     => '5.7500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'OK' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'OK',
-										'rate'     => '4.5000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'PA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'PA',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'PR' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'PR',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'RI' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'RI',
-										'rate'     => '7.0000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'SC' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'SC',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'SD' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'SD',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'TN' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'TN',
-										'rate'     => '7.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'TX' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'TX',
-										'rate'     => '6.2500',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'UT' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'UT',
-										'rate'     => '5.9500',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'VT' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'VT',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'VA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'VA',
-										'rate'     => '5.3000',
-										'name'     => 'State Tax',
-										'shipping' => false,
-									),
-								),
-								'WA' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'WA',
-										'rate'     => '6.5000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'WV' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'WV',
-										'rate'     => '6.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'WI' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'WI',
-										'rate'     => '5.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-								'WY' => array(
-									array(
-										'country'  => 'US',
-										'state'    => 'WY',
-										'rate'     => '4.0000',
-										'name'     => 'State Tax',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'CA' => array(
-							'currency_code'  => 'CAD',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'BC' => array(
-									array(
-										'country'  => 'CA',
-										'state'    => 'BC',
-										'rate'     => '7.0000',
-										'name'     => _x( 'PST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => false,
-										'priority' => 2,
-									),
-								),
-								'SK' => array(
-									array(
-										'country'  => 'CA',
-										'state'    => 'SK',
-										'rate'     => '5.0000',
-										'name'     => _x( 'PST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => false,
-										'priority' => 2,
-									),
-								),
-								'MB' => array(
-									array(
-										'country'  => 'CA',
-										'state'    => 'MB',
-										'rate'     => '8.0000',
-										'name'     => _x( 'PST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => false,
-										'priority' => 2,
-									),
-								),
-								'QC' => array(
-									array(
-										'country'  => 'CA',
-										'state'    => 'QC',
-										'rate'     => '9.975',
-										'name'     => _x( 'PST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => false,
-										'priority' => 2,
-									),
-								),
-								'*' => array(
-									array(
-										'country'  => 'CA',
-										'state'    => 'ON',
-										'rate'     => '13.0000',
-										'name'     => _x( 'HST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'NL',
-										'rate'     => '13.0000',
-										'name'     => _x( 'HST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'NB',
-										'rate'     => '13.0000',
-										'name'     => _x( 'HST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'PE',
-										'rate'     => '14.0000',
-										'name'     => _x( 'HST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'NS',
-										'rate'     => '15.0000',
-										'name'     => _x( 'HST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'AB',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'BC',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'NT',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'NU',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'YT',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'SK',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'MB',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-									array(
-										'country'  => 'CA',
-										'state'    => 'QC',
-										'rate'     => '5.0000',
-										'name'     => _x( 'GST', 'Canadian Tax Rates', 'wp-easycart' ),
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'AT' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'in',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'AT',
-										'state'    => '',
-										'rate'     => '20.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'AU' => array(
-							'currency_code'  => 'AUD',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'AU',
-										'state'    => '',
-										'rate'     => '10.0000',
-										'name'     => 'GST',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'BD' => array(
-							'currency_code'  => 'BDT',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'in',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'BD',
-										'state'    => '',
-										'rate'     => '15.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'BE' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-								  array(
-										'country'  => 'BE',
-										'state'    => '',
-										'rate'     => '21.0000',
-										'name'     => 'BTW',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'BR' => array(
-							'currency_code'  => 'BRL',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(),
-						),
-						'CH' => array(
-							'currency_code'  => 'CHF',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => "'",
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'CH',
-										'state'    => '',
-										'rate'     => '7.7000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'CZ' => array(
-							'currency_code'  => 'CZK',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'CZ',
-										'state'    => '',
-										'rate'     => '21.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'DE' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'DE',
-										'state'    => '',
-										'rate'     => '19.0000',
-										'name'     => 'Mwst.',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'DK' => array(
-							'currency_code'  => 'DKK',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'DK',
-										'state'    => '',
-										'rate'     => '25.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'EE' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'EE',
-										'state'    => '',
-										'rate'     => '20.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'ES' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'ES',
-										'state'    => '',
-										'rate'     => '21.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'FI' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'FI',
-										'state'    => '',
-										'rate'     => '24.0000',
-										'name'     => 'ALV',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'FR' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'FR',
-										'state'    => '',
-										'rate'     => '20.0000',
-										'name'     => 'TVA',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'GB' => array(
-							'currency_code'  => 'GBP',
-							'currency_pos'	=> 'left',
-							'thousand_sep'	=> ',',
-							'decimal_sep'	 => '.',
-							'num_decimals'	=> 2,
-							'weight_unit'	 => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'		=> array(
-								'' => array(
-									array(
-										'country'  => 'GB',
-										'state'	 => '',
-										'rate'	  => '20.0000',
-										'name'	  => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'GR' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'GR',
-										'state'    => '',
-										'rate'     => '24.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'HU' => array(
-							'currency_code'  => 'HUF',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 0,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'HU',
-										'state'    => '',
-										'rate'     => '27.0000',
-										'name'     => 'ÁFA',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'IE' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'IE',
-										'state'    => '',
-										'rate'     => '23.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'IS' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'IS',
-										'state'    => '',
-										'rate'     => '24.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'IT' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'IT',
-										'state'    => '',
-										'rate'     => '22.0000',
-										'name'     => 'IVA',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'JP' => array(
-							'currency_code'  => 'JPY',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 0,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'JP',
-										'state'    => '',
-										'rate'     => '8.0000',
-										'name'     => __( 'Consumption tax', 'wp-easycart' ),
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'LV' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'LV',
-										'state'    => '',
-										'rate'     => '21.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'LU' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'LU',
-										'state'    => '',
-										'rate'     => '17.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'NL' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'NL',
-										'state'    => '',
-										'rate'     => '21.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'NO' => array(
-							'currency_code'  => 'Kr',
-							'currency_pos'   => 'left_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'NO',
-										'state'    => '',
-										'rate'     => '25.0000',
-										'name'     => 'MVA',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'NP' => array(
-							'currency_code'  => 'NPR',
-							'currency_pos'   => 'left_space',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'NP',
-										'state'    => '',
-										'rate'     => '13.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'PL' => array(
-							'currency_code'  => 'PLN',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'PL',
-										'state'    => '',
-										'rate'     => '23.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'PT' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'PT',
-										'state'    => '',
-										'rate'     => '23.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'SE' => array(
-							'currency_code'  => 'SEK',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => ' ',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'SE',
-										'state'    => '',
-										'rate'     => '25.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'SI' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'SI',
-										'state'    => '',
-										'rate'     => '22.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'SK' => array(
-							'currency_code'  => 'EUR',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'SK',
-										'state'    => '',
-										'rate'     => '20.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'RO' => array(
-							'currency_code'  => 'RON',
-							'currency_pos'   => 'right_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'RO',
-										'state'    => '',
-										'rate'     => '19.0000',
-										'name'     => 'TVA',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'TH' => array(
-							'currency_code'  => 'THB',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'TH',
-										'state'    => '',
-										'rate'     => '7.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'TR' => array(
-							'currency_code'  => 'TRY',
-							'currency_pos'   => 'left_space',
-							'thousand_sep'   => '.',
-							'decimal_sep'    => ',',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'TR',
-										'state'    => '',
-										'rate'     => '18.0000',
-										'name'     => 'KDV',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-						'ZA' => array(
-							'currency_code'  => 'ZAR',
-							'currency_pos'   => 'left',
-							'thousand_sep'   => ',',
-							'decimal_sep'    => '.',
-							'num_decimals'   => 2,
-							'weight_unit'    => 'kg',
-							'dimension_unit' => 'cm',
-							'tax_rates'      => array(
-								'' => array(
-									array(
-										'country'  => 'ZA',
-										'state'    => '',
-										'rate'     => '15.0000',
-										'name'     => 'VAT',
-										'shipping' => true,
-									),
-								),
-							),
-						),
-					);
-
-					$currency_symbols = array(
-						'AED' => '&#x62f;.&#x625;',
-						'AFN' => '&#x60b;',
-						'ALL' => 'L',
-						'AMD' => 'AMD',
-						'ANG' => '&fnof;',
-						'AOA' => 'Kz',
-						'ARS' => '$',
-						'AUD' => '$',
-						'AWG' => 'Afl.',
-						'AZN' => 'AZN',
-						'BAM' => 'KM',
-						'BBD' => '$',
-						'BDT' => '&#2547;&nbsp;',
-						'BGN' => '&#1083;&#1074;.',
-						'BHD' => '.&#x62f;.&#x628;',
-						'BIF' => 'Fr',
-						'BMD' => '$',
-						'BND' => '$',
-						'BOB' => 'Bs.',
-						'BRL' => '&#82;$',
-						'BSD' => '$',
-						'BTC' => '&#3647;',
-						'BTN' => 'Nu.',
-						'BWP' => 'P',
-						'BYR' => 'Br',
-						'BZD' => '$',
-						'CAD' => '$',
-						'CDF' => 'Fr',
-						'CHF' => '&#67;&#72;&#70;',
-						'CLP' => '$',
-						'CNY' => '&yen;',
-						'COP' => '$',
-						'CRC' => '&#x20a1;',
-						'CUC' => '$',
-						'CUP' => '$',
-						'CVE' => '$',
-						'CZK' => '&#75;&#269;',
-						'DJF' => 'Fr',
-						'DKK' => 'DKK',
-						'DOP' => 'RD$',
-						'DZD' => '&#x62f;.&#x62c;',
-						'EGP' => 'EGP',
-						'ERN' => 'Nfk',
-						'ETB' => 'Br',
-						'EUR' => '&euro;',
-						'FJD' => '$',
-						'FKP' => '&pound;',
-						'GBP' => '&pound;',
-						'GEL' => '&#x10da;',
-						'GGP' => '&pound;',
-						'GHS' => '&#x20b5;',
-						'GIP' => '&pound;',
-						'GMD' => 'D',
-						'GNF' => 'Fr',
-						'GTQ' => 'Q',
-						'GYD' => '$',
-						'HKD' => '$',
-						'HNL' => 'L',
-						'HRK' => 'Kn',
-						'HTG' => 'G',
-						'HUF' => '&#70;&#116;',
-						'IDR' => 'Rp',
-						'ILS' => '&#8362;',
-						'IMP' => '&pound;',
-						'INR' => '&#8377;',
-						'IQD' => '&#x639;.&#x62f;',
-						'IRR' => '&#xfdfc;',
-						'IRT' => '&#x062A;&#x0648;&#x0645;&#x0627;&#x0646;',
-						'ISK' => 'kr.',
-						'JEP' => '&pound;',
-						'JMD' => '$',
-						'JOD' => '&#x62f;.&#x627;',
-						'JPY' => '&yen;',
-						'KES' => 'KSh',
-						'KGS' => '&#x441;&#x43e;&#x43c;',
-						'KHR' => '&#x17db;',
-						'KMF' => 'Fr',
-						'KPW' => '&#x20a9;',
-						'KRW' => '&#8361;',
-						'KWD' => '&#x62f;.&#x643;',
-						'KYD' => '$',
-						'KZT' => 'KZT',
-						'LAK' => '&#8365;',
-						'LBP' => '&#x644;.&#x644;',
-						'LKR' => '&#xdbb;&#xdd4;',
-						'LRD' => '$',
-						'LSL' => 'L',
-						'LYD' => '&#x644;.&#x62f;',
-						'MAD' => '&#x62f;.&#x645;.',
-						'MDL' => 'MDL',
-						'MGA' => 'Ar',
-						'MKD' => '&#x434;&#x435;&#x43d;',
-						'MMK' => 'Ks',
-						'MNT' => '&#x20ae;',
-						'MOP' => 'P',
-						'MRO' => 'UM',
-						'MUR' => '&#x20a8;',
-						'MVR' => '.&#x783;',
-						'MWK' => 'MK',
-						'MXN' => '$',
-						'MYR' => '&#82;&#77;',
-						'MZN' => 'MT',
-						'NAD' => '$',
-						'NGN' => '&#8358;',
-						'NIO' => 'C$',
-						'NOK' => '&#107;&#114;',
-						'NPR' => '&#8360;',
-						'NZD' => '$',
-						'OMR' => '&#x631;.&#x639;.',
-						'PAB' => 'B/.',
-						'PEN' => 'S/.',
-						'PGK' => 'K',
-						'PHP' => '&#8369;',
-						'PKR' => '&#8360;',
-						'PLN' => '&#122;&#322;',
-						'PRB' => '&#x440;.',
-						'PYG' => '&#8370;',
-						'QAR' => '&#x631;.&#x642;',
-						'RMB' => '&yen;',
-						'RON' => 'lei',
-						'RSD' => '&#x434;&#x438;&#x43d;.',
-						'RUB' => '&#8381;',
-						'RWF' => 'Fr',
-						'SAR' => '&#x631;.&#x633;',
-						'SBD' => '$',
-						'SCR' => '&#x20a8;',
-						'SDG' => '&#x62c;.&#x633;.',
-						'SEK' => '&#107;&#114;',
-						'SGD' => '$',
-						'SHP' => '&pound;',
-						'SLL' => 'Le',
-						'SOS' => 'Sh',
-						'SRD' => '$',
-						'SSP' => '&pound;',
-						'STD' => 'Db',
-						'SYP' => '&#x644;.&#x633;',
-						'SZL' => 'L',
-						'THB' => '&#3647;',
-						'TJS' => '&#x405;&#x41c;',
-						'TMT' => 'm',
-						'TND' => '&#x62f;.&#x62a;',
-						'TOP' => 'T$',
-						'TRY' => '&#8378;',
-						'TTD' => '$',
-						'TWD' => '&#78;&#84;$',
-						'TZS' => 'Sh',
-						'UAH' => '&#8372;',
-						'UGX' => 'UGX',
-						'USD' => '$',
-						'UYU' => '$',
-						'UZS' => 'UZS',
-						'VEF' => 'Bs F',
-						'VND' => '&#8363;',
-						'VUV' => 'Vt',
-						'WST' => 'T',
-						'XAF' => 'CFA',
-						'XCD' => '$',
-						'XOF' => 'CFA',
-						'XPF' => 'Fr',
-						'YER' => '&#xfdfc;',
-						'ZAR' => '&#82;',
-						'ZMW' => 'ZK',
-					);
-					$states = array();
-					$states['CA'] = array(
-						'AB' => __( 'Alberta', 'wp-easycart' ),
-						'BC' => __( 'British Columbia', 'wp-easycart' ),
-						'MB' => __( 'Manitoba', 'wp-easycart' ),
-						'NB' => __( 'New Brunswick', 'wp-easycart' ),
-						'NL' => __( 'Newfoundland', 'wp-easycart' ),
-						'NT' => __( 'Northwest Territories', 'wp-easycart' ),
-						'NS' => __( 'Nova Scotia', 'wp-easycart' ),
-						'NU' => __( 'Nunavut', 'wp-easycart' ),
-						'ON' => __( 'Ontario', 'wp-easycart' ),
-						'PE' => __( 'Prince Edward Island', 'wp-easycart' ),
-						'QC' => __( 'Quebec', 'wp-easycart' ),
-						'SK' => __( 'Saskatchewan', 'wp-easycart' ),
-						'YT' => __( 'Yukon', 'wp-easycart' ),
-					);
-
 					/* Posted as "CC" or "CC_ST". Split first, then validate the country part —
 					   the previous check ran isset() on the combined string, which never matched
 					   a state locale, so US state tax rates were silently skipped. */
+					$countries        = self::data( 'countries' );
+					$currency_symbols = self::data( 'currency_symbols' );
 					$posted   = isset( $_POST['locale'] ) ? sanitize_text_field( wp_unslash( $_POST['locale'] ) ) : 'US';
 					$exploded = explode( '_', $posted );
 					$selected_locale       = ( isset( $countries[ $exploded[0] ] ) ) ? $exploded[0] : 'US';
 					$selected_state_locale = ( count( $exploded ) > 1 ) ? preg_replace( '/[^A-Z0-9]/', '', strtoupper( $exploded[1] ) ) : '';
-					$selected_currency = ( isset( $currency_symbols[$_POST['currency']] ) ) ? sanitize_text_field( $_POST['currency'] ) : 'USD';
+					$posted_currency   = isset( $_POST['currency'] ) ? strtoupper( sanitize_key( wp_unslash( $_POST['currency'] ) ) ) : '';
+					$selected_currency = isset( $currency_symbols[ $posted_currency ] ) ? $posted_currency : self::currency_for( $selected_locale );
+					$previous_country  = strtoupper( (string) get_option( 'ec_option_store_country', '' ) );
 					update_option( 'ec_option_store_locale', $selected_locale );
-					update_option( 'ec_option_base_currency', $selected_currency );
-					update_option( 'ec_option_currency', $currency_symbols[$selected_currency] );
-					if ( isset( $locales[$selected_locale] ) ) {
-						if ( $locales[$selected_locale]['currency_pos'] == 'left' ) {
-							update_option( 'ec_option_currency_symbol_location', 1 );
-						} else {
-							update_option( 'ec_option_currency_symbol_location', 0 );
+					update_option( 'ec_option_store_country', $selected_locale ); /* 6.0.5: Settings › Store details › Store country */
+					$this->pin_store_country( $selected_locale ); /* 6.0.5 ( admin review M10 ): its country first in country lists */
+					/* 6.0.5: another country on the way back: the shipping zones and the countries shipped to that the wizard set up follow
+					   it now, also when the shipping step is not visited again ( Save & exit ). A list changed since is left alone. */
+					if ( '' !== $previous_country && $previous_country !== $selected_locale ) {
+						$answers = $this->answers();
+						if ( ! empty( $answers['zones_added'] ) || ! empty( $answers['us_zones'] ) ) {
+							$this->seed_zones( $selected_locale );
 						}
-						update_option( 'ec_option_currency_decimal_symbol', $locales[$selected_locale]['decimal_sep'] );
-						update_option( 'ec_option_currency_thousands_seperator', $locales[$selected_locale]['thousand_sep'] );
-						update_option( 'ec_option_currency_decimal_places', $locales[$selected_locale]['num_decimals'] );
-						update_option( 'ec_option_paypal_currency_code', $selected_currency );
-						$paypal_locales = array( 'US', 'AU', 'AT', 'BE', 'BR', 'CA', 'CH', 'CN', 'DE', 'ES', 'GB', 'FR', 'IT', 'NL', 'PL', 'PT', 'RU' );
-						if ( in_array( $selected_locale, $paypal_locales ) )
-							update_option( 'ec_option_paypal_lc', $selected_locale );
-						if ( $locales[$selected_locale]['weight_unit'] == 'kg' )
-							update_option( 'ec_option_paypal_weight_unit', 'kgs');
-						else
-							update_option( 'ec_option_paypal_weight_unit', 'lbs' );
-
-						global $wpdb;
-
-						if ( isset( $_POST['sales_tax'] ) ) {
-							if ( $selected_locale == 'US' ) {
-								foreach ( $locales[$selected_locale]['tax_rates'] as $state_code => $tax_rates ) {
-									if ( $selected_state_locale == $state_code ) {
-										for( $i=0; $i<count( $tax_rates ); $i++ ) {
-											$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_taxrate( tax_by_state, state_rate, state_code ) VALUES( 1, %s, %s )', $tax_rates[$i]['rate'], $tax_rates[$i]['state'] ) );
-										}
-									}
-								}
-
-							} else if ( $selected_locale == 'CA' ) {
-								$canada_tax_rates = array();
-								foreach ( $locales[$selected_locale]['tax_rates'] as $tax_rates ) {
-									for( $i=0; $i<count( $tax_rates ); $i++ ) {
-										if ( !isset( $canada_tax_rates['ec_option_collect_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper'] ) ) {
-											$canada_tax_rates['ec_option_collect_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper'] = 1;
-											$canada_tax_rates['ec_option_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper_gst'] = 0.000;
-											$canada_tax_rates['ec_option_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper_hst'] = 0.000;
-											$canada_tax_rates['ec_option_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper_pst'] = 0.000;
-										}
-										$canada_tax_rates['ec_option_'.str_replace( ' ', '_', strtolower( $states['CA'][$tax_rates[$i]['state']] ) ).'_tax_shopper_'.strtolower( $tax_rates[$i]['name'] )] = $tax_rates[$i]['rate'] / 100;
-									}
-								}
-
-								if ( $selected_locale == 'CA' ) {
-									update_option( 'ec_option_enable_easy_canada_tax', 1 );
-									update_option( 'ec_option_canada_tax_options', $canada_tax_rates );
-								}
-
-							} else { // VAT or Other
-								if ( $selected_locale == 'AU' ) {
-									wp_easycart_language()->set_language_data( json_decode( html_entity_decode( str_replace( 'VAT', 'GST', json_encode( wp_easycart_language()->get_language_data() ) ) ) ) );
-									wp_easycart_language()->update_language_data();
-								}
-								foreach ( $locales[$selected_locale]['tax_rates'] as $tax_rates ) {
-									for( $i=0; $i<count( $tax_rates ); $i++ ) {
-										if ( $check_row = $wpdb->get_row( 'SELECT taxrate_id FROM ec_taxrate WHERE tax_by_vat = 1' ) )
-											$wpdb->query( $wpdb->prepare( 'UPDATE ec_taxrate SET vat_rate = %s WHERE taxrate_id = %d', $tax_rates[$i]['rate'], $check_row->taxrate_id ) );
-										else
-											$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_taxrate( tax_by_vat, vat_rate ) VALUES( 1, %s )', $tax_rates[$i]['rate'] ) );
-
-										if ( $check_row = $wpdb->get_row( $wpdb->prepare( 'SELECT id_cnt FROM ec_country WHERE iso2_cnt = %s', $tax_rates[$i]['country'] ) ) )
-											$wpdb->query( $wpdb->prepare( 'UPDATE ec_country SET vat_rate_cnt = %s WHERE id_cnt = %d', $tax_rates[$i]['rate'], $check_row->id_cnt ) );
-										else
-											$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_country( name_cnt, iso2_cnt, vat_rate_cnt ) VALUES( 1, %s )', $countries[$tax_rates[$i]['country']], $tax_rates[$i]['country'], $tax_rates[$i]['rate'] ) );
-									}
-								}
-							}
+						if ( isset( $answers['ship_to'], $answers['ship_to_list'] ) && (array) $answers['ship_to_list'] === $this->ship_to_active() ) {
+							$this->apply_ship_to( $answers['ship_to'] );
 						}
 					}
+					/* 6.0.5: the store's language ( the shoppers' words ); a language shipped with WP EasyCart is installed first. */
+					if ( isset( $_POST['store_language'] ) ) {
+						$this->save_store_language( sanitize_key( wp_unslash( $_POST['store_language'] ) ) );
+					}
+					/* 6.0.5: a Canadian store's Bill later reads Interac e-Transfer while it has the default wording ( admin review M2 ). */
+					if ( 'CA' === $selected_locale && function_exists( 'wp_easycart_language' ) ) {
+						$wpec_lang_file = '' !== (string) get_option( 'ec_option_language' ) ? (string) get_option( 'ec_option_language' ) : 'en-us';
+						$wpec_interac   = array(
+							'en-us' => array( array( 'Pay by bank transfer', 'Pay by Direct Deposit' ), 'Pay by Interac e-Transfer' ),
+							'fr-fr' => array( array( 'Payer par virement bancaire', 'Paiement par depot direct' ), 'Payer par virement Interac' ),
+						);
+						$wpec_manual    = trim( html_entity_decode( (string) wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_manual_payment' ), ENT_QUOTES, 'UTF-8' ) );
+						if ( isset( $wpec_interac[ $wpec_lang_file ] ) && in_array( $wpec_manual, $wpec_interac[ $wpec_lang_file ][0], true ) ) {
+							wp_easycart_language()->update_language_item( $wpec_lang_file, 'cart_payment_information', 'cart_payment_information_manual_payment', $wpec_interac[ $wpec_lang_file ][1] );
+						}
+					}
+					update_option( 'ec_option_base_currency', $selected_currency );
+					/* 6.0.5 ( FREE #333 ): saved as characters, not the map's HTML entity ( Reports printed &pound;125.55 ). */
+					update_option( 'ec_option_currency', html_entity_decode( $currency_symbols[ $selected_currency ], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+					update_option( 'ec_option_paypal_currency_code', $selected_currency );
+					/* 6.0.5: every country's format and units ( facts() ). Before, only the 36 countries in the wizard's own table got them:
+					   a New Zealand store kept US dollars, pounds and inches, and Norway's table entry ( "Kr" ) saved US dollars. The
+					   format is the country's ( ec_currency::country_format(), admin review M9 ), the decimals the currency's. */
+					$facts = self::facts( $selected_locale, $selected_currency );
+					update_option( 'ec_option_currency_symbol_location', $facts['before'] ? 1 : 0 );
+					update_option( 'ec_option_currency_symbol_space', $facts['space'] ? 1 : 0 );
+					update_option( 'ec_option_currency_decimal_symbol', $facts['dec'] );
+					update_option( 'ec_option_currency_thousands_seperator', $facts['thou'] );
+					update_option( 'ec_option_currency_decimal_places', $facts['decimals'] );
+					$paypal_locales = array( 'US', 'AU', 'AT', 'BE', 'BR', 'CA', 'CH', 'CN', 'DE', 'ES', 'GB', 'FR', 'IT', 'NL', 'PL', 'PT', 'RU' );
+					if ( in_array( $selected_locale, $paypal_locales, true ) ) {
+						update_option( 'ec_option_paypal_lc', $selected_locale );
+					}
+					/* A store weighing in ounces or grams keeps its unit while the country weighs the same way ( lbs: oz, kgs: g ). */
+					$weight_now = (string) get_option( 'ec_option_paypal_weight_unit' );
+					$same_kind  = ( 'lbs' === $facts['weight'] && in_array( $weight_now, array( 'lbs', 'oz' ), true ) ) || ( 'kgs' === $facts['weight'] && in_array( $weight_now, array( 'kgs', 'g' ), true ) );
+					if ( ! $same_kind ) {
+						update_option( 'ec_option_paypal_weight_unit', $facts['weight'] );
+					}
+					/* 6.0.5: sizes follow the country too ( a metric store kept inches until someone found the shipping setting ). */
+					update_option( 'ec_option_enable_metric_unit_display', $facts['metric'] ? 1 : 0 );
+					/* 6.0.5: tax from the recommended settings for the country ( wp_easycart_tax_setup: rates checked by WP EasyCart, VAT on
+					   shipping, businesses abroad, the Canadian grid for every role, the US state saved with its country ), as the summary
+					   showed. Re-running the wizard updates tax when the box is ticked; before 6.0.5 it was disabled once any rate existed. */
+					$state_missing = false;
+					if ( class_exists( 'wp_easycart_tax_setup' ) && wp_easycart_tax_setup::supported( $selected_locale ) ) {
+						$tax_choices = array(
+							'state'    => $selected_state_locale,
+							'included' => ! empty( $_POST['tax_included'] ) ? 1 : 0,
+							'eu'       => ( isset( $_POST['eu_vat'] ) && 'oss' === sanitize_key( wp_unslash( $_POST['eu_vat'] ) ) ) ? 'oss' : 'home',
+							'pst'      => ! empty( $_POST['canada_pst'] ) ? 'all' : 'home',
+						);
+						/* 6.0.5: a choice the page does not ask this country keeps what was saved ( the VAT questions of a US store ). */
+						$saved_choices = wp_easycart_tax_setup::choices( $selected_locale );
+						if ( 'vat' !== wp_easycart_tax_setup::system( $selected_locale ) ) {
+							$tax_choices['included'] = $saved_choices['included'];
+							$tax_choices['eu']       = $saved_choices['eu'];
+						}
+						if ( 'CA' !== $selected_locale ) {
+							$tax_choices['pst'] = $saved_choices['pst'];
+						}
+						wp_easycart_tax_setup::save_choices( $selected_locale, $tax_choices );
+						/* A US store's state tax and a Canadian store's GST / HST and PST need the state or province ( the page asks for it first ). */
+						$state_missing = in_array( $selected_locale, array( 'US', 'CA' ), true ) && '' === $selected_state_locale;
+						if ( isset( $_POST['sales_tax'] ) && ! $state_missing ) {
+							wp_easycart_tax_setup::apply( $selected_locale, $tax_choices );
+						}
+					}
+					/**
+					 * The setup wizard saved the store's location.
+					 *
+					 * @since 6.0.5
+					 * @param string $country          ISO code.
+					 * @param string $previous_country The country saved before ( '' on a first run ).
+					 * @param string $currency         ISO 4217 code.
+					 */
+					do_action( 'wp_easycart_setup_wizard_location_saved', $selected_locale, $previous_country, $selected_currency );
 					$this->mark_completed( self::STEP_LOCATION );
-					wp_redirect( $this->step_url( self::STEP_PAYMENTS ) );
-					exit;
+					if ( $state_missing && isset( $_POST['sales_tax'] ) ) {
+						wp_redirect( $this->step_url( self::STEP_LOCATION ) . '&error=state' );
+						exit;
+					}
+					$this->go_next( self::STEP_PAYMENTS );
 				}
 			}
 		}
@@ -2673,8 +1596,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 
 					wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
 					$this->mark_completed( self::STEP_PAYMENTS );
-					wp_redirect( $this->step_url( self::STEP_SHIPPING ) );
-					exit;
+					$this->go_next( self::STEP_SHIPPING );
 				}
 			}
 		}
@@ -2707,13 +1629,24 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 							wp_easycart_admin_store_status::set_acknowledged( 'shipping', true );
 						}
 						$this->mark_completed( self::STEP_SHIPPING );
-						wp_redirect( $this->step_url( self::STEP_FINISH ) );
-						exit;
+						$this->go_next( self::STEP_FINISH );
 					}
 
 					if ( ! isset( $presets[ $method ] ) ) {
 						$method = 'static';
 					}
+					/* 6.0.5 ( admin review M10 ): where the store ships, and a zone for its own country. */
+					$ship_to = isset( $_POST['ship_to'] ) ? sanitize_key( wp_unslash( $_POST['ship_to'] ) ) : '';
+					if ( in_array( $ship_to, array( 'country', 'region', 'world' ), true ) ) {
+						$this->apply_ship_to( $ship_to );
+					} elseif ( 'keep' === $ship_to ) {
+						/* 6.0.5: the countries chosen under Countries & Regions stay as they are. */
+						$this->remember( 'ship_to', null );
+					}
+					if ( class_exists( 'wp_easycart_carriers' ) ) {
+						$this->seed_zones( wp_easycart_carriers::store_country() );
+					}
+
 					/* Rates are being set up after all, so shipping goes back on and the answer above no longer applies. */
 					update_option( 'ec_option_use_shipping', 1 );
 					if ( class_exists( 'wp_easycart_admin_store_status' ) ) {
@@ -2742,8 +1675,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 
 					wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
 					$this->mark_completed( self::STEP_SHIPPING );
-					wp_redirect( $this->step_url( self::STEP_FINISH ) );
-					exit;
+					$this->go_next( self::STEP_FINISH );
 				}
 			}
 		}
@@ -2815,14 +1747,19 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 						$this->set_override( 'seo', ! $seo );
 					}
 
-					update_option( 'ec_option_setup_wizard_done', 1 );
+					/* 6.0.5: Save & exit and Back save this step without finishing setup ( only Finish setup does ). */
+					$goto = isset( $_POST['wizard_goto'] ) ? sanitize_key( wp_unslash( $_POST['wizard_goto'] ) ) : '';
+					if ( '' === $goto ) {
+						update_option( 'ec_option_setup_wizard_done', 1 );
+						$this->mark_completed( self::STEP_FINISH );
+					}
 					wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
-					$this->mark_completed( self::STEP_FINISH );
-					wp_redirect( $this->step_url( self::STEP_DONE ) );
-					exit;
+					$this->go_next( self::STEP_DONE );
 				}
 			}
 		}
+
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		/* =====================================================================
 		   AJAX
@@ -3064,6 +2001,12 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					'error'       => __( 'Something went wrong. Please try again.', 'wp-easycart' ),
 					'accept_first'=> __( 'Accept the terms above to connect a gateway.', 'wp-easycart' ),
 					'select_state'=> __( 'Select a state / province', 'wp-easycart' ),
+					/* 6.0.5: leaving a step with changes ( setup-wizard-v2.js askToSave() ). */
+					'leave_title'   => __( 'Save your changes on this step?', 'wp-easycart' ),
+					'leave_text'    => __( 'You changed something here. Save it before you go, or leave this step as it was.', 'wp-easycart' ),
+					'leave_save'    => __( 'Save and go', 'wp-easycart' ),
+					'leave_discard' => __( 'Don’t save', 'wp-easycart' ),
+					'leave_stay'    => __( 'Stay here', 'wp-easycart' ),
 				),
 			) );
 			wp_enqueue_script( 'wp_easycart_setup_wizard_v2_js' );

@@ -51,7 +51,7 @@
 
 		<?php if( get_option( 'ec_option_show_subscriber_feature' ) ){ ?>
 		<div class="ec_cart_input_row">
-			<?php $this->display_account_personal_information_is_subscriber_input(); ?> <?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_subscribe' )?>
+			<label class="ec_cart_check_label ec_agree_box" for="ec_account_personal_information_is_subscriber"><?php $this->display_account_personal_information_is_subscriber_input(); ?> <span class="ec_cart_check_text"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_subscribe' )?></span></label>
 		</div>
 		<?php }?>
 

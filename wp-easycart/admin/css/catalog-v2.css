@@ -139,8 +139,11 @@ tr.ecv2-cat-row.is-dragging td { opacity:.4; }
 /* ============================================================ */
 /* Option set editor — choices                                   */
 /* ============================================================ */
-.ecos-ch-wrap { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
-@media (max-width:1100px) { .ecos-ch-wrap { grid-template-columns:1fr; } }
+/* 6.0.5: the preview sits beside the choices only while the table has room ( about 720px ); otherwise it wraps below. A fixed
+   1100px breakpoint let the table spill under the preview on narrower admin columns, hiding Price and Weight. */
+.ecos-ch-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+.ecos-ch-main { flex:1 1 720px; min-width:0; }
+.ecos-ch-wrap > .ecos-preview { flex:0 0 260px; }
 .ecos-ch-tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:visible; }
 .ecos-ch-tbl thead th:first-child { border-top-left-radius:var(--ecv2-r); } .ecos-ch-tbl thead th:last-child { border-top-right-radius:var(--ecv2-r); }
 .ecos-ch-tbl tbody tr:last-child td:first-child { border-bottom-left-radius:var(--ecv2-r); } .ecos-ch-tbl tbody tr:last-child td:last-child { border-bottom-right-radius:var(--ecv2-r); }
@@ -157,6 +160,13 @@ tr.ecv2-cat-row.is-dragging td { opacity:.4; }
 .ecos-ch-tbl .ecos-col-def { width:60px; text-align:center; }
 .ecos-ch-tbl .ecos-col-menu { width:36px; }
 .ecos-ch-tbl.is-input .ecos-col-drag, .ecos-ch-tbl.is-input .ecos-col-sw, .ecos-ch-tbl.is-input .ecos-col-sku, .ecos-ch-tbl.is-input .ecos-col-def { display:none; }
+/* 6.0.5: a typed input shows its one hidden choice as a row: price, weight and its default value ( no name: shoppers never see it ). */
+.ecos-ch-tbl .ecos-col-init { display:none; width:210px; }
+.ecos-ch-tbl.is-input .ecos-col-init { display:table-cell; }
+.ecos-ch-tbl.is-input.no-init .ecos-col-init, .ecos-ch-tbl.is-input .ecos-col-name { display:none; }
+.ecos-ch-tbl .ecos-ci-init { border-color:var(--ecv2-g200); background:#fff; }
+.ecos-input-hint { margin:10px 0 0; font-size:12px; line-height:1.5; color:var(--ecv2-g500); }
+.ecos-input-hint[hidden] { display:none; }
 .ecos-ci { width:100%; padding:6px 8px; border:1px solid transparent; border-radius:var(--ecv2-rs); background:transparent; font-size:13px; font-family:inherit; color:var(--ecv2-g800); }
 .ecos-ci:hover { border-color:var(--ecv2-g200); background:#fff; }
 .ecos-ci:focus { outline:none; border-color:var(--ecv2-primary); background:#fff; box-shadow:0 0 0 2px var(--ecv2-primary-light); }

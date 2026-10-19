@@ -229,6 +229,7 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 					'purchase-required-1' => __( 'Purchase Required for Access (only one neeeded for access if multiple selected)', 'wp-easycart' ),
 					'purchase-required-2' => __( 'Purchase Required for Access - Enter Product IDs (Comma Separated)', 'wp-easycart' ),
 					'membership-roles' => __( 'User Roles with Access (optional, any one gives access)', 'wp-easycart' ),
+					'membership-signed-in' => __( 'Any signed-in customer ( any one of these gives access )', 'wp-easycart' ), /* 6.0.5 */
 					'add-to-cart' => __( 'Add to Cart', 'wp-easycart' ),
 					'no-categories' => __( 'No Categories found.', 'wp-easycart' ),
 					'categories-selected' => __( '%d categories selected', 'wp-easycart' ),

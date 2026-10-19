@@ -447,7 +447,8 @@ function ecv2_subscriber_export() {
 	if ( 'guests' === $f ) { $where .= ' AND NOT EXISTS ( SELECT 1 FROM ec_user u WHERE u.email = ec_subscriber.email )'; }
 	if ( ! empty( $_GET['s'] ) ) { $like = '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) . '%'; $where .= $wpdb->prepare( ' AND ( email LIKE %s OR first_name LIKE %s OR last_name LIKE %s )', $like, $like, $like ); }
 	if ( ! headers_sent() ) { header( 'Content-Type: text/csv; charset=utf-8' ); header( 'Content-Disposition: attachment; filename="subscribers-' . date( 'Ymd' ) . '.csv"' ); }
-	$out = fopen( 'php://output', 'w' ); fputcsv( $out, array( 'email', 'first_name', 'last_name' ), ',', '"', '\\' );
+	$out = fopen( 'php://output', 'w' ); wp_easycart_admin_csv_bom( $out, 'subscribers' ); /* 6.0.5: Excel reads the file as UTF-8; the subscriber import skips the mark */
+	fputcsv( $out, array( 'email', 'first_name', 'last_name' ), ',', '"', '\\' );
 	/* 6.0.0: streamed 1000 rows at a time ( LIMIT / OFFSET over the email order ) instead of one result set for the whole list. */
 	$chunk = 1000; $offset = 0;
 	while ( true ) {

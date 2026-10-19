@@ -228,6 +228,8 @@ class wp_easycart_admin_shipping_rates_v2 {
 		if ( '' === $symbol && function_exists( 'get_option' ) ) {
 			$symbol = (string) get_option( 'ec_option_currency' );
 		}
+		/* 6.0.5 ( FREE #333 ): as characters ( the setup wizard saved an HTML entity, e.g. &pound; ). */
+		$symbol = html_entity_decode( $symbol, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		return $symbol;
 	}
 
@@ -275,9 +277,12 @@ class wp_easycart_admin_shipping_rates_v2 {
 	 * and the box library read it ).
 	 *
 	 * @since 6.0.2
-	 * @return string kg | lb
+	 * @return string kg | lb | oz | g ( ounces and grams 6.0.5 )
 	 */
 	public static function weight_unit() {
+		if ( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'weight_unit' ) ) {
+			return wp_easycart_packages::units()['weight'];
+		}
 		$unit = function_exists( 'get_option' ) ? (string) get_option( 'ec_option_paypal_weight_unit' ) : '';
 		return ( 'kgs' === $unit || 'kg' === $unit ) ? 'kg' : 'lb';
 	}

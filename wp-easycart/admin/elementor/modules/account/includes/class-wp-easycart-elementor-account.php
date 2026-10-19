@@ -1307,6 +1307,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account' ) ) :
 					'login_failed'                      => array( 'login' ),
 					'register_email_error'              => array( 'register' ),
 					'register_invalid'                  => array( 'register' ),
+					'email_busy'                        => array( 'register' ), // 6.0.5: too many emails looked up ( wp_easycart_email_lookups ).
 					'no_reset_email_found'              => array( 'forgot_password' ),
 					'reset_link_invalid'                => array( 'forgot_password', 'reset_password' ),
 					'password_too_short'                => $reset ? array( 'reset_password' ) : array( 'password' ),

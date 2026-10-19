@@ -255,7 +255,8 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 					$optionitems = $product->get_advanced_optionitems( $optionset->option_id );
 				?>
 				<?php 
-				if( $optionset->option_required ){ 
+				/* 6.0.5: a size has its error row whether or not it is required: a width or height that is not a positive number is refused. */
+				if( $optionset->option_required || 'dimensions1' == $optionset->option_type || 'dimensions2' == $optionset->option_type ){ 
 				?>
 				<div class="ec_details_option_row_error" id="ec_details_adv_option_row_error_<?php echo esc_attr( $optionset->option_to_product_id ); ?>_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo ( '' != $optionset->option_error_text ) ? wp_easycart_escape_html( $optionset->option_error_text ) : wp_easycart_language( )->get_text( 'product_details', 'product_details_missing_option' ) . ' ' . wp_easycart_escape_html( $optionset->option_label ); // Escaped from language class ?></div>
 				<?php
@@ -850,7 +851,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 	<input type="hidden" id="max_quantity_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->max_purchase_quantity ); ?>" />
 	<input type="hidden" id="vat_added_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo ( isset( $vat_row ) && $vat_row->vat_added ) ? '1' : '0'; ?>" />
 	<input type="hidden" id="vat_rate_multiplier_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $vat_rate_multiplier ); ?>" />
-	<input type="hidden" id="currency_symbol_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_symbol( ) ); ?>" />
+	<input type="hidden" id="currency_symbol_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_display_symbol( ) ); ?>" />
 	<input type="hidden" id="num_decimals_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_decimal_length( ) ); ?>" />
 	<input type="hidden" id="decimal_symbol_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_decimal_symbol( ) ); ?>" />
 	<input type="hidden" id="grouping_symbol_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_grouping_symbol( ) ); ?>" />
@@ -867,6 +868,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 			echo '"' . esc_attr( $variation_key ) . '":{quantity:' . esc_attr( $variation_item->quantity ) . ',sku:"' . esc_attr( $variation_item->sku ) . '",price:"' . esc_attr( $variation_item->price ) . '",tracking:' . esc_attr( ( ( $variation_item->is_stock_tracking_enabled ) ? 'true' : 'false' ) ) . ',enabled:' . esc_attr( ( ( $variation_item->is_enabled ) ? 'true' : 'false' ) ) . '},';
 		}
 	} ?> };
+	var wpeasycart_price_data_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> = <?php echo class_exists( 'wp_easycart_product_pricing' ) ? wp_easycart_product_pricing::json( $product ) : 'null'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON with <, >, &, ' and " hex-escaped. ?>; <?php /* 6.0.5: what the cart charges, for the price the page works out ( wp_easycart_product_pricing ) */ ?>
 	function wp_easycart_add_to_cart_js_validation_end_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( errors ){
 		<?php do_action( 'wp_easycart_add_to_cart_js_validation_end', $product->product_id ); ?>
 		return errors;

@@ -28,7 +28,7 @@
 .ecst-secnav a:hover { background:var(--ecv2-g50); }
 .ecst-secnav a.is-on { background:var(--ecst-accent-soft); color:var(--ecv2-g900); font-weight:600; }
 .ecst-secnav a.is-hidden { display:none; }
-.ecst-secnav-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecst-secnav-label { flex:1; min-width:0; overflow-wrap:anywhere; line-height:1.35; } /* 6.0.5 ( admin review L9 ): long names wrap instead of being cut */
 .ecst-secnav-n { font-size:11px; color:var(--ecv2-g400); font-variant-numeric:tabular-nums; }
 .ecst-content { min-width:0; }
 
@@ -195,6 +195,7 @@
 .ecst-reminders ul { margin:4px 0 0 18px; padding:0; list-style:disc; font-size:12.5px; color:var(--ecv2-g600, #4b5563); }
 .ecst-reminders .ecst-needs-note { margin:0 0 8px; }
 .ecst-row.ecst-type-html:has( > .ecst-row-html > [data-ecst-needs][hidden]:only-child ) { display:none; }
+.ecst-row.ecst-type-html:has( > .ecst-row-html:empty ) { display:none; } /* 6.0.5: a note row with nothing to say ( the short subscription checkout status ) */
 .ecst-multi .ecst-pill.is-on { border-color:var(--ecst-accent); }
 .ecst-type-multiselect .ecst-row-control { align-items:flex-start; }
 /* pairs ( key=value list editor, e.g. exchange rates ) */
@@ -322,30 +323,10 @@ body.ecst-drawer-open { overflow:hidden; }
 .ecst-savebar .ecv2-btn-primary { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
 
 /* home */
-.ecst-search { position:relative; display:flex; align-items:center; gap:8px; border:1px solid var(--ecv2-g300); background:#fff; }
-.ecst-search.is-large { height:46px; padding:0 14px; gap:10px; border-radius:var(--ecv2-rl); box-shadow:var(--ecv2-sh); margin-bottom:18px; }
-.ecst-search.is-compact { width:340px; max-width:100%; height:36px; padding:0 10px; border-radius:var(--ecv2-r); }
-.ecst-search:focus-within { border-color:var(--ecst-accent); box-shadow:0 0 0 3px var(--ecst-accent-soft); }
-.ecst-search .dashicons { color:var(--ecv2-g400); font-size:18px; width:18px; height:18px; }
-.ecst-search .ecst-search-input { flex:1; min-width:0; min-height:0; margin:0; border:0 !important; outline:none; box-shadow:none !important; font-size:14px; background:transparent; height:40px; padding:0; }
-.ecst-search.is-compact .ecst-search-input { font-size:13px; height:32px; }
-.ecst-search kbd { font:500 11px ui-monospace, Menlo, monospace; background:var(--ecv2-g100); border:1px solid var(--ecv2-g200); border-radius:4px; padding:1px 6px; color:var(--ecv2-g500); }
-.ecst-search-menu { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fff; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-rl); box-shadow:var(--ecv2-shlg); z-index:40; overflow:hidden; max-height:420px; overflow-y:auto; }
-.ecst-search-menu[hidden] { display:none; }
-.ecst-search.is-compact .ecst-search-menu { left:auto; width:min(640px, 92vw); z-index:1000; }
-.ecst-sr.is-page .ecv2-chip, .ecst-sr.is-section .ecv2-chip { background:var(--ecv2-g100); color:var(--ecv2-g600); }
-.ecst-global-search { display:flex; justify-content:flex-end; margin:0 0 10px; }
+/* 6.0.5: the settings search boxes became the one admin search ( admin-search-v2.css ). */
 /* one-off attention ring for an element a search result or deep link points at */
 .ecst-flash { animation:ecst-ring 2.4s ease-out 1; }
 @keyframes ecst-ring { 0%, 45% { box-shadow:0 0 0 3px var(--ecst-accent); } 100% { box-shadow:0 0 0 3px transparent; } }
-.ecst-sr { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--ecv2-g100); font-size:13px; color:var(--ecv2-g900); text-decoration:none; }
-.ecst-sr:last-child { border-bottom:0; }
-.ecst-sr:hover, .ecst-sr.is-active { background:var(--ecst-accent-soft); }
-.ecst-sr mark { background:var(--ecst-accent-soft); color:inherit; border-radius:2px; padding:0 1px; }
-.ecst-sr-text { flex:1; min-width:0; display:flex; flex-direction:column; }
-.ecst-sr-text small { color:var(--ecv2-g500); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ecst-sr-path { font-size:11.5px; color:var(--ecv2-g400); white-space:nowrap; }
-.ecst-sr-empty { padding:14px; font-size:12.5px; color:var(--ecv2-g500); }
 .ecst-wizard-card { margin-bottom:18px; }
 .ecst-group { margin-top:18px; }
 .ecst-group-head { display:flex; align-items:baseline; gap:10px; margin:0 0 8px; }
@@ -378,8 +359,6 @@ body.ecst-drawer-open { overflow:hidden; }
 	.ecst-row-control .ecv2-select { max-width:100% !important; }
 	.ecst-header { flex-wrap:wrap; }
 	.ecst-header-right { flex:1 1 100%; justify-content:flex-start; flex-wrap:wrap; }
-	.ecst-search.is-compact { flex:1 1 auto; width:auto; }
-	.ecst-search.is-compact kbd { display:none; }
 }
 @media (prefers-reduced-motion:reduce) { .ecst-row.is-highlight { animation:none; background:var(--ecst-accent-soft); } }
 
@@ -426,3 +405,20 @@ body.ecst-drawer-open { overflow:hidden; }
 .ecst-newpage-done { display:inline-flex; align-items:center; gap:8px; }
 .ecst-newpage-done[hidden], .ecst-newpage-btn[hidden] { display:none; }
 .ecst-newpage-chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; background:#dcfce7; color:#15803d; font-size:11.5px; font-weight:600; }
+
+/* 6.0.5: sections folded under one group ( the Taxes page's Other tax systems ) */
+.ecst-more { margin:4px 0 16px; }
+.ecst-more > .ecst-more-summary { list-style:none; cursor:pointer; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:14px 18px; border:1px dashed var(--ecv2-g300, #d1d5db); border-radius:12px; background:var(--ecv2-white, #fff); color:var(--ecv2-g800, #1f2937); }
+.ecst-more > .ecst-more-summary::-webkit-details-marker { display:none; }
+.ecst-more > .ecst-more-summary:hover { border-color:var(--ec-brand, var(--ecv2-primary, #16a34a)); }
+.ecst-more > .ecst-more-summary:focus-visible { outline:2px solid var(--ec-brand, var(--ecv2-primary, #16a34a)); outline-offset:2px; }
+.ecst-more-title { font-weight:600; font-size:14px; }
+.ecst-more-hint { flex:1 1 260px; min-width:0; font-size:12.5px; color:var(--ecv2-g500, #6b7280); }
+.ecst-more-n { margin-left:auto; min-width:22px; padding:1px 8px; border-radius:999px; background:var(--ecv2-g100, #f3f4f6); font-size:12px; font-weight:600; text-align:center; color:var(--ecv2-g600, #4b5563); }
+.ecst-more-n::after { content:''; display:inline-block; width:6px; height:6px; margin-left:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(-2px) rotate(45deg); transition:transform .15s; }
+.ecst-more[open] > .ecst-more-summary { margin-bottom:16px; }
+.ecst-more[open] .ecst-more-n::after { transform:translateY(1px) rotate(-135deg); }
+.ecst-secnav-more { display:block; margin:14px 0 4px; padding:0 10px; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ecv2-g400, #9ca3af); }
+
+/* 6.0.5 ( admin review M14 ): a link inside a sentence is underlined ( colour alone does not set it apart ). */
+.ecst-content :is( p, .ecst-row-desc, .ecst-limit-access-count, .ecst-moved, .is-warn, .is-error, .ecst-msg, .ecst-hint, .ecst-custom ) a:not( [class*="btn"] ) { text-decoration:underline; text-underline-offset:2px; }

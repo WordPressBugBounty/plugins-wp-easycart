@@ -126,11 +126,13 @@ if ( $order ) {
 	$email_logo_url = get_option( 'ec_option_email_logo' );
 
 	// Get receipt
+	wp_easycart_order_currency::push( $order ); /* 6.0.5: the order's currency */
 	if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_print_receipt.php' ) ) {
 		include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_print_receipt.php';
 	} else {
 		include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_print_receipt.php';
 	}
+	wp_easycart_order_currency::pop();
 } else {
 	echo "No Order Found";	
 }

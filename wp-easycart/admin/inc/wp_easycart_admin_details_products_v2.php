@@ -78,6 +78,27 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	public $label_overrides = array();
 
 	/**
+	 * 6.0.5: what a field says under its label where the list's words do not fit ( the Tax section ): name => text.
+	 *
+	 * @var array
+	 */
+	public $desc_overrides = array();
+
+	/**
+	 * 6.0.5: the Tax fields, filtered once ( tax_fields_list() ): TaxJar's categories are a request to TaxJar.
+	 *
+	 * @var array|null
+	 */
+	private $tax_list = null;
+
+	/**
+	 * 6.0.5: what the store charges ( tax_facts_v2() ), worked out once.
+	 *
+	 * @var array|null
+	 */
+	private $tax_facts = null;
+
+	/**
 	 * 6.0.4: this product's review counts ( review_counts_v2() ), worked out once for the Reviews heading and its card.
 	 *
 	 * @var array|null
@@ -756,11 +777,135 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	public function pricing_fields() {
 		add_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_remove_list_price_from_pricing' ), 99, 2 );
 		add_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_product_cost' ), 100, 2 );
+		add_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_unit_price' ), 101, 2 );
 		add_filter( 'wp_easycart_admin_product_details_subscription_fields_list', array( $this, 'v2_subscription_requires' ), 99 );
 		add_filter( 'wp_easycart_admin_product_details_featured_products_fields_list', array( $this, 'v2_featured_tag_inactive' ), 98, 2 );
 		parent::pricing_fields();
 		remove_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_remove_list_price_from_pricing' ), 99 );
 		remove_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_product_cost' ), 100 );
+		remove_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_unit_price' ), 101 );
+	}
+
+	/**
+	 * 6.0.5 ( admin review M16 ): what one item holds and the base its price is shown per, last on the Cost and price display card
+	 * ( saved by the pricing endpoint; wp_easycart_unit_price shows "€13.27 / kg" beside the price ).
+	 *
+	 * @param array $fields  Pricing fields.
+	 * @param mixed $product Product.
+	 * @return array
+	 */
+	public function v2_add_unit_price( $fields, $product = false ) {
+		if ( ! class_exists( 'wp_easycart_unit_price' ) || ! wp_easycart_unit_price::ready() ) {
+			return $fields;
+		}
+		foreach ( $fields as $field ) {
+			if ( isset( $field['name'] ) && 'unit_measure' === $field['name'] ) {
+				return $fields;
+			}
+		}
+		$measure = isset( $this->product->unit_measure ) ? (float) $this->product->unit_measure : 0;
+		$units   = array(
+			'g'    => __( 'g ( grams )', 'wp-easycart' ),
+			'kg'   => __( 'kg ( kilograms )', 'wp-easycart' ),
+			'mg'   => __( 'mg ( milligrams )', 'wp-easycart' ),
+			'ml'   => __( 'ml ( millilitres )', 'wp-easycart' ),
+			'cl'   => __( 'cl ( centilitres )', 'wp-easycart' ),
+			'l'    => __( 'l ( litres )', 'wp-easycart' ),
+			'cbm'  => __( 'm³ ( cubic metres )', 'wp-easycart' ),
+			'cm'   => __( 'cm ( centimetres )', 'wp-easycart' ),
+			'm'    => __( 'm ( metres )', 'wp-easycart' ),
+			'sqm'  => __( 'm² ( square metres )', 'wp-easycart' ),
+			'oz'   => __( 'oz ( ounces )', 'wp-easycart' ),
+			'lb'   => __( 'lb ( pounds )', 'wp-easycart' ),
+			'floz' => __( 'fl oz ( US fluid ounces )', 'wp-easycart' ),
+			'gal'  => __( 'gal ( US gallons )', 'wp-easycart' ),
+			'in'   => __( 'in ( inches )', 'wp-easycart' ),
+			'ft'   => __( 'ft ( feet )', 'wp-easycart' ),
+			'yd'   => __( 'yd ( yards )', 'wp-easycart' ),
+			'sqft' => __( 'sq ft ( square feet )', 'wp-easycart' ),
+			'ct'   => __( 'items ( a pack of several )', 'wp-easycart' ),
+		);
+		$bases   = array(
+			''      => __( 'Automatic', 'wp-easycart' ),
+			'1kg'   => __( 'Per kg', 'wp-easycart' ),
+			'100g'  => __( 'Per 100 g', 'wp-easycart' ),
+			'1l'    => __( 'Per litre', 'wp-easycart' ),
+			'100ml' => __( 'Per 100 ml', 'wp-easycart' ),
+			'1cbm'  => __( 'Per m³', 'wp-easycart' ),
+			'1m'    => __( 'Per metre', 'wp-easycart' ),
+			'1sqm'  => __( 'Per m²', 'wp-easycart' ),
+			'1oz'   => __( 'Per oz', 'wp-easycart' ),
+			'1lb'   => __( 'Per lb', 'wp-easycart' ),
+			'1floz' => __( 'Per fl oz', 'wp-easycart' ),
+			'1gal'  => __( 'Per gallon', 'wp-easycart' ),
+			'1ft'   => __( 'Per foot', 'wp-easycart' ),
+			'1sqft' => __( 'Per sq ft', 'wp-easycart' ),
+			'1ct'   => __( 'Per item', 'wp-easycart' ),
+		);
+		$unit_data = array();
+		foreach ( $units as $id => $label ) {
+			if ( isset( wp_easycart_unit_price::units()[ $id ] ) ) {
+				$unit_data[] = (object) array( 'id' => $id, 'value' => $label );
+			}
+		}
+		$base_data = array();
+		foreach ( $bases as $id => $label ) {
+			if ( '' === $id || isset( wp_easycart_unit_price::bases()[ $id ] ) ) {
+				$base_data[] = (object) array( 'id' => $id, 'value' => $label );
+			}
+		}
+		$fields[] = array(
+			'name'        => 'unit_measure',
+			'type'        => 'number',
+			'step'        => 'any',
+			'label'       => __( 'Contents', 'wp-easycart' ),
+			'required'    => false,
+			'visible'     => true,
+			'value'       => $measure > 0 ? rtrim( rtrim( number_format( $measure, 4, '.', '' ), '0' ), '.' ) : '',
+			'placeholder' => __( 'e.g. 750', 'wp-easycart' ),
+		);
+		$fields[] = array(
+			'name'       => 'unit_measure_unit',
+			'type'       => 'select',
+			'select2'    => 'none',
+			'label'      => __( 'Unit', 'wp-easycart' ),
+			'required'   => false,
+			'visible'    => true,
+			'data'       => $unit_data,
+			'data_label' => __( 'Choose a unit', 'wp-easycart' ),
+			'default_value' => '',
+			'value'      => wp_easycart_unit_price::clean_unit( isset( $this->product->unit_measure_unit ) ? $this->product->unit_measure_unit : '' ),
+		);
+		$fields[] = array(
+			'name'        => 'unit_base',
+			'type'        => 'select',
+			'select2'     => 'none',
+			'label'       => __( 'Show the price per', 'wp-easycart' ),
+			'required'    => false,
+			'visible'     => true,
+			'data'        => $base_data,
+			'value'       => wp_easycart_unit_price::clean_base( isset( $this->product->unit_base ) ? $this->product->unit_base : '' ),
+		);
+		return $fields;
+	}
+
+	/**
+	 * 6.0.5 ( admin review M16 ): under the unit price fields, what shoppers see beside the price ( products-details-v2.js
+	 * paint_unit_preview() fills it in as the price and the fields change; it also greys out bases of another kind ).
+	 */
+	private function print_unit_price_preview() {
+		if ( ! class_exists( 'wp_easycart_unit_price' ) ) {
+			return;
+		}
+		$units = array();
+		foreach ( wp_easycart_unit_price::units() as $key => $unit ) {
+			$units[ $key ] = array( $unit[0], (float) $unit[1], wp_easycart_unit_price::default_base( $key ) );
+		}
+		$bases = array();
+		foreach ( wp_easycart_unit_price::bases() as $key => $base ) {
+			$bases[ $key ] = array( (float) $base[0], $base[1], wp_easycart_unit_price::base_label( $key ) );
+		}
+		echo '<p class="ecdv2-unit-preview" id="ecdv2_unit_preview" aria-live="polite" hidden data-units="' . esc_attr( wp_json_encode( $units ) ) . '" data-bases="' . esc_attr( wp_json_encode( $bases ) ) . '" data-words="' . esc_attr( wp_easycart_unit_price::phrase() ) . '" data-label="' . esc_attr__( 'Shoppers see', 'wp-easycart' ) . '"></p>';
 	}
 
 	/**
@@ -1059,20 +1204,31 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 		/* Field clusters: wrap a set of related fields in a contained
 		 * sub-group so their relationship reads clearly. */
-		$cluster_members = array();
-		$cluster_title   = '';
+		$clusters = array();
 		if ( 'pricing' === $this->current_section ) {
-			$cluster_members = array( 'enable_price_label', 'replace_price_label', 'custom_price_label' );
-			$cluster_title   = __( 'Price label', 'wp-easycart' );
+			$clusters[] = array( array( 'enable_price_label', 'replace_price_label', 'custom_price_label' ), __( 'Price label', 'wp-easycart' ) );
+			/* 6.0.5 ( admin review M16 ): side by side, with what they are for and what shoppers will see. */
+			$clusters[] = array( array( 'unit_measure', 'unit_measure_unit', 'unit_base' ), __( 'Unit price', 'wp-easycart' ), __( 'For products sold by weight, volume, length or in packs: how much one item holds. Shoppers then see the price per kg, litre, metre or item beside the price, as the EU and UK require. Leave Contents empty for none.', 'wp-easycart' ), 'ecdv2-subgroup-row' );
 		}
-		$cluster_open = false;
+		$cluster_members = array();
+		$cluster_open    = false;
 
 		foreach ( $fields as $field ) {
 			$fname = isset( $field['name'] ) ? $field['name'] : '';
 
-			if ( $cluster_members && $fname === $cluster_members[0] && ! $cluster_open ) {
-				echo '<div class="ecdv2-subgroup ecdv2-field-full"><div class="ecdv2-subgroup-title">' . esc_html( $cluster_title ) . '</div><div class="ecdv2-subgroup-body">';
-				$cluster_open = true;
+			if ( ! $cluster_open ) {
+				foreach ( $clusters as $cluster ) {
+					if ( $fname === $cluster[0][0] ) {
+						echo '<div class="ecdv2-subgroup ecdv2-field-full' . ( ! empty( $cluster[3] ) ? ' ' . esc_attr( $cluster[3] ) : '' ) . '"><div class="ecdv2-subgroup-title">' . esc_html( $cluster[1] ) . '</div>';
+						if ( ! empty( $cluster[2] ) ) {
+							echo '<p class="ecdv2-field-desc ecdv2-subgroup-hint">' . esc_html( $cluster[2] ) . '</p>';
+						}
+						echo '<div class="ecdv2-subgroup-body">';
+						$cluster_members = $cluster[0];
+						$cluster_open    = true;
+						break;
+					}
+				}
 			}
 
 			/* 6.0.2: Track Quantity saves with the card's Save like every other field. The legacy onchange
@@ -1095,6 +1251,10 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			/* 6.0.2: right under the Subscription Product switch, whether it is on or not: subscriptions need Stripe. */
 			if ( 'subscription' === $this->current_section && 'is_subscription_item' === $fname ) {
 				$this->print_subscription_gateway_notice();
+			}
+
+			if ( $cluster_open && 'unit_base' === $fname ) {
+				$this->print_unit_price_preview();
 			}
 
 			if ( $cluster_open && $fname === end( $cluster_members ) ) {
@@ -1269,8 +1429,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		if ( class_exists( 'ec_currency' ) && ec_currency::$static_symbol ) {
 			return ec_currency::$static_symbol;
 		}
-		$symbol = get_option( 'ec_option_currency' );
-		return $symbol ? $symbol : '$';
+		$symbol = html_entity_decode( (string) get_option( 'ec_option_currency' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ); /* 6.0.5 ( FREE #333 ) */
+		return '' !== $symbol ? $symbol : '$';
 	}
 
 	public function currency_decimal_symbol() {
@@ -1361,7 +1521,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				foreach ( $rows as $r ) {
 					$a = (int) $r->approved;
 					echo '<div class="ecdv2-activity-row" data-review-id="' . (int) $r->review_id . '">';
-					echo '<span class="ecdv2-activity-row-main"><span class="ecdv2-activity-stars">' . (int) $r->rating . ' ★</span><span class="ecdv2-activity-name">' . esc_html( wp_unslash( (string) $r->title ) ) . '</span><span class="ecdv2-activity-sub">' . esc_html( wp_unslash( (string) $r->reviewer_name ) ) . ' · ' . esc_html( $r->date_submitted ? date_i18n( 'M j, Y', strtotime( $r->date_submitted ) ) : '' ) . '</span>' . ( $r->review ? '<span class="ecdv2-reviews-excerpt">' . esc_html( wp_trim_words( wp_unslash( (string) $r->review ), 24 ) ) . '</span>' : '' ) . '</span>';
+					echo '<span class="ecdv2-activity-row-main"><span class="ecdv2-activity-stars">' . (int) $r->rating . ' ★</span><span class="ecdv2-activity-name">' . esc_html( wp_unslash( (string) $r->title ) ) . '</span><span class="ecdv2-activity-sub">' . esc_html( wp_unslash( (string) $r->reviewer_name ) ) . ' · ' . esc_html( $r->date_submitted ? wp_easycart_admin_date( strtotime( $r->date_submitted ), 'date' ) : '' ) . '</span>' . ( $r->review ? '<span class="ecdv2-reviews-excerpt">' . esc_html( wp_trim_words( wp_unslash( (string) $r->review ), 24 ) ) . '</span>' : '' ) . '</span>';
 					echo '<span class="ecdv2-activity-row-meta"><button type="button" class="ecdv2-review-toggle' . ( $a ? ' is-approved' : '' ) . '" onclick="ecdv2.review_toggle( this, ' . (int) $r->review_id . ', ' . ( $a ? 0 : 1 ) . ' );">' . esc_html( $a ? __( 'Approved', 'wp-easycart' ) : __( 'Approve', 'wp-easycart' ) ) . '</button> <a class="ecdv2-help-link" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&ec_admin_form_action=edit&review_id=' . (int) $r->review_id ) ) . '">' . esc_html__( 'Open', 'wp-easycart' ) . '</a></span>';
 					echo '</div>';
 				}
@@ -1813,6 +1973,52 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	}
 
 	/**
+	 * WP EasyCart's own meta description ( seo_description ) under Yoast SEO's card, while that card stands in for the
+	 * Search engine listing card. The product keeps it, the products export carries it and the store gives it to Yoast for a
+	 * page whose Yoast description is empty ( wp_easycart_product_schema::fill_description() ), but no screen showed it: a
+	 * customer read an export's old text as made up. Printed only while it holds text. Saved by the listing card's
+	 * endpoint, which writes only the fields posted ( save_product_details_seo() ).
+	 *
+	 * @since 6.0.5
+	 */
+	public function print_seo_fallback_v2() {
+		$text = (string) $this->product->seo_description;
+		if ( '' === trim( $text ) ) {
+			return;
+		}
+		$this->section_open(
+			'seo',
+			__( 'Older description', 'wp-easycart' ),
+			__( 'Used when the Yoast meta description is empty', 'wp-easycart' ),
+			array(
+				'id'    => 'ecdv2_seo_fallback',
+				'class' => 'ecdv2-seo-fallback',
+			)
+		);
+		echo '<div class="ecdv2-grid"><div class="ecdv2-field ecdv2-field-full">';
+		echo '<label class="ecdv2-label" for="seo_description">' . esc_html__( 'Meta description saved in WP EasyCart', 'wp-easycart' ) . '</label>';
+		echo '<textarea name="seo_description" id="seo_description" rows="3" data-ecdv2-sec="seo">' . esc_textarea( $text ) . '</textarea>';
+		echo '<span class="ecdv2-char-count" data-ecdv2-count-for="seo_description" data-ecdv2-count-max="160"></span>';
+		echo '<span class="ecdv2-field-desc">' . esc_html__( 'Saved before Yoast SEO took over this listing. Search engines get it when the Yoast meta description above is empty, and product exports list it as seo_description. Clear it if you no longer need it.', 'wp-easycart' ) . '</span>';
+		echo '<div class="ecdv2-seo-fallback-actions"><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecdv2-seo-clear>' . esc_html__( 'Clear', 'wp-easycart' ) . '</button></div>';
+		echo '</div></div>';
+		$this->section_close();
+	}
+
+	/**
+	 * Yoast SEO's meta description of this product's page, '' without Yoast SEO, a page or a description.
+	 *
+	 * @since 6.0.5
+	 * @return string
+	 */
+	public function yoast_description() {
+		if ( ! defined( 'WPSEO_VERSION' ) || ! $this->id || empty( $this->product->post_id ) ) {
+			return '';
+		}
+		return (string) get_post_meta( (int) $this->product->post_id, '_yoast_wpseo_metadesc', true );
+	}
+
+	/**
 	 * Whether the card being printed shows a visible field ( section_open()'s only / except ).
 	 *
 	 * @since 6.0.4
@@ -1863,6 +2069,12 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$required = ( isset( $field['required'] ) && $field['required'] ) ? '<span class="ecdv2-req">*</span>' : '';
 		$validation = isset( $field['validation_type'] ) ? ' data-ecdv2-validate="' . esc_attr( $field['validation_type'] ) . '"' : '';
 		$msg = isset( $field['message'] ) ? '<span class="ecdv2-field-msg">' . wp_kses_post( $field['message'] ) . '</span>' : '';
+		if ( isset( $this->desc_overrides[ $name ] ) ) {
+			$field['description'] = $this->desc_overrides[ $name ];
+		}
+		/* 6.0.5: the Tax section's lists and boxes say what they are for ( an extension's words too: WP EasyCart for Avalara AvaTax
+		   describes the code in use ); elsewhere they keep the look they had. */
+		$note = ( 'tax' === $this->current_section && ! empty( $field['description'] ) ) ? '<span class="ecdv2-field-desc">' . esc_html( $field['description'] ) . '</span>' : '';
 
 		/* Hidden fields always render so legacy collection by id works. */
 		if ( 'hidden' === $type ) {
@@ -1931,7 +2143,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 						echo '<option value="' . esc_attr( $option->id ) . '"' . $selected . $option_attrs . '>' . esc_html( $option->value ) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $selected and $option_attrs are static literals.
 					}
 				}
-				echo '</select>' . $msg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is built from wp_kses_post() above.
+				echo '</select>' . $note . $msg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $note is built from esc_html() and $msg from wp_kses_post() above.
 				break;
 
 			case 'currency':
@@ -2099,7 +2311,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				if ( $is_slug ) {
 					echo '<button type="button" class="ecdv2-slug-lock" id="ecdv2_slug_lock" title="' . esc_attr__( 'Lock slug (stop auto-generating from title)', 'wp-easycart' ) . '" onclick="ecdv2.slug_lock_toggle(); return false;"><span class="dashicons dashicons-unlock" style="font-size:15px;width:15px;height:15px;"></span></button></div>';
 				}
-				echo $msg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $msg is built from wp_kses_post() above.
+				echo $note . $msg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $note is built from esc_html() and $msg from wp_kses_post() above.
 				break;
 		}
 	}
@@ -2288,7 +2500,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			array( 'key' => 'short_description', 'label' => __( 'Short description for listings', 'wp-easycart' ), 'done' => ( '' !== trim( (string) $p->short_description ) ), 'tab' => 'general' ),
 			array( 'key' => 'price', 'label' => __( 'Price set', 'wp-easycart' ), 'done' => ( (float) $p->price > 0 || $p->is_donation || $p->inquiry_mode ), 'tab' => 'pricing' ),
 			array( 'key' => 'category', 'label' => __( 'Assigned to a category', 'wp-easycart' ), 'done' => ( $category_count > 0 ), 'tab' => 'organize' ),
-			array( 'key' => 'seo', 'label' => __( 'SEO description added', 'wp-easycart' ), 'done' => ( '' !== trim( (string) $p->seo_description ) ), 'tab' => 'seo' ),
+			/* 6.0.5: Yoast SEO's meta description counts too ( its card stands in for WP EasyCart's while Yoast is active ). */
+			array( 'key' => 'seo', 'label' => __( 'SEO description added', 'wp-easycart' ), 'done' => ( '' !== trim( (string) $p->seo_description ) || '' !== trim( $this->yoast_description() ) ), 'tab' => 'seo' ),
 			array( 'key' => 'weight', 'label' => __( 'Shipping weight entered', 'wp-easycart' ), 'done' => ( ! $p->is_shippable || (float) $p->weight > 0 ), 'tab' => 'shipping' ),
 			array( 'key' => 'stock', 'label' => __( 'Stock level or tracking decided', 'wp-easycart' ), 'done' => ( ! $p->show_stock_quantity || (int) $p->stock_quantity > 0 || $p->use_optionitem_quantity_tracking ), 'tab' => 'inventory' ),
 			array( 'key' => 'active', 'label' => __( 'Product activated in store', 'wp-easycart' ), 'done' => (bool) $p->activate_in_store, 'tab' => 'general' ),
@@ -2419,6 +2632,182 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			}
 		}
 		return $names ? implode( ' + ', $names ) : __( 'Standard product', 'wp-easycart' );
+	}
+
+	/**
+	 * What the Type settings section is called for each product type ( 6.0.5, Matt: "Subscription settings", "Download settings" …,
+	 * the rail entry one word so it stays on one line ). products-details-v2.js renames the section as the type changes.
+	 *
+	 * @since 6.0.5
+	 * @return array type key ( product_types_v2() keys and custom ) => rail ( the rail entry ), title ( the section heading ), desc.
+	 */
+	public static function type_sections_v2() {
+		$rules = __( 'Rules for buying it, such as the EU right of withdrawal.', 'wp-easycart' );
+
+		/* rail, title, description */
+		$names    = array(
+			'physical'     => array( __( 'Purchase rules', 'wp-easycart' ), __( 'Purchase rules', 'wp-easycart' ), $rules ),
+			'service'      => array( __( 'Service', 'wp-easycart' ), __( 'Service settings', 'wp-easycart' ), $rules ),
+			'download'     => array( __( 'Download', 'wp-easycart' ), __( 'Download settings', 'wp-easycart' ), __( 'The file buyers get, how many times and for how long they can download it, and the rules for buying it.', 'wp-easycart' ) ),
+			'subscription' => array( __( 'Subscription', 'wp-easycart' ), __( 'Subscription settings', 'wp-easycart' ), __( 'How often it bills, its trial and fees, its plan, the pages it opens, and the rules for buying it.', 'wp-easycart' ) ),
+			'giftcard'     => array( __( 'Gift card', 'wp-easycart' ), __( 'Gift card settings', 'wp-easycart' ), __( 'How the gift card is sent, and the rules for buying it.', 'wp-easycart' ) ),
+			'donation'     => array( __( 'Donation', 'wp-easycart' ), __( 'Donation settings', 'wp-easycart' ), __( 'The amount shoppers choose to pay, and the rules for buying it.', 'wp-easycart' ) ),
+			'inquiry'      => array( __( 'Inquiry', 'wp-easycart' ), __( 'Inquiry settings', 'wp-easycart' ), __( 'Where shoppers ask about it in place of buying it.', 'wp-easycart' ) ),
+			'seasonal'     => array( __( 'Seasonal', 'wp-easycart' ), __( 'Seasonal settings', 'wp-easycart' ), __( 'What shows in place of the buy button while it is not for sale.', 'wp-easycart' ) ),
+			'preorder'     => array( __( 'Preorder', 'wp-easycart' ), __( 'Preorder settings', 'wp-easycart' ), __( 'Ordering it ahead for pickup at your store, and the rules for buying it.', 'wp-easycart' ) ),
+			'restaurant'   => array( __( 'Restaurant', 'wp-easycart' ), __( 'Restaurant settings', 'wp-easycart' ), __( 'Ordering it for pickup while you are open, and the rules for buying it.', 'wp-easycart' ) ),
+			'deconetwork'  => array( __( 'Deconetwork', 'wp-easycart' ), __( 'Deconetwork settings', 'wp-easycart' ), __( 'Its Deconetwork design, and the rules for buying it.', 'wp-easycart' ) ),
+			'custom'       => array( __( 'Type settings', 'wp-easycart' ), __( 'Type settings', 'wp-easycart' ), __( 'Settings for the product type: subscription billing, the download, and purchase rules.', 'wp-easycart' ) ),
+		);
+		$sections = array();
+		foreach ( $names as $key => $name ) {
+			$sections[ $key ] = array(
+				'rail'  => $name[0],
+				'title' => $name[1],
+				'desc'  => $name[2],
+			);
+		}
+		/* A type an extension adds ( wp_easycart_admin_product_types ) gets its own label. */
+		foreach ( self::product_types_v2() as $key => $type ) {
+			if ( ! isset( $sections[ $key ] ) && ! empty( $type['label'] ) ) {
+				$sections[ $key ] = array(
+					'rail'  => (string) $type['label'],
+					/* translators: %s: a product type, e.g. Rental. */
+					'title' => sprintf( __( '%s settings', 'wp-easycart' ), $type['label'] ),
+					'desc'  => $rules,
+				);
+			}
+		}
+		/**
+		 * The name of the product editor's type section for each product type.
+		 *
+		 * @since 6.0.5
+		 * @param array $sections type key => rail, title, desc.
+		 */
+		return (array) apply_filters( 'wp_easycart_admin_product_type_sections', $sections );
+	}
+
+	/**
+	 * The type section's name for this product's type now.
+	 *
+	 * @since 6.0.5
+	 * @return array rail, title, desc.
+	 */
+	public function type_section_v2() {
+		$sections = self::type_sections_v2();
+		$key      = $this->product_type_key_v2();
+		return isset( $sections[ $key ] ) ? $sections[ $key ] : $sections['custom'];
+	}
+
+	/**
+	 * The bar that opens the type section ( 6.0.5, Matt: the type lived only in the summary column ): what the product is, what
+	 * that means, and Change type, which brings the summary column's Product type card into view and highlights it.
+	 *
+	 * @since 6.0.5
+	 */
+	public function print_type_bar_v2() {
+		$types = self::product_types_v2();
+		$key   = $this->product_type_key_v2();
+		$type  = isset( $types[ $key ] ) ? $types[ $key ] : null;
+		$name  = $type ? $type['label'] : wp_easycart_admin_product_types::custom_label();
+		$help  = $type ? ( isset( $type['help'] ) ? $type['help'] : '' ) : __( 'This product mixes types, so every type switch shows in Type settings.', 'wp-easycart' );
+		$icon  = ( $type && ! empty( $type['icon'] ) ) ? $type['icon'] : 'admin-generic';
+		echo '<div class="ecdv2-type-bar" id="ecdv2_type_bar">';
+		echo '<span class="ecdv2-type-bar-icon dashicons dashicons-' . esc_attr( $icon ) . '" id="ecdv2_type_bar_icon" aria-hidden="true"></span>';
+		echo '<div class="ecdv2-type-bar-text">';
+		echo '<span class="ecdv2-type-bar-label">' . esc_html__( 'Product type', 'wp-easycart' ) . '</span>';
+		echo '<strong class="ecdv2-type-bar-name" id="ecdv2_type_bar_name">' . esc_html( $name ) . '</strong>';
+		echo '<span class="ecdv2-type-bar-help" id="ecdv2_type_bar_help">' . esc_html( $help ) . '</span>';
+		echo '</div>';
+		echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecdv2-type-bar-change" data-ecdv2-go="type" aria-controls="ecdv2_type">' . esc_html__( 'Change type', 'wp-easycart' ) . '</button>';
+		echo '</div>';
+	}
+
+	/**
+	 * The limited pages ( WP EasyCart Limit Access ) that name this product, whatever their state, for the editor: each with what
+	 * it needs and how it stands ( on, off, a problem, not published ).
+	 *
+	 * @since 6.0.5
+	 * @return array[] id, title, view, edit, state ( on | off | problem | draft ), others ( the page also needs a role or account ).
+	 */
+	public function access_pages_v2() {
+		$product_id = isset( $this->product->product_id ) ? (int) $this->product->product_id : 0;
+		if ( $product_id <= 0 || ! class_exists( 'wp_easycart_page_access' ) || ! method_exists( 'wp_easycart_page_access', 'limited_post_ids' ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( wp_easycart_page_access::limited_post_ids() as $post_id ) {
+			$rule = wp_easycart_page_access::rule( $post_id );
+			if ( empty( $rule['products'] ) || ! in_array( $product_id, array_map( 'intval', (array) $rule['products'] ), true ) ) {
+				continue;
+			}
+			$state = wp_easycart_page_access::status( $post_id, $rule );
+			if ( 'publish' !== get_post_status( $post_id ) && 'off' !== $state ) {
+				$state = 'draft';
+			}
+			$title = wp_strip_all_tags( get_the_title( $post_id ) );
+			$out[] = array(
+				'id'     => (int) $post_id,
+				'title'  => '' !== $title ? $title : __( '( no title )', 'wp-easycart' ),
+				'view'   => (string) get_permalink( $post_id ),
+				'edit'   => (string) get_edit_post_link( $post_id, 'raw' ),
+				'state'  => $state,
+				'others' => ( isset( $rule['match'] ) && 'all' === $rule['match'] && ( ! empty( $rule['roles'] ) || ! empty( $rule['users'] ) ) ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Pages it opens ( 6.0.5, Matt: the protected content a purchase opens was hard to find ): the limited pages that name this
+	 * product, shown in the type section for a subscription ( with a way to limit one when there are none ), and for any other
+	 * product that opens a page. The same list the order confirmation shows a buyer ( wp_easycart_page_access::pages_opened_by() ).
+	 *
+	 * @since 6.0.5
+	 */
+	public function print_access_pages_v2() {
+		if ( empty( $this->product->product_id ) || ! class_exists( 'wp_easycart_page_access' ) ) {
+			return;
+		}
+		$pages  = $this->access_pages_v2();
+		$screen = ( class_exists( 'wp_easycart_admin_page_access' ) && method_exists( 'wp_easycart_admin_page_access', 'screen_url' ) ) ? wp_easycart_admin_page_access::screen_url() : admin_url( 'admin.php?page=wp-easycart-users&subpage=limit-access' );
+		$states = array(
+			'on'      => array( 'is-on', __( 'Members only', 'wp-easycart' ) ),
+			'off'     => array( 'is-off', __( 'Limit off', 'wp-easycart' ) ),
+			'problem' => array( 'is-problem', __( 'Needs attention', 'wp-easycart' ) ),
+			'draft'   => array( 'is-off', __( 'Not published', 'wp-easycart' ) ),
+		);
+		echo '<div class="ecdv2-card ecdv2-access-pages" id="ecdv2_access_pages" data-has-pages="' . ( $pages ? '1' : '0' ) . '">';
+		echo '<div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' . esc_html__( 'Pages it opens', 'wp-easycart' ) . '</h3>';
+		echo '<span class="ecdv2-card-hint">' . esc_html__( 'Pages only its buyers can open ( Users › Limit Access )', 'wp-easycart' ) . '</span></div>';
+		echo '<div class="ecdv2-card-body">';
+		if ( wp_easycart_page_access::paused() ) {
+			echo '<p class="ecdv2-access-note">' . esc_html__( 'Every limit is paused in Settings › Accounts, so everyone can open these pages for now.', 'wp-easycart' ) . '</p>';
+		}
+		if ( $pages ) {
+			echo '<ul class="ecdv2-access-list">';
+			foreach ( $pages as $page ) {
+				$state = isset( $states[ $page['state'] ] ) ? $states[ $page['state'] ] : $states['off'];
+				echo '<li class="ecdv2-access-item">';
+				echo '<span class="dashicons dashicons-lock ecdv2-access-icon" aria-hidden="true"></span>';
+				echo '<span class="ecdv2-access-main"><a class="ecdv2-access-title" href="' . esc_url( $page['view'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $page['title'] ) . '</a>';
+				if ( $page['others'] ) {
+					echo '<span class="ecdv2-access-more">' . esc_html__( 'Buyers also need the other things the page asks for.', 'wp-easycart' ) . '</span>';
+				}
+				echo '</span>';
+				echo '<span class="ecdv2-access-state ' . esc_attr( $state[0] ) . '">' . esc_html( $state[1] ) . '</span>';
+				if ( '' !== $page['edit'] ) {
+					echo '<a class="ecdv2-access-edit" href="' . esc_url( $page['edit'] ) . '">' . esc_html__( 'Edit page', 'wp-easycart' ) . '</a>';
+				}
+				echo '</li>';
+			}
+			echo '</ul>';
+			echo '<p class="ecdv2-access-foot"><a href="' . esc_url( $screen ) . '">' . esc_html__( 'Manage limited pages', 'wp-easycart' ) . ' &rarr;</a></p>';
+		} else {
+			echo '<p class="ecdv2-access-empty">' . esc_html__( 'No page is limited to this subscription yet. Limit a page so only subscribers can open it.', 'wp-easycart' ) . '</p>';
+			echo '<p class="ecdv2-access-foot"><a class="ecv2-btn ecv2-btn-sm" href="' . esc_url( $screen ) . '">' . esc_html__( 'Limit a page', 'wp-easycart' ) . '</a></p>';
+		}
+		echo '</div></div>';
 	}
 
 	/**
@@ -2582,23 +2971,617 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	}
 
 	/**
-	 * 6.0.4: the summary column's Tax card, under Shipping: whether the product is taxable ( sales tax, VAT ), one button to
-	 * the Tax card in Pricing. products-details-v2.js keeps it current ( paint_tax_card() ).
+	 * 6.0.4: the summary column's Tax card, under Shipping: whether the product is taxed and how ( 6.0.5: the tax that applies in
+	 * this store, its rate and the tax service ), one button to the Tax section. Amber while the store charges no tax at all.
+	 * products-details-v2.js keeps it current ( paint_tax_card(), the same words as tax_card_text() ).
 	 *
 	 * @since 6.0.4
 	 */
 	public function print_tax_card_v2() {
-		$p   = $this->product;
-		$tax = 1 === (int) $p->is_taxable;
-		$vat = (float) $p->vat_rate > 0;
-		$sub = $tax && $vat ? __( 'Sales tax and VAT', 'wp-easycart' ) : ( $tax ? __( 'Sales tax', 'wp-easycart' ) : ( $vat ? __( 'VAT', 'wp-easycart' ) : __( 'No sales tax or VAT', 'wp-easycart' ) ) );
-		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-row ecdv2-side-tax' . ( $tax || $vat ? '' : ' is-off' ) . '" id="ecdv2_side_tax">';
-		echo '<button type="button" class="ecdv2-side-row-go" data-ecdv2-go="pricing" data-ecdv2-go-section="tax">';
+		$card = $this->tax_card_text();
+		echo '<div class="ecdv2-card ecdv2-side-card ecdv2-side-row ecdv2-side-tax' . ( $card['taxed'] ? '' : ' is-off' ) . ( $card['warn'] ? ' is-warn' : '' ) . '" id="ecdv2_side_tax">';
+		echo '<button type="button" class="ecdv2-side-row-go" data-ecdv2-go="tax">';
 		echo '<span class="ecdv2-side-row-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg></span>';
-		echo '<span class="ecdv2-side-row-text"><b id="ecdv2_side_tax_title">' . ( $tax || $vat ? esc_html__( 'Taxable', 'wp-easycart' ) : esc_html__( 'Not taxable', 'wp-easycart' ) ) . '</b><span id="ecdv2_side_tax_sub">' . esc_html( $sub ) . '</span></span>';
+		echo '<span class="ecdv2-side-row-text"><b id="ecdv2_side_tax_title">' . esc_html( $card['title'] ) . '</b><span id="ecdv2_side_tax_sub">' . esc_html( $card['sub'] ) . '</span></span>';
 		echo '<span class="ecdv2-side-link" aria-hidden="true">' . esc_html__( 'Edit', 'wp-easycart' ) . '</span>';
-		echo '<span class="screen-reader-text">' . esc_html__( 'Open the Tax settings in Pricing', 'wp-easycart' ) . '</span>';
+		echo '<span class="screen-reader-text">' . esc_html__( 'Open the Tax section', 'wp-easycart' ) . '</span>';
 		echo '</button>';
+		echo '</div>';
+	}
+
+	/**
+	 * 6.0.5: the Tax fields, filtered once a page ( the section prints them across several cards, and WP EasyCart PRO's TaxJar
+	 * categories are a request to TaxJar ).
+	 *
+	 * @since 6.0.5
+	 * @return array
+	 */
+	public function tax_fields_list() {
+		if ( null === $this->tax_list ) {
+			$this->tax_list = (array) parent::tax_fields_list();
+		}
+		return $this->tax_list;
+	}
+
+	/**
+	 * 6.0.5: what the store charges ( Settings › Taxes ) as checkout reads it ( ec_tax ): sales tax ( state, country and every-order
+	 * rates, Canada's GST / HST / PST, a tax service ) and VAT / GST ( its rate here and whether prices include it ), and which of
+	 * the product's switches leads its Tax section. Products and the summary column say what each switch does in this store.
+	 *
+	 * @since 6.0.5
+	 * @return array sales, vat, any, lead ( kinds in order: sales | vat ), other, service, service_id, vat_name, vat_rate ( float
+	 *               or null ), vat_included, vat_by_country, tax_shipping, canada, states ( code => rate ), countries ( code =>
+	 *               rate ), all_rate ( float or null ), country.
+	 */
+	public function tax_facts_v2() {
+		if ( null !== $this->tax_facts ) {
+			return $this->tax_facts;
+		}
+		global $wpdb;
+		$country = ( class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) ) ? strtoupper( (string) wp_easycart_carriers::store_country() ) : '';
+		$states    = array();
+		$countries = array();
+		$all_rate  = null;
+		$vat_row   = null;
+		/* ec_tax reads every row in this order, and each row is one kind. */
+		foreach ( (array) $wpdb->get_results( 'SELECT * FROM ec_taxrate ORDER BY taxrate_id' ) as $row ) {
+			if ( ! empty( $row->tax_by_state ) ) {
+				$states[ strtoupper( (string) $row->state_code ) ] = (float) $row->state_rate;
+			} elseif ( ! empty( $row->tax_by_country ) ) {
+				$countries[ strtoupper( (string) $row->country_code ) ] = (float) $row->country_rate;
+			} elseif ( ! empty( $row->tax_by_all ) ) {
+				$all_rate = (float) $row->all_rate;
+			} elseif ( ( ! empty( $row->tax_by_vat ) || ! empty( $row->tax_by_single_vat ) ) && null === $vat_row ) {
+				$vat_row = $row;
+			}
+		}
+		$service    = '';
+		$service_id = '';
+		if ( class_exists( 'wp_easycart_tax_providers' ) ) {
+			$service_id = (string) wp_easycart_tax_providers::active_id();
+			if ( 'taxcloud' === $service_id ) {
+				$service = 'TaxCloud';
+			} elseif ( 'taxjar' === $service_id ) {
+				$service = 'TaxJar';
+			} elseif ( '' !== $service_id ) {
+				$provider   = wp_easycart_tax_providers::active();
+				$service    = $provider ? (string) $provider->label() : '';
+				$service_id = '' !== $service ? $service_id : '';
+			}
+		}
+		$canada = (bool) get_option( 'ec_option_enable_easy_canada_tax' );
+		$sales  = $states || $countries || null !== $all_rate || $canada || '' !== $service;
+		$vat    = null !== $vat_row;
+
+		$vat_rate = null;
+		if ( $vat ) {
+			$vat_rate = (float) $vat_row->vat_rate;
+			if ( empty( $vat_row->tax_by_single_vat ) && '' !== $country ) {
+				/* VAT by country: the store's own country's rate ( what a shopper there pays ). */
+				$here = $wpdb->get_var( $wpdb->prepare( 'SELECT vat_rate_cnt FROM ec_country WHERE iso2_cnt = %s', $country ) );
+				if ( null !== $here && (float) $here > 0 ) {
+					$vat_rate = (float) $here;
+				}
+			}
+		}
+
+		$system = class_exists( 'wp_easycart_tax_setup' ) ? wp_easycart_tax_setup::system( $country ) : '';
+		if ( $sales && $vat ) {
+			$lead = ( 'vat' === $system ) ? array( 'vat', 'sales' ) : array( 'sales', 'vat' );
+		} elseif ( $sales ) {
+			$lead = array( 'sales' );
+		} elseif ( $vat ) {
+			$lead = array( 'vat' );
+		} elseif ( 'vat' === $system ) {
+			$lead = array( 'vat' );
+		} elseif ( '' !== $system ) {
+			$lead = array( 'sales' );
+		} else {
+			$lead = array( 'sales', 'vat' ); /* no tax and no country: both switches, side by side */
+		}
+
+		$facts = array(
+			'sales'          => $sales,
+			'vat'            => $vat,
+			'any'            => $sales || $vat,
+			'lead'           => $lead,
+			'other'          => array_values( array_diff( array( 'sales', 'vat' ), $lead ) ),
+			'service'        => $service,
+			'service_id'     => $service_id,
+			'vat_name'       => class_exists( 'wp_easycart_vat' ) ? (string) wp_easycart_vat::name() : 'VAT',
+			'vat_rate'       => $vat_rate,
+			'vat_included'   => $vat && ! empty( $vat_row->vat_included ),
+			'vat_by_country' => $vat && empty( $vat_row->tax_by_single_vat ),
+			'tax_shipping'   => (bool) get_option( 'ec_option_collect_tax_on_shipping' ),
+			'canada'         => $canada,
+			'states'         => $states,
+			'countries'      => $countries,
+			'all_rate'       => $all_rate,
+			'country'        => $country,
+			'system'         => $system,
+		);
+		/**
+		 * What the store charges, as the product editor's Tax section and summary card describe it.
+		 *
+		 * @since 6.0.5
+		 * @param array  $facts   See tax_facts_v2().
+		 * @param object $product The product being edited.
+		 */
+		$this->tax_facts = (array) apply_filters( 'wp_easycart_admin_product_tax_facts', $facts, $this->product );
+		return $this->tax_facts;
+	}
+
+	/**
+	 * 6.0.5: a rate for people ( 8.25%, 20% ).
+	 *
+	 * @since 6.0.5
+	 * @param float $rate Percent.
+	 * @return string
+	 */
+	private function tax_pct( $rate ) {
+		if ( class_exists( 'wp_easycart_tax_setup' ) ) {
+			return wp_easycart_tax_setup::pct( $rate );
+		}
+		return rtrim( rtrim( number_format( (float) $rate, 3, '.', '' ), '0' ), '.' ) . '%';
+	}
+
+	/**
+	 * 6.0.5: a list for people ( Texas, Ohio and Utah ).
+	 *
+	 * @since 6.0.5
+	 * @param array $items Words.
+	 * @return string
+	 */
+	private function tax_list_text( $items ) {
+		$items = array_values( $items );
+		if ( count( $items ) < 2 ) {
+			return implode( '', $items );
+		}
+		$last = array_pop( $items );
+		/* translators: 1: a list of places with their rates, e.g. Texas 8.25%, Ohio 5.75%, 2: the last one. */
+		return sprintf( __( '%1$s and %2$s', 'wp-easycart' ), implode( ', ', $items ), $last );
+	}
+
+	/**
+	 * 6.0.5 ( Matt: a Canadian store's product read "Charge sales tax" ): what the product's first tax switch ( is_taxable ) is called, by
+	 * the store's country. It is the switch every tax but VAT / GST follows: rates by state, by country or on every order, Canada's GST,
+	 * HST and PST, and the tax services. A Canadian store reads GST / HST and PST ( so does any store whose only tax is Canada's ), a US
+	 * store or one with no country sales tax, and any other store tax by state or country ( its own VAT / GST is the other switch ).
+	 *
+	 * @since 6.0.5
+	 * @param array $facts tax_facts_v2().
+	 * @return array kind ( canada | sales | rates ), name ( a title ), lower ( inside a sentence ), switch ( the switch's label ).
+	 */
+	private function tax_sales_words( $facts ) {
+		$canada_only = $facts['canada'] && ! $facts['states'] && ! $facts['countries'] && null === $facts['all_rate'] && '' === $facts['service'];
+		if ( 'CA' === $facts['country'] || $canada_only ) {
+			return array(
+				'kind'   => 'canada',
+				'name'   => __( 'GST / HST and PST', 'wp-easycart' ),
+				'lower'  => __( 'GST / HST and PST', 'wp-easycart' ),
+				'switch' => __( 'Charge GST / HST and PST', 'wp-easycart' ),
+			);
+		}
+		if ( '' === $facts['country'] || 'US' === $facts['country'] || $facts['states'] || '' !== $facts['service'] ) {
+			return array(
+				'kind'   => 'sales',
+				'name'   => __( 'Sales tax', 'wp-easycart' ),
+				'lower'  => __( 'sales tax', 'wp-easycart' ),
+				'switch' => __( 'Charge sales tax', 'wp-easycart' ),
+			);
+		}
+		return array(
+			'kind'   => 'rates',
+			'name'   => __( 'Tax by state or country', 'wp-easycart' ),
+			'lower'  => __( 'tax by state or country', 'wp-easycart' ),
+			'switch' => __( 'Charge tax by state or country', 'wp-easycart' ),
+		);
+	}
+
+	/**
+	 * 6.0.5: the sentences of the Tax section's "Your store" line: what the store charges, or that it charges nothing yet.
+	 *
+	 * @since 6.0.5
+	 * @param array $facts tax_facts_v2().
+	 * @return array sales, vat ( sentences, '' when the store charges none ).
+	 */
+	private function tax_store_lines( $facts ) {
+		$sales = '';
+		if ( '' !== $facts['service'] ) {
+			$sales = in_array( $facts['service_id'], array( 'taxcloud', 'taxjar' ), true )
+				/* translators: %s: a tax service, e.g. TaxJar. */
+				? sprintf( __( '%s works out the sales tax at checkout for orders shipped within the US.', 'wp-easycart' ), $facts['service'] )
+				/* translators: %s: a tax service, e.g. Avalara AvaTax. */
+				: sprintf( __( '%s works out the sales tax at checkout.', 'wp-easycart' ), $facts['service'] );
+		} else {
+			$parts = array();
+			if ( $facts['states'] ) {
+				if ( count( $facts['states'] ) <= 3 ) {
+					$named = array();
+					$home  = in_array( $facts['country'], array( 'US', 'CA' ), true ) ? $facts['country'] : 'US';
+					foreach ( $facts['states'] as $code => $rate ) {
+						$name = class_exists( 'wp_easycart_tax_setup' ) ? wp_easycart_tax_setup::state_name( $home, $code ) : $code;
+						if ( 'CA' === $home && $name === $code && class_exists( 'wp_easycart_tax_setup' ) ) {
+							$name = wp_easycart_tax_setup::state_name( 'US', $code ); /* 6.0.5: a Canadian store's US state ( WA, Washington ) */
+						}
+						/* translators: 1: a state, e.g. Texas, 2: its rate, e.g. 8.25%. */
+						$named[] = sprintf( __( '%1$s %2$s', 'wp-easycart' ), $name, $this->tax_pct( $rate ) );
+					}
+					/* translators: %s: states with their rates, e.g. Texas 8.25% and Ohio 5.75%. */
+					$parts[] = sprintf( __( 'Sales tax in %s.', 'wp-easycart' ), $this->tax_list_text( $named ) );
+				} else {
+					/* translators: %d: a number of states or provinces. */
+					$parts[] = sprintf( _n( 'Sales tax in %d state.', 'Sales tax in %d states.', count( $facts['states'] ), 'wp-easycart' ), count( $facts['states'] ) );
+				}
+			}
+			if ( $facts['countries'] ) {
+				if ( count( $facts['countries'] ) <= 3 ) {
+					$named = array();
+					foreach ( $facts['countries'] as $code => $rate ) {
+						$name = class_exists( 'wp_easycart_tax_setup' ) ? wp_easycart_tax_setup::country_name( $code ) : $code;
+						/* translators: 1: a country, 2: its rate, e.g. 5%. */
+						$named[] = sprintf( __( '%1$s %2$s', 'wp-easycart' ), $name, $this->tax_pct( $rate ) );
+					}
+					/* translators: %s: countries with their rates, e.g. Japan 10%. */
+					$parts[] = sprintf( __( 'Tax on orders to %s.', 'wp-easycart' ), $this->tax_list_text( $named ) );
+				} else {
+					/* translators: %d: a number of countries. */
+					$parts[] = sprintf( _n( 'Tax on orders to %d country.', 'Tax on orders to %d countries.', count( $facts['countries'] ), 'wp-easycart' ), count( $facts['countries'] ) );
+				}
+			}
+			if ( null !== $facts['all_rate'] ) {
+				/* translators: %s: a rate, e.g. 5%. */
+				$parts[] = sprintf( __( 'Tax on every order: %s.', 'wp-easycart' ), $this->tax_pct( $facts['all_rate'] ) );
+			}
+			if ( $facts['canada'] ) {
+				$canada = __( 'GST, HST and PST on orders shipped within Canada.', 'wp-easycart' );
+				if ( 'CA' === $facts['country'] ) {
+					array_unshift( $parts, $canada ); /* a Canadian store's own tax first */
+				} else {
+					$parts[] = $canada;
+				}
+			}
+			$sales = implode( ' ', $parts );
+		}
+		if ( '' !== $sales && $facts['tax_shipping'] ) {
+			$sales .= ' ' . __( 'Shipping is taxed too.', 'wp-easycart' );
+		}
+
+		$vat = '';
+		if ( $facts['vat'] ) {
+			if ( null !== $facts['vat_rate'] && $facts['vat_rate'] > 0 ) {
+				$vat = $facts['vat_included']
+					/* translators: 1: VAT or GST, 2: its rate, e.g. 20%. */
+					? sprintf( __( '%1$s %2$s, included in your prices.', 'wp-easycart' ), $facts['vat_name'], $this->tax_pct( $facts['vat_rate'] ) )
+					/* translators: 1: VAT or GST, 2: its rate, e.g. 20%. */
+					: sprintf( __( '%1$s %2$s, added to your prices at checkout.', 'wp-easycart' ), $facts['vat_name'], $this->tax_pct( $facts['vat_rate'] ) );
+			} else {
+				/* translators: %s: VAT or GST. */
+				$vat = sprintf( __( '%s at each shopper’s country rate.', 'wp-easycart' ), $facts['vat_name'] );
+			}
+			if ( $facts['vat_by_country'] && null !== $facts['vat_rate'] && $facts['vat_rate'] > 0 ) {
+				$vat .= ' ' . __( 'Shoppers in other countries pay their own country’s rate.', 'wp-easycart' );
+			}
+		}
+		return array(
+			'sales' => $sales,
+			'vat'   => $vat,
+		);
+	}
+
+	/**
+	 * 6.0.5: the summary column's Tax card words ( products-details-v2.js tax_card() works them out the same way as fields change ):
+	 * the taxes the store charges that are on for this product, the VAT rate, the tax service.
+	 *
+	 * @since 6.0.5
+	 * @return array title, sub, taxed, warn.
+	 */
+	public function tax_card_text() {
+		$facts = $this->tax_facts_v2();
+		$p     = $this->product;
+		$on    = array(
+			'sales' => 1 === (int) $p->is_taxable,
+			'vat'   => (float) $p->vat_rate > 0,
+		);
+		$parts = array();
+		foreach ( array_merge( $facts['lead'], $facts['other'] ) as $kind ) {
+			if ( ! $on[ $kind ] || ( $facts['any'] && ! $facts[ $kind ] ) ) {
+				continue; /* a switch the store's tax does not read */
+			}
+			if ( 'vat' === $kind ) {
+				$parts[] = $this->tax_vat_text( isset( $p->tax_class ) ? (string) $p->tax_class : '' );
+			} else {
+				$words   = $this->tax_sales_words( $facts );
+				$parts[] = '' !== $facts['service'] ? $facts['service'] : $words['name'];
+			}
+		}
+		$taxed = (bool) $parts;
+		if ( ! $facts['any'] ) {
+			$sub = __( 'Your store doesn’t charge tax yet', 'wp-easycart' );
+		} elseif ( $taxed ) {
+			$sub = implode( ' · ', $parts );
+		} else {
+			$sub = __( 'Checkout adds no tax for it', 'wp-easycart' );
+		}
+		return array(
+			'title' => $taxed ? __( 'Taxable', 'wp-easycart' ) : __( 'Not taxable', 'wp-easycart' ),
+			'sub'   => $sub,
+			'taxed' => $taxed,
+			'warn'  => ! $facts['any'],
+		);
+	}
+
+	/**
+	 * 6.0.5: "VAT 20%", "VAT 5% · Reduced rate", "VAT · Reduced rate" ( the rate the product's class charges in the store's country ).
+	 *
+	 * @since 6.0.5
+	 * @param string $class The product's tax class ( '' = standard ).
+	 * @return string
+	 */
+	private function tax_vat_text( $class ) {
+		$facts = $this->tax_facts_v2();
+		$class = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::clean( $class ) : '';
+		$rate  = $facts['vat_rate'];
+		if ( '' !== $class ) {
+			$own  = wp_easycart_tax_classes::rate( $class, $facts['country'] );
+			$rate = ( null !== $own ) ? $own : $rate;
+		}
+		$classes = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::classes() : array();
+		$text    = ( null !== $rate ) ? sprintf( /* translators: 1: VAT or GST, 2: its rate, e.g. 20%. */ __( '%1$s %2$s', 'wp-easycart' ), $facts['vat_name'], $this->tax_pct( $rate ) ) : $facts['vat_name'];
+		return ( '' !== $class && isset( $classes[ $class ] ) ) ? $text . ' · ' . $classes[ $class ] : $text;
+	}
+
+	/**
+	 * 6.0.5: the Tax section's settings for products-details-v2.js ( view_config_v2()'s tax ).
+	 *
+	 * @since 6.0.5
+	 * @return array
+	 */
+	public function tax_config_v2() {
+		$facts   = $this->tax_facts_v2();
+		$sales   = $this->tax_sales_words( $facts );
+		$classes = array(
+			'' => array(
+				'label' => __( 'Standard rate', 'wp-easycart' ),
+				'rate'  => $facts['vat_rate'],
+				'pct'   => ( null !== $facts['vat_rate'] ) ? $this->tax_pct( $facts['vat_rate'] ) : '',
+				'set'   => true,
+			),
+		);
+		if ( class_exists( 'wp_easycart_tax_classes' ) ) {
+			foreach ( wp_easycart_tax_classes::classes() as $key => $label ) {
+				$own             = wp_easycart_tax_classes::rate( $key, $facts['country'] );
+				$rate            = ( null !== $own ) ? $own : $facts['vat_rate'];
+				$classes[ $key ] = array(
+					'label' => $label,
+					'rate'  => $rate,
+					'pct'   => ( null !== $rate ) ? $this->tax_pct( $rate ) : '',
+					'set'   => null !== $own,
+				);
+			}
+		}
+		return array(
+			'any'          => $facts['any'],
+			'sales'        => $facts['sales'],
+			'vat'          => $facts['vat'],
+			'lead'         => $facts['lead'],
+			'other'        => $facts['other'],
+			'service'      => $facts['service'],
+			'sales_name'   => $sales['name'],
+			'vat_name'     => $facts['vat_name'],
+			'vat_included' => $facts['vat_included'],
+			'by_country'   => $facts['vat_by_country'],
+			'classes'      => $classes,
+		);
+	}
+
+	/**
+	 * 6.0.5 ( Matt: tax was rolled into Pricing ): the Tax section, laid out as Shipping is. What the store charges leads ( Settings ›
+	 * Taxes ), then the switch of the tax it charges ( green while on ), the VAT / GST rate with what a shopper pays on the price, the
+	 * code a tax service reads, and the taxes the store does not charge folded away. Every card is the tax save section's ( the same
+	 * fields and save as the Tax card had ), so an extension's field ( WP EasyCart for Avalara AvaTax ) keeps working.
+	 *
+	 * @since 6.0.5
+	 */
+	public function print_tax_section_v2() {
+		$facts  = $this->tax_facts_v2();
+		$lines  = $this->tax_store_lines( $facts );
+		$p      = $this->product;
+		$name   = $facts['vat_name'];
+		$known  = array();
+		foreach ( $this->tax_fields_list() as $field ) {
+			if ( ! is_array( $field ) || ! isset( $field['name'] ) ) {
+				continue;
+			}
+			/* Each rate says its rate where a shopper in the store's country pays it ( the standard rate too ), or that it has none
+			   yet, in few words: the note under the list says what that means ( tax_config_v2() reads the same rates ). */
+			if ( 'tax_class' === $field['name'] && ! empty( $field['data'] ) && is_array( $field['data'] ) && class_exists( 'wp_easycart_tax_classes' ) ) {
+				$labels = wp_easycart_tax_classes::classes();
+				foreach ( $field['data'] as $choice ) {
+					if ( ! is_object( $choice ) ) {
+						continue;
+					}
+					$key  = (string) $choice->id;
+					$rate = ( '' === $key ) ? $facts['vat_rate'] : wp_easycart_tax_classes::rate( $key, $facts['country'] );
+					$text = ( '' === $key ) ? __( 'Standard rate', 'wp-easycart' ) : ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key );
+					if ( null !== $rate ) {
+						/* translators: 1: a tax class, e.g. Standard rate, 2: its rate, e.g. 20%. */
+						$choice->value = sprintf( __( '%1$s ( %2$s )', 'wp-easycart' ), $text, $this->tax_pct( $rate ) );
+					} elseif ( '' !== $key ) {
+						/* translators: %s: a tax class with no rate of its own yet, e.g. Reduced rate. */
+						$choice->value = sprintf( __( '%s ( not set )', 'wp-easycart' ), $text );
+					}
+				}
+			}
+			$known[ $field['name'] ] = $field;
+		}
+		$code_value = isset( $known['TIC'] ) ? trim( (string) $this->field_value( $known['TIC'] ) ) : '';
+		if ( in_array( $code_value, array( '0', '00000' ), true ) ) {
+			$code_value = ''; /* TaxCloud's general goods, every product's code until one is chosen */
+		}
+		$words    = $this->tax_sales_words( $facts );
+		$settings = admin_url( 'admin.php?page=wp-easycart-settings&subpage=tax' );
+
+		/* What each switch does in this store, in its country's words. */
+		$this->label_overrides['is_taxable'] = $words['switch'];
+		if ( ! $facts['sales'] ) {
+			/* translators: %s: VAT or GST, sales tax, GST / HST and PST, or tax by state or country. */
+			$this->desc_overrides['is_taxable'] = sprintf( __( 'Your store doesn’t charge %s, so this does nothing until you set it up in Settings › Taxes.', 'wp-easycart' ), $words['lower'] );
+		} elseif ( '' !== $facts['service'] ) {
+			/* translators: %s: a tax service, e.g. Avalara AvaTax. */
+			$this->desc_overrides['is_taxable'] = sprintf( __( 'Checkout asks %s for the tax on it.', 'wp-easycart' ), $facts['service'] );
+		} elseif ( 'canada' === $words['kind'] && $facts['canada'] ) {
+			$this->desc_overrides['is_taxable'] = ( $facts['states'] || $facts['countries'] || null !== $facts['all_rate'] )
+				? __( 'Checkout adds GST, HST and PST on it for the province the order ships to, and your other tax rates where they apply.', 'wp-easycart' )
+				: __( 'Checkout adds GST, HST and PST on it for the province the order ships to.', 'wp-easycart' );
+		} elseif ( 'sales' === $words['kind'] ) {
+			$this->desc_overrides['is_taxable'] = __( 'Checkout adds your sales tax on it for orders shipped where you collect tax.', 'wp-easycart' );
+		} else {
+			$this->desc_overrides['is_taxable'] = __( 'Checkout adds your tax rates on it for orders shipped where you collect tax.', 'wp-easycart' );
+		}
+		/* translators: %s: VAT or GST. */
+		$this->label_overrides['vat_rate'] = sprintf( __( 'Charge %s', 'wp-easycart' ), $name );
+		if ( ! $facts['vat'] && 'canada' === $facts['system'] ) {
+			/* A Canadian store's GST is not this switch: it says which one Canada's taxes follow. */
+			/* translators: 1: VAT or GST, 2: the other switch's label, e.g. Charge GST / HST and PST. */
+			$this->desc_overrides['vat_rate'] = sprintf( __( '%1$s is for countries that charge it, such as the UK and the EU. Canada’s GST, HST and PST follow “%2$s” above.', 'wp-easycart' ), $name, $words['switch'] );
+		} elseif ( ! $facts['vat'] && 'us' === $facts['system'] ) {
+			/* translators: 1: VAT or GST, 2: the other switch's label, e.g. Charge sales tax. */
+			$this->desc_overrides['vat_rate'] = sprintf( __( '%1$s is for countries that charge it, such as the UK and the EU. US sales tax follows “%2$s” above.', 'wp-easycart' ), $name, $words['switch'] );
+		} elseif ( ! $facts['vat'] ) {
+			/* translators: %s: VAT or GST, sales tax, GST / HST and PST, or tax by state or country. */
+			$this->desc_overrides['vat_rate'] = sprintf( __( 'Your store doesn’t charge %s, so this does nothing until you set it up in Settings › Taxes.', 'wp-easycart' ), $name );
+		} else {
+			$this->desc_overrides['vat_rate'] = $facts['vat_included']
+				/* translators: %s: VAT or GST. */
+				? sprintf( __( 'Checkout charges %s on it at the rate below. Your prices include it.', 'wp-easycart' ), $name )
+				/* translators: %s: VAT or GST. */
+				: sprintf( __( 'Checkout adds %s to its price at the rate below.', 'wp-easycart' ), $name );
+		}
+		/* translators: %s: VAT or GST. */
+		$this->label_overrides['tax_class'] = sprintf( __( '%s rate', 'wp-easycart' ), $name );
+
+		$on = array(
+			'sales' => 1 === (int) $p->is_taxable,
+			'vat'   => (float) $p->vat_rate > 0,
+		);
+		echo '<div class="ecdv2-tax" id="ecdv2_tax">';
+
+		/* Your store: what Settings › Taxes charges ( a new tab: the editor may hold unsaved changes ). */
+		echo '<div class="ecdv2-tax-store' . ( $facts['any'] ? '' : ' is-warn' ) . '" id="ecdv2_tax_store">';
+		echo '<span class="ecdv2-tax-store-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg></span>';
+		echo '<div class="ecdv2-tax-store-text"><b>' . esc_html__( 'What your store charges', 'wp-easycart' ) . '</b>';
+		if ( ! $facts['any'] ) {
+			echo '<span>' . esc_html__( 'Your store doesn’t charge any tax yet, so checkout adds none for this product. Settings › Taxes can set up the usual tax for your country in one step.', 'wp-easycart' ) . '</span>';
+		} else {
+			foreach ( array_merge( $facts['lead'], $facts['other'] ) as $kind ) {
+				if ( '' !== $lines[ $kind ] ) {
+					echo '<span>' . esc_html( $lines[ $kind ] ) . '</span>';
+				}
+			}
+		}
+		echo '</div>';
+		echo '<a class="ecv2-btn ecv2-btn-sm' . ( $facts['any'] ? '' : ' ecv2-btn-primary' ) . '" href="' . esc_url( $settings ) . '" target="_blank" rel="noopener">' . ( $facts['any'] ? esc_html__( 'Tax settings', 'wp-easycart' ) : esc_html__( 'Set up tax', 'wp-easycart' ) ) . '<span class="screen-reader-text"> ' . esc_html__( '( opens in a new tab )', 'wp-easycart' ) . '</span></a>';
+		echo '</div>';
+
+		$first = true;
+		foreach ( $facts['lead'] as $kind ) {
+			$this->print_tax_kind_v2( $kind, true, $first, $on, $facts );
+			$first = false;
+		}
+
+		/* Every switch off: what that means ( zero-rated items keep VAT on at the zero rate ). */
+		$card = $this->tax_card_text();
+		echo '<div class="ecdv2-tax-off" id="ecdv2_tax_off" role="note"' . ( $card['taxed'] ? ' hidden' : '' ) . '>';
+		echo '<span class="dashicons dashicons-info-outline" aria-hidden="true"></span><span>';
+		echo esc_html__( 'Tax-free: checkout adds no tax for this product. Leave tax off only for items the law exempts.', 'wp-easycart' );
+		if ( $facts['vat'] && class_exists( 'wp_easycart_tax_classes' ) && wp_easycart_tax_classes::ready() ) {
+			/* translators: %s: VAT or GST. */
+			echo ' ' . esc_html( sprintf( __( 'For zero-rated items, keep %s on and choose the zero rate.', 'wp-easycart' ), $name ) );
+		}
+		echo '</span></div>';
+
+		/* The code a tax service reads: open while a service works out the tax ( or a code is saved ), else folded away. */
+		if ( isset( $known['TIC'] ) ) {
+			$this->label_overrides['TIC'] = ( isset( $known['TIC']['label'] ) && __( 'TIC (Tax Cloud)', 'wp-easycart' ) !== $known['TIC']['label'] ) ? $known['TIC']['label'] : __( 'TaxCloud TIC', 'wp-easycart' );
+			if ( '' !== $facts['service'] ) {
+				/* translators: %s: a tax service, e.g. Avalara AvaTax. */
+				$hint = sprintf( __( 'Tells %s what kind of product this is, so the right rate applies. Empty uses your store’s default code.', 'wp-easycart' ), $facts['service'] );
+				$this->group_open( __( 'Tax code', 'wp-easycart' ), $hint, array( 'id' => 'ecdv2_tax_code', 'class' => 'ecdv2-tax-group' ) );
+				$this->section_open( 'tax', __( 'Tax code', 'wp-easycart' ), '', array( 'only' => array( 'TIC' ), 'hidden' => false, 'heading' => false ) );
+				do_action( 'wp_easycart_admin_product_details_tax_fields' );
+				$this->section_close();
+				echo '<p class="ecdv2-tax-hint" id="ecdv2_tax_code_hint"' . ( '' === $code_value ? '' : ' hidden' ) . '>' . esc_html__( 'No code yet, so it is taxed as general goods. Clothing, food, books, digital goods and services often have their own rates: add the code if this is one of them.', 'wp-easycart' ) . '</p>';
+				$this->group_close();
+			} else {
+				echo '<details class="ecdv2-group ecdv2-disclosure ecdv2-tax-group" id="ecdv2_tax_code_more">';
+				/* translators: %s: a product's tax code, e.g. 20010. */
+				$sum = '' !== $code_value ? sprintf( __( '%s · read only by a tax service', 'wp-easycart' ), $code_value ) : __( 'Only for TaxCloud, TaxJar or Avalara AvaTax', 'wp-easycart' );
+				echo '<summary class="ecdv2-group-head"><span class="ecdv2-group-title">' . esc_html__( 'Tax service code', 'wp-easycart' ) . '</span><span class="ecdv2-group-hint">' . esc_html( $sum ) . '</span></summary>';
+				$this->section_open( 'tax', __( 'Tax service code', 'wp-easycart' ), '', array( 'only' => array( 'TIC' ), 'hidden' => false, 'heading' => false ) );
+				do_action( 'wp_easycart_admin_product_details_tax_fields' );
+				$this->section_close();
+				echo '</details>';
+			}
+		}
+
+		/* An extension's own Tax fields ( anything besides WP EasyCart's four ), printed only when there are some. */
+		ob_start();
+		$this->section_open( 'tax', __( 'More tax settings', 'wp-easycart' ), '', array( 'except' => array( 'is_taxable', 'vat_rate', 'tax_class', 'TIC' ), 'hidden' => false, 'heading' => false ) );
+		do_action( 'wp_easycart_admin_product_details_tax_fields' );
+		$this->section_close();
+		$more = (string) ob_get_clean();
+		if ( false !== strpos( $more, 'ecdv2-field' ) ) {
+			$this->group_open( __( 'More tax settings', 'wp-easycart' ), '', array( 'id' => 'ecdv2_tax_extra', 'class' => 'ecdv2-tax-group' ) );
+			echo $more; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- print_field_v2() escapes every part.
+			$this->group_close();
+		}
+
+		/* The taxes the store does not charge, folded away with whether they are on. */
+		foreach ( $facts['other'] as $kind ) {
+			$title = ( 'vat' === $kind ) ? $name : $words['name'];
+			/* translators: %s: VAT, GST, sales tax, GST / HST and PST, or tax by state or country. */
+			$why   = sprintf( __( 'Your store doesn’t charge %s', 'wp-easycart' ), ( 'vat' === $kind ) ? $name : $words['lower'] );
+			echo '<details class="ecdv2-group ecdv2-disclosure ecdv2-tax-group ecdv2-tax-other" id="ecdv2_tax_other_' . esc_attr( $kind ) . '">';
+			echo '<summary class="ecdv2-group-head"><span class="ecdv2-group-title">' . esc_html( $title ) . '</span><span class="ecdv2-group-hint" data-ecdv2-tax-why="' . esc_attr( $why ) . '" id="ecdv2_tax_other_' . esc_attr( $kind ) . '_sum">' . esc_html( $why . ' · ' . ( $on[ $kind ] ? __( 'On for this product', 'wp-easycart' ) : __( 'Off', 'wp-easycart' ) ) ) . '</span></summary>';
+			$this->print_tax_kind_v2( $kind, false, $first, $on, $facts );
+			$first = false;
+			echo '</details>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * 6.0.5: one tax's switch ( a lead's is the green box ) and, for VAT / GST, the rate with what a shopper pays on the price.
+	 *
+	 * @since 6.0.5
+	 * @param string $kind   sales | vat.
+	 * @param bool   $lead   The store charges it ( or would, for its country ): the green box.
+	 * @param bool   $first  The section's first card ( prints the hidden fields ).
+	 * @param array  $on     The product's switches.
+	 * @param array  $facts  tax_facts_v2().
+	 */
+	private function print_tax_kind_v2( $kind, $lead, $first, $on, $facts ) {
+		$field = ( 'vat' === $kind ) ? 'vat_rate' : 'is_taxable';
+		$class = 'ecdv2-tax-switch' . ( $lead ? ' ecdv2-tax-master' : '' ) . ( $on[ $kind ] ? ' is-on' : '' );
+		echo '<div class="ecdv2-tax-kind" data-ecdv2-tax-kind="' . esc_attr( $kind ) . '">';
+		$this->section_open( 'tax', $this->label_overrides[ $field ], '', array( 'only' => array( $field ), 'hidden' => $first, 'heading' => false, 'class' => $class, 'id' => 'ecdv2_tax_switch_' . $kind ) );
+		do_action( 'wp_easycart_admin_product_details_tax_fields' );
+		$this->section_close();
+		if ( 'vat' === $kind ) {
+			$classes_ready = class_exists( 'wp_easycart_tax_classes' ) && wp_easycart_tax_classes::ready();
+			echo '<div class="ecdv2-group ecdv2-tax-rate" id="ecdv2_tax_rate"' . ( $on['vat'] ? '' : ' hidden' ) . '>';
+			if ( $classes_ready ) {
+				$this->section_open( 'tax', $this->label_overrides['tax_class'], '', array( 'only' => array( 'tax_class' ), 'hidden' => false, 'heading' => false ) );
+				do_action( 'wp_easycart_admin_product_details_tax_fields' );
+				$this->section_close();
+			}
+			/* products-details-v2.js writes what a shopper pays ( paint_tax_rate() ); a class with no rate of its own says so. */
+			echo '<p class="ecdv2-tax-note" id="ecdv2_tax_rate_note" aria-live="polite"></p>';
+			echo '<p class="ecdv2-tax-hint" id="ecdv2_tax_rate_warn" data-href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=tax&highlight=' ) ) . '" hidden></p>';
+			echo '<a class="ecdv2-inline-link ecdv2-tax-rates-link" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=tax#ecst-sec-vat' ) ) . '" target="_blank" rel="noopener">' . esc_html( sprintf( /* translators: %s: VAT or GST. */ __( 'Change the %s rates', 'wp-easycart' ), $facts['vat_name'] ) ) . '<span class="screen-reader-text"> ' . esc_html__( '( opens in a new tab )', 'wp-easycart' ) . '</span></a>';
+			echo '</div>';
+		}
 		echo '</div>';
 	}
 
@@ -2726,7 +3709,10 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			'draft'      => $this->is_draft,
 			'type_flags' => self::type_labels_v2(),
 			'types'      => self::product_types_v2(),
+			'type_sections' => self::type_sections_v2(), /* 6.0.5: the type section's name per type */
 			'type'       => $this->product_type_key_v2(),
+			/* 6.0.5: what the store charges, for the Tax section and its summary card. */
+			'tax'        => $this->tax_config_v2(),
 			'text'       => array(
 				/* translators: %s: the next section of the product editor, e.g. Media. */
 				'next'            => __( 'Next: %s', 'wp-easycart' ),
@@ -2773,6 +3759,33 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				'tax_sales'       => __( 'Sales tax', 'wp-easycart' ),
 				'tax_vat'         => __( 'VAT', 'wp-easycart' ),
 				'tax_none'        => __( 'No sales tax or VAT', 'wp-easycart' ),
+				/* The Tax section ( 6.0.5 ). */
+				'tax_store_none'  => __( 'Your store doesn’t charge tax yet', 'wp-easycart' ),
+				'tax_no_tax'      => __( 'Checkout adds no tax for it', 'wp-easycart' ),
+				/* translators: 1: VAT or GST, 2: its rate, e.g. 20%. */
+				'tax_rate_pct'    => __( '%1$s %2$s', 'wp-easycart' ),
+				'tax_on_product'  => __( 'On for this product', 'wp-easycart' ),
+				'tax_off'         => __( 'Off', 'wp-easycart' ),
+				/* translators: %s: VAT or GST. */
+				'tax_store_novat' => __( 'Your store doesn’t charge %s yet, so nothing is added.', 'wp-easycart' ),
+				/* translators: %s: VAT or GST. */
+				'tax_country_rate' => __( 'Each shopper pays their own country’s %s rate.', 'wp-easycart' ),
+				/* translators: %s: VAT or GST. */
+				'tax_zero'        => __( 'At the zero rate, no %s is charged on it.', 'wp-easycart' ),
+				/* translators: 1: VAT or GST, 2: its rate, e.g. 20%. */
+				'tax_at'          => __( '%1$s at %2$s.', 'wp-easycart' ),
+				/* translators: 1: a rate, e.g. 20%, 2: the tax in the price, 3: the price, 4: VAT or GST. */
+				'tax_included'    => __( 'At %1$s, %2$s of the %3$s price is %4$s.', 'wp-easycart' ),
+				/* translators: 1: a rate, e.g. 20%, 2: the tax added, 3: the price, 4: VAT or GST. */
+				'tax_added'       => __( 'At %1$s, checkout adds %2$s %4$s to the %3$s price.', 'wp-easycart' ),
+				'tax_by_country'  => __( 'Shoppers in other countries pay their own country’s rate.', 'wp-easycart' ),
+				/* translators: 1: a tax class, e.g. Reduced rate, 2: the standard rate, e.g. 20%. */
+				'tax_class_unset' => __( '%1$s has no rate set yet, so it charges the standard %2$s.', 'wp-easycart' ),
+				/* translators: %s: a tax class, e.g. Reduced rate. */
+				'tax_class_unset_plain' => __( '%s has no rate set yet, so it charges the standard rate.', 'wp-easycart' ),
+				'tax_class_set'   => __( 'Set its rate', 'wp-easycart' ),
+				/* translators: %s: an amount of money. */
+				'compare_at'      => __( 'compare-at %s', 'wp-easycart' ),
 				'no_manufacturer' => __( 'None', 'wp-easycart' ),
 				'no_badge'        => __( 'No badge', 'wp-easycart' ),
 				/* translators: %s: the text of a product card's badge, e.g. Sale. */
@@ -2816,6 +3829,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				'units'           => __( 'Units sold', 'wp-easycart' ),
 				/* Product type ( 6.0.4, editor plan Phase 2 ). */
 				'type_custom'     => __( 'This product mixes types, so every type switch shows in Type settings.', 'wp-easycart' ),
+				/* 6.0.5: the type section's bar */
+				'type_mixed'      => wp_easycart_admin_product_types::custom_label(),
 				'type_unused'     => __( 'Not used for this type', 'wp-easycart' ),
 				/* translators: %s: a section of the product editor, e.g. Shipping. */
 				'type_show'       => __( 'Show %s', 'wp-easycart' ),

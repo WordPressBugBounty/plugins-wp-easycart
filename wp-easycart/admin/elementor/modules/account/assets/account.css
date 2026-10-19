@@ -539,6 +539,13 @@
 	padding: 10px 0;
 	border-bottom: 1px solid var(--wpec-acc-line);
 }
+/* 6.0.5: the card each subscription bills, beside its name. */
+.wpec-acc-card__subscription-card {
+	margin-right: auto;
+	font-size: 0.9em;
+	color: var(--wpec-acc-muted-color, var(--wpec-muted-color, #666666));
+	white-space: nowrap;
+}
 /* Change payment method as a button ( Payment Methods › Content ). */
 .wpec-acc-card__subscription > .wpec-acc-card__change.wpec-acc-button {
 	align-self: center;

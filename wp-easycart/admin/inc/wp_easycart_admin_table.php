@@ -763,7 +763,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private function print_table_column_date( $result, $list_column ) {
 			$date_timestamp = strtotime( $result->{ $list_column['name'] } );
 			if ( $date_timestamp > 0 ) {
-				echo esc_attr( date( 'F d, Y', $date_timestamp ) );
+				echo esc_attr( wp_easycart_admin_date( $date_timestamp, 'date' ) );
 			}
 		}
 		private function print_table_column_datetime( $result, $list_column ) {
@@ -784,16 +784,19 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			$today_compare = date( 'Ymd', $now_timestamp );
 			$yesterday_compare = date( 'Ymd', strtotime( '-1 day', $now_timestamp ) );
 			$week_cutoff = strtotime( '-7 days 11:59pm', $now_timestamp );
+			/* 6.0.5: in the store's order and language ( wp_easycart_dates ); each filter still gets its case. */
 			if ( $date_compare == $today_compare ) {
-				return apply_filters( 'wp_easycart_admin_datetime_format_today', esc_attr__( 'Today', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+				/* translators: %s: a time of day, e.g. 4:15 am. */
+				return apply_filters( 'wp_easycart_admin_datetime_format_today', sprintf( __( 'Today %s', 'wp-easycart' ), wp_easycart_admin_date( $date_timestamp, 'time' ) ), $date_timestamp );
 			} else if ( $date_compare == $yesterday_compare ) {
-				return apply_filters( 'wp_easycart_admin_datetime_format_yesterday', esc_attr__( 'Yesterday', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+				/* translators: %s: a time of day, e.g. 4:15 am. */
+				return apply_filters( 'wp_easycart_admin_datetime_format_yesterday', sprintf( __( 'Yesterday %s', 'wp-easycart' ), wp_easycart_admin_date( $date_timestamp, 'time' ) ), $date_timestamp );
 			} else if ( $date_timestamp > $week_cutoff ) {
-				return apply_filters( 'wp_easycart_admin_datetime_format_same_week', date( 'l ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+				return apply_filters( 'wp_easycart_admin_datetime_format_same_week', wp_easycart_admin_date( $date_timestamp, 'weekday_time' ), $date_timestamp );
 			} else if ( date( 'Y', $date_timestamp ) != date( 'Y', $now_timestamp ) ) {
-				return apply_filters( 'wp_easycart_admin_datetime_format_oldest', date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+				return apply_filters( 'wp_easycart_admin_datetime_format_oldest', wp_easycart_admin_date( $date_timestamp, 'date_time' ), $date_timestamp );
 			} else {
-				return apply_filters( 'wp_easycart_admin_datetime_format_same_year', date( 'M j ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+				return apply_filters( 'wp_easycart_admin_datetime_format_same_year', wp_easycart_admin_date( $date_timestamp, 'day_time' ), $date_timestamp );
 			}
 		}
 		private function print_table_column_bool( $result, $list_column ) {

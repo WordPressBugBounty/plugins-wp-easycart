@@ -9,7 +9,9 @@
  * wp_easycart_shipments::plan().
  *
  * Units are the store's: product and box dimensions in inches or centimetres ( ec_option_enable_metric_unit_display ),
- * weights in pounds or kilograms ( ec_option_paypal_weight_unit, set by the setup wizard despite its name ).
+ * weights in pounds, kilograms, ounces or grams ( ec_option_paypal_weight_unit: lbs | kgs | oz | g, set by the setup wizard and
+ * Settings › Store details despite its name; ounces and grams since 6.0.5 ). Live carriers and PayPal are given pounds or
+ * kilograms ( units()['carrier'], an ounce store's weights ÷ 16, a gram store's ÷ 1000 ).
  *
  * Products may say how they pack ( ec_product, EC_UPGRADE_DB 114 ): ships_separately ( every unit in its own box, e.g.
  * something that ships in its own carton ), package_id ( always this box ), and the customs fields hs_code,
@@ -55,16 +57,309 @@ if ( ! class_exists( 'wp_easycart_packages' ) ) :
 		// Units.
 
 		/**
+		 * Kilograms in one of each weight unit.
+		 *
+		 * @since 6.0.5
+		 * @var array
+		 */
+		const KG = array(
+			'lb' => 0.45359237,
+			'kg' => 1,
+			'oz' => 0.028349523125,
+			'g'  => 0.001,
+		);
+
+		/**
 		 * The store's units.
 		 *
-		 * @return array dim ( in | cm ), weight ( lb | kg ).
+		 * @return array dim ( in | cm ), weight ( lb | kg | oz | g: what weights are entered in ), carrier ( lb | kg: the unit live
+		 *               carriers and PayPal are given, 6.0.5 ) and factor ( a weight × factor is in the carrier unit: 1, 1/16 or 1/1000 ).
 		 */
 		public static function units() {
-			$weight = (string) get_option( 'ec_option_paypal_weight_unit' );
+			$weight = self::weight_unit( get_option( 'ec_option_paypal_weight_unit' ) );
 			return array(
-				'dim'    => get_option( 'ec_option_enable_metric_unit_display' ) ? 'cm' : 'in',
-				'weight' => ( 'kgs' === $weight || 'kg' === $weight ) ? 'kg' : 'lb',
+				'dim'     => get_option( 'ec_option_enable_metric_unit_display' ) ? 'cm' : 'in',
+				'weight'  => $weight,
+				'carrier' => self::carrier_unit( $weight ),
+				'factor'  => self::carrier_factor( $weight ),
 			);
+		}
+
+		/**
+		 * A weight unit as units() names it, from an option value or a name ( lbs, kgs, oz, g, pounds, grams … ).
+		 *
+		 * @since 6.0.5
+		 * @param mixed $value Option value or unit name.
+		 * @return string lb | kg | oz | g ( lb when it is none of them ).
+		 */
+		public static function weight_unit( $value ) {
+			$value = strtolower( trim( (string) $value ) );
+			if ( in_array( $value, array( 'kgs', 'kg', 'kilogram', 'kilograms' ), true ) ) {
+				return 'kg';
+			}
+			if ( in_array( $value, array( 'oz', 'ozs', 'ounce', 'ounces' ), true ) ) {
+				return 'oz';
+			}
+			if ( in_array( $value, array( 'g', 'gs', 'gram', 'grams' ), true ) ) {
+				return 'g';
+			}
+			return 'lb';
+		}
+
+		/**
+		 * The option value for a unit ( what ec_option_paypal_weight_unit keeps ).
+		 *
+		 * @since 6.0.5
+		 * @param string $unit lb | kg | oz | g.
+		 * @return string lbs | kgs | oz | g
+		 */
+		public static function weight_option( $unit ) {
+			$map  = array(
+				'lb' => 'lbs',
+				'kg' => 'kgs',
+				'oz' => 'oz',
+				'g'  => 'g',
+			);
+			$unit = self::weight_unit( $unit );
+			return $map[ $unit ];
+		}
+
+		/**
+		 * The unit carriers are given for a store unit: pounds for pounds and ounces, kilograms for kilograms and grams.
+		 *
+		 * @since 6.0.5
+		 * @param string|null $unit lb | kg | oz | g, or null for the store's.
+		 * @return string lb | kg
+		 */
+		public static function carrier_unit( $unit = null ) {
+			$unit = null === $unit ? self::weight_unit( get_option( 'ec_option_paypal_weight_unit' ) ) : self::weight_unit( $unit );
+			return ( 'kg' === $unit || 'g' === $unit ) ? 'kg' : 'lb';
+		}
+
+		/**
+		 * What a weight in the store's unit is multiplied by for carriers ( carrier_unit() ).
+		 *
+		 * @since 6.0.5
+		 * @param string|null $unit lb | kg | oz | g, or null for the store's.
+		 * @return float 1, 0.0625 or 0.001
+		 */
+		public static function carrier_factor( $unit = null ) {
+			$unit = null === $unit ? self::weight_unit( get_option( 'ec_option_paypal_weight_unit' ) ) : self::weight_unit( $unit );
+			if ( 'oz' === $unit ) {
+				return 1 / 16;
+			}
+			return 'g' === $unit ? 0.001 : 1.0;
+		}
+
+		/**
+		 * A weight in the store's unit, in the carrier unit ( carrier_unit() ).
+		 *
+		 * @since 6.0.5
+		 * @param float $weight Weight in the store's unit.
+		 * @return float
+		 */
+		public static function to_carrier( $weight ) {
+			return (float) $weight * self::carrier_factor();
+		}
+
+		/**
+		 * A weight from one unit to another.
+		 *
+		 * @since 6.0.5
+		 * @param float  $value Weight.
+		 * @param string $from  lb | kg | oz | g ( or an option value ).
+		 * @param string $to    lb | kg | oz | g ( or an option value ).
+		 * @return float
+		 */
+		public static function convert( $value, $from, $to ) {
+			$from = self::weight_unit( $from );
+			$to   = self::weight_unit( $to );
+			return $from === $to ? (float) $value : (float) $value * self::KG[ $from ] / self::KG[ $to ];
+		}
+
+		/**
+		 * The unit's name, for sentences ( "kilograms" ).
+		 *
+		 * @since 6.0.5
+		 * @param string $unit lb | kg | oz | g.
+		 * @return string
+		 */
+		public static function weight_unit_name( $unit ) {
+			$names = array(
+				'lb' => __( 'pounds', 'wp-easycart' ),
+				'kg' => __( 'kilograms', 'wp-easycart' ),
+				'oz' => __( 'ounces', 'wp-easycart' ),
+				'g'  => __( 'grams', 'wp-easycart' ),
+			);
+			return $names[ self::weight_unit( $unit ) ];
+		}
+
+		/**
+		 * The store's weight unit changed ( Settings › Store details › Units, the PayPal drawer or the setup wizard ): the carrier
+		 * accounts' own weight unit rows ( DHL, FedEx, UPS: "the unit your product weights are entered in" ) follow it, so a live
+		 * carrier never reads kilograms as pounds.
+		 *
+		 * The weights already entered stay as they were; while any are saved, Settings › Store details offers to convert them
+		 * ( pending_conversion(), convert_weights() ). Changing back to the unit they were entered in drops the offer.
+		 *
+		 * @since 6.0.5
+		 * @param mixed $old   Previous value.
+		 * @param mixed $value New value ( lbs | kgs | oz | g ).
+		 */
+		public static function weight_unit_changed( $old, $value ) {
+			global $wpdb;
+			$kg = 'kg' === self::carrier_unit( $value );
+			$pending = get_option( 'wp_easycart_weight_unit_pending' );
+			$from    = ( is_array( $pending ) && isset( $pending['from'] ) ) ? self::weight_unit( $pending['from'] ) : self::weight_unit( $old );
+			$to      = self::weight_unit( $value );
+			if ( $from === $to || ! self::weight_counts( true ) ) {
+				delete_option( 'wp_easycart_weight_unit_pending' );
+			} else {
+				update_option( 'wp_easycart_weight_unit_pending', array( 'from' => $from, 'to' => $to, 'at' => time() ), false );
+			}
+			$wpdb->update(
+				'ec_setting',
+				array(
+					'dhl_weight_unit'    => $kg ? 'KG' : 'LB',
+					'fedex_weight_units' => $kg ? 'KG' : 'LB',
+					'ups_weight_type'    => $kg ? 'KGS' : 'LBS',
+				),
+				array( 'setting_id' => 1 )
+			);
+			wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
+		}
+
+		/**
+		 * The weights the store has saved: products, variants, option choices, boxes and weight-based shipping rates.
+		 *
+		 * @since 6.0.5
+		 * @param bool $any Stop at the first ( true when anything is saved ).
+		 * @return array|bool Counts by kind, or whether there are any.
+		 */
+		public static function weight_counts( $any = false ) {
+			global $wpdb;
+			$queries = array(
+				'products' => 'SELECT COUNT(*) FROM ec_product WHERE weight > 0',
+				'variants' => 'SELECT COUNT(*) FROM ec_optionitemquantity WHERE weight > 0',
+				'options'  => 'SELECT COUNT(*) FROM ec_optionitem WHERE optionitem_weight <> 0 OR optionitem_weight_onetime <> 0 OR optionitem_weight_override > 0',
+				'boxes'    => 'SELECT COUNT(*) FROM ec_package WHERE box_weight > 0 OR max_weight > 0',
+				'rates'    => 'SELECT COUNT(*) FROM ec_shippingrate WHERE is_weight_based = 1 AND trigger_rate > 0',
+			);
+			$counts  = array();
+			$suppress = $wpdb->suppress_errors( true );
+			foreach ( $queries as $kind => $sql ) {
+				$counts[ $kind ] = (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL.
+				if ( $any && $counts[ $kind ] ) {
+					$wpdb->suppress_errors( $suppress );
+					return true;
+				}
+			}
+			$wpdb->suppress_errors( $suppress );
+			return $any ? false : $counts;
+		}
+
+		/**
+		 * The conversion Settings › Store details offers after the weight unit changed: from, to, at ( when ), or null.
+		 *
+		 * @since 6.0.5
+		 * @return array|null
+		 */
+		public static function pending_conversion() {
+			$pending = get_option( 'wp_easycart_weight_unit_pending' );
+			if ( ! is_array( $pending ) || empty( $pending['from'] ) || empty( $pending['to'] ) ) {
+				return null;
+			}
+			$from = self::weight_unit( $pending['from'] );
+			$to   = self::weight_unit( get_option( 'ec_option_paypal_weight_unit' ) );
+			if ( $from === $to ) {
+				delete_option( 'wp_easycart_weight_unit_pending' );
+				return null;
+			}
+			return array(
+				'from' => $from,
+				'to'   => $to,
+				'at'   => isset( $pending['at'] ) ? (int) $pending['at'] : 0,
+			);
+		}
+
+		/**
+		 * Forget the conversion offer ( the store's weights were already in the new unit ).
+		 *
+		 * @since 6.0.5
+		 */
+		public static function dismiss_conversion() {
+			delete_option( 'wp_easycart_weight_unit_pending' );
+		}
+
+		/**
+		 * Every saved weight from one unit to another: products, variants, option choices ( added, one-time and fixed weights;
+		 * multipliers stay ), boxes, weight-based shipping rates, and orders' recorded weights ( order, option and package
+		 * weights ) so their pages keep reading right. Float columns keep three decimals.
+		 *
+		 * @since 6.0.5
+		 * @param string $from lb | kg | oz | g.
+		 * @param string $to   lb | kg | oz | g.
+		 * @return array|WP_Error Rows changed by kind.
+		 */
+		public static function convert_weights( $from, $to ) {
+			global $wpdb;
+			$from = self::weight_unit( $from );
+			$to   = self::weight_unit( $to );
+			if ( $from === $to ) {
+				return new WP_Error( 'same', __( 'Your weights are already in this unit.', 'wp-easycart' ) );
+			}
+			$factor = self::KG[ $from ] / self::KG[ $to ];
+			$f      = sprintf( '%.12F', $factor );
+			$sql    = array(
+				'products' => array( "UPDATE ec_product SET weight = weight * $f WHERE weight <> 0" ),
+				'variants' => array( "UPDATE ec_optionitemquantity SET weight = weight * $f WHERE weight IS NOT NULL AND weight <> 0" ),
+				'options'  => array(
+					"UPDATE ec_optionitem SET optionitem_weight = optionitem_weight * $f, optionitem_weight_onetime = optionitem_weight_onetime * $f WHERE optionitem_weight <> 0 OR optionitem_weight_onetime <> 0",
+					"UPDATE ec_optionitem SET optionitem_weight_override = optionitem_weight_override * $f WHERE optionitem_weight_override > 0",
+				),
+				'boxes'    => array( "UPDATE ec_package SET box_weight = box_weight * $f, max_weight = max_weight * $f WHERE box_weight <> 0 OR max_weight <> 0" ),
+				'rates'    => array( "UPDATE ec_shippingrate SET trigger_rate = trigger_rate * $f WHERE is_weight_based = 1 AND trigger_rate <> 0" ),
+				'orders'   => array(
+					"UPDATE ec_order SET order_weight = order_weight * $f WHERE order_weight <> 0",
+					"UPDATE ec_order_option SET optionitem_weight = optionitem_weight * $f, optionitem_weight_onetime = optionitem_weight_onetime * $f WHERE optionitem_weight <> 0 OR optionitem_weight_onetime <> 0",
+					"UPDATE ec_order_option SET optionitem_weight_override = optionitem_weight_override * $f WHERE optionitem_weight_override > 0",
+					"UPDATE ec_order_shipment SET weight = weight * $f WHERE weight <> 0",
+				),
+			);
+			$changed  = array();
+			$suppress = $wpdb->suppress_errors( true );
+			foreach ( $sql as $kind => $queries ) {
+				$changed[ $kind ] = 0;
+				foreach ( $queries as $query ) {
+					$rows = $wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed SQL; $f is a formatted number.
+					if ( false === $rows && '' !== (string) $wpdb->last_error && false === stripos( $wpdb->last_error, "doesn't exist" ) && false === stripos( $wpdb->last_error, 'Unknown column' ) ) {
+						$wpdb->suppress_errors( $suppress );
+						return new WP_Error( 'sql', $wpdb->last_error );
+					}
+					$changed[ $kind ] = max( $changed[ $kind ], (int) $rows );
+				}
+			}
+			$wpdb->suppress_errors( $suppress );
+			delete_option( 'wp_easycart_weight_unit_pending' );
+			self::$boxes = null;
+			if ( class_exists( 'ec_db' ) && method_exists( 'ec_db', 'product_cache_changed' ) ) {
+				ec_db::product_cache_changed();
+			}
+			if ( function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
+			}
+			update_option( 'ec_option_live_rates_config_time', time() ); /* saved live rate quotes are for the old numbers */
+			/**
+			 * Every saved weight was converted ( an extension converts its own ).
+			 *
+			 * @since 6.0.5
+			 * @param string $from    lb | kg | oz | g.
+			 * @param string $to      lb | kg | oz | g.
+			 * @param float  $factor  What each weight was multiplied by.
+			 * @param array  $changed Rows changed by kind.
+			 */
+			do_action( 'wp_easycart_weights_converted', $from, $to, $factor, $changed );
+			return $changed;
 		}
 
 		// Box library.
@@ -846,5 +1141,8 @@ if ( ! class_exists( 'wp_easycart_packages' ) ) :
 			return is_numeric( $value ) ? max( 0, round( (float) $value, 3 ) ) : 0.0;
 		}
 	}
+
+	/* 6.0.5: carrier weight units follow the store's. */
+	add_action( 'update_option_ec_option_paypal_weight_unit', array( 'wp_easycart_packages', 'weight_unit_changed' ), 10, 2 );
 
 endif;

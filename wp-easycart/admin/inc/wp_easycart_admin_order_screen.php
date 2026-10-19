@@ -119,13 +119,14 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 				'code'      => '',
 			);
 			if ( class_exists( 'ec_currency' ) && isset( ec_currency::$static_symbol ) ) {
-				$config['symbol']    = (string) ec_currency::$static_symbol;
+				$config['symbol']    = html_entity_decode( (string) ec_currency::$static_symbol, ENT_QUOTES | ENT_HTML5, 'UTF-8' ); /* 6.0.5 ( FREE #333 ): the scripts write it as text */
 				$config['before']    = ec_currency::$static_symbol_location ? 1 : 0;
 				$config['negBefore'] = ec_currency::$static_negative_location ? 1 : 0;
 				$config['decimals']  = max( 0, (int) ec_currency::$static_decimal_length );
 				$config['dec']       = (string) ec_currency::$static_decimal_symbol;
 				$config['group']     = (string) ec_currency::$static_grouping_symbol;
 				$config['code']      = ec_currency::$static_show_currency_code ? (string) ec_currency::$static_currency_code : '';
+				$config['space']     = empty( ec_currency::$static_symbol_space ) ? 0 : 1; /* 6.0.5 */
 			}
 			return $config;
 		}
@@ -258,7 +259,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 			$status = $wpdb->get_row( $wpdb->prepare( 'SELECT order_status, color_code FROM ec_orderstatus WHERE status_id = %d', (int) $order->orderstatus_id ) );
 			return array(
 				'status_id'    => (int) $order->orderstatus_id,
-				'status_label' => $status ? wp_strip_all_tags( wp_unslash( (string) $status->order_status ) ) : '',
+				'status_label' => $status ? wp_strip_all_tags( wp_easycart_order_status_label( $status ) ) : '', /* 6.0.5: built-in names in the admin's language */
 				'status_color' => ( $status && sanitize_hex_color( (string) $status->color_code ) ) ? (string) $status->color_code : '',
 				'badge'        => self::payment_badge( $order, $summary ),
 				'fulfillment'  => $ctx['fulfillment']['state'],
@@ -867,7 +868,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 				array(
 					'key'   => 'placed',
 					'label' => __( 'Placed', 'wp-easycart' ),
-					'sub'   => $placed ? date_i18n( 'M j · ' . get_option( 'time_format', 'g:i a' ), $placed ) : '',
+					'sub'   => $placed ? wp_easycart_admin_date( $placed, 'day' ) . ' · ' . wp_easycart_admin_date( $placed, 'time' ) : '',
 					'state' => 'done',
 				),
 			);
@@ -925,7 +926,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 					'key'   => 'paid',
 					'label' => __( 'Paid', 'wp-easycart' ),
 					/* translators: %s: date the invoice was emailed, e.g. Sep 28. */
-					'sub'   => $invoiced ? sprintf( __( 'Invoice sent %s', 'wp-easycart' ), date_i18n( 'M j', $invoiced ) ) : $waiting,
+					'sub'   => $invoiced ? sprintf( __( 'Invoice sent %s', 'wp-easycart' ), wp_easycart_admin_date( $invoiced, 'day' ) ) : $waiting,
 					'state' => 'current',
 				);
 			}
@@ -1403,7 +1404,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 			$name     = trim( (string) $order->shipping_first_name . ' ' . (string) $order->shipping_last_name );
 			$name     = '' !== $name ? $name : trim( (string) $order->billing_first_name . ' ' . (string) $order->billing_last_name );
 			$country  = ( isset( $order->shipping_country_name ) && '' !== (string) $order->shipping_country_name ) ? (string) $order->shipping_country_name : (string) $order->shipping_country;
-			$address  = trim( implode( ', ', array_filter( array( trim( (string) $order->shipping_address_line_1 . ' ' . (string) $order->shipping_address_line_2 ), trim( (string) $order->shipping_city . ' ' . (string) $order->shipping_state . ' ' . (string) $order->shipping_zip ), $country ) ) ), ', ' );
+			$address  = wp_easycart_address::one_line( $order, 'shipping', array( 'name' => false, 'company' => false, 'all' => true ) ); /* 6.0.5: in the country's order */
 			$kind     = 'waiting';
 			$title    = '';
 			$text     = '';
@@ -2367,7 +2368,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 					'name'   => wp_strip_all_tags( wp_unslash( $name ) ),
 					'email'  => (string) $row->user_email,
 					'total'  => self::money( $row->grand_total ),
-					'status' => wp_strip_all_tags( wp_unslash( (string) $row->order_status ) ),
+					'status' => wp_strip_all_tags( wp_easycart_order_status_label( isset( $row->orderstatus_id ) ? (int) $row->orderstatus_id : 0, (string) $row->order_status ) ),
 					'color'  => sanitize_hex_color( (string) $row->color_code ) ? (string) $row->color_code : '',
 					'date'   => $when ? date_i18n( get_option( 'date_format', 'M j, Y' ), $when ) : '',
 					'url'    => self::order_url( (int) $row->order_id ),
@@ -2602,7 +2603,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 		public static function ajax_save_billing() {
 			ecv2_order_screen_guard();
 			self::save_address( 'billing' );
-			wp_send_json_success( array( 'message' => __( 'Billing address saved.', 'wp-easycart' ) ) );
+			wp_send_json_success( array( 'message' => __( 'Billing address saved.', 'wp-easycart' ), 'place' => self::saved_place( 'billing' ) ) );
 		}
 
 		/**
@@ -2611,7 +2612,23 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 		public static function ajax_save_shipping() {
 			ecv2_order_screen_guard();
 			self::save_address( 'shipping' );
-			wp_send_json_success( array( 'message' => __( 'Shipping address saved.', 'wp-easycart' ) ) );
+			wp_send_json_success( array( 'message' => __( 'Shipping address saved.', 'wp-easycart' ), 'place' => self::saved_place( 'shipping' ) ) );
+		}
+
+		/**
+		 * The city / region / postcode just saved, as the order screen prints it ( wp_easycart_address::place_line() ).
+		 *
+		 * @since 6.0.5
+		 * @param string $type billing | shipping.
+		 * @return string
+		 */
+		private static function saved_place( $type ) {
+			$values = array();
+			foreach ( array( 'city', 'state', 'zip', 'country' ) as $part ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- the callers ran ecv2_order_screen_guard().
+				$values[ $type . '_' . $part ] = isset( $_POST[ $type . '_' . $part ] ) ? sanitize_text_field( wp_unslash( $_POST[ $type . '_' . $part ] ) ) : '';
+			}
+			return wp_easycart_address::place_line( $values, $type, true );
 		}
 
 		/**

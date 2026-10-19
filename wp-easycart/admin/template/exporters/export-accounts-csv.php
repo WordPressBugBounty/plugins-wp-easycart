@@ -224,6 +224,7 @@ header( 'Content-Type: text/csv; charset=utf-8' );
 header( 'Content-Disposition: attachment; filename=users-export-' . date( 'Y-m-d' ) . '.csv' );
 
 $output = fopen( 'php://output', 'w' );
+wp_easycart_admin_csv_bom( $output, 'accounts' ); /* 6.0.5: Excel reads the file as UTF-8 */
 fputcsv( $output, $keys, ',', '"', '\\' );
 
 $last_user_id = 0;

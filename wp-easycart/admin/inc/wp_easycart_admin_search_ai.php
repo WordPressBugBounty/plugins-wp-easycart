@@ -138,6 +138,11 @@ if ( ! class_exists( 'wp_easycart_admin_search_ai' ) ) :
 			if ( ! self::engine() ) {
 				return;
 			}
+			/* 6.0.5 ( admin review M15 ): reading the live robots.txt waits on the site itself; it runs after the page shows. */
+			if ( class_exists( 'wp_easycart_admin_deferred_checks' ) && ! wp_easycart_admin_deferred_checks::ready( 'search_ai_status' ) ) {
+				wp_easycart_admin_deferred_checks::placeholder( 'search_ai_status', __( 'Checking what search engines and AI assistants see…', 'wp-easycart' ), 'ecsa-pending' );
+				return;
+			}
 			$counts   = self::counts();
 			$enabled  = wp_easycart_product_schema::enabled();
 			$crawlers = self::crawlers();
@@ -623,6 +628,10 @@ if ( ! class_exists( 'wp_easycart_admin_search_ai' ) ) :
 		 * Section Who can read your store.
 		 */
 		public static function render_crawlers() {
+			if ( class_exists( 'wp_easycart_admin_deferred_checks' ) && ! wp_easycart_admin_deferred_checks::ready( 'search_ai_crawlers' ) ) {
+				wp_easycart_admin_deferred_checks::placeholder( 'search_ai_crawlers', __( 'Reading your robots.txt…', 'wp-easycart' ), 'ecsa-pending' );
+				return;
+			}
 			$crawlers = self::crawlers();
 			$sources  = array(
 				'live'    => __( 'your live robots.txt', 'wp-easycart' ),
@@ -723,16 +732,9 @@ if ( ! class_exists( 'wp_easycart_admin_search_ai' ) ) :
 		/**
 		 * Store Status rows: product data, crawlers, template copies.
 		 */
-		public static function store_status_rows() {
-			if ( ! self::engine() ) {
-				return;
-			}
-			$link = ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Open Search & AI', 'wp-easycart' ) . '</a>';
-			if ( wp_easycart_product_schema::enabled() ) {
-				self::status_row( true, esc_html__( 'Product pages share their price, stock, variants and reviews with search engines and AI assistants.', 'wp-easycart' ) );
-			} else {
-				self::status_row( false, esc_html__( 'Product details for search engines and AI assistants are switched off.', 'wp-easycart' ) . $link );
-			}
+		/** Diagnostics' row: which crawlers robots.txt lets read the store ( 6.0.5: run after the page shows, see store_status_rows() ). */
+		public static function crawlers_status_row() {
+			$link     = ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Open Search & AI', 'wp-easycart' ) . '</a>';
 			$crawlers = self::crawlers();
 			$blocked  = array();
 			foreach ( $crawlers['bots'] as $bot ) {
@@ -747,6 +749,24 @@ if ( ! class_exists( 'wp_easycart_admin_search_ai' ) ) :
 				self::status_row( false, esc_html( sprintf( __( 'robots.txt blocks %s from reading your store.', 'wp-easycart' ), implode( ', ', $blocked ) ) ) . $link );
 			} else {
 				self::status_row( true, esc_html__( 'Google, Bing, ChatGPT, Perplexity, Claude and Gemini can read your store.', 'wp-easycart' ) );
+			}
+		}
+
+		public static function store_status_rows() {
+			if ( ! self::engine() ) {
+				return;
+			}
+			$link = ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Open Search & AI', 'wp-easycart' ) . '</a>';
+			if ( wp_easycart_product_schema::enabled() ) {
+				self::status_row( true, esc_html__( 'Product pages share their price, stock, variants and reviews with search engines and AI assistants.', 'wp-easycart' ) );
+			} else {
+				self::status_row( false, esc_html__( 'Product details for search engines and AI assistants are switched off.', 'wp-easycart' ) . $link );
+			}
+			/* 6.0.5 ( admin review M15 ): the robots.txt row runs after the page shows unless its answer is cached. */
+			if ( class_exists( 'wp_easycart_admin_deferred_checks' ) ) {
+				wp_easycart_admin_deferred_checks::maybe( 'crawlers_row', __( 'Checking which search engines and AI assistants can read your store…', 'wp-easycart' ) );
+			} else {
+				self::crawlers_status_row();
 			}
 			$override = self::template_override();
 			if ( '' !== $override ) {

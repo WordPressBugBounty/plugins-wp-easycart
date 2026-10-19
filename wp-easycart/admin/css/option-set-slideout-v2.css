@@ -96,6 +96,23 @@ body.ecosv2-open { overflow:hidden; }
 .ecosv2-tile.is-locked strong { color:var(--ecv2-g600); }
 .ecosv2-tile .ecosv2-pill { position:absolute; top:6px; right:6px; }
 
+/* 6.0.5: what each Dropdown / Swatches choice does ( a variation or an add-on ) */
+.ecosv2-kind { margin:12px 0 0; padding:0; border:0; min-width:0; }
+.ecosv2-kind[hidden] { display:none; }
+.ecosv2-kind-head { margin:0 0 6px; padding:0; font-size:11.5px; color:var(--ecv2-g600); }
+.ecosv2-kind-opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.ecosv2-kind-opt { position:relative; display:flex; align-items:flex-start; gap:8px; padding:10px 10px 9px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; cursor:pointer; transition:all var(--ecv2-tr); }
+.ecosv2-kind-opt:hover { border-color:var(--ecv2-g400); }
+.ecosv2-kind-opt input { margin:2px 0 0; flex-shrink:0; accent-color:var(--ecv2-primary); }
+.ecosv2-kind-opt:focus-within { box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecosv2-kind-opt.is-on { border-color:var(--ecv2-primary); background:var(--ecv2-primary-light); box-shadow:inset 0 0 0 1px var(--ecv2-primary); }
+.ecosv2-kind-text { flex:1; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ecosv2-kind-text strong { font-size:12px; color:var(--ecv2-g800); font-weight:600; line-height:1.2; }
+.ecosv2-kind-text span { font-size:10.5px; color:var(--ecv2-g500); line-height:1.35; }
+.ecosv2-kind-opt.is-locked { background:var(--ecv2-g50); border-style:dashed; }
+.ecosv2-kind-opt.is-locked:hover { border-color:#fcd34d; background:#fffbeb; }
+.ecosv2-kind-opt .ecosv2-pill { flex-shrink:0; align-self:flex-start; }
+
 /* choices table */
 .ecosv2-items { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; }
 .ecosv2-irow { display:grid; grid-template-columns:18px 1fr 92px 90px 82px 28px; gap:6px; align-items:center; padding:6px 8px 6px 6px; border-bottom:1px solid var(--ecv2-g100); background:#fff; }
@@ -182,6 +199,7 @@ body.ecosv2-open { overflow:hidden; }
 	.ecosv2-footer .ecv2-btn-primary { flex-basis:100%; order:-1; }
 	.ecosv2-header, .ecosv2-body { padding-left:16px; padding-right:16px; }
 	.ecosv2-tiles { grid-template-columns:1fr 1fr; }
+	.ecosv2-kind-opts { grid-template-columns:1fr; }
 	/* Choices: two-line rows. Line 1 — drag · photo · name · remove. Line 2 — SKU · price · weight.
 	   Every cell has a named area, so nothing wraps unpredictably. */
 	.ecosv2-irow-head { display:none; }

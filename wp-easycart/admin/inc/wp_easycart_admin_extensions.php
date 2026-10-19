@@ -148,7 +148,8 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		 * screens show update_note, see outdated() ), update_note ( why to update, in the store's words ), bridge ( 6.0.3: the
 		 * last release on the extension's own old update feed, when that is older than min_version: a store without a current
 		 * Premium license cannot get min_version, so it is out of date only below this, with bridge_note as its why ),
-		 * bridge_note, integrations ( 6.0.2: bool, list the extension on Settings › Integrations, see print_integrations_section() ).
+		 * bridge_note, integrations ( 6.0.2: bool, list the extension on Settings › Integrations, see print_integrations_section() ),
+		 * service ( 6.0.5: a WP EasyCart service with its own plan, not Pro or Premium: note, active, settings; a link card for every plan ).
 		 *
 		 * coming ( 6.0.2 ): announced but not released. The card says Coming soon with nothing to install, activate or download,
 		 * Integrations shows it without an action, and upsell surfaces list it as coming. WP EasyCart Premium replaces the status
@@ -499,7 +500,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 					'summary'  => __( 'Manage orders and products from the iPhone, iPad and Android apps, or the desktop app for Windows and Mac. The apps check your license when you sign in.', 'wp-easycart' ),
 					'logo'     => 'Ap',
 					'color'    => '#1f2937',
-					'docs'     => 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/',
+					'docs'     => 'https://www.wpeasycart.com/premium/',
 					'links'    => array(
 						/* 6.0.2: the listing that is live ( the old id616846878 one is gone ), and each button names its platforms. */
 						array(
@@ -527,6 +528,33 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 						'desktop'  => array( __( 'A desktop app too', 'wp-easycart' ), __( 'The same tools on your computer.', 'wp-easycart' ) ),
 					),
 				),
+				/* 6.0.5 ( admin review L10 ): the cloud texting service, once, here ( WP EasyCart PRO printed it in the menu column, on
+				   Store Status and on the order screen, in an older style ). Its own plan, not part of Pro or Premium. */
+				'text-notifications' => array(
+					'name'     => __( 'Text notifications', 'wp-easycart' ),
+					'category' => 'marketing',
+					'summary'  => __( 'Text your customers when an order is placed, ships or is ready to collect, through the WP EasyCart cloud texting service.', 'wp-easycart' ),
+					'logo'     => 'Tx',
+					'color'    => '#0f766e',
+					'docs'     => 'https://www.wpeasycart.com/cloud-services-customer-text-alert-messaging/',
+					'links'    => array(
+						array(
+							'label' => __( 'See plans', 'wp-easycart' ),
+							'url'   => 'https://www.wpeasycart.com/cloud-services-customer-text-alert-messaging/',
+							'title' => __( 'Text notification plans on wpeasycart.com', 'wp-easycart' ),
+						),
+					),
+					'service'  => array(
+						'note'     => __( 'A separate monthly plan, from 150 texts a month', 'wp-easycart' ),
+						'active'   => (bool) get_option( 'ec_option_enable_cloud_messages' ),
+						'settings' => admin_url( 'admin.php?page=wp-easycart-settings&subpage=checkout#ecst-sec-text-notifications' ),
+					),
+					'features' => array(
+						'placed'  => array( __( 'Order placed', 'wp-easycart' ), __( 'A text the moment an order comes in.', 'wp-easycart' ) ),
+						'shipped' => array( __( 'Shipped and ready', 'wp-easycart' ), __( 'Tracking when it ships, a note when a pickup is ready.', 'wp-easycart' ) ),
+						'status'  => array( __( 'Delivery status', 'wp-easycart' ), __( 'Each text shows as sent, delivered or failed on the order.', 'wp-easycart' ) ),
+					),
+				),
 				'mailchimp' => array(
 					'name'        => 'MailChimp',
 					'category'    => 'marketing',
@@ -545,6 +573,9 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			 * @since 6.0.2
 			 * @param array $catalog slug => entry ( see catalog() ).
 			 */
+			if ( get_option( 'ec_option_disable_easycart_ad' ) && ! get_option( 'ec_option_enable_cloud_messages' ) ) {
+				unset( $catalog['text-notifications'] ); /* 6.0.5: Settings › Admin › Hide the text notifications card */
+			}
 			$catalog = apply_filters( 'wp_easycart_extensions_catalog', $catalog );
 			$out = array();
 			foreach ( (array) $catalog as $slug => $entry ) {
@@ -575,6 +606,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 					'bridge'      => '',
 					'bridge_note' => '',
 					'integrations' => false,
+					'service'     => array(),
 				) );
 				$entry['integrations'] = (bool) $entry['integrations'];
 				$entry['replaced_by']  = sanitize_key( (string) $entry['replaced_by'] );
@@ -1264,6 +1296,29 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 						$card['actions'][] = $learn;
 					}
 				}
+			} elseif ( ! empty( $ext['service'] ) ) {
+				/* 6.0.5: a WP EasyCart service with its own plan ( text notifications ): the same for every plan. */
+				$card['state'] = ! empty( $ext['service']['active'] ) ? 'active' : 'links';
+				if ( ! empty( $ext['service']['active'] ) ) {
+					$card['status'] = '<span class="ecext-dot is-on" aria-hidden="true"></span>' . esc_html__( 'On for this store', 'wp-easycart' );
+					if ( ! empty( $ext['service']['settings'] ) ) {
+						$card['actions'][] = array(
+							'label' => __( 'Settings', 'wp-easycart' ),
+							'url'   => $ext['service']['settings'],
+						);
+					}
+				} else {
+					$card['status'] = esc_html( isset( $ext['service']['note'] ) ? (string) $ext['service']['note'] : '' );
+					foreach ( $ext['links'] as $link ) {
+						$card['actions'][] = array(
+							'label'  => $link['label'],
+							'url'    => $link['url'],
+							'target' => '_blank',
+							'icon'   => isset( $link['icon'] ) ? (string) $link['icon'] : '',
+							'title'  => isset( $link['title'] ) ? (string) $link['title'] : '',
+						);
+					}
+				}
 			} elseif ( $ext['links'] ) {
 				$card['state'] = 'links';
 				if ( 'none' === $prem ) {
@@ -1567,7 +1622,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 
 			if ( 'none' === $prem ) {
 				if ( 'upgrade' === $offer['mode'] ) {
-					$title = __( 'Your Pro license upgrades to Premium at a discount.', 'wp-easycart' );
+					$title = __( 'Change your Pro plan to Premium to get every extension.', 'wp-easycart' ); // 6.0.5: in the WP EasyCart account ( no discount product ).
 					$text  = __( 'Premium adds every extension on this page, installed and updated from here.', 'wp-easycart' );
 				} elseif ( 'trial' === $offer['mode'] ) {
 					$title = __( 'Upgrade your trial to Premium to get every extension.', 'wp-easycart' );
@@ -2046,7 +2101,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			}
 			if ( 'none' === $prem ) {
 				$offer = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_offer() : array( 'mode' => 'get' );
-				$line  = esc_html( $ext['summary'] ) . ( 'upgrade' === $offer['mode'] ? ' ' . esc_html__( 'Your Pro license upgrades to Premium at a discount.', 'wp-easycart' ) : '' );
+				$line  = esc_html( $ext['summary'] ) . ( 'upgrade' === $offer['mode'] ? ' ' . esc_html__( 'Change your Pro plan to Premium in your WP EasyCart account.', 'wp-easycart' ) : '' );
 				return self::service_row( $ext, $premium, $line, array( $learn ) );
 			}
 			if ( 'lapsed' === $prem ) {

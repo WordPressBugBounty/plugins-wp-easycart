@@ -28,8 +28,10 @@
 	</div>
 </div>
 <?php }?>
-<?php if( ( $this->tax->is_tax_enabled( ) && !get_option( 'ec_option_enable_easy_canada_tax' ) ) || ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->tax_total > 0 ) ){ ?>
-<div class="ec_cart_price_row ec_cart_price_row_tax_total">
+<?php /* 6.0.5: every tax row the store can charge is on the page ( hidden while it is zero with Canada's taxes on ), so ec_update_cart() shows the
+   ones an address change brings ( PST from Alberta to Manitoba, HST to Ontario, a US state's tax ) without a reload. */ ?>
+<?php if( $this->tax->is_tax_enabled( ) || ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->tax_total > 0 ) ){ ?>
+<div class="ec_cart_price_row ec_cart_price_row_tax_total"<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->tax_total <= 0 ) { ?> style="display:none;"<?php }?>>
 	<div class="ec_cart_price_row_label"><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' )?></div>
 	<div class="ec_cart_price_row_total" id="ec_cart_tax"><?php echo esc_attr( $this->get_tax_total( ) ); ?></div>
 </div>
@@ -86,21 +88,21 @@
 	<div class="ec_cart_price_row_total" id="ec_cart_vat"><?php echo esc_attr( $this->get_vat_total_formatted( ) ); ?></div>
 </div>
 <?php }?>
-<?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->gst_total > 0 ){ ?>
-<div class="ec_cart_price_row ec_cart_price_row_gst_total">
-	<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $this->tax->shipping_state ) ); ?> (<?php echo esc_attr( $this->tax->gst_rate ); ?>%)</div>
+<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
+<div class="ec_cart_price_row ec_cart_price_row_gst_total"<?php if ( $this->order_totals->gst_total <= 0 ) { ?> style="display:none;"<?php }?>>
+	<div class="ec_cart_price_row_label"><span class="ec_cart_gst_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $this->tax->shipping_state ) ); ?></span> (<span class="ec_cart_gst_rate"><?php echo esc_attr( $this->tax->gst_rate ); ?></span>%)</div>
 	<div class="ec_cart_price_row_total" id="ec_cart_gst"><?php echo esc_attr( $this->get_gst_total( ) ); ?></div>
 </div>
 <?php }?>
-<?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->pst_total > 0 ){ ?>
-<div class="ec_cart_price_row ec_cart_price_row_pst_total">
-	<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $this->tax->shipping_state ) ); ?> (<?php echo esc_attr( $this->tax->pst_rate ); ?>%)</div>
+<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
+<div class="ec_cart_price_row ec_cart_price_row_pst_total"<?php if ( $this->order_totals->pst_total <= 0 ) { ?> style="display:none;"<?php }?>>
+	<div class="ec_cart_price_row_label"><span class="ec_cart_pst_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $this->tax->shipping_state ) ); ?></span> (<span class="ec_cart_pst_rate"><?php echo esc_attr( $this->tax->pst_rate ); ?></span>%)</div>
 	<div class="ec_cart_price_row_total" id="ec_cart_pst"><?php echo esc_attr( $this->get_pst_total( ) ); ?></div>
 </div>
 <?php }?>
-<?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->hst_total > 0 ){ ?>
-<div class="ec_cart_price_row ec_cart_price_row_hst_total">
-	<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $this->tax->shipping_state ) ); ?> (<?php echo esc_attr( $this->tax->hst_rate ); ?>%)</div>
+<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
+<div class="ec_cart_price_row ec_cart_price_row_hst_total"<?php if ( $this->order_totals->hst_total <= 0 ) { ?> style="display:none;"<?php }?>>
+	<div class="ec_cart_price_row_label"><span class="ec_cart_hst_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $this->tax->shipping_state ) ); ?></span> (<span class="ec_cart_hst_rate"><?php echo esc_attr( $this->tax->hst_rate ); ?></span>%)</div>
 	<div class="ec_cart_price_row_total" id="ec_cart_hst"><?php echo esc_attr( $this->get_hst_total( ) ); ?></div>
 </div>
 <?php }?>

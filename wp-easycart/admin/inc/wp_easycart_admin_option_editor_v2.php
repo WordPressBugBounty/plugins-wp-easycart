@@ -237,6 +237,50 @@ if ( ! class_exists( 'wp_easycart_admin_option_editor_v2' ) ) :
 			) );
 		}
 
+		/**
+		 * A swatch size as the storefront can draw it: whole pixels in steps of 5, 5 to 200 ( ec-store.css has a width for each:
+		 * .ec_details_swatches_5 … _200 ). 6.0.5: the editor offered only 20 / 30 / 40 / 60, so a set saved larger before ( a store
+		 * used 140 ) went back to the first choice the next time it was saved.
+		 *
+		 * @since 6.0.5
+		 * @param mixed $size Saved or posted size.
+		 * @return int
+		 */
+		public static function swatch_size( $size ) {
+			$size = (float) $size;
+			if ( $size <= 0 ) {
+				return 30;
+			}
+			return (int) max( 5, min( 200, (int) round( $size / 5 ) * 5 ) );
+		}
+
+		/**
+		 * The sizes the editor offers ( px => label ), the saved one always among them.
+		 *
+		 * @since 6.0.5
+		 * @param int $current The set's size.
+		 * @return array
+		 */
+		public static function swatch_sizes( $current = 30 ) {
+			$sizes = array(
+				20 => __( 'Small (20px)', 'wp-easycart' ),
+				30 => __( 'Medium (30px)', 'wp-easycart' ),
+				40 => __( 'Large (40px)', 'wp-easycart' ),
+				60 => __( 'Extra large (60px)', 'wp-easycart' ),
+			);
+			foreach ( array( 80, 100, 120, 140, 160, 180, 200 ) as $px ) {
+				/* translators: %d: swatch size in pixels. */
+				$sizes[ $px ] = sprintf( __( '%dpx', 'wp-easycart' ), $px );
+			}
+			$current = self::swatch_size( $current );
+			if ( ! isset( $sizes[ $current ] ) ) {
+				/* translators: %d: swatch size in pixels. */
+				$sizes[ $current ] = sprintf( __( '%dpx', 'wp-easycart' ), $current );
+				ksort( $sizes );
+			}
+			return $sizes;
+		}
+
 		public static function sanitize_icon( $icon, $is_pro, $optionitem_id = 0 ) {
 			$icon = trim( (string) $icon );
 			if ( '' === $icon ) { return ''; }
@@ -266,11 +310,28 @@ if ( ! class_exists( 'wp_easycart_admin_option_editor_v2' ) ) :
 			return $out;
 		}
 
+		/**
+		 * 6.0.5: a choice's price or weight adjustment, cleaned like filter_float(), with a leading minus kept when $signed.
+		 * Override and Multiply stay positive ( -1 is Override's "not set" ).
+		 *
+		 * @param mixed $value  What the editor sent.
+		 * @param bool  $signed The adjustment may be negative ( Add, One-time ).
+		 * @return string
+		 */
+		public static function adjustment( $value, $signed ) {
+			$number = wp_easycart_admin_verification()->filter_float( $value );
+			if ( $signed && '' !== $number && 0 != (float) $number && 0 === strpos( trim( (string) $value ), '-' ) ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- any non-zero amount.
+				return '-' . $number;
+			}
+			return $number;
+		}
+
 		public static function model_to_columns( $m, $option_id, $order, $is_pro, $is_basic ) {
-			$price  = wp_easycart_admin_verification()->filter_float( isset( $m['price'] ) ? $m['price'] : 0 );
-			$weight = wp_easycart_admin_verification()->filter_float( isset( $m['weight'] ) ? $m['weight'] : 0 );
 			$pt = ( $is_pro && ! $is_basic && isset( $m['price_type'] ) ) ? sanitize_key( $m['price_type'] ) : 'add';
 			$wt = ( $is_pro && ! $is_basic && isset( $m['weight_type'] ) ) ? sanitize_key( $m['weight_type'] ) : 'add';
+			/* 6.0.5: an Add or One-time adjustment keeps its minus sign ( a cheaper choice, -100 ); filter_float() alone dropped it, so -100 saved as +100. */
+			$price  = self::adjustment( isset( $m['price'] ) ? $m['price'] : 0, in_array( $pt, array( 'add', 'onetime' ), true ) );
+			$weight = self::adjustment( isset( $m['weight'] ) ? $m['weight'] : 0, in_array( $wt, array( 'add', 'onetime' ), true ) );
 			$cols = array(
 				'option_id'                            => (int) $option_id,
 				'optionitem_name'                      => sanitize_text_field( isset( $m['name'] ) ? $m['name'] : '' ),
@@ -353,7 +414,9 @@ if ( ! class_exists( 'wp_easycart_admin_option_editor_v2' ) ) :
 				'stock_rows' => $this->stock_rows,
 				'currency'   => html_entity_decode( get_option( 'ec_option_currency' ) ? get_option( 'ec_option_currency' ) : '$' ),
 				'decimals'   => (int) get_option( 'ec_option_currency_decimal_places', 2 ),
-				'weight_unit'=> get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs',
+				/* 6.0.5: the store's own format for the price previews ( symbol before or after, separators ). */
+				'money'      => function_exists( 'wp_easycart_admin_money_format' ) ? wp_easycart_admin_money_format() : array(),
+				'weight_unit'=> function_exists( 'wp_easycart_admin_weight_unit' ) ? wp_easycart_admin_weight_unit() : ( get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs' ),
 				'types'      => wp_easycart_admin_option_table::types(),
 				'nonce'      => wp_create_nonce( self::NONCE ),
 				'delete_nonce' => wp_create_nonce( wp_easycart_admin_safe_delete::NONCE ),
@@ -456,7 +519,7 @@ function ecv2_option_save() {
 		'max_length'  => isset( $meta_in['max_length'] ) ? sanitize_text_field( $meta_in['max_length'] ) : '',
 		'step'        => isset( $meta_in['step'] ) ? sanitize_text_field( $meta_in['step'] ) : '',
 		'url_var'     => isset( $meta_in['url_var'] ) ? preg_replace( '/[^a-zA-Z0-9\_]+/', '', sanitize_text_field( $meta_in['url_var'] ) ) : '',
-		'swatch_size' => isset( $meta_in['swatch_size'] ) ? (int) $meta_in['swatch_size'] : 30,
+		'swatch_size' => isset( $meta_in['swatch_size'] ) ? wp_easycart_admin_option_editor_v2::swatch_size( $meta_in['swatch_size'] ) : 30, /* 6.0.5: 5 to 200 in steps of 5, as the storefront draws them */
 	);
 	/* 6.0.0 input rules ( text / textarea ): text_case, text_allowed, placeholder. Kept for every type so a type switch doesn't lose them. */
 	if ( class_exists( 'wp_easycart_text_input_rules' ) ) {

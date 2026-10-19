@@ -334,6 +334,62 @@
                     "title": "Restricted Store, Signed In Without Access",
                     "value": "Ihr Konto hat noch keinen Zugriff auf den Shop."
                 },
+                "page_access_signin_notice": {
+                    "title": "Limit Access, Sign In To Open A Page",
+                    "value": "Melden Sie sich an, um [title] zu öffnen."
+                },
+                "page_access_title": {
+                    "title": "Limit Access, Members Only Heading",
+                    "value": "[title] ist nur für Mitglieder"
+                },
+                "page_access_products": {
+                    "title": "Limit Access, Any One Product Opens It",
+                    "value": "Eines davon schaltet die Seite frei:"
+                },
+                "page_access_products_all": {
+                    "title": "Limit Access, Every Product Needed",
+                    "value": "Ihr Konto benötigt jedes davon:"
+                },
+                "page_access_contact": {
+                    "title": "Limit Access, No Access ( Contact Us )",
+                    "value": "Ihr Konto hat keinen Zugriff auf diese Seite. Wenn Sie meinen, dass es ihn haben sollte, kontaktieren Sie uns bitte."
+                },
+                "page_access_buy": {
+                    "title": "Limit Access, Buy Button",
+                    "value": "Kaufen"
+                },
+                "page_access_subscribe": {
+                    "title": "Limit Access, Subscribe Button",
+                    "value": "Abonnieren"
+                },
+                "page_access_open": {
+                    "title": "Limit Access, Open The Page",
+                    "value": "[title] öffnen"
+                },
+                "page_access_back": {
+                    "title": "Limit Access, Back To The Store",
+                    "value": "Zurück zum Shop"
+                },
+                "page_access_account": {
+                    "title": "Limit Access, My Account Link",
+                    "value": "Mein Konto"
+                },
+                "page_access_excerpt": {
+                    "title": "Limit Access, Members Only Content",
+                    "value": "Dieser Inhalt ist nur für Mitglieder."
+                },
+                "page_access_your_pages": {
+                    "title": "Limit Access, My Account Pages You Can Open",
+                    "value": "Seiten, die Sie öffnen können"
+                },
+                "page_access_order_opens": {
+                    "title": "Limit Access, Order Confirmation Pages Opened",
+                    "value": "Ihre Bestellung schaltet frei:"
+                },
+                "page_access_order_pending": {
+                    "title": "Limit Access, Order Confirmation Pages Opened Once Paid",
+                    "value": "Sobald Ihre Zahlung abgeschlossen ist, schaltet Ihre Bestellung frei:"
+                },
                 "product_page_start_trial_1": {
                     "title": "Start Your Trial Text Part 1",
                     "value": "Beginnen Sie Ihren"
@@ -520,6 +576,18 @@
                 "product_details_sign_up_now": {
                     "title": "jetzt registrieren Text",
                     "value": "JETZT REGISTRIEREN"
+                },
+                "product_details_prior_price": {
+                    "title": "Product Details, Lowest Price In The Last 30 Days",
+                    "value": "Niedrigster Preis der letzten 30 Tage: [price]"
+                },
+                "product_details_unit_price": {
+                    "title": "Product Details, Unit Price",
+                    "value": "[price] / [unit]"
+                },
+                "product_details_unit_item": {
+                    "title": "Product Details, Unit Price Per Item",
+                    "value": "St\u00fcck"
                 },
                 "product_details_inquiry_title": {
                     "title": "Inquiry Title",
@@ -2068,6 +2136,102 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Sie haben diesen Artikel bereits gekauft. Bitte besuchen Sie Ihr Konto, um Ihre aktiven Abonnements zu überprüfen."
 				},
+				"subscription_email_continue":{
+					"title":"Subscription Page, Email Continue Button ( 6.0.5 )",
+					"value":"Weiter"
+				},
+				"subscription_email_change":{
+					"title":"Subscription Page, Change the Email Link ( 6.0.5 )",
+					"value":"Ändern"
+				},
+				"subscription_email_hint":{
+					"title":"Subscription Page, Email First Hint ( 6.0.5 )",
+					"value":"Beginnen Sie mit Ihrer E-Mail-Adresse. Wenn Sie bereits ein Konto haben, fragen wir nach Ihrem Passwort."
+				},
+				"subscription_email_existing":{
+					"title":"Subscription Page, Email Has An Account ( 6.0.5 )",
+					"value":"Willkommen zurück. Geben Sie Ihr Passwort ein, um sich anzumelden."
+				},
+				"subscription_email_new":{
+					"title":"Subscription Page, New Email Needs A Password ( 6.0.5 )",
+					"value":"Legen Sie ein Passwort für Ihr neues Konto fest."
+				},
+				"subscription_email_later":{
+					"title":"Subscription Page, Password After Checkout Note ( 6.0.5 )",
+					"value":"Ihr Passwort für das Konto wählen Sie nach dem Bezahlen."
+				},
+				"subscription_email_preview":{
+					"title":"Subscription Page, Checkout Waits For The Email ( 6.0.5 )",
+					"value":"Geben Sie oben Ihre E-Mail-Adresse ein, um fortzufahren."
+				},
+				"subscription_email_busy":{
+					"title":"Subscription Page, Too Many Email Checks ( 6.0.5 )",
+					"value":"Zu viele Versuche. Bitte warten Sie einige Minuten und versuchen Sie es erneut."
+				},
+				"subscription_email_changed":{
+					"title":"Subscription Page, Email Changed Before Paying ( 6.0.5 )",
+					"value":"Ihre E-Mail-Adresse hat sich geändert. Bestätigen Sie sie erneut, bevor Sie bezahlen."
+				},
+				"subscription_set_password_title":{
+					"title":"After Purchase, Set A Password Title ( 6.0.5 )",
+					"value":"Legen Sie ein Passwort für Ihr Konto fest"
+				},
+				"subscription_set_password_text":{
+					"title":"After Purchase, Set A Password Text ( 6.0.5 )",
+					"value":"Ihr Konto verwendet [email]. Wählen Sie ein Passwort, damit Sie sich anmelden und Ihr Abonnement verwalten können."
+				},
+				"subscription_set_password_button":{
+					"title":"After Purchase, Save The Password Button ( 6.0.5 )",
+					"value":"Passwort speichern"
+				},
+				"subscription_set_password_saved":{
+					"title":"After Purchase, Password Saved ( 6.0.5 )",
+					"value":"Ihr Passwort wurde gespeichert."
+				},
+				"subscription_set_password_later":{
+					"title":"After Purchase, Set The Password Later ( 6.0.5 )",
+					"value":"Sie können es auch später über Passwort vergessen auf der Anmeldeseite festlegen."
+				},
+				"subscription_set_password_short":{
+					"title":"After Purchase, Password Too Short ( 6.0.5 )",
+					"value":"Verwenden Sie mindestens [count] Zeichen."
+				},
+				"subscription_set_password_failed":{
+					"title":"After Purchase, Password Not Saved ( 6.0.5 )",
+					"value":"Ihr Passwort konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+				},
+				"checkout_email_hint":{
+					"title":"Checkout, Email First Hint When The Order Needs An Account ( 6.0.5 )",
+					"value":"Für Ihre Bestellung ist ein Konto nötig. Beginnen Sie mit Ihrer E-Mail-Adresse: Wenn Sie bereits ein Konto haben, fragen wir nach Ihrem Passwort."
+				},
+				"checkout_email_known":{
+					"title":"Checkout, The Email Has An Account ( 6.0.5 )",
+					"value":"Sie haben bereits ein Konto mit dieser E-Mail-Adresse. Melden Sie sich an, um schneller zu bezahlen."
+				},
+				"checkout_email_suggest":{
+					"title":"Checkout, Did You Mean This Email ( 6.0.5 )",
+					"value":"Meinten Sie [email]?"
+				},
+				"checkout_password_show":{
+					"title":"Checkout, Show The Password Button ( 6.0.5 )",
+					"value":"Anzeigen"
+				},
+				"checkout_password_hide":{
+					"title":"Checkout, Hide The Password Button ( 6.0.5 )",
+					"value":"Verbergen"
+				},
+				"checkout_account_required":{
+					"title":"Checkout, The Order Needs An Account Error ( 6.0.5 )",
+					"value":"Für diese Bestellung ist ein Konto nötig. Geben Sie oben an der Kasse Ihre E-Mail-Adresse ein, um fortzufahren."
+				},
+				"checkout_set_password_text":{
+					"title":"After An Order, Set A Password Text ( 6.0.5 )",
+					"value":"Ihr Konto verwendet [email]. Wählen Sie ein Passwort, damit Sie sich anmelden und Ihre Bestellungen und Downloads sehen können."
+				},
+				"checkout_email_check":{
+					"title":"Checkout, Email First Human Check ( 6.0.5 )",
+					"value":"Zum Schutz der Konten führen Sie bitte diese kurze Prüfung durch, um fortzufahren."
+				},
 				"subscription_change_existing":{
 					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
 					"value":"Sie haben bereits ein Abonnement für diesen Tarif. Ändern Sie es in Ihrem Konto, statt ein zweites zu kaufen."
@@ -2099,6 +2263,18 @@
 				"subscription_choose_options_link":{
 					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
 					"value":"Optionen w\u00e4hlen"
+				},
+				"subscription_level_choose":{
+					"title":"Subscription Page, Usage Level Question ( 6.0.5 )",
+					"value":"Wie viele [unit] benötigen Sie?"
+				},
+				"subscription_level_update":{
+					"title":"Subscription Page, Update the Usage Level Button ( 6.0.5 )",
+					"value":"Aktualisieren"
+				},
+				"subscription_units_range":{
+					"title":"Subscription Page, Amount Not In The Plan ( 6.0.5 )",
+					"value":"Wählen Sie eine Menge, die dieser Tarif umfasst."
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2259,6 +2435,10 @@
                 "cart_billing_information_vat_registration_number": {
                     "title": "Cart, Billing, VAT Registration Number Label",
                     "value": "Umsatzsteuer-Registrierungsnummer"
+                },
+                "cart_billing_information_vat_reverse_charge": {
+                    "title": "Cart, Billing Information, VAT Reverse Charge",
+                    "value": "Steuerschuldnerschaft des Leistungsempf\u00e4ngers"
                 }
             }
         },
@@ -2467,11 +2647,11 @@
                 },
                 "cart_payment_information_third_party_first": {
                     "title": "Warenkorb, Zahlungsinformationen, Dritte Text, Teil 1",
-                    "value": "Sie werden weitergeleitet"
+                    "value": "Sie werden zu"
                 },
                 "cart_payment_information_third_party_second": {
                     "title": "Warenkorb, Zahlungsinformationen, Zahlung durch einen Dritten, Teil 2",
-                    "value": "Klicken Sie auf senden, um Ihre Zahlung abzuschliessen."
+                    "value": "weitergeleitet, wenn Sie auf \u201eZahlungspflichtig bestellen\u201c klicken, um Ihre Zahlung abzuschlie\u00dfen."
                 },
                 "cart_payment_information_apple_pay": {
                     "title": "Cart, Payment Information, Mobile Payment Label",
@@ -2511,7 +2691,7 @@
                 },
                 "cart_payment_information_checkout_text": {
                     "title": "Warenkorb, Zahlungsinformationen, Kasse Text",
-                    "value": "Durch das Absenden Ihrer Bestellung erkl\u00e4ren Sie sich mit den [terms] allgemeinen Gesch\u00e4ftsbedingungen[\/terms] und [privacy]Datenschutzrichtlinien[\/privacy] unserer Website einverstanden.  Sobald Sie auf Bestellung abschicken klicken, ist der Bestellvorgang abgeschlossen und es k\u00f6nnen keine \u00c4nderungen an Ihrer Bestellung vorgenommen werden. Vielen Dank f\u00fcr Ihren Einkauf bei uns!"
+                    "value": "Mit Ihrer Bestellung erkl\u00e4ren Sie sich mit den [terms]allgemeinen Gesch\u00e4ftsbedingungen[/terms] und [privacy]Datenschutzrichtlinien[/privacy] unserer Website einverstanden.  Sobald Sie auf \u201eZahlungspflichtig bestellen\u201c klicken, ist der Bestellvorgang abgeschlossen und es k\u00f6nnen keine \u00c4nderungen an Ihrer Bestellung vorgenommen werden. Vielen Dank f\u00fcr Ihren Einkauf bei uns!"
                 },
                 "cart_payment_information_review_checkout_text": {
                     "title": "Cart, Payment Information, Review Checkout Text",
@@ -2523,7 +2703,7 @@
                 },
                 "cart_payment_information_submit_order_button": {
                     "title": "Warenkorb, Zahlungsinformationen, Bestellung absenden Taste",
-                    "value": "BESTELLUNG ABSENDEN"
+                    "value": "ZAHLUNGSPFLICHTIG BESTELLEN"
                 },
                 "cart_payment_information_cancel_order_button": {
                     "title": "Cart, Payment Information, Cancel Order Button",
@@ -2668,6 +2848,10 @@
 				"choose_location":{
 					"title":"Cart, Preorder Pickup Location Choose",
 					"value":"Standort wählen"
+				},
+				"stripe_unavailable":{
+					"title":"Cart, Card Payments Unavailable",
+					"value":"Kartenzahlungen sind im Moment leider nicht möglich. Bitte versuchen Sie es in ein paar Minuten erneut oder kontaktieren Sie uns, falls das Problem weiterhin besteht."
 				}
             }
         },
@@ -4107,6 +4291,14 @@
                     "title": "Account, Orders Status, Direct Deposit Received",
                     "value": "\u00dcberweisung erhalten"
                 },
+                "order_status_awaiting_bank_transfer": {
+                    "title": "Account, Orders Status, Awaiting Bank Transfer",
+                    "value": "\u00dcberweisung ausstehend"
+                },
+                "order_status_bank_transfer_received": {
+                    "title": "Account, Orders Status, Bank Transfer Received",
+                    "value": "\u00dcberweisung erhalten"
+                },
                 "order_status_refunded_order": {
                     "title": "Account, Orders Status, Refunded Order",
                     "value": "Erstattungsauftrag"
@@ -4331,6 +4523,78 @@
                 "subscription_details_card_notice": {
                     "title": "Account, Subscription Details, Card Change Notice",
                     "value": "Ihre n\u00e4chste Zahlung wird von der neuen Karte abgebucht."
+                },
+                "subscription_details_card_expires": {
+                    "title": "Account, Subscription Details, Card Expiry Date ( 6.0.5 )",
+                    "value": "Gültig bis [date]"
+                },
+                "subscription_details_card_expired": {
+                    "title": "Account, Subscription Details, Card Expired ( 6.0.5 )",
+                    "value": "Abgelaufen seit [date]"
+                },
+                "subscription_details_card_updated": {
+                    "title": "Account, Subscription Details, Payment Method Updated ( 6.0.5 )",
+                    "value": "Ihre Zahlungsmethode wurde aktualisiert."
+                },
+                "subscription_details_card_updated_many": {
+                    "title": "Account, Subscription Details, Payment Method Updated For Several Subscriptions ( 6.0.5 )",
+                    "value": "Ihre Zahlungsmethode wurde für [count] Abonnements aktualisiert."
+                },
+                "subscription_details_card_failed": {
+                    "title": "Account, Subscription Details, Payment Method Not Changed For Some ( 6.0.5 )",
+                    "value": "Ihre Zahlungsmethode konnte für [titles] nicht geändert werden. Öffnen Sie dieses Abonnement, um es erneut zu versuchen."
+                },
+                "subscription_details_card_apply": {
+                    "title": "Account, Subscription Details, Use This Card For ( 6.0.5 )",
+                    "value": "Diese Karte verwenden für"
+                },
+                "subscription_details_card_apply_this": {
+                    "title": "Account, Subscription Details, This Subscription Only ( 6.0.5 )",
+                    "value": "Nur dieses Abonnement"
+                },
+                "subscription_details_card_apply_some": {
+                    "title": "Account, Subscription Details, This And Chosen Subscriptions ( 6.0.5 )",
+                    "value": "Dieses Abonnement und weitere, die ich auswähle"
+                },
+                "subscription_details_card_apply_all": {
+                    "title": "Account, Subscription Details, All My Subscriptions ( 6.0.5 )",
+                    "value": "Alle meine Abonnements ([count])"
+                },
+                "subscription_details_card_apply_others": {
+                    "title": "Account, Subscription Details, Your Other Subscriptions ( 6.0.5 )",
+                    "value": "Ihre weiteren Abonnements"
+                },
+                "subscription_details_card_apply_none": {
+                    "title": "Account, Subscription Details, Choose Another Subscription ( 6.0.5 )",
+                    "value": "Wählen Sie mindestens ein weiteres Abonnement aus oder wählen Sie Nur dieses Abonnement."
+                },
+                "subscription_details_payments_more": {
+                    "title": "Account, Subscription Details, Load More Payments ( 6.0.5 )",
+                    "value": "Mehr laden"
+                },
+                "subscription_details_payments_shown": {
+                    "title": "Account, Subscription Details, Payments Shown ( 6.0.5 )",
+                    "value": "[shown] von [total] Zahlungen angezeigt"
+                },
+                "subscription_details_view_all_orders": {
+                    "title": "Account, Subscription Details, View All Orders ( 6.0.5 )",
+                    "value": "Alle Bestellungen ansehen"
+                },
+                "subscription_level_change": {
+                    "title": "Subscription Details, Change The Usage Level ( 6.0.5 )",
+                    "value": "[unit] ändern"
+                },
+                "subscription_level_current": {
+                    "title": "Subscription Details, The Usage Level It Has ( 6.0.5 )",
+                    "value": "aktuell"
+                },
+                "subscription_level_hint": {
+                    "title": "Subscription Details, When A Usage Level Change Starts ( 6.0.5 )",
+                    "value": "Eine höhere Menge gilt sofort, der Rest dieses Zeitraums wird heute berechnet. Eine geringere Menge gilt ab Ihrer nächsten Verlängerung."
+                },
+                "subscription_level_hint_up": {
+                    "title": "Subscription Details, When A Higher Usage Level Starts ( 6.0.5 )",
+                    "value": "Eine höhere Menge gilt sofort, der Rest dieses Zeitraums wird heute berechnet."
                 },
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
@@ -5803,6 +6067,18 @@
                 "sending": {
                     "title": "Account: Sending",
                     "value": "Wird gesendet…"
+                },
+                "create_account_question": {
+                    "title": "Sign in: No account yet",
+                    "value": "Sie haben noch kein Konto?"
+                },
+                "signed_in_not_you": {
+                    "title": "Signed in: Not you",
+                    "value": "Nicht Sie?"
+                },
+                "signed_in_sign_out": {
+                    "title": "Signed in: Sign out",
+                    "value": "Abmelden"
                 }
             }
         },
@@ -6110,6 +6386,116 @@
                 "code": {
                     "title": "Do Not Change",
                     "value": "DE"
+                }
+            }
+        },
+        "address_labels": {
+            "label": "Address Labels",
+            "options": {
+                "region_state": {
+                    "title": "Address, Region label: State",
+                    "value": "Bundesland"
+                },
+                "region_county": {
+                    "title": "Address, Region label: County",
+                    "value": "Grafschaft"
+                },
+                "region_province": {
+                    "title": "Address, Region label: Province",
+                    "value": "Provinz"
+                },
+                "region_state_territory": {
+                    "title": "Address, Region label: State or territory",
+                    "value": "Bundesstaat oder Territorium"
+                },
+                "region_region": {
+                    "title": "Address, Region label: Region",
+                    "value": "Region"
+                },
+                "region_prefecture": {
+                    "title": "Address, Region label: Prefecture",
+                    "value": "Pr\u00e4fektur"
+                },
+                "postal_postcode": {
+                    "title": "Address, Postcode label: Postcode",
+                    "value": "Postleitzahl"
+                },
+                "postal_postal_code": {
+                    "title": "Address, Postcode label: Postal code",
+                    "value": "Postleitzahl"
+                },
+                "postal_eircode": {
+                    "title": "Address, Postcode label: Eircode",
+                    "value": "Eircode"
+                },
+                "postal_cep": {
+                    "title": "Address, Postcode label: CEP",
+                    "value": "CEP"
+                },
+                "postal_pin": {
+                    "title": "Address, Postcode label: PIN code",
+                    "value": "PIN-Code"
+                }
+            }
+        },
+        "bank_details": {
+            "label": "Bank Details ( Bill Later )",
+            "options": {
+                "bank_details_title": {
+                    "title": "Bank Details, Title",
+                    "value": "Bankverbindung"
+                },
+                "bank_details_holder": {
+                    "title": "Bank Details, Account Name",
+                    "value": "Kontoinhaber"
+                },
+                "bank_details_bank": {
+                    "title": "Bank Details, Bank",
+                    "value": "Bank"
+                },
+                "bank_details_iban": {
+                    "title": "Bank Details, IBAN",
+                    "value": "IBAN"
+                },
+                "bank_details_bic": {
+                    "title": "Bank Details, BIC / SWIFT",
+                    "value": "BIC / SWIFT"
+                },
+                "bank_details_sort_code": {
+                    "title": "Bank Details, Sort Code ( UK )",
+                    "value": "Sort Code"
+                },
+                "bank_details_account": {
+                    "title": "Bank Details, Account Number",
+                    "value": "Kontonummer"
+                },
+                "bank_details_bsb": {
+                    "title": "Bank Details, BSB ( Australia )",
+                    "value": "BSB"
+                },
+                "bank_details_routing": {
+                    "title": "Bank Details, Routing Number ( US )",
+                    "value": "Routing-Nummer"
+                },
+                "bank_details_institution": {
+                    "title": "Bank Details, Institution Number ( Canada )",
+                    "value": "Institutsnummer"
+                },
+                "bank_details_transit": {
+                    "title": "Bank Details, Transit Number ( Canada )",
+                    "value": "Transitnummer"
+                },
+                "bank_details_interac": {
+                    "title": "Bank Details, Interac e-Transfer ( Canada )",
+                    "value": "Interac e-Transfer"
+                },
+                "bank_details_reference": {
+                    "title": "Bank Details, Payment Reference",
+                    "value": "Verwendungszweck"
+                },
+                "bank_details_order": {
+                    "title": "Bank Details, Payment Reference Value ( [order_id] = the order number )",
+                    "value": "Bestellung [order_id]"
                 }
             }
         }

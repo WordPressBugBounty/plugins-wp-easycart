@@ -277,7 +277,7 @@ class ec_accountpage {
 	public function display_account_error( $error_code = '' ) {
 		/* 6.0.2: plus the Connect Order answers ( order_claim_*, invalid_order_id ), for a claim link that returns to this page, and
 		 * download_unavailable ( a download refused by ec_custom_headers(): an unpaid, refunded or cancelled order ). */
-		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed', 'invalid_order_id', 'order_claim_invalid', 'order_claim_sign_in', 'order_claim_limit', 'download_unavailable' );
+		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed', 'invalid_order_id', 'order_claim_invalid', 'order_claim_sign_in', 'order_claim_limit', 'download_unavailable', 'email_busy' );
 		if ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) {
 			$error_text = self::account_message_text( 'ec_errors', sanitize_key( $_GET['account_error'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a message code for display, checked against the list above.
 			$error_text = apply_filters( 'wpeasycart_account_error', $error_text, sanitize_key( $_GET['account_error'] ) );
@@ -858,10 +858,12 @@ class ec_accountpage {
 	}
 
 	public function display_order_details_page() {
+		wp_easycart_order_currency::push( $this->order ); /* 6.0.5: the order's currency */
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_order_details.php' ) )	
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_order_details.php' );
 		else
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_order_details.php' );
+		wp_easycart_order_currency::pop();
 	}
 
 	public function display_order_detail_product_list() {
@@ -1613,6 +1615,13 @@ class ec_accountpage {
 				wp_easycart_cache::shopper_changed();
 				do_action( 'wpeasycart_login_success', $email );
 
+				/* 6.0.5: a customer sent to sign in from a page with WP EasyCart Limit Access goes back to that page. */
+				$access_return = class_exists( 'wp_easycart_page_access' ) ? wp_easycart_page_access::take_return() : '';
+				if ( '' !== $access_return ) {
+					header( 'location: ' . esc_url_raw( $access_return ) );
+					die();
+				}
+
 				if ( isset( $_POST['ec_goto_page'] ) && $_POST['ec_goto_page'] == "store" ) {
 					header( "location: " . esc_url_raw( $this->store_page ) );
 					die();
@@ -1736,6 +1745,12 @@ class ec_accountpage {
 				$email = sanitize_email( wp_unslash( $_POST['ec_account_register_email'] ) );
 				$password = wp_easycart_hash_password( $_POST['ec_account_register_password'] ); // XSS OK, Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, sanitize_text_field( $_POST['ec_account_register_password'] ) );
+
+				/* 6.0.5: too many emails looked up from this browser or address: nothing made, nothing said about this one */
+				if ( class_exists( 'wp_easycart_email_lookups' ) && ! wp_easycart_email_lookups::allow( $email ) ) {
+					header( 'location: ' . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'email_busy' ) ) ) );
+					die();
+				}
 
 				// Check if account already exists
 				if ( wp_easycart_wordpress_users::email_taken( $email ) ) {
@@ -1864,7 +1879,9 @@ class ec_accountpage {
 						$GLOBALS['ec_cart_data']->cart_data->is_guest = "";
 						$GLOBALS['ec_cart_data']->cart_data->guest_key = "";
 						$GLOBALS['ec_cart_data']->save_session_to_db();
-						header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) );
+						/* 6.0.5: a new account made on the way to a page with WP EasyCart Limit Access goes back to that page. */
+						$access_return = class_exists( 'wp_easycart_page_access' ) ? wp_easycart_page_access::take_return() : '';
+						header( "location: " . esc_url_raw( '' !== $access_return ? $access_return : wpeasycart_links()->get_account_page( 'dashboard' ) ) );
 						die();
 					}
 				} else {
@@ -2333,7 +2350,7 @@ class ec_accountpage {
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['ec_selected_plan'] ), "", "", "" );
 		if ( count( $products ) > 0 ) {
 			$quantity = ( isset( $_POST['ec_quantity'] ) ) ? (int) $_POST['ec_quantity'] : 1;
-			if ( get_option( 'ec_option_subscription_one_only' ) || $quantity < 1 ) {
+			if ( ! ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( $products[0] ) : ! get_option( 'ec_option_subscription_one_only' ) ) || $quantity < 1 ) {
 				$quantity = max( 1, (int) $subscription_check->quantity );
 			}
 			/* 6.0.3: the same change as My Account's Change plan ( wp_easycart_change_subscription_plan() ). This form also made a
@@ -2725,6 +2742,9 @@ class ec_accountpage {
 	 * @return string|null The phrase ( null when neither exists, as get_text() ).
 	 */
 	public static function account_message_text( $section, $key ) {
+		if ( 'email_busy' === $key && class_exists( 'wp_easycart_email_lookups' ) ) {
+			return wp_easycart_email_lookups::busy_text(); /* 6.0.5: the registration page over the email lookup limits */
+		}
 		$text = wp_easycart_language()->get_text( $section, $key );
 		if ( null !== $text && '' !== $text ) {
 			return $text;

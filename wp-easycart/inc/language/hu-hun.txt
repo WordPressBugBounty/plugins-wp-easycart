@@ -334,6 +334,62 @@
 					"title":"Restricted Store, Signed In Without Access",
 					"value":"Fiókja még nem fér hozzá az áruházhoz."
 				},
+				"page_access_signin_notice":{
+					"title":"Limit Access, Sign In To Open A Page",
+					"value":"Jelentkezzen be, hogy megnyissa: [title]."
+				},
+				"page_access_title":{
+					"title":"Limit Access, Members Only Heading",
+					"value":"[title]: csak tagoknak"
+				},
+				"page_access_products":{
+					"title":"Limit Access, Any One Product Opens It",
+					"value":"Ezek bármelyike hozzáférést ad:"
+				},
+				"page_access_products_all":{
+					"title":"Limit Access, Every Product Needed",
+					"value":"Fiókjának mindegyikre szüksége van:"
+				},
+				"page_access_contact":{
+					"title":"Limit Access, No Access ( Contact Us )",
+					"value":"Fiókja nem fér hozzá ehhez az oldalhoz. Ha úgy gondolja, hogy hozzá kellene férnie, kérjük, lépjen kapcsolatba velünk."
+				},
+				"page_access_buy":{
+					"title":"Limit Access, Buy Button",
+					"value":"Vásárlás"
+				},
+				"page_access_subscribe":{
+					"title":"Limit Access, Subscribe Button",
+					"value":"Előfizetés"
+				},
+				"page_access_open":{
+					"title":"Limit Access, Open The Page",
+					"value":"Megnyitás: [title]"
+				},
+				"page_access_back":{
+					"title":"Limit Access, Back To The Store",
+					"value":"Vissza az áruházba"
+				},
+				"page_access_account":{
+					"title":"Limit Access, My Account Link",
+					"value":"Fiókom"
+				},
+				"page_access_excerpt":{
+					"title":"Limit Access, Members Only Content",
+					"value":"Ez a tartalom csak tagoknak érhető el."
+				},
+				"page_access_your_pages":{
+					"title":"Limit Access, My Account Pages You Can Open",
+					"value":"Megnyitható oldalak"
+				},
+				"page_access_order_opens":{
+					"title":"Limit Access, Order Confirmation Pages Opened",
+					"value":"A rendelése hozzáférést ad ezekhez:"
+				},
+				"page_access_order_pending":{
+					"title":"Limit Access, Order Confirmation Pages Opened Once Paid",
+					"value":"Amint a fizetése teljesül, a rendelése hozzáférést ad ezekhez:"
+				},
 				"product_page_start_trial_1":{
 					"title":"Próba indítás szövege",
 					"value":"Kezd el"
@@ -524,6 +580,18 @@
 				"product_details_sign_up_now":{
 					"title":"Regisztráció Most felirata",
 					"value":"Regisztráció indítása"
+				},
+				"product_details_prior_price":{
+					"title":"Product Details, Lowest Price In The Last 30 Days",
+					"value":"Az elmúlt 30 nap legalacsonyabb ára: [price]"
+				},
+				"product_details_unit_price":{
+					"title":"Product Details, Unit Price",
+					"value":"[price] / [unit]"
+				},
+				"product_details_unit_item":{
+					"title":"Product Details, Unit Price Per Item",
+					"value":"db"
 				},
 				"product_details_inquiry_title":{
 					"title":"Árajánlat, ajánlat kérés cím felirata",
@@ -2072,6 +2140,102 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Már megvásárolta ezt a terméket. Kérjük, keresse fel fiókját az aktív előfizetések megtekintéséhez."
 				},
+				"subscription_email_continue":{
+					"title":"Subscription Page, Email Continue Button ( 6.0.5 )",
+					"value":"Tovább"
+				},
+				"subscription_email_change":{
+					"title":"Subscription Page, Change the Email Link ( 6.0.5 )",
+					"value":"Módosítás"
+				},
+				"subscription_email_hint":{
+					"title":"Subscription Page, Email First Hint ( 6.0.5 )",
+					"value":"Kezdje az e-mail-címével. Ha már van fiókja, megkérdezzük a jelszavát."
+				},
+				"subscription_email_existing":{
+					"title":"Subscription Page, Email Has An Account ( 6.0.5 )",
+					"value":"Üdvözöljük újra. A bejelentkezéshez adja meg a jelszavát."
+				},
+				"subscription_email_new":{
+					"title":"Subscription Page, New Email Needs A Password ( 6.0.5 )",
+					"value":"Hozzon létre jelszót az új fiókjához."
+				},
+				"subscription_email_later":{
+					"title":"Subscription Page, Password After Checkout Note ( 6.0.5 )",
+					"value":"A fiókja jelszavát a fizetés után választja ki."
+				},
+				"subscription_email_preview":{
+					"title":"Subscription Page, Checkout Waits For The Email ( 6.0.5 )",
+					"value":"A folytatáshoz adja meg fent az e-mail-címét."
+				},
+				"subscription_email_busy":{
+					"title":"Subscription Page, Too Many Email Checks ( 6.0.5 )",
+					"value":"Túl sok próbálkozás. Várjon néhány percet, majd próbálja újra."
+				},
+				"subscription_email_changed":{
+					"title":"Subscription Page, Email Changed Before Paying ( 6.0.5 )",
+					"value":"Az e-mail-címe megváltozott. Fizetés előtt erősítse meg újra."
+				},
+				"subscription_set_password_title":{
+					"title":"After Purchase, Set A Password Title ( 6.0.5 )",
+					"value":"Állítson be jelszót a fiókjához"
+				},
+				"subscription_set_password_text":{
+					"title":"After Purchase, Set A Password Text ( 6.0.5 )",
+					"value":"A fiókja ezt az e-mail-címet használja: [email]. Válasszon jelszót, hogy bejelentkezhessen és kezelhesse az előfizetését."
+				},
+				"subscription_set_password_button":{
+					"title":"After Purchase, Save The Password Button ( 6.0.5 )",
+					"value":"Jelszó mentése"
+				},
+				"subscription_set_password_saved":{
+					"title":"After Purchase, Password Saved ( 6.0.5 )",
+					"value":"A jelszava el lett mentve."
+				},
+				"subscription_set_password_later":{
+					"title":"After Purchase, Set The Password Later ( 6.0.5 )",
+					"value":"Később is beállíthatja az Elfelejtett jelszó lehetőséggel a bejelentkezési oldalon."
+				},
+				"subscription_set_password_short":{
+					"title":"After Purchase, Password Too Short ( 6.0.5 )",
+					"value":"Legalább [count] karaktert használjon."
+				},
+				"subscription_set_password_failed":{
+					"title":"After Purchase, Password Not Saved ( 6.0.5 )",
+					"value":"A jelszavát nem sikerült menteni. Próbálja újra."
+				},
+				"checkout_email_hint":{
+					"title":"Checkout, Email First Hint When The Order Needs An Account ( 6.0.5 )",
+					"value":"A rendeléséhez fiók szükséges. Kezdje az e-mail-címével: ha már van fiókja, megkérdezzük a jelszavát."
+				},
+				"checkout_email_known":{
+					"title":"Checkout, The Email Has An Account ( 6.0.5 )",
+					"value":"Ezzel az e-mail-címmel már van fiókja. Jelentkezzen be a gyorsabb fizetéshez."
+				},
+				"checkout_email_suggest":{
+					"title":"Checkout, Did You Mean This Email ( 6.0.5 )",
+					"value":"Erre gondolt: [email]?"
+				},
+				"checkout_password_show":{
+					"title":"Checkout, Show The Password Button ( 6.0.5 )",
+					"value":"Megjelenítés"
+				},
+				"checkout_password_hide":{
+					"title":"Checkout, Hide The Password Button ( 6.0.5 )",
+					"value":"Elrejtés"
+				},
+				"checkout_account_required":{
+					"title":"Checkout, The Order Needs An Account Error ( 6.0.5 )",
+					"value":"Ehhez a rendeléshez fiók szükséges. A folytatáshoz adja meg e-mail-címét a pénztár tetején."
+				},
+				"checkout_set_password_text":{
+					"title":"After An Order, Set A Password Text ( 6.0.5 )",
+					"value":"A fiókja ezt az e-mail-címet használja: [email]. Válasszon jelszót, hogy bejelentkezhessen, és lássa rendeléseit és letöltéseit."
+				},
+				"checkout_email_check":{
+					"title":"Checkout, Email First Human Check ( 6.0.5 )",
+					"value":"A fiókok védelme érdekében a folytatáshoz végezze el ezt a gyors ellenőrzést."
+				},
 				"subscription_change_existing":{
 					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
 					"value":"Már van előfizetése erre a csomagra. Módosítsa a fiókjában, ahelyett hogy egy másodikat vásárolna."
@@ -2103,6 +2267,18 @@
 				"subscription_choose_options_link":{
 					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
 					"value":"Beállítások kiválasztása"
+				},
+				"subscription_level_choose":{
+					"title":"Subscription Page, Usage Level Question ( 6.0.5 )",
+					"value":"Hány [unit] szükséges Önnek?"
+				},
+				"subscription_level_update":{
+					"title":"Subscription Page, Update the Usage Level Button ( 6.0.5 )",
+					"value":"Frissítés"
+				},
+				"subscription_units_range":{
+					"title":"Subscription Page, Amount Not In The Plan ( 6.0.5 )",
+					"value":"Válasszon olyan mennyiséget, amelyet ez a csomag tartalmaz."
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2263,6 +2439,10 @@
 				"cart_billing_information_vat_registration_number":{
 					"title":"Kosár, Számlázási adatok, Adószám mező felirata",
 					"value":"Adószám"
+				},
+				"cart_billing_information_vat_reverse_charge":{
+					"title":"Cart, Billing Information, VAT Reverse Charge",
+					"value":"Fordított adózás"
 				}
 			}
 		},
@@ -2459,7 +2639,7 @@
 				},
 				"cart_payment_information_manual_payment":{
 					"title":"Kosár, Fizetési Információk, Manual Payment Label",
-					"value":"Közvetlen fizetés"
+					"value":"Fizetés banki átutalással"
 				},
 				"cart_payment_information_affirm":{
 					"title":"Kosár, Fizetési Információk, Fizetési beállítások",
@@ -2475,7 +2655,7 @@
 				},
 				"cart_payment_information_third_party_second":{
 					"title":"Kosár, Fizetési Információk, 3. Féli szolgáltató igénybevétele átirányítás, szöveg 2",
-					"value":"a fizetés befejezéséhez kattintson a Megrendelés elküldése parancsra."
+					"value":"a fizetés befejezéséhez kattintson a Fizetési kötelezettséggel járó megrendelés gombra."
 				},
 				"cart_payment_information_apple_pay":{
 					"title":"Cart, Payment Information, Mobile Payment Label",
@@ -2515,7 +2695,7 @@
 				},
 				"cart_payment_information_checkout_text":{
 					"title":"Kosár, Fizetési Információk, Vásárlás értesítés szövege",
-					"value":"A megrendelés benyújtásával elfogadja honlapunk [terms]felhasználási feltéleket[/terms] és [privacy]adatvédlmi nyilatkozatunkat[/privacy].  Miután rákattint a megrendelés elküldése gombra, a fizetési folyamat befejeződött, és a megrendelésben nem lehet változtatni. Köszönjük, hogy nálunk vásárolt!"
+					"value":"A megrendelés elküldésével elfogadja honlapunk [terms]felhasználási feltételeit[/terms] és [privacy]adatvédelmi nyilatkozatát[/privacy].  Miután rákattint a Fizetési kötelezettséggel járó megrendelés gombra, a fizetési folyamat befejeződött, és a megrendelésben nem lehet változtatni. Köszönjük, hogy nálunk vásárolt!"
 				},
 				"cart_payment_information_review_checkout_text":{
 					"title":"Kosár, Fizetési Információk, Vásárlás áttekintése szöveg",
@@ -2527,7 +2707,7 @@
 				},
 				"cart_payment_information_submit_order_button":{
 					"title":"Kosár, Fizetési Információk, Megrendelés beküldése gomb felirata",
-					"value":"Megrendelés"
+					"value":"Fizetési kötelezettséggel járó megrendelés"
 				},
 				"cart_payment_information_cancel_order_button":{
 					"title":"Kosár, Fizetési Információk, Szerkesztés gomb felirata",
@@ -2672,6 +2852,10 @@
 				"choose_location":{
 					"title":"Cart, Preorder Pickup Location Choose",
 					"value":"Válasszon helyet"
+				},
+				"stripe_unavailable":{
+					"title":"Cart, Card Payments Unavailable",
+					"value":"Jelenleg nem tudunk kártyás fizetést fogadni. Kérjük, próbálja újra néhány perc múlva, vagy vegye fel velünk a kapcsolatot, ha a probléma továbbra is fennáll."
 				}
 			}
 		},
@@ -3957,7 +4141,7 @@
 				},
 				"account_order_details_payment_method_manual":{
 					"title":"Fiók, Megrendelés részletei, Fizetési mód, Manuális számlázási cimke",
-					"value":"Csoportos beszedéssel"
+					"value":"Banki átutalás"
 				},
 				"account_orders_details_subtotal":{
 					"title":"Fiók, Megrendelés részletei, Részösszeg",
@@ -4110,6 +4294,14 @@
 				"order_status_direct_deposit_received":{
 					"title":"Fiók, Megrendelés részletei, Csoportos beszedési megbízások szövege",
 					"value":"Csoportos befizetések"
+				},
+				"order_status_awaiting_bank_transfer":{
+					"title":"Account, Orders Status, Awaiting Bank Transfer",
+					"value":"Banki átutalásra vár"
+				},
+				"order_status_bank_transfer_received":{
+					"title":"Account, Orders Status, Bank Transfer Received",
+					"value":"Banki átutalás beérkezett"
 				},
 				"order_status_refunded_order":{
 					"title":"Fiók, Megrendelés részletei, Visszatérített csomagdíj",
@@ -4335,6 +4527,78 @@
 				"subscription_details_card_notice":{
 					"title":"Account, Subscription Details, Card Change Notice",
 					"value":"A következő fizetését az új kártyáról vonjuk le."
+				},
+				"subscription_details_card_expires":{
+					"title":"Account, Subscription Details, Card Expiry Date ( 6.0.5 )",
+					"value":"Lejár: [date]"
+				},
+				"subscription_details_card_expired":{
+					"title":"Account, Subscription Details, Card Expired ( 6.0.5 )",
+					"value":"Lejárt: [date]"
+				},
+				"subscription_details_card_updated":{
+					"title":"Account, Subscription Details, Payment Method Updated ( 6.0.5 )",
+					"value":"A fizetési módja frissült."
+				},
+				"subscription_details_card_updated_many":{
+					"title":"Account, Subscription Details, Payment Method Updated For Several Subscriptions ( 6.0.5 )",
+					"value":"A fizetési módja [count] előfizetésnél frissült."
+				},
+				"subscription_details_card_failed":{
+					"title":"Account, Subscription Details, Payment Method Not Changed For Some ( 6.0.5 )",
+					"value":"A fizetési módját nem sikerült módosítani a következőknél: [titles]. Nyissa meg az előfizetést, és próbálja újra."
+				},
+				"subscription_details_card_apply":{
+					"title":"Account, Subscription Details, Use This Card For ( 6.0.5 )",
+					"value":"A kártya használata ehhez:"
+				},
+				"subscription_details_card_apply_this":{
+					"title":"Account, Subscription Details, This Subscription Only ( 6.0.5 )",
+					"value":"Csak ehhez az előfizetéshez"
+				},
+				"subscription_details_card_apply_some":{
+					"title":"Account, Subscription Details, This And Chosen Subscriptions ( 6.0.5 )",
+					"value":"Ehhez az előfizetéshez és az általam választottakhoz"
+				},
+				"subscription_details_card_apply_all":{
+					"title":"Account, Subscription Details, All My Subscriptions ( 6.0.5 )",
+					"value":"Az összes előfizetésemhez ([count])"
+				},
+				"subscription_details_card_apply_others":{
+					"title":"Account, Subscription Details, Your Other Subscriptions ( 6.0.5 )",
+					"value":"Az Ön további előfizetései"
+				},
+				"subscription_details_card_apply_none":{
+					"title":"Account, Subscription Details, Choose Another Subscription ( 6.0.5 )",
+					"value":"Válasszon legalább még egy előfizetést, vagy válassza a Csak ehhez az előfizetéshez lehetőséget."
+				},
+				"subscription_details_payments_more":{
+					"title":"Account, Subscription Details, Load More Payments ( 6.0.5 )",
+					"value":"Továbbiak betöltése"
+				},
+				"subscription_details_payments_shown":{
+					"title":"Account, Subscription Details, Payments Shown ( 6.0.5 )",
+					"value":"[shown] / [total] fizetés látható"
+				},
+				"subscription_details_view_all_orders":{
+					"title":"Account, Subscription Details, View All Orders ( 6.0.5 )",
+					"value":"Az összes rendelés megtekintése"
+				},
+				"subscription_level_change":{
+					"title":"Subscription Details, Change The Usage Level ( 6.0.5 )",
+					"value":"[unit] módosítása"
+				},
+				"subscription_level_current":{
+					"title":"Subscription Details, The Usage Level It Has ( 6.0.5 )",
+					"value":"jelenlegi"
+				},
+				"subscription_level_hint":{
+					"title":"Subscription Details, When A Usage Level Change Starts ( 6.0.5 )",
+					"value":"A nagyobb mennyiség azonnal érvényes, az időszak hátralévő részét ma számlázzuk. A kisebb mennyiség a következő megújításkor lép életbe."
+				},
+				"subscription_level_hint_up":{
+					"title":"Subscription Details, When A Higher Usage Level Starts ( 6.0.5 )",
+					"value":"A nagyobb mennyiség azonnal érvényes, az időszak hátralévő részét ma számlázzuk."
 				},
 				"subscription_details_past_payments":{
 					"title":"Fiók, Feliratkozás / előfizetés részletekDetails, A korábbi kifizetések címe",
@@ -5811,6 +6075,18 @@
 				"sending":{
 					"title":"Account: Sending",
 					"value":"Küldés…"
+				},
+				"create_account_question":{
+					"title":"Sign in: No account yet",
+					"value":"Még nincs fiókja?"
+				},
+				"signed_in_not_you":{
+					"title":"Signed in: Not you",
+					"value":"Nem Ön az?"
+				},
+				"signed_in_sign_out":{
+					"title":"Signed in: Sign out",
+					"value":"Kijelentkezés"
 				}
 			}
 		},
@@ -6118,6 +6394,116 @@
 				"code":{
 					"title":"Ezt ne változtasd meg",
 					"value":"HU"
+				}
+			}
+		},
+		"address_labels":{
+			"label":"Address Labels",
+			"options":{
+				"region_state":{
+					"title":"Address, Region label: State",
+					"value":"Állam"
+				},
+				"region_county":{
+					"title":"Address, Region label: County",
+					"value":"Megye"
+				},
+				"region_province":{
+					"title":"Address, Region label: Province",
+					"value":"Tartomány"
+				},
+				"region_state_territory":{
+					"title":"Address, Region label: State or territory",
+					"value":"Állam vagy terület"
+				},
+				"region_region":{
+					"title":"Address, Region label: Region",
+					"value":"Régió"
+				},
+				"region_prefecture":{
+					"title":"Address, Region label: Prefecture",
+					"value":"Prefektúra"
+				},
+				"postal_postcode":{
+					"title":"Address, Postcode label: Postcode",
+					"value":"Irányítószám"
+				},
+				"postal_postal_code":{
+					"title":"Address, Postcode label: Postal code",
+					"value":"Irányítószám"
+				},
+				"postal_eircode":{
+					"title":"Address, Postcode label: Eircode",
+					"value":"Eircode"
+				},
+				"postal_cep":{
+					"title":"Address, Postcode label: CEP",
+					"value":"CEP"
+				},
+				"postal_pin":{
+					"title":"Address, Postcode label: PIN code",
+					"value":"PIN-kód"
+				}
+			}
+		},
+		"bank_details":{
+			"label":"Bank Details ( Bill Later )",
+			"options":{
+				"bank_details_title":{
+					"title":"Bank Details, Title",
+					"value":"Banki adatok"
+				},
+				"bank_details_holder":{
+					"title":"Bank Details, Account Name",
+					"value":"Számlatulajdonos"
+				},
+				"bank_details_bank":{
+					"title":"Bank Details, Bank",
+					"value":"Bank"
+				},
+				"bank_details_iban":{
+					"title":"Bank Details, IBAN",
+					"value":"IBAN"
+				},
+				"bank_details_bic":{
+					"title":"Bank Details, BIC / SWIFT",
+					"value":"BIC / SWIFT"
+				},
+				"bank_details_sort_code":{
+					"title":"Bank Details, Sort Code ( UK )",
+					"value":"Sort code"
+				},
+				"bank_details_account":{
+					"title":"Bank Details, Account Number",
+					"value":"Számlaszám"
+				},
+				"bank_details_bsb":{
+					"title":"Bank Details, BSB ( Australia )",
+					"value":"BSB"
+				},
+				"bank_details_routing":{
+					"title":"Bank Details, Routing Number ( US )",
+					"value":"Routing szám"
+				},
+				"bank_details_institution":{
+					"title":"Bank Details, Institution Number ( Canada )",
+					"value":"Intézményi szám"
+				},
+				"bank_details_transit":{
+					"title":"Bank Details, Transit Number ( Canada )",
+					"value":"Tranzitszám"
+				},
+				"bank_details_interac":{
+					"title":"Bank Details, Interac e-Transfer ( Canada )",
+					"value":"Interac e-Transfer"
+				},
+				"bank_details_reference":{
+					"title":"Bank Details, Payment Reference",
+					"value":"Közlemény"
+				},
+				"bank_details_order":{
+					"title":"Bank Details, Payment Reference Value ( [order_id] = the order number )",
+					"value":"Rendelés [order_id]"
 				}
 			}
 		}

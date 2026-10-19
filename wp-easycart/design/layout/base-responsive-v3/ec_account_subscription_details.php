@@ -8,6 +8,10 @@
  * .ec_account_subscription_details_plan_change, .ec_account_subscription_upgrade_row and
  * .ec_account_subscription_details_payment_form, plus the #ec_submit_update_form form.
  *
+ * 6.0.5: the card shown is the one this subscription bills ( wp_easycart_subscription_cards ), the card form asks which
+ * subscriptions take the new card ( ec_card_apply: this | some | all, posted as apply_to + subscription_ids ), and past payments
+ * show ten at a time ( Load more, ec-account-subscriptions.js ) with a link to every order.
+ *
  * Available: $this ( ec_accountpage ), $this->subscription ( ec_subscription ), $GLOBALS['ec_user'].
  */
 $ec_sub             = $this->subscription;
@@ -30,6 +34,28 @@ foreach ( $ec_sub_payments as $ec_sub_payment ) {
 	$ec_sub_order_ids[] = (int) $ec_sub_payment->order_id;
 }
 $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
+/* 6.0.5: the card this subscription bills ( wp_easycart_subscription_cards: recorded, else asked of Stripe once ); the account's last card
+ * only when that is not known. The customer's other subscriptions it can also move to a new card. */
+$ec_sub_cards  = class_exists( 'wp_easycart_subscription_cards' );
+$ec_sub_card   = ( $ec_sub_cards && 'paypal' !== $ec_sub->subscription_type ) ? wp_easycart_subscription_cards::card( $ec_sub ) : null;
+if ( ! $ec_sub_card && '' != $GLOBALS['ec_user']->last4 ) {
+	$ec_sub_card = array(
+		'id'        => '',
+		'brand'     => (string) $GLOBALS['ec_user']->card_type,
+		'last4'     => (string) $GLOBALS['ec_user']->last4,
+		'exp_month' => 0,
+		'exp_year'  => 0,
+	);
+}
+$ec_sub_card_brand = '';
+if ( $ec_sub_card ) {
+	$ec_sub_card_brand = ( $ec_sub_cards ) ? wp_easycart_subscription_cards::brand_label( $ec_sub_card['brand'] ) : $ec_sub_card['brand'];
+	$ec_sub_card_brand = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $ec_sub_card_brand ) : strtoupper( $ec_sub_card_brand );
+}
+$ec_sub_others = ( $ec_sub_cards && $ec_sub_can_payment ) ? wp_easycart_subscription_cards::others( (int) $ec_sub->subscription_id, (int) $GLOBALS['ec_cart_data']->cart_data->user_id ) : array();
+/* 6.0.5: past payments ten at a time ( Load more ), newest first, with a link to every order. */
+$ec_sub_history          = array_reverse( $ec_sub_payments );
+$ec_sub_history_per_page = max( 1, (int) apply_filters( 'wp_easycart_subscription_payments_per_page', 10, $ec_sub ) );
 /* 6.0.4: across the page's width under breadcrumbs ( they replace the back link ), no account menu ( .ec_account_details_v2 ); an Elementor account widget keeps the older markup. */
 $ec_account_modern = $this->account_modern();
 ?>
@@ -119,9 +145,15 @@ $ec_account_modern = $this->account_modern();
 			<div class="ec_account_subscription_v2_card ec_account_subscription_v2_payment">
 				<h4 class="ec_account_subscription_v2_card_title"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_current_billing' ) ); ?></h4>
 				<div class="ec_account_subscription_v2_pm ec_account_subscription_details_card">
-					<?php if ( '' != $GLOBALS['ec_user']->last4 ) { ?>
-					<span class="ec_account_subscription_v2_brand"><?php $GLOBALS['ec_user']->display_card_type(); ?></span>
-					<span class="ec_account_subscription_v2_last4">&bull;&bull;&bull;&bull; <?php $GLOBALS['ec_user']->display_last4(); ?></span>
+					<?php if ( $ec_sub_card ) { ?>
+					<span class="ec_account_subscription_v2_brand"><?php echo esc_html( $ec_sub_card_brand ); ?></span>
+					<?php if ( '' !== (string) $ec_sub_card['last4'] ) { ?>
+					<span class="ec_account_subscription_v2_last4">&bull;&bull;&bull;&bull; <?php echo esc_html( $ec_sub_card['last4'] ); ?></span>
+					<?php } ?>
+					<?php if ( $ec_sub_cards && '' !== wp_easycart_subscription_cards::expiry( $ec_sub_card ) ) { ?>
+					<?php $ec_sub_card_expired = wp_easycart_subscription_cards::is_expired( $ec_sub_card ); ?>
+					<span class="ec_account_subscription_v2_card_expiry<?php echo ( $ec_sub_card_expired ) ? ' is-expired' : ''; ?>"><?php echo esc_html( wp_easycart_subscription_cards::text( ( $ec_sub_card_expired ) ? 'subscription_details_card_expired' : 'subscription_details_card_expires', array( 'date' => wp_easycart_subscription_cards::expiry( $ec_sub_card ) ) ) ); ?></span>
+					<?php } ?>
 					<?php } else { ?>
 					<span class="ec_account_subscription_v2_muted"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_no_card', 'No card on file' ) ); ?></span>
 					<?php } ?>
@@ -136,6 +168,9 @@ $ec_account_modern = $this->account_modern();
 				<h4 class="ec_account_subscription_v2_card_title"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_manage', 'Manage subscription' ) ); ?></h4>
 				<?php if ( $ec_sub_can_plan ) { ?>
 				<a href="#" role="button" class="ec_account_subscription_details_plan_change ec_account_subscription_v2_button" aria-controls="ec_account_subscription_v2_plan_panel" aria-expanded="false" onclick="return ec_show_update_subscription_details();"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_change_plan' ) ); ?></a>
+				<?php if ( method_exists( $ec_sub, 'has_level_choices' ) && $ec_sub->has_level_choices() ) { /* 6.0.5: the usage level ( Change subscribers ) */ ?>
+				<a href="#" role="button" class="ec_account_subscription_details_level_change ec_account_subscription_v2_button" aria-controls="ec_account_subscription_v2_plan_panel" aria-expanded="false" onclick="return ( typeof ec_show_update_subscription_level === 'function' ) ? ec_show_update_subscription_level() : ec_show_update_subscription_details();"><?php echo esc_html( wp_easycart_subscription_levels::change_label( (int) $ec_sub->product_id ) ); ?></a>
+				<?php } ?>
 				<?php } ?>
 				<?php if ( $ec_sub_can_cancel ) { ?>
 				<div class="ec_account_subscription_details_cancel">
@@ -164,7 +199,7 @@ $ec_account_modern = $this->account_modern();
 			$ec_sub_tabs = ( 2 === count( $ec_sub_intervals ) && isset( $ec_sub_intervals['M1'] ) && isset( $ec_sub_intervals['Y1'] ) );
 			$ec_sub_tab  = ( 'Y1' === $ec_sub->bill_period . max( 1, (int) $ec_sub->bill_length ) ) ? 'Y1' : 'M1';
 			?>
-			<div class="ec_account_subscription_upgrade_row ec_account_subscription_v2_card ec_account_subscription_v2_panel" id="ec_account_subscription_v2_plan_panel" role="region" aria-labelledby="ec_account_subscription_v2_plan_heading" data-current-plan="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" data-current-quantity="<?php echo esc_attr( max( 1, (int) $ec_sub->quantity ) ); ?>" data-current-interval="<?php echo esc_attr( $ec_sub->bill_period . max( 1, (int) $ec_sub->bill_length ) ); ?>"<?php echo ( $ec_sub_previewed ) ? ' data-change-preview="1" data-subscription="' . esc_attr( (int) $ec_sub->subscription_id ) . '"' : ''; ?>>
+			<div class="ec_account_subscription_upgrade_row ec_account_subscription_v2_card ec_account_subscription_v2_panel" id="ec_account_subscription_v2_plan_panel" role="region" aria-labelledby="ec_account_subscription_v2_plan_heading" data-current-plan="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" data-current-quantity="<?php echo esc_attr( max( 1, (int) $ec_sub->quantity ) ); ?>" data-current-interval="<?php echo esc_attr( $ec_sub->bill_period . max( 1, (int) $ec_sub->bill_length ) ); ?>" data-current-level="<?php echo esc_attr( isset( $ec_sub->usage_level ) ? (string) $ec_sub->usage_level : '' ); ?>"<?php echo ( $ec_sub_previewed ) ? ' data-change-preview="1" data-subscription="' . esc_attr( (int) $ec_sub->subscription_id ) . '"' : ''; ?>>
 				<h4 class="ec_account_subscription_v2_card_title ec_account_subscription_v2_panel_title" id="ec_account_subscription_v2_plan_heading" tabindex="-1"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_change_plan' ) ); ?></h4>
 
 				<input type="hidden" name="ec_selected_plan" id="ec_selected_plan" value="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" />
@@ -197,7 +232,9 @@ $ec_account_modern = $this->account_modern();
 				</fieldset>
 				<?php } ?>
 
-				<?php if ( ! get_option( 'ec_option_subscription_one_only' ) ) { ?>
+				<?php if ( method_exists( $ec_sub, 'has_level_choices' ) && $ec_sub->has_level_choices() ) { /* 6.0.5: another usage level of this plan ( more now, fewer at renewal ) */ wp_easycart_subscription_levels::print_account_field( $ec_sub ); } ?>
+
+				<?php if ( ( function_exists( 'wp_easycart_subscription_quantity_allowed' ) ? wp_easycart_subscription_quantity_allowed( (int) $ec_sub->product_id ) : ! get_option( 'ec_option_subscription_one_only' ) ) ) { ?>
 				<div class="ec_account_subscription_v2_field">
 					<label class="ec_account_subscription_v2_label" for="ec_quantity_<?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_quantity', 'Quantity' ) ); ?></label>
 					<div class="ec_account_subscription_v2_stepper">
@@ -247,6 +284,32 @@ $ec_account_modern = $this->account_modern();
 					<div id="ec_card_errors" class="ec_account_subscription_v2_field_error" role="alert"></div>
 				</div>
 
+				<?php if ( count( $ec_sub_others ) > 0 ) { ?>
+				<?php /* 6.0.5: the new card moves this subscription, and the customer's other subscriptions only when they choose them. */ ?>
+				<fieldset class="ec_account_subscription_v2_field ec_account_subscription_v2_apply" id="ec_account_subscription_v2_apply">
+					<legend class="ec_account_subscription_v2_label"><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply' ) ); ?></legend>
+					<label class="ec_account_subscription_v2_apply_choice"><input type="radio" name="ec_card_apply" value="this" checked="checked" /> <span><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply_this' ) ); ?></span></label>
+					<?php if ( count( $ec_sub_others ) > 1 ) { ?>
+					<label class="ec_account_subscription_v2_apply_choice"><input type="radio" name="ec_card_apply" value="some" aria-controls="ec_account_subscription_v2_apply_list" /> <span><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply_some' ) ); ?></span></label>
+					<?php /* 6.0.5: the list sits under its own choice. */ ?>
+					<fieldset class="ec_account_subscription_v2_apply_list" id="ec_account_subscription_v2_apply_list" hidden>
+						<legend class="ec_account_subscription_v2_sr"><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply_others' ) ); ?></legend>
+						<?php foreach ( $ec_sub_others as $ec_sub_other ) { ?>
+						<label class="ec_account_subscription_v2_apply_item">
+							<input type="checkbox" name="ec_card_apply_ids[]" value="<?php echo esc_attr( (int) $ec_sub_other['id'] ); ?>" />
+							<span class="ec_account_subscription_v2_apply_name"><?php echo esc_html( $ec_sub_other['title'] ); ?></span>
+							<?php if ( $ec_sub_other['card'] ) { ?>
+							<span class="ec_account_subscription_v2_apply_card"><?php echo esc_html( wp_easycart_subscription_cards::label( $ec_sub_other['card'] ) ); ?></span>
+							<?php } ?>
+						</label>
+						<?php } ?>
+					</fieldset>
+					<div class="ec_account_subscription_v2_field_error ec_account_subscription_v2_apply_error" id="ec_account_subscription_v2_apply_error" role="alert" hidden><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply_none' ) ); ?></div>
+					<?php } ?>
+					<label class="ec_account_subscription_v2_apply_choice"><input type="radio" name="ec_card_apply" value="all" /> <span><?php echo esc_html( wp_easycart_subscription_cards::text( 'subscription_details_card_apply_all', array( 'count' => count( $ec_sub_others ) + 1 ) ) ); ?></span></label>
+				</fieldset>
+				<?php } ?>
+
 				<?php /* 6.0.4: the busy card the checkout and the subscription page show ( .wpec-busy in ec-store.css ), in place of the 2015 dark cover; the position stays inline for store copies of ec-store.css from before it. */ ?>
 				<div id="stripe-success-cover" class="wpec-busy ec_account_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
 					<div class="wpec-busy-card" role="status" aria-live="polite">
@@ -266,7 +329,16 @@ $ec_account_modern = $this->account_modern();
 					$stripe_payment_intent_client_secret = $this->get_stripe_intent_client_secret();
 					?>
 					jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
-					try {
+					<?php
+					if ( class_exists( 'wp_easycart_stripe_unavailable' ) ) {
+						echo wp_easycart_stripe_unavailable::js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed script with wp_json_encode() settings.
+						/* 6.0.5: Stripe started no card check ( the server could not reach it, or Stripe refused ), and checkout protection did not hold
+						   it back: the card form's place says why it can't be updated now, and Save stops there ( it reloaded the page for good ). */
+						if ( '' === $stripe_payment_intent_client_secret && ( ! class_exists( 'wp_easycart_checkout_guard' ) || wp_easycart_checkout_guard::card_update_allowed() ) ) {
+							echo wp_easycart_stripe_unavailable::call( 'null', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_update_form' )" ) . ' if ( false ) '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script.
+						}
+					}
+					?>try {
 						var clientSecret = '<?php echo esc_attr( $stripe_payment_intent_client_secret ); ?>';
 						var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
 						var elements = stripe.elements( );
@@ -311,6 +383,17 @@ $ec_account_modern = $this->account_modern();
 								return;
 							}
 							jQuery( document.getElementById( 'ec_terms_error' ) ).hide( );
+							/* 6.0.5: which subscriptions take the new card ( this one, the ones chosen, or all ). */
+							var applyTo = jQuery( 'input[name="ec_card_apply"]:checked' ).val( ) || 'this';
+							var applyIds = [];
+							if ( 'some' === applyTo ) {
+								jQuery( 'input[name="ec_card_apply_ids[]"]:checked' ).each( function( ){ applyIds.push( this.value ); } );
+								if ( ! applyIds.length ) {
+									jQuery( document.getElementById( 'ec_account_subscription_v2_apply_error' ) ).removeAttr( 'hidden' ).show( );
+									return;
+								}
+							}
+							jQuery( document.getElementById( 'ec_account_subscription_v2_apply_error' ) ).attr( 'hidden', 'hidden' );
 							if ( ! clientSecret ) {
 								/* 6.0.2: checkout protection held the card check back ( a pause or a human check ): load a fresh one. */
 								window.location.reload();
@@ -346,23 +429,29 @@ $ec_account_modern = $this->account_modern();
 										payment_id: result.setupIntent.payment_method,
 										setup_intent_id: result.setupIntent.id,
 										stripe_subscription_id: jQuery( document.getElementById( 'stripe_subscription_id' ) ).val( ),
+										apply_to: applyTo,
+										subscription_ids: applyIds,
 										nonce: '<?php echo esc_attr( $ec_sub_update_nonce ); ?>'
 									};
 									jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
 										var json = JSON.parse( result );
 										jQuery( location ).attr( 'href', json.url );
+									}, error: function( ){
+										/* 6.0.5: the page no longer waits forever behind the busy card. */
+										window.location.reload( );
 									} } );
 								}
 							} );
 						} );
 					}catch( err ){
-						alert( "Your WP EasyCart with Stripe has a problem: " + err.message + ". Contact WP EasyCart for assistance." );
+						<?php echo class_exists( 'wp_easycart_stripe_unavailable' ) ? wp_easycart_stripe_unavailable::call( 'err', '#ec_stripe_card_row', "document.getElementById( 'ec_submit_update_form' )" ) : 'console.error( err );'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed script. ?>
 					}
 				</script>
 
 				<?php if ( get_option( 'ec_option_require_terms_agreement' ) ) { ?>
 				<div class="ec_cart_input_row ec_agreement_section ec_account_subscription_v2_terms">
-					<label for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1" onchange="if ( this.checked ) { jQuery( document.getElementById( 'ec_terms_error' ) ).hide( ); }" /> <?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' ) ); ?></label>
+					<?php /* 6.0.5: the checkout's tick box ( the whole box ticks it ). */ ?>
+					<label class="ec_cart_check_label ec_agree_box" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1" onchange="if ( this.checked ) { jQuery( document.getElementById( 'ec_terms_error' ) ).hide( ); }" /> <span class="ec_cart_check_text"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' ) ); ?></span></label>
 				</div>
 				<?php } else { ?>
 					<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -414,15 +503,25 @@ $ec_account_modern = $this->account_modern();
 		<?php if ( count( $ec_sub_payments ) > 0 ) { ?>
 		<div class="ec_account_subscription_v2_card ec_account_subscription_details_past ec_account_subscription_v2_history">
 			<h4 class="ec_account_subscription_v2_card_title"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_past_payments' ) ); ?></h4>
-			<ul class="ec_account_subscriptions_past_payments ec_account_subscription_v2_payments">
-				<?php foreach ( array_reverse( $ec_sub_payments ) as $ec_sub_payment ) { ?>
-				<li class="ec_account_subscriptions_past_payment_item">
+			<ul class="ec_account_subscriptions_past_payments ec_account_subscription_v2_payments" id="ec_account_subscription_v2_payments_list">
+				<?php foreach ( $ec_sub_history as $ec_sub_payment_index => $ec_sub_payment ) { ?>
+				<li class="ec_account_subscriptions_past_payment_item"<?php echo ( $ec_sub_payment_index >= $ec_sub_history_per_page ) ? ' hidden' : ''; ?>>
 					<span class="ec_account_subscription_v2_payment_date"><?php echo esc_html( ec_subscription::format_date( ec_subscription::to_timestamp( $ec_sub_payment->order_date ) ) ); ?></span>
 					<span class="ec_account_subscription_v2_payment_total"><?php echo esc_html( $GLOBALS['currency']->get_currency_display( $ec_sub_payment->grand_total ) ); ?></span>
 					<a class="ec_account_subscription_v2_payment_link" href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $ec_sub_payment->order_id ) ) ); ?>"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_orders', 'account_orders_view_order_button' ) ); ?></a>
 				</li>
 				<?php } ?>
 			</ul>
+			<?php if ( count( $ec_sub_history ) > $ec_sub_history_per_page ) { ?>
+			<?php $ec_sub_history_words = ( $ec_sub_cards ) ? wp_easycart_subscription_cards::text( 'subscription_details_payments_shown' ) : 'Showing [shown] of [total] payments'; ?>
+			<div class="ec_account_subscription_v2_history_foot">
+				<p class="ec_account_subscription_v2_history_count" aria-live="polite" data-text="<?php echo esc_attr( $ec_sub_history_words ); ?>"><?php echo esc_html( str_replace( array( '[shown]', '[total]' ), array( (int) $ec_sub_history_per_page, count( $ec_sub_history ) ), $ec_sub_history_words ) ); ?></p>
+				<div class="ec_account_subscription_v2_history_actions">
+					<button type="button" class="ec_account_subscription_v2_secondary ec_account_subscription_v2_more" data-ec-sub-more="<?php echo esc_attr( (int) $ec_sub_history_per_page ); ?>" aria-controls="ec_account_subscription_v2_payments_list"><?php echo esc_html( ( $ec_sub_cards ) ? wp_easycart_subscription_cards::text( 'subscription_details_payments_more' ) : 'Load more' ); ?></button>
+					<a class="ec_account_subscription_v2_all_orders" href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'orders' ) ); ?>"><?php echo esc_html( ( $ec_sub_cards ) ? wp_easycart_subscription_cards::text( 'subscription_details_view_all_orders' ) : 'View all orders' ); ?></a>
+				</div>
+			</div>
+			<?php } ?>
 		</div>
 		<?php } ?>
 

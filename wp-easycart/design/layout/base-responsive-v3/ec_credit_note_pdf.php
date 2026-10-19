@@ -43,14 +43,35 @@ $ec_cn_amt = $ec_cn_note ? (float) $ec_cn_note->amount : ( ( (float) $ec_cn_orde
 $ec_cn_title = wp_strip_all_tags( wp_easycart_documents::text( 'credit_note_title', __( 'Credit note', 'wp-easycart' ) ) );
 $ec_cn_head  = '';
 $ec_cn_cell  = 'vertical-align:top;padding:0 0 10px 0;font-size:10px;line-height:1.45;color:#1d2327;font-family:' . $ed::ctx()['font'] . ';';
+$ec_cn_open  = wp_easycart_documents::open_args(
+	'credit_note',
+	$document->fields,
+	array(
+		'title'     => $ec_cn_title . ' ' . ( $ec_cn_note ? $ec_cn_note->invoice_number : $ec_cn_id ),
+		'flat'      => true,
+		'extra_css' => ( 'preview' === $document->output ) ? 'body{padding:32px 40px !important;box-sizing:border-box !important;}' : '',
+	)
+);
+/* 6.0.5: Settings › Documents › Logo position, as on the Invoice PDF. */
+$ec_cn_place = ( ( $document->show( 'seller' ) || $document->show( 'heading' ) ) && method_exists( 'wp_easycart_documents', 'logo_place' ) ) ? wp_easycart_documents::logo_place( $document ) : '';
 if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 	$ec_cn_seller = trim( (string) get_option( 'ec_option_pdf_seller_details', '' ) );
+	if ( '' === $ec_cn_seller && class_exists( 'wp_easycart_business' ) ) {
+		$ec_cn_seller = wp_easycart_business::text(); /* 6.0.5: Settings › Store details › Business details */
+	}
 	if ( '' === $ec_cn_seller ) {
 		$ec_cn_seller = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 	}
+	$ec_cn_seller_html = $document->show( 'seller' ) ? nl2br( esc_html( $ec_cn_seller ) ) : '';
+	if ( 'seller' === $ec_cn_place ) {
+		$ec_cn_seller_html = '<div class="wpec-pdf-logo" style="margin:0 0 ' . ( '' !== $ec_cn_seller_html ? 8 : 0 ) . 'px 0;">' . $ed::get_logo( $ec_cn_open, array( 'share' => 55 ) ) . '</div>' . $ec_cn_seller_html;
+	}
 	$ec_cn_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 8px 0;border-bottom:2px solid #1d2327;"><tr>';
-	$ec_cn_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_cn_cell ) . '">' . ( $document->show( 'seller' ) ? nl2br( esc_html( $ec_cn_seller ) ) : '&nbsp;' ) . '</td>';
+	$ec_cn_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_cn_cell ) . '">' . ( '' !== $ec_cn_seller_html ? $ec_cn_seller_html : '&nbsp;' ) . '</td>';
 	$ec_cn_head .= '<td width="45%" align="right" style="' . esc_attr( $ec_cn_cell . 'text-align:right;' ) . '">';
+	if ( 'title' === $ec_cn_place ) {
+		$ec_cn_head .= '<div class="wpec-pdf-logo" style="margin:0 0 8px 0;">' . $ed::get_logo( $ec_cn_open, array( 'share' => 45 ) ) . '</div>';
+	}
 	if ( $document->show( 'heading' ) ) {
 		$ec_cn_head .= '<div class="wpec-pdf-title" style="font-size:22px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px 0;">' . esc_html( $ec_cn_title ) . '</div>';
 		if ( $ec_cn_note ) {
@@ -66,20 +87,17 @@ if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 		$ec_cn_head .= '<div>' . wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_cn_po ) . '</div>';
 	}
 	$ec_cn_head .= '</td></tr></table>';
+	if ( 'top' === $ec_cn_place ) {
+		$ec_cn_head = '<div class="wpec-pdf-logo" style="margin:0 0 10px 0;">' . $ed::get_logo( $ec_cn_open, array( 'row' => true ) ) . '</div>' . $ec_cn_head;
+	}
 }
 
-$ed::open(
-	wp_easycart_documents::open_args(
-		'credit_note',
-		$document->fields,
-		array(
-			'title'     => $ec_cn_title . ' ' . ( $ec_cn_note ? $ec_cn_note->invoice_number : $ec_cn_id ),
-			'flat'      => true,
-			'top_html'  => $ec_cn_head,
-			'extra_css' => ( 'preview' === $document->output ) ? 'body{padding:32px 40px !important;box-sizing:border-box !important;}' : '',
-		)
-	)
-);
+/* The logo moved into the heading block replaces the header row. */
+if ( in_array( $ec_cn_place, array( 'top', 'seller', 'title' ), true ) ) {
+	$ec_cn_open['header'] = false;
+}
+$ec_cn_open['top_html'] = $ec_cn_head;
+$ed::open( $ec_cn_open );
 
 /* Who it is for */
 $ec_cn_cards = array();

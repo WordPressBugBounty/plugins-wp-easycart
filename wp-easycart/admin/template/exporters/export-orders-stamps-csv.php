@@ -181,7 +181,8 @@ while ( true ) {
 				$result['shipping_country'],
 				$result['shipping_phone'],
 				$result['user_email'],
-				$result['order_weight'] * 16,
+				/* 6.0.5: ounces from the store's unit ( it was pounds × 16 for every store ). */
+				round( class_exists( 'wp_easycart_packages' ) && method_exists( 'wp_easycart_packages', 'convert' ) ? wp_easycart_packages::convert( (float) $result['order_weight'], wp_easycart_packages::units()['weight'], 'oz' ) : (float) $result['order_weight'] * 16, 2 ),
 				$parcel['length'],
 				$parcel['width'],
 				$parcel['height'],

@@ -350,7 +350,7 @@ foreach ( $ec_invoice_offer_summary as $ec_invoice_offer_row ) {
 	if ( ! isset( $ec_invoice_offer_row['label'] ) || ! isset( $ec_invoice_offer_row['amount'] ) || (float) $ec_invoice_offer_row['amount'] <= 0 ) {
 		continue;
 	}
-	$ec_invoice_totals[] = array( esc_html( $ec_invoice_offer_row['label'] . ( ( isset( $ec_invoice_offer_row['code'] ) && '' !== (string) $ec_invoice_offer_row['code'] ) ? ' (' . $ec_invoice_offer_row['code'] . ')' : '' ) ), $ed::ltr( '-' . $ec_invoice_cur->get_currency_display( (float) $ec_invoice_offer_row['amount'] ) ) );
+	$ec_invoice_totals[] = array( esc_html( wp_easycart_order_discounts::display_label( $ec_invoice_offer_row, 'invoice' ) ), $ed::ltr( '-' . $ec_invoice_cur->get_currency_display( (float) $ec_invoice_offer_row['amount'] ) ) );
 }
 if ( 0 != $this->discount_total ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric string from the database.
 	$ec_invoice_totals[] = array( wp_kses_post( $ec_invoice_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_discount' ) ), $ed::ltr( '-' . $discount ) );

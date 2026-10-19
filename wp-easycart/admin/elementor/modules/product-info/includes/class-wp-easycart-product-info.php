@@ -975,7 +975,7 @@ if ( ! class_exists( 'WP_EasyCart_Product_Info' ) ) :
 			$weight = (string) get_option( 'ec_option_paypal_weight_unit' );
 			return array(
 				'dim'    => get_option( 'ec_option_enable_metric_unit_display' ) ? 'cm' : 'in',
-				'weight' => ( 'kgs' === $weight || 'kg' === $weight ) ? 'kg' : 'lb',
+				'weight' => ( 'kgs' === $weight || 'kg' === $weight ) ? 'kg' : ( in_array( $weight, array( 'oz', 'g' ), true ) ? $weight : 'lb' ),
 			);
 		}
 

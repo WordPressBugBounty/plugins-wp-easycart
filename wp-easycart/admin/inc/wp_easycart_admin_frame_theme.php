@@ -135,7 +135,8 @@ function wp_easycart_shell_store_status() {
 	if ( ! function_exists( 'wp_easycart_admin_license' ) ) {
 		return $out;
 	}
-	$license_data = wp_easycart_admin_license()->license_data;
+	/* 6.0.5 ( admin review M13 ): the license this site has ( wp_easycart_admin_edition ), never another site's registration. */
+	$license_data = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_data() : wp_easycart_admin_license()->license_data;
 	if ( ! $license_data ) {
 		return $out;
 	}
@@ -163,130 +164,20 @@ function wp_easycart_shell_store_status() {
 }
 
 /**
- * Command-palette search index: pages, subpages, and sections within
- * settings pages. Capability-gated to match left_nav.php. Section entries
- * add &ecshs=<label>; admin-frame-v2.js scrolls to the matching section header
- * on arrival. Filterable via wp_easycart_shell_search_index so extensions
- * can register their own destinations.
+ * The admin pages other plugins add to the search ( filter wp_easycart_shell_search_index; entries label, url, group, kw ).
+ * 6.0.5: the hand-kept list that was here is gone: the one admin search ( wp_easycart_admin_search ) builds its pages from
+ * the menu, the Settings menu and Extensions, and reads this filter for what other plugins add.
  *
- * Entry shape: array( 'label' => string, 'url' => string,
- *   'group' => string (shown as breadcrumb), 'kw' => string (extra match terms) )
+ * @return array
  */
 function wp_easycart_shell_search_index() {
-	$items = array();
-	$can   = function( $cap ) { return current_user_can( 'manage_options' ) || current_user_can( $cap ); };
-	$sec   = function( $base, $label ) { return $base . '&ecshs=' . rawurlencode( $label ); };
-
-	if ( $can( 'wpec_reports' ) ) {
-		$items[] = array( 'label' => __( 'Reports', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-dashboard', 'group' => '', 'kw' => 'dashboard sales stats analytics' );
-	}
-	if ( $can( 'wpec_store_status' ) ) {
-		$items[] = array( 'label' => __( 'Store Status', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-license-status', 'group' => '', 'kw' => 'license trial upgrade' );
-	}
-	if ( $can( 'wpec_products' ) ) {
-		$p = 'admin.php?page=wp-easycart-products&subpage=';
-		$g = __( 'Products', 'wp-easycart' );
-		$items[] = array( 'label' => __( 'Products', 'wp-easycart' ), 'url' => $p . 'products', 'group' => '', 'kw' => 'manage products catalog items' );
-		$items[] = array( 'label' => __( 'Inventory', 'wp-easycart' ), 'url' => $p . 'inventory', 'group' => $g, 'kw' => 'stock quantity' );
-		$items[] = array( 'label' => __( 'Option Sets', 'wp-easycart' ), 'url' => $p . 'option', 'group' => $g, 'kw' => 'variants options swatches' );
-		$items[] = array( 'label' => __( 'Categories', 'wp-easycart' ), 'url' => $p . 'category', 'group' => $g, 'kw' => '' );
-		$items[] = array( 'label' => __( 'Menus', 'wp-easycart' ), 'url' => $p . 'menus', 'group' => $g, 'kw' => '' );
-		$items[] = array( 'label' => __( 'Manufacturers', 'wp-easycart' ), 'url' => $p . 'manufacturers', 'group' => $g, 'kw' => 'brands' );
-		$items[] = array( 'label' => __( 'Product Reviews', 'wp-easycart' ), 'url' => $p . 'reviews', 'group' => $g, 'kw' => 'ratings' );
-		$items[] = array( 'label' => __( 'Import', 'wp-easycart' ), 'url' => $p . 'import', 'group' => $g, 'kw' => 'import woocommerce square pos catalog csv migrate move switch store' ); /* 6.0.3 */
-		$items[] = array( 'label' => __( 'Subscription Plans', 'wp-easycart' ), 'url' => $p . 'subscriptionplans', 'group' => $g, 'kw' => 'recurring' );
-	}
-	if ( $can( 'wpec_orders' ) ) {
-		$p = 'admin.php?page=wp-easycart-orders&subpage=';
-		$g = __( 'Orders', 'wp-easycart' );
-		$items[] = array( 'label' => __( 'Orders', 'wp-easycart' ), 'url' => $p . 'orders', 'group' => '', 'kw' => 'sales purchases invoices' );
-		$items[] = array( 'label' => __( 'Subscriptions', 'wp-easycart' ), 'url' => $p . 'subscriptions', 'group' => $g, 'kw' => 'recurring billing' );
-		$items[] = array( 'label' => __( 'Manage Downloads', 'wp-easycart' ), 'url' => $p . 'downloads', 'group' => $g, 'kw' => 'digital files' );
-	}
-	if ( $can( 'wpec_users' ) ) {
-		$p = 'admin.php?page=wp-easycart-users&subpage=';
-		$g = __( 'Users', 'wp-easycart' );
-		$items[] = array( 'label' => __( 'User Accounts', 'wp-easycart' ), 'url' => $p . 'accounts', 'group' => '', 'kw' => 'customers users' );
-		$items[] = array( 'label' => __( 'User Roles', 'wp-easycart' ), 'url' => $p . 'user-roles', 'group' => $g, 'kw' => 'b2b pricing roles' );
-		$items[] = array( 'label' => __( 'Subscribers', 'wp-easycart' ), 'url' => $p . 'subscribers', 'group' => $g, 'kw' => 'newsletter email list' );
-	}
-	if ( $can( 'wpec_marketing' ) ) {
-		$p = 'admin.php?page=wp-easycart-rates&subpage=';
-		$g = __( 'Marketing', 'wp-easycart' );
-		$items[] = array( 'label' => __( 'Offers', 'wp-easycart' ), 'url' => $p . 'offers', 'group' => $g, 'kw' => 'coupons discounts promotions deals' );
-		$items[] = array( 'label' => __( 'Cart Links', 'wp-easycart' ), 'url' => $p . 'cart-links', 'group' => $g, 'kw' => 'buy links' );
-		$items[] = array( 'label' => __( 'Abandoned Cart', 'wp-easycart' ), 'url' => $p . 'abandon-cart', 'group' => $g, 'kw' => 'recovery email' );
-		$items[] = array( 'label' => __( 'Gift Cards', 'wp-easycart' ), 'url' => $p . 'gift-cards', 'group' => $g, 'kw' => 'vouchers' );
-	}
-	if ( $can( 'wpec_settings' ) ) {
-		$s = 'admin.php?page=wp-easycart-settings';
-		$g = __( 'Settings', 'wp-easycart' );
-
-		$items[] = array( 'label' => __( 'Initial Setup', 'wp-easycart' ), 'url' => $s, 'group' => $g, 'kw' => 'wizard setup' );
-		$items[] = array( 'label' => __( 'Store Landing Page', 'wp-easycart' ), 'url' => $sec( $s, __( 'Store Landing Page', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'ec_store shortcode store page' );
-		$items[] = array( 'label' => __( 'Cart Page', 'wp-easycart' ), 'url' => $sec( $s, __( 'Cart Page', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'ec_cart checkout page' );
-		$items[] = array( 'label' => __( 'Account Page', 'wp-easycart' ), 'url' => $sec( $s, __( 'Account Page', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'ec_account order history' );
-		$items[] = array( 'label' => __( 'Currency', 'wp-easycart' ), 'url' => $sec( $s, __( 'Currency', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'usd symbol exchange rates decimal' );
-		$items[] = array( 'label' => __( 'eCommerce Goals', 'wp-easycart' ), 'url' => $sec( $s, __( 'eCommerce Goals', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'monthly goal sales target' );
-
-		$items[] = array( 'label' => __( 'Products Settings', 'wp-easycart' ), 'url' => $s . '&subpage=products', 'group' => $g, 'kw' => 'product display options' );
-		$items[] = array( 'label' => __( 'Search & AI', 'wp-easycart' ), 'url' => $s . '&subpage=search-ai', 'group' => $g, 'kw' => 'google chatgpt gemini seo structured data schema product feed merchant center' ); /* 6.0.2 */
-		$items[] = array( 'label' => __( 'Checkout Settings', 'wp-easycart' ), 'url' => $s . '&subpage=checkout', 'group' => $g, 'kw' => 'guest checkout terms' );
-		$items[] = array( 'label' => __( 'Checkout fields', 'wp-easycart' ), 'url' => $s . '&subpage=checkout-fields', 'group' => $g, 'kw' => 'custom fields questions form' ); /* 6.0.2 */
-		$items[] = array( 'label' => __( 'Accounts Settings', 'wp-easycart' ), 'url' => $s . '&subpage=account', 'group' => $g, 'kw' => 'registration login' );
-		$items[] = array( 'label' => __( 'Payment', 'wp-easycart' ), 'url' => $s . '&subpage=payment', 'group' => $g, 'kw' => 'stripe paypal square gateway credit card' );
-		$items[] = array( 'label' => __( 'Checkout protection', 'wp-easycart' ), 'url' => $s . '&subpage=checkout-protection', 'group' => $g, 'kw' => 'card testing fraud captcha turnstile bots declines' ); /* 6.0.2 */
-		$items[] = array( 'label' => __( 'Taxes', 'wp-easycart' ), 'url' => $s . '&subpage=tax', 'group' => $g, 'kw' => 'vat tax rates taxcloud' );
-		$items[] = array( 'label' => __( 'Flex-Fees', 'wp-easycart' ), 'url' => $s . '&subpage=fee', 'group' => $g, 'kw' => 'fees surcharge' );
-		$items[] = array( 'label' => __( 'Shipping Settings', 'wp-easycart' ), 'url' => $s . '&subpage=shipping-settings', 'group' => $g, 'kw' => 'ups usps fedex delivery' );
-		$items[] = array( 'label' => __( 'Shipping Rates', 'wp-easycart' ), 'url' => $s . '&subpage=shipping-rates', 'group' => $g, 'kw' => 'rates tables live rates' );
-		$items[] = array( 'label' => __( 'Design', 'wp-easycart' ), 'url' => $s . '&subpage=design', 'group' => $g, 'kw' => 'theme colors layout' );
-		$items[] = array( 'label' => __( 'Language', 'wp-easycart' ), 'url' => $s . '&subpage=language-editor', 'group' => $g, 'kw' => 'translations text labels' );
-		$items[] = array( 'label' => __( 'Email', 'wp-easycart' ), 'url' => $s . '&subpage=email-setup', 'group' => $g, 'kw' => 'receipts smtp templates' );
-		$items[] = array( 'label' => __( 'Documents', 'wp-easycart' ), 'url' => $s . '&subpage=documents', 'group' => $g, 'kw' => 'packing slip receipt shipped email pdf attachments profiles' );
-		$items[] = array( 'label' => __( 'Countries', 'wp-easycart' ), 'url' => $s . '&subpage=country', 'group' => $g, 'kw' => '' );
-		$items[] = array( 'label' => __( 'States/Territories', 'wp-easycart' ), 'url' => $s . '&subpage=states', 'group' => $g, 'kw' => 'provinces regions' );
-		$items[] = array( 'label' => __( 'Per Page Options', 'wp-easycart' ), 'url' => $s . '&subpage=perpage', 'group' => $g, 'kw' => 'pagination' );
-		$items[] = array( 'label' => __( 'Price Points', 'wp-easycart' ), 'url' => $s . '&subpage=pricepoint', 'group' => $g, 'kw' => '' );
-		$items[] = array( 'label' => __( 'Store Schedule', 'wp-easycart' ), 'url' => $s . '&subpage=schedule', 'group' => $g, 'kw' => 'hours open closed' );
-		$items[] = array( 'label' => __( 'Third Party', 'wp-easycart' ), 'url' => $s . '&subpage=third-party', 'group' => $g, 'kw' => 'integrations facebook google tiktok mailchimp' );
-		$items[] = array( 'label' => __( 'Email marketing', 'wp-easycart' ), 'url' => $s . '&subpage=newsletter-services', 'group' => $g, 'kw' => 'mailerlite kit convertkit activecampaign newsletter lists' ); /* 6.0.2 */
-		$items[] = array( 'label' => __( 'Log Entries', 'wp-easycart' ), 'url' => $s . '&subpage=logs', 'group' => $g, 'kw' => 'gateway log errors debug' );
-
-		$m  = $s . '&subpage=miscellaneous';
-		$mg = $g . ' › ' . __( 'Additional Settings', 'wp-easycart' );
-		$items[] = array( 'label' => __( 'Additional Settings', 'wp-easycart' ), 'url' => $m, 'group' => $g, 'kw' => 'misc advanced' );
-		$items[] = array( 'label' => __( 'Cart Icon Display', 'wp-easycart' ), 'url' => $sec( $m, __( 'Cart Icon Display', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'header menu cart icon' );
-		$items[] = array( 'label' => __( 'Abandoned Cart Email', 'wp-easycart' ), 'url' => $sec( $m, __( 'Abandoned Cart Email', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'days emailer' );
-		$items[] = array( 'label' => __( 'Product Quick Add Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Product Quick Add Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'quick creation stock shipping tax variants' );
-		$items[] = array( 'label' => __( 'Additional Admin Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Additional Admin Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'records per page refunds product editor v2 pickup' );
-		$items[] = array( 'label' => __( 'Search Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Search Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'store search' );
-	}
-	/* 6.0.2: EasyCart › Extensions and each extension in it. */
-	if ( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && class_exists( 'wp_easycart_admin_extensions' ) ) {
-		$items[] = array( 'label' => __( 'Extensions', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-extensions', 'group' => '', 'kw' => 'premium add-ons addons plugins integrations apps' );
-		foreach ( wp_easycart_admin_extensions::catalog() as $ecsh_ext_slug => $ecsh_ext ) {
-			if ( 'available' !== wp_easycart_admin_extensions::status( $ecsh_ext ) ) {
-				continue;
-			}
-			$items[] = array( 'label' => $ecsh_ext['name'], 'url' => 'admin.php?page=wp-easycart-extensions&subpage=' . $ecsh_ext_slug, 'group' => __( 'Extensions', 'wp-easycart' ), 'kw' => strtolower( $ecsh_ext['summary'] ) );
-		}
-	}
-	if ( $can( 'wpec_diagnostics' ) ) {
-		$items[] = array( 'label' => __( 'Diagnostics', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-status&subpage=store-status', 'group' => '', 'kw' => 'troubleshoot system status' );
-	}
-	if ( $can( 'wpec_registration' ) ) {
-		$items[] = array( 'label' => __( 'Registration', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-registration&subpage=registration', 'group' => '', 'kw' => 'license key activate' );
-	}
-
-	return apply_filters( 'wp_easycart_shell_search_index', $items );
+	return (array) apply_filters( 'wp_easycart_shell_search_index', array() );
 }
 
 /**
- * Print the search index for admin-frame-v2.js.
+ * 6.0.5: nothing to print ( the search window fetches its index ). Kept for code that called it.
  */
 function wp_easycart_shell_output_search_index() {
-	echo '<script>var wpEasyCartShellSearchIndex = ' . wp_json_encode( wp_easycart_shell_search_index() ) . ';</script>' . "\n";
 }
 
 /**
@@ -343,7 +234,7 @@ function wp_easycart_shell_breadcrumb() {
 			'downloads'     => __( 'Manage Downloads', 'wp-easycart' ),
 		),
 		'wp-easycart-users' => array(
-			'accounts'    => __( 'User Accounts', 'wp-easycart' ),
+			'accounts'    => __( 'Customers', 'wp-easycart' ), /* 6.0.5 ( admin review M12 ): the list's own title */
 			'user-roles'  => __( 'User Roles', 'wp-easycart' ),
 			'subscribers' => __( 'Subscribers', 'wp-easycart' ),
 		),

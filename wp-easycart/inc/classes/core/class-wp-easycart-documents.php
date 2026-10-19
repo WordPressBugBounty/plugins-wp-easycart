@@ -182,6 +182,8 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				'footer_image' => array( 'group' => 'branding', 'label' => __( 'Footer image', 'wp-easycart' ), 'desc' => __( 'The store’s signature image, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
 				/* 6.0.1: the address from Settings › Email › Sender ( ec_option_store_address ); 'edit' links the switch to it. */
 				'store_address' => array( 'group' => 'branding', 'label' => __( 'Store address', 'wp-easycart' ), 'desc' => __( 'Your store’s address, in the footer.', 'wp-easycart' ), 'default' => 0, 'edit' => array( 'page' => 'email-setup', 'option' => 'ec_option_store_address' ) ),
+				/* 6.0.5 ( admin review M7 ): the registered name, address and tax number, in the footer ( wp_easycart_business ). */
+				'seller'        => array( 'group' => 'branding', 'label' => __( 'Business details', 'wp-easycart' ), 'desc' => __( 'Your registered name, address and VAT or ABN number from Settings › Store details, in the footer.', 'wp-easycart' ), 'default' => 1, 'edit' => array( 'page' => 'initial-setup', 'option' => 'ec_option_business_name' ) ),
 				'billing'     => array( 'group' => 'people', 'label' => __( 'Billing address', 'wp-easycart' ), 'default' => 1 ),
 				'shipping'    => array( 'group' => 'people', 'label' => __( 'Shipping address', 'wp-easycart' ), 'default' => 1 ),
 				'email'       => array( 'group' => 'people', 'label' => __( 'Customer email address', 'wp-easycart' ), 'default' => 0, 'legacy' => 'ec_option_show_email_on_receipt' ),
@@ -389,7 +391,10 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 
 		/**
 		 * Choices a profile makes that are not on/off switches ( the Invoice PDF's heading ). Each: label, desc, choices
-		 * ( value => label ), default, legacy ( an option the Standard profile reads and writes ).
+		 * ( value => label ), default, legacy ( an option the Standard profile reads and writes ), @since 6.0.5 template ( true:
+		 * only a template that reads the choice draws it, so a store's older copy of the template ignores it ), needs ( a switch
+		 * that must be on for the choice to matter: the editor greys it while that switch is off ), heading ( switches that
+		 * make the document's heading block: with all of them off the editor says the choice has nowhere to go ).
 		 *
 		 * @since 6.0.1
 		 * @param string $type Document type.
@@ -409,7 +414,58 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'legacy'  => 'ec_option_pdf_document_title',
 				);
 			}
+			/* 6.0.5: where the logo sits ( logo_place() ). Under the heading is where these PDFs have always put it. */
+			if ( 'invoice' === $type || 'credit_note' === $type ) {
+				$options['logo_place'] = array(
+					'label'    => __( 'Logo position', 'wp-easycart' ),
+					'desc'     => __( 'Where the logo sits on the page.', 'wp-easycart' ),
+					'choices'  => array(
+						'top'    => __( 'Top of the page', 'wp-easycart' ),
+						'seller' => __( 'With your business details', 'wp-easycart' ),
+						'title'  => __( 'Above the title', 'wp-easycart' ),
+						'below'  => __( 'Under the heading', 'wp-easycart' ),
+					),
+					'default'  => 'below',
+					'template' => true,
+					'needs'    => 'logo',
+					'heading'  => array( 'seller', 'heading' ),
+				);
+			} elseif ( 'packing_slip' === $type ) {
+				$options['logo_place'] = array(
+					'label'    => __( 'Logo position', 'wp-easycart' ),
+					'desc'     => __( 'Beside the title saves room at the top of a printed slip.', 'wp-easycart' ),
+					'choices'  => array(
+						'top'    => __( 'Top of the page', 'wp-easycart' ),
+						'beside' => __( 'Beside the title', 'wp-easycart' ),
+					),
+					'default'  => 'top',
+					'template' => true,
+					'needs'    => 'logo',
+				);
+			}
 			return (array) apply_filters( 'wp_easycart_document_options', $options, $type );
+		}
+
+		/**
+		 * Where a document draws its logo ( Settings › Documents › Logo position ): '' while the profile hides the logo, else one
+		 * of the choices of options()'s logo_place ( the Invoice PDF and the Credit note: top | seller | title | below; the
+		 * packing slip: top | beside ). A document without the choice answers top: its logo is the header, first on the page.
+		 * Where the heading block a place names is not drawn, the template puts the logo in the header row, as before 6.0.5.
+		 *
+		 * @since 6.0.5
+		 * @param wp_easycart_document $document The document being drawn.
+		 * @return string
+		 */
+		public static function logo_place( $document ) {
+			if ( ! ( $document instanceof wp_easycart_document ) || ! $document->show( 'logo' ) ) {
+				return '';
+			}
+			$defs = self::options( $document->type );
+			if ( ! isset( $defs['logo_place']['choices'] ) || ! is_array( $defs['logo_place']['choices'] ) ) {
+				return 'top';
+			}
+			$place = (string) $document->option( 'logo_place' );
+			return isset( $defs['logo_place']['choices'][ $place ] ) ? $place : (string) $defs['logo_place']['default'];
 		}
 
 		/**
@@ -1047,6 +1103,10 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 			if ( is_array( $fields ) && isset( $fields['store_address'] ) && self::show( $fields, 'store_address', $type ) ) {
 				$args['store_address'] = trim( (string) get_option( 'ec_option_store_address', '' ) );
 			}
+			/* 6.0.5: the business details ( Settings › Store details ), when the profile shows them and they are filled in. */
+			if ( is_array( $fields ) && isset( $fields['seller'] ) && self::show( $fields, 'seller', $type ) && class_exists( 'wp_easycart_business' ) && wp_easycart_business::filled() ) {
+				$args['seller_details'] = wp_easycart_business::text();
+			}
 			if ( ! self::show( $fields, 'footer_image', $type ) ) {
 				$args['signature_image'] = '';
 				return $args;
@@ -1167,8 +1227,11 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				}
 			}
 			if ( in_array( $type, array( 'packing_slip', 'invoice', 'invoice_email', 'gift_receipt', 'credit_note' ), true ) ) {
-				$doc = new wp_easycart_document( $type, $order_id, $fields, $args );
-				return $doc->order ? $doc->capture( self::locate( self::template_file( $type ) ) ) : '';
+				wp_easycart_order_currency::push( (int) $order_id ); /* 6.0.5: the order's currency */
+				$doc  = new wp_easycart_document( $type, $order_id, $fields, $args );
+				$html = $doc->order ? $doc->capture( self::locate( self::template_file( $type ) ) ) : '';
+				wp_easycart_order_currency::pop();
+				return $html;
 			}
 			/* The receipt and shipped emails render through their senders ( ec_orderdisplay, wp_easycart_admin_orders ). */
 			return (string) apply_filters( 'wp_easycart_document_render_' . $type, '', (int) $order_id, $fields, $args );

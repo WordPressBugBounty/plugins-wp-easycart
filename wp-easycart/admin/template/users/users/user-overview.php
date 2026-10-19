@@ -41,12 +41,15 @@ $pro_outdated  = ( defined( 'WP_EASYCART_ADMIN_PRO_VERSION' )
 $update_url    = $pro_outdated ? admin_url( 'plugins.php?plugin_status=upgrade' ) : '';
 $cta_label     = $pro_outdated ? __( 'Update WP EasyCart PRO', 'wp-easycart' ) : sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Upgrade to %s', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() );
 
-/* Static placeholder rows for the blurred mockup. Never real data. */
+/* Static placeholder rows for the blurred mockup. Never real data. 6.0.5: amounts in the store's own currency ( admin review L1 ). */
+$ecuo_money = function ( $amount ) {
+	return function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( $amount ) : '$' . number_format( $amount, 2 );
+};
 $ecuo_demo_orders = array(
-	array( '#1024', __( 'Shipped', 'wp-easycart' ),   '$84.00', __( '2× Classic Tee · Sticker Pack', 'wp-easycart' ),  __( '3 days ago · 3 items', 'wp-easycart' ) ),
-	array( '#0991', __( 'Completed', 'wp-easycart' ), '$129.50', __( 'Hoodie · 2× Enamel Pin', 'wp-easycart' ),        __( '2 weeks ago · 3 items', 'wp-easycart' ) ),
-	array( '#0875', __( 'Completed', 'wp-easycart' ), '$42.00', __( 'Classic Tee', 'wp-easycart' ),                    __( 'last month · 1 item', 'wp-easycart' ) ),
-	array( '#0712', __( 'Refunded', 'wp-easycart' ),  '$58.25', __( 'Tote Bag · Sticker Pack', 'wp-easycart' ),        __( '3 months ago · 2 items', 'wp-easycart' ) ),
+	array( '#1024', __( 'Shipped', 'wp-easycart' ),   $ecuo_money( 84 ), __( '2× Classic Tee · Sticker Pack', 'wp-easycart' ),  __( '3 days ago · 3 items', 'wp-easycart' ) ),
+	array( '#0991', __( 'Completed', 'wp-easycart' ), $ecuo_money( 129.5 ), __( 'Hoodie · 2× Enamel Pin', 'wp-easycart' ),        __( '2 weeks ago · 3 items', 'wp-easycart' ) ),
+	array( '#0875', __( 'Completed', 'wp-easycart' ), $ecuo_money( 42 ), __( 'Classic Tee', 'wp-easycart' ),                    __( 'last month · 1 item', 'wp-easycart' ) ),
+	array( '#0712', __( 'Refunded', 'wp-easycart' ),  $ecuo_money( 58.25 ), __( 'Tote Bag · Sticker Pack', 'wp-easycart' ),        __( '3 months ago · 2 items', 'wp-easycart' ) ),
 );
 ?>
 
@@ -80,11 +83,11 @@ $ecuo_demo_orders = array(
 
 				<!-- Fake KPIs -->
 				<div class="ecuo-kpis">
-					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Lifetime Net', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value">$1,248.50</span></div>
+					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Lifetime Net', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value"><?php echo esc_html( $ecuo_money( 1248.5 ) ); ?></span></div>
 					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Orders', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value">14</span></div>
-					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Avg Order', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value">$89.18</span></div>
+					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Avg Order', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value"><?php echo esc_html( $ecuo_money( 89.18 ) ); ?></span></div>
 					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Active Subs', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value is-green">2</span></div>
-					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Refunded', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value">$58.25</span></div>
+					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Refunded', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value"><?php echo esc_html( $ecuo_money( 58.25 ) ); ?></span></div>
 					<div class="ecuo-kpi"><span class="ecuo-kpi-label"><?php esc_html_e( 'Last Order', 'wp-easycart' ); ?></span><span class="ecuo-kpi-value"><small><?php esc_html_e( '3 days ago', 'wp-easycart' ); ?></small></span></div>
 				</div>
 

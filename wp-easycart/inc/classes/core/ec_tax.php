@@ -42,6 +42,10 @@ class ec_tax{
 	public $vat_country_match;								// BOOL
 	public $vat_rate_default;								// FLOAT 11,2
 	public $vat_rate;										// FLOAT 11,2
+	/** 6.0.5: the VAT each rate charged, array( array( rate, base ( without VAT ), vat ) ) ( wp_easycart_tax_classes ). */
+	public $vat_breakdown = array();
+	/** 6.0.5: the business rate applies ( every tax class charges it ). */
+	public $vat_business = false;
 	public $vat_added;										// BOOL
 	public $vat_included;									// BOOL
 	public $vat_rounding;									// FLOAT 11,2
@@ -421,14 +425,10 @@ class ec_tax{
 
 		if( $this->vat_enabled && $this->vat_rate <= 0 ){
 			for( $i=0; $i<count($this->country_list); $i++){
-				if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_user']->vat_registration_number != "" && $this->shipping_country == $this->country_list[$i]->iso2_cnt && !$this->country_list[$i]->vat_b2b_enabled ){
-					// Ignore for Businesses
+				if( $this->shipping_country == $this->country_list[$i]->iso2_cnt && $this->business_vat( $this->country_list[$i] ) ){
+					// The rate for VAT-registered businesses ( 6.0.5: business_vat() )
 					$this->vat_country_match = true;
-					$this->vat_rate = get_option( 'ec_option_vat_custom_rate' );
-
-				}else if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_cart_data']->cart_data->vat_registration_number != "" && $this->shipping_country == $this->country_list[$i]->iso2_cnt && !$this->country_list[$i]->vat_b2b_enabled ){
-					// Ignore for Businesses
-					$this->vat_country_match = true;
+					$this->vat_business = true;
 					$this->vat_rate = get_option( 'ec_option_vat_custom_rate' );
 
 				}else if( $this->shipping_country == $this->country_list[$i]->iso2_cnt ){
@@ -440,6 +440,34 @@ class ec_tax{
 				$this->vat_rate = ( isset( $vat_row ) ) ? $vat_row->vat_rate : 0;
 			}
 		}
+	}
+
+	/**
+	 * Does the rate for VAT-registered businesses ( ec_option_vat_custom_rate ) apply to this order? A VAT number was entered
+	 * ( the account's, else the checkout's ), the country is not marked "Apply to business", and ( 6.0.5 ) it is a business
+	 * abroad: never in the store's own country, and for a store in the EU a number of another EU country that checks out in VIES
+	 * ( wp_easycart_vat::business_rate_applies() ). Before 6.0.5 any number typed took the business rate, at home too.
+	 *
+	 * @since 6.0.5
+	 * @param object|null $country_row The delivery country's ec_country row ( vat_b2b_enabled ).
+	 * @return bool
+	 */
+	private function business_vat( $country_row = null ) {
+		if ( ! get_option( 'ec_option_collect_vat_registration_number' ) ) {
+			return false;
+		}
+		$number = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) && '' != $GLOBALS['ec_user']->vat_registration_number ) ? $GLOBALS['ec_user']->vat_registration_number : '';
+		if ( '' == $number && isset( $GLOBALS['ec_cart_data']->cart_data->vat_registration_number ) ) {
+			$number = $GLOBALS['ec_cart_data']->cart_data->vat_registration_number;
+		}
+		if ( '' == trim( (string) $number ) || ( $country_row && ! empty( $country_row->vat_b2b_enabled ) ) ) {
+			return false;
+		}
+		if ( ! class_exists( 'wp_easycart_vat' ) ) {
+			return true;
+		}
+		$billing = isset( $GLOBALS['ec_cart_data']->cart_data->billing_country ) ? (string) $GLOBALS['ec_cart_data']->cart_data->billing_country : '';
+		return wp_easycart_vat::business_rate_applies( $number, $this->shipping_country, $billing );
 	}
 
 	private function calculate_alt_tax( ){
@@ -689,18 +717,39 @@ class ec_tax{
 			$vat_sub_total = 0;
 			for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 				if ( $this->cart[$i]->vat_enabled ) {
-					$vat_sub_total += round( ( $this->cart[$i]->item_total * $this->vat_rate / 100 ) / $this->vat_rounding ) * $this->vat_rounding;
+					$line_rate = $this->class_rate( isset( $this->cart[$i]->tax_class ) ? $this->cart[$i]->tax_class : '' ); /* 6.0.5: tax classes */
+					$vat_sub_total += round( ( $this->cart[$i]->item_total * $line_rate / 100 ) / $this->vat_rounding ) * $this->vat_rounding;
 				}
 			}
 			$this->vat_total = $vat_sub_total;
 		} else if( ! in_array( 'vat', $replaces, true ) && $this->vat_enabled ){
 			$GLOBALS['ec_vat_rate'] = $this->vat_rate;
-			if( $this->vat_included ){
-				$this->vat_total = ( $this->vatable_total / ( ( $this->vat_rate / 100 ) + 1 ) ) * ( $this->vat_rate / 100 );
-			}else{
-				$this->vat_total = $this->vatable_total * $this->vat_rate / 100;
+			$buckets = $this->vat_buckets(); /* 6.0.5: tax classes */
+			if ( null === $buckets ) {
+				if( $this->vat_included ){
+					$this->vat_total = ( $this->vatable_total / ( ( $this->vat_rate / 100 ) + 1 ) ) * ( $this->vat_rate / 100 );
+				}else{
+					$this->vat_total = $this->vatable_total * $this->vat_rate / 100;
+				}
+				$this->vat_total = round( $this->vat_total / $this->vat_rounding ) * $this->vat_rounding;
+				$this->vat_breakdown = ( $this->vat_total > 0 ) ? array( array( 'rate' => (float) $this->vat_rate, 'base' => round( $this->vat_included ? $this->vatable_total - $this->vat_total : $this->vatable_total, 2 ), 'vat' => round( (float) $this->vat_total, 4 ) ) ) : array();
+			} else {
+				/* Each rate's share of the VAT subtotal ( discounts spread over every rate ), its VAT rounded as the single rate was. */
+				$weight = array_sum( $buckets );
+				$this->vat_total = 0;
+				$this->vat_breakdown = array();
+				foreach ( $buckets as $rate => $share ) {
+					$rate = (float) $rate;
+					$base = ( $weight > 0 ) ? $this->vatable_total * $share / $weight : 0;
+					$vat  = $this->vat_included ? ( $base / ( ( $rate / 100 ) + 1 ) ) * ( $rate / 100 ) : $base * $rate / 100;
+					$vat  = round( $vat / $this->vat_rounding ) * $this->vat_rounding;
+					$this->vat_total += $vat;
+					$this->vat_breakdown[] = array( 'rate' => $rate, 'base' => round( $this->vat_included ? $base - $vat : $base, 2 ), 'vat' => round( $vat, 4 ) );
+				}
+				usort( $this->vat_breakdown, function ( $a, $b ) {
+					return ( $a['rate'] === $b['rate'] ) ? 0 : ( ( $a['rate'] > $b['rate'] ) ? -1 : 1 ); /* the highest rate first */
+				} );
 			}
-			$this->vat_total = round( $this->vat_total / $this->vat_rounding ) * $this->vat_rounding;
 		}
 
 		if ( ! in_array( 'vat', $replaces, true ) && $this->vat_enabled && ! get_option( 'ec_option_no_vat_on_shipping' ) ){
@@ -836,20 +885,20 @@ class ec_tax{
 				}else if( $this->collect_manitoba && $this->shipping_state == "MB" ){
 					$this->gst = round( $this->taxable_subtotal * .05, 2 );
 					$this->gst_rate = 5;
-					$this->pst = round( $this->taxable_subtotal * .08, 2 );
-					$this->pst_rate = 8;
+					$this->pst = round( $this->taxable_subtotal * .07, 2 );
+					$this->pst_rate = 7;
 
 				}else if( $this->collect_newfoundland && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
-					$this->hst = round( $this->taxable_subtotal * .13, 2 );
-					$this->hst_rate = 13;
-
-				}else if( $this->collect_new_brunswick && $this->shipping_state == "NB" ){
-					$this->hst = round( $this->taxable_subtotal * .13, 2 );
-					$this->hst_rate = 13;
-
-				}else if( $this->collect_nova_scotia && $this->shipping_state == "NS" ){
 					$this->hst = round( $this->taxable_subtotal * .15, 2 );
 					$this->hst_rate = 15;
+
+				}else if( $this->collect_new_brunswick && $this->shipping_state == "NB" ){
+					$this->hst = round( $this->taxable_subtotal * .15, 2 );
+					$this->hst_rate = 15;
+
+				}else if( $this->collect_nova_scotia && $this->shipping_state == "NS" ){
+					$this->hst = round( $this->taxable_subtotal * .14, 2 );
+					$this->hst_rate = 14;
 
 				}else if( $this->collect_northwest_territories && $this->shipping_state == "NT" ){
 					$this->gst = round( $this->taxable_subtotal * .05, 2 );
@@ -864,8 +913,8 @@ class ec_tax{
 					$this->hst_rate = 13;
 
 				}else if( $this->collect_prince_edward_island && $this->shipping_state == "PE" ){
-					$this->hst = round( $this->taxable_subtotal * .14, 2 );
-					$this->hst_rate = 14;
+					$this->hst = round( $this->taxable_subtotal * .15, 2 );
+					$this->hst_rate = 15;
 
 				}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
 					$this->gst = round( $this->taxable_subtotal * .05, 2 );
@@ -876,8 +925,8 @@ class ec_tax{
 				}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
 					$this->gst = round( $this->taxable_subtotal * .05, 2 );
 					$this->gst_rate = 5;
-					$this->pst = round( $this->taxable_subtotal * .05, 2 );
-					$this->pst_rate = 5;
+					$this->pst = round( $this->taxable_subtotal * .06, 2 );
+					$this->pst_rate = 6;
 
 				}else if( $this->collect_yukon && $this->shipping_state == "YT" ){
 					$this->gst = round( $this->taxable_subtotal * .05, 2 );
@@ -1167,7 +1216,7 @@ class ec_tax{
 				$square_taxrates[] = array( wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_duty' ), $taxrate->duty_rate, 'ADDITIVE', 'duty' );
 
 			}else if( $vatable && ( $taxrate->tax_by_vat || $taxrate->tax_by_single_vat ) ){
-				if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_user']->vat_registration_number != "" && get_option( 'ec_option_vat_custom_rate' ) > 0 ){
+				if( get_option( 'ec_option_vat_custom_rate' ) > 0 && $this->business_vat() ){
 					if( $taxrate->vat_included ){
 					   $square_taxrates[] = array( wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_vat' ), get_option( 'ec_option_vat_custom_rate' ), 'INCLUSIVE', 'vat' );
 					}else{
@@ -1184,10 +1233,8 @@ class ec_tax{
 				}else{
 					for( $i=0; $i<count($this->country_list); $i++){
 						if( $this->shipping_country == $this->country_list[$i]->iso2_cnt && $this->country_list[$i]->vat_rate_cnt > 0 ){
-							if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_user']->vat_registration_number != "" && !$this->country_list[$i]->vat_b2b_enabled ){
-								// Ignore for Businesses
-							}else if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_cart_data']->cart_data->vat_registration_number != "" && !$this->country_list[$i]->vat_b2b_enabled ){
-								// Ignore for Businesses
+							if( $this->business_vat( $this->country_list[$i] ) ){
+								// Ignore for Businesses ( 6.0.5: business_vat() )
 							}else if( $taxrate->vat_included ){
 							   $square_taxrates[] = array( $this->shipping_country . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_vat' ), $this->country_list[$i]->vat_rate_cnt, 'INCLUSIVE', 'vat' );
 							}else{
@@ -1434,7 +1481,7 @@ class ec_tax{
 			}else if( $taxable && $taxrate->tax_by_duty ){
 
 			}else if( $vatable && ( $taxrate->tax_by_vat || $taxrate->tax_by_single_vat ) ){
-				if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_user']->vat_registration_number != "" && get_option( 'ec_option_vat_custom_rate' ) > 0 ){
+				if( get_option( 'ec_option_vat_custom_rate' ) > 0 && $this->business_vat() ){
 					if( get_option( 'ec_option_collect_vat_registration_number_stripe_id' ) != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( get_option( 'ec_option_collect_vat_registration_number_stripe_id' ), wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_vat' ), get_option( 'ec_option_vat_custom_rate' ), '', $taxrate->vat_included ) ){
 						update_option( 'ec_option_collect_vat_registration_number_stripe_id', $new_stripe_taxrate_id );
 					}
@@ -1452,10 +1499,8 @@ class ec_tax{
 							$this->vat_country_match = true;
 							$this->vat_rate = $this->country_list[$i]->vat_rate_cnt;
 
-							if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_user']->vat_registration_number != "" && !$this->country_list[$i]->vat_b2b_enabled ){
-								// Ignore for Businesses
-							}else if( get_option( 'ec_option_collect_vat_registration_number' ) && $GLOBALS['ec_cart_data']->cart_data->vat_registration_number != "" && !$this->country_list[$i]->vat_b2b_enabled ){
-								// Ignore for Businesses
+							if( $this->business_vat( $this->country_list[$i] ) ){
+								// Ignore for Businesses ( 6.0.5: business_vat() )
 							}else if( $this->country_list[$i]->stripe_taxrate_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $this->country_list[$i]->stripe_taxrate_id, $this->shipping_country . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_vat' ), $this->country_list[$i]->vat_rate_cnt, $this->shipping_country, $taxrate->vat_included ) ){
 								$this->mysqli->update_stripe_country_taxrate_id( $this->country_list[$i]->id_cnt, $new_stripe_taxrate_id );
 							}
@@ -1702,6 +1747,83 @@ class ec_tax{
 			$is_duty_enabled = true;
 		}
 		return apply_filters( 'wp_easycart_is_duty_enabled', $is_duty_enabled );
+	}
+
+	/**
+	 * 6.0.5 ( tax classes ): the cart's lines, whether the cart came as a list or as an object holding one.
+	 *
+	 * @return array
+	 */
+	private function vat_lines() {
+		if ( is_object( $this->cart ) && isset( $this->cart->cart ) && is_array( $this->cart->cart ) ) {
+			return $this->cart->cart;
+		}
+		return is_array( $this->cart ) ? $this->cart : array();
+	}
+
+	/**
+	 * 6.0.5: the VAT rate for a tax class on this order: the class's rate for the destination ( wp_easycart_tax_classes::rate() ),
+	 * the standard rate for no class or a class with no rate, the business rate for a business abroad.
+	 *
+	 * @param string $class Tax class ( '' standard ).
+	 * @return float
+	 */
+	public function class_rate( $class ) {
+		$class = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::clean( $class ) : '';
+		if ( '' === $class || $this->vat_business ) {
+			return (float) $this->vat_rate;
+		}
+		$rate = wp_easycart_tax_classes::rate( $class, $this->shipping_country );
+		return ( null === $rate ) ? (float) $this->vat_rate : (float) $rate;
+	}
+
+	/**
+	 * 6.0.5: the rate a class's prices include when prices include VAT ( the class's rate in the store's country, else the standard
+	 * default ), for moving a price to the destination's rate.
+	 *
+	 * @param string $class Tax class.
+	 * @return float
+	 */
+	public function class_default_rate( $class ) {
+		$class = class_exists( 'wp_easycart_tax_classes' ) ? wp_easycart_tax_classes::clean( $class ) : '';
+		if ( '' === $class ) {
+			return (float) $this->vat_rate_default;
+		}
+		$home = class_exists( 'wp_easycart_carriers' ) ? (string) wp_easycart_carriers::store_country() : '';
+		$rate = wp_easycart_tax_classes::rate( $class, $home );
+		return ( null === $rate ) ? (float) $this->vat_rate_default : (float) $rate;
+	}
+
+	/**
+	 * 6.0.5: the VAT lines' weight by rate, or null when no line has a tax class ( the single rate then applies, as before ).
+	 *
+	 * @return array|null rate ( as a string ) => line total.
+	 */
+	private function vat_buckets() {
+		if ( ! class_exists( 'wp_easycart_tax_classes' ) ) {
+			return null;
+		}
+		$weights = array();
+		$classed = false;
+		foreach ( $this->vat_lines() as $line ) {
+			if ( ! is_object( $line ) || empty( $line->vat_enabled ) ) {
+				continue;
+			}
+			$class = isset( $line->tax_class ) ? wp_easycart_tax_classes::clean( $line->tax_class ) : '';
+			if ( '' !== $class ) {
+				$classed = true;
+			}
+			$rate   = (string) $this->class_rate( $class );
+			$amount = isset( $line->total_price ) ? (float) $line->total_price : ( isset( $line->item_total ) ? (float) $line->item_total : 0.0 );
+			$weights[ $rate ] = ( isset( $weights[ $rate ] ) ? $weights[ $rate ] : 0.0 ) + $amount;
+		}
+		if ( ! $classed || empty( $weights ) || count( $weights ) < 1 ) {
+			return null;
+		}
+		if ( 1 === count( $weights ) && (float) key( $weights ) === (float) $this->vat_rate ) {
+			return null; /* every class charges the standard rate here */
+		}
+		return $weights;
 	}
 
 	public function is_vat_enabled() {

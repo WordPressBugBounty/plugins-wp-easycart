@@ -88,6 +88,49 @@ function wpeasycart_account_nav_scroll( container ) {
 		}
 	} );
 }
+/* 6.0.5: a product page has one h1, the title in the details column; its phone copy ( .ec_details_mobile_title_area ) is a div with
+   role heading. Themes and store CSS style h1 tags ( weight, line height, margins ), so the copy takes the look an h1 gets in its
+   place: an h1 with its classes is put just before it, read and taken out in the same task ( never drawn ). The template calls this
+   right after the copy, so it applies before the first paint; without it the copy keeps ec-store.css's heading defaults. Again on
+   resize, for themes whose h1 rules change with the width. */
+var wpeasycart_title_look_props = [ 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'word-spacing', 'text-transform', 'text-align', 'margin-top', 'margin-bottom', 'padding-top', 'padding-bottom' ];
+var wpeasycart_title_look_bound = false;
+var wpeasycart_title_look_timer = 0;
+function wpeasycart_title_look( container ) {
+	var titles = wpeasycart_init_find( container, '.ec_details_mobile_title_area > div.ec_details_title' );
+	if ( ! titles.length || ! window.getComputedStyle ) {
+		return;
+	}
+	titles.each( function() {
+		var probe = document.createElement( 'h1' );
+		probe.className = this.className;
+		probe.setAttribute( 'aria-hidden', 'true' );
+		probe.textContent = 'x';
+		this.parentNode.insertBefore( probe, this );
+		var look = window.getComputedStyle( probe );
+		for ( var i = 0; i < wpeasycart_title_look_props.length; i++ ) {
+			this.style.setProperty( wpeasycart_title_look_props[ i ], look.getPropertyValue( wpeasycart_title_look_props[ i ] ) );
+		}
+		/* A line height without a unit ( 1.2 ) is laid out a fraction of a pixel away from the same height in px: on show, take the
+		   height of one line as drawn. */
+		if ( 'normal' !== look.getPropertyValue( 'line-height' ) && probe.getClientRects().length ) {
+			var line = probe.getBoundingClientRect().height - parseFloat( look.paddingTop ) - parseFloat( look.paddingBottom ) - parseFloat( look.borderTopWidth ) - parseFloat( look.borderBottomWidth );
+			if ( line > 0 ) {
+				this.style.setProperty( 'line-height', line + 'px' );
+			}
+		}
+		this.parentNode.removeChild( probe );
+	} );
+	if ( ! wpeasycart_title_look_bound ) {
+		wpeasycart_title_look_bound = true;
+		jQuery( window ).on( 'resize', function() {
+			clearTimeout( wpeasycart_title_look_timer );
+			wpeasycart_title_look_timer = setTimeout( function() {
+				wpeasycart_title_look( document );
+			}, 150 );
+		} );
+	}
+}
 /* 6.0.2: the same, minus the elements already set up for key; each one returned is marked, so nothing is bound twice. */
 function wpeasycart_init_elements( container, selector, key ) {
 	return wpeasycart_init_find( container, selector ).filter( function() {
@@ -145,6 +188,7 @@ function wpeasycart_init( container ) {
 		window.wpeasycart_option_defaults( ctx ); /* 6.0.2: default option picks ( ec-option-defaults.js ), read before the swatches below are set up */
 	}
 	wpeasycart_account_nav_scroll( ctx );
+	wpeasycart_title_look( ctx );
 	if ( wpeasycart_init_find( ctx, '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).length ) {
 		wpeasycart_init_elements( ctx, '.ec_add_to_cart_form, input[type="number"].ec_quantity', 'keypress' ).on( 'keypress', function( e ) {
 			if ( ! jQuery( e.target ).is( 'textarea' ) && e.which == 13 ) {
@@ -602,18 +646,21 @@ function wpeasycart_init( container ) {
 	wpeasycart_init_elements( ctx, '.ec_details_option_row.ec_option_type_dimensions1 > .ec_details_option_data > input', 'advDim1' ).change( function( ){
 		var product_id = jQuery( this ).parent().parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().parent().attr( 'data-rand-id' );
+		wpeasycart_details_size_check( jQuery( this ).parent().parent(), product_id, rand_id, false ); /* 6.0.5: a box that is not a positive number says so at once */
 		ec_details_advanced_conditional_logic( product_id, rand_id );
 		ec_details_advanced_adjust_price( product_id, rand_id );
 	} );
 	wpeasycart_init_elements( ctx, '.ec_details_option_row.ec_option_type_dimensions2 > .ec_details_option_data > input', 'advDim2' ).change( function( ){
 		var product_id = jQuery( this ).parent().parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().parent().attr( 'data-rand-id' );
+		wpeasycart_details_size_check( jQuery( this ).parent().parent(), product_id, rand_id, false ); /* 6.0.5: a box that is not a positive number says so at once */
 		ec_details_advanced_conditional_logic( product_id, rand_id );
 		ec_details_advanced_adjust_price( product_id, rand_id );
 	} );
 	wpeasycart_init_elements( ctx, '.ec_details_option_row.ec_option_type_dimensions2 > .ec_details_option_data > select', 'advDim2Select' ).change( function( ){
 		var product_id = jQuery( this ).parent().parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().parent().attr( 'data-rand-id' );
+		wpeasycart_details_size_check( jQuery( this ).parent().parent(), product_id, rand_id, false ); /* 6.0.5: a box that is not a positive number says so at once */
 		ec_details_advanced_conditional_logic( product_id, rand_id );
 		ec_details_advanced_adjust_price( product_id, rand_id );
 	} );
@@ -1603,10 +1650,118 @@ function wpeasycart_inquiry_recaptcha_callback( response ){
 		jQuery( '#ec_product_details_inquiry_recaptcha > div' ).css( 'border', '1px solid red' );
 	}
 }
+/* 6.0.5: countries whose region ( state, county, province ) may be left empty ( Settings › Countries & Regions; the UK, Germany
+ * and New Zealand unless the store says otherwise: wpeasycart_ajax_object.address.optional, wp_easycart_regions ). */
+function wpeasycart_region_optional( country ) {
+	var list = ( 'undefined' !== typeof wpeasycart_ajax_object && wpeasycart_ajax_object.address && wpeasycart_ajax_object.address.optional ) ? wpeasycart_ajax_object.address.optional : [ 'GB', 'DE', 'NZ' ];
+	return -1 !== jQuery.inArray( String( country || '' ).toUpperCase(), list );
+}
+/* 6.0.5: the region and postcode labels say what the country calls them ( County and Postcode in the UK, Province in Canada …:
+ * wpeasycart_ajax_object.address.labels ); any other country gets the store's own words back, kept from the page as printed. */
+function wpeasycart_address_labels( prefix, country ) {
+	var cfg = ( 'undefined' !== typeof wpeasycart_ajax_object && wpeasycart_ajax_object.address && wpeasycart_ajax_object.address.labels ) ? wpeasycart_ajax_object.address.labels : null;
+	if ( ! cfg || jQuery.isArray( cfg ) ) {
+		return;
+	}
+	var words = cfg[ String( country || '' ).toUpperCase() ] || null;
+	jQuery.each( [ [ 'state', 'region' ], [ 'zip', 'postal' ] ], function( i, pair ) {
+		var label = jQuery( 'label[for="' + prefix + '_' + pair[0] + '"]' ).first(), node = null;
+		if ( ! label.length ) {
+			return;
+		}
+		label.contents().each( function() {
+			if ( 3 === this.nodeType && jQuery.trim( this.nodeValue ).length ) {
+				node = this;
+				return false;
+			}
+		} );
+		if ( ! node ) {
+			return;
+		}
+		if ( undefined === label.data( 'wpecLabel' ) ) {
+			label.data( 'wpecLabel', node.nodeValue );
+		}
+		var original = String( label.data( 'wpecLabel' ) );
+		var word = ( words && words[ pair[1] ] ) ? words[ pair[1] ] + ( /\*\s*$/.test( original ) ? '*' : '' ) : original;
+		if ( node.nodeValue !== word ) {
+			node.nodeValue = word;
+		}
+	} );
+}
+/* 6.0.5: countries without postcodes ( wpeasycart_ajax_object.address.nozip, wp_easycart_address::no_postcode() ). */
+function wpeasycart_postcode_none( country ) {
+	var list = ( 'undefined' !== typeof wpeasycart_ajax_object && wpeasycart_ajax_object.address && wpeasycart_ajax_object.address.nozip ) ? wpeasycart_ajax_object.address.nozip : [];
+	return -1 !== jQuery.inArray( String( country || '' ).toUpperCase(), list );
+}
+/* 6.0.5: the town, region and postcode fields in the country's order ( wp_easycart_address::form_layout(): csz the town, then the
+ * region and postcode; zc the postcode before the town; cz the town and postcode; stack each under the other; cs no postcode ). The
+ * first time, the three fields' own blocks ( a half or a row, found from their labels ) move into one grid, .wpec-address-place, which
+ * is also an .ec_cart_input_row so every field keeps its look; ids, names and handlers stay. A form whose three fields do not sit in
+ * blocks of their own is left as printed. A country without postcodes hides the postcode and keeps what was typed for a later one. */
+function wpeasycart_address_place( prefix, country ) {
+	var cfg = ( 'undefined' !== typeof wpeasycart_ajax_object && wpeasycart_ajax_object.address ) ? wpeasycart_ajax_object.address : {};
+	var layouts = ( cfg.layouts && ! jQuery.isArray( cfg.layouts ) ) ? cfg.layouts : {};
+	var code = String( country || '' ).toUpperCase();
+	var grid = jQuery( '.wpec-address-place' ).filter( function() { return jQuery( this ).attr( 'data-prefix' ) === prefix; } );
+	if ( ! grid.length ) {
+		var cells = {}, found = true;
+		jQuery.each( [ 'city', 'state', 'zip' ], function( i, part ) {
+			var label = jQuery( 'label[for="' + prefix + '_' + part + '"]' ).first();
+			var cell = label.closest( '.ec_cart_input_left_half, .ec_cart_input_right_half, .ec_cart_input_row' );
+			if ( ! label.length || ! cell.length ) {
+				found = false;
+				return false;
+			}
+			cells[ part ] = cell;
+		} );
+		if ( ! found ) {
+			return;
+		}
+		var list = [ cells.city[0], cells.state[0], cells.zip[0] ];
+		for ( var a = 0; a < list.length; a++ ) {
+			for ( var b = 0; b < list.length; b++ ) {
+				if ( a !== b && ( list[ a ] === list[ b ] || jQuery.contains( list[ a ], list[ b ] ) ) ) {
+					return;
+				}
+			}
+		}
+		grid = jQuery( '<div class="ec_cart_input_row wpec-address-place"></div>' ).attr( 'data-prefix', prefix );
+		grid.insertBefore( cells.city );
+		jQuery.each( [ 'city', 'state', 'zip' ], function( i, part ) {
+			var cell = cells[ part ], parent = cell.parent();
+			cell.addClass( 'wpec-address-cell wpec-address-' + part ).appendTo( grid );
+			if ( ! parent.is( grid ) && parent.is( '.ec_cart_input_row' ) && ! parent.children().length && ! jQuery.trim( parent.text() ).length ) {
+				parent.remove();
+			}
+		} );
+	}
+	grid.attr( 'data-layout', layouts[ code ] || 'csz' );
+	var none = wpeasycart_postcode_none( code ), zip = jQuery( document.getElementById( prefix + '_zip' ) );
+	grid.toggleClass( 'wpec-address-nozip', none );
+	if ( none ) {
+		if ( zip.length && '' !== zip.val() ) {
+			zip.data( 'wpecZipKept', zip.val() ).val( '' );
+		}
+		if ( 'function' === typeof ec_hide_error ) {
+			ec_hide_error( prefix + '_zip' );
+		}
+	} else if ( zip.length && '' === zip.val() && zip.data( 'wpecZipKept' ) ) {
+		zip.val( zip.data( 'wpecZipKept' ) );
+	}
+}
+/* 6.0.5: every address form on the page follows its country ( after a part of the checkout or the account page is drawn again ). */
+function wpeasycart_address_fields() {
+	wpeasycart_cart_billing_country_update( );
+	wpeasycart_cart_shipping_country_update( );
+	wpeasycart_account_billing_country_update( );
+	wpeasycart_account_shipping_country_update( );
+}
 function wpeasycart_cart_billing_country_update( ){
 	if( document.getElementById( 'ec_cart_billing_country' ) ){
 		var selected_country = jQuery( document.getElementById( 'ec_cart_billing_country' ) ).val( );
-		if( ec_is_state_required( selected_country ) )
+		wpeasycart_address_labels( 'ec_cart_billing', selected_country );
+		wpeasycart_address_place( 'ec_cart_billing', selected_country );
+		if( ec_is_state_required( selected_country, 'ec_cart_billing' ) )
 			jQuery( document.getElementById( 'ec_billing_state_required' ) ).show( );
 		else
 			jQuery( document.getElementById( 'ec_billing_state_required' ) ).hide( );
@@ -1618,12 +1773,17 @@ function wpeasycart_cart_billing_country_update( ){
 			jQuery( '.ec_billing_state_dropdown' ).hide( );
 			jQuery( document.getElementById( 'ec_cart_billing_state' ) ).show( );
 		}
+		if ( 'function' === typeof wpeasycart_subscription_short_place ) {
+			wpeasycart_subscription_short_place(); /* 6.0.5: the short subscription checkout */
+		}
 	}
 }
 function wpeasycart_cart_shipping_country_update( ){
 	if( document.getElementById( 'ec_cart_shipping_country' ) ){
 		var selected_country = jQuery( document.getElementById( 'ec_cart_shipping_country' ) ).val( );
-		if( ec_is_state_required( selected_country ) )
+		wpeasycart_address_labels( 'ec_cart_shipping', selected_country );
+		wpeasycart_address_place( 'ec_cart_shipping', selected_country );
+		if( ec_is_state_required( selected_country, 'ec_cart_shipping' ) )
 			jQuery( document.getElementById( 'ec_shipping_state_required' ) ).show( );
 		else
 			jQuery( document.getElementById( 'ec_shipping_state_required' ) ).hide( );
@@ -1640,7 +1800,9 @@ function wpeasycart_cart_shipping_country_update( ){
 function wpeasycart_account_billing_country_update( ){
 	if( document.getElementById( 'ec_account_billing_information_country' ) ){
 		var selected_country = jQuery( document.getElementById( 'ec_account_billing_information_country' ) ).val( );
-		if( ec_is_state_required( selected_country ) )
+		wpeasycart_address_labels( 'ec_account_billing_information', selected_country );
+		wpeasycart_address_place( 'ec_account_billing_information', selected_country );
+		if( ec_is_state_required( selected_country, 'ec_account_billing_information' ) )
 			jQuery( document.getElementById( 'ec_billing_state_required' ) ).show( );
 		else
 			jQuery( document.getElementById( 'ec_billing_state_required' ) ).hide( );
@@ -1657,7 +1819,9 @@ function wpeasycart_account_billing_country_update( ){
 function wpeasycart_account_shipping_country_update( ){
 	if( document.getElementById( 'ec_account_shipping_information_country' ) ){
 		var selected_country = jQuery( document.getElementById( 'ec_account_shipping_information_country' ) ).val( );
-		if( ec_is_state_required( selected_country ) )
+		wpeasycart_address_labels( 'ec_account_shipping_information', selected_country );
+		wpeasycart_address_place( 'ec_account_shipping_information', selected_country );
+		if( ec_is_state_required( selected_country, 'ec_account_shipping_information' ) )
 			jQuery( document.getElementById( 'ec_shipping_state_required' ) ).show( );
 		else
 			jQuery( document.getElementById( 'ec_shipping_state_required' ) ).hide( );
@@ -1741,9 +1905,25 @@ function ec_add_to_cart( product_id, model_number, quantity, use_quantity_tracki
 			type: 'post',
 			data: data,
 			cache: false,
+			/* 6.0.5 ( issue #473 ): no answer ( no connection, a server error ): the store's add to cart link instead of a spinner. */
+			error: function( ){
+				wpeasycart_add_to_cart_fallback( model_number, quantity );
+			},
 			success: function( data ){
-				var json_data = JSON.parse( data );
-				/* 6.0.2: the store refused the add ( catalog or inquiry mode, login for pricing, customer role, a donation ): its page says why. */
+				var json_data = null;
+				try {
+					json_data = JSON.parse( data );
+				} catch ( e ) {
+					json_data = null;
+				}
+				/* 6.0.5 ( issue #473 ): an answer that can't be read ( an older store's empty answer to a cached page's expired
+				   nonce ) goes through the store's add to cart link too. */
+				if ( ! json_data || ! json_data[0] ) {
+					wpeasycart_add_to_cart_fallback( model_number, quantity );
+					return;
+				}
+				/* 6.0.2: the store refused the add ( catalog or inquiry mode, login for pricing, customer role, a donation ): its page says why.
+				   6.0.5: also a cached page's expired nonce ( reason nonce ), where the store's add to cart link adds it instead. */
 				if ( json_data[0] && false === json_data[0].added && json_data[0].redirect ) {
 					window.location.href = json_data[0].redirect;
 					return;
@@ -1800,7 +1980,25 @@ function ec_add_to_cart( product_id, model_number, quantity, use_quantity_tracki
 			jQuery( document.getElementById( 'ec_addtocart_quantity_minimum_error_' + model_number ) ).hide( );
 		}
 	}
-	
+
+}
+
+/* 6.0.5 ( issue #473 ): a background add whose answer can't be read ( no connection, a server error, an older store's empty answer
+ * to a cached page's expired nonce ) stops its spinner and goes through the store's own add to cart link ( ?ec_action=addtocart,
+ * which needs no nonce ) with the quantity chosen. Without that link ( a store copy of the page's script settings ) the button
+ * only stops spinning. */
+function wpeasycart_add_to_cart_fallback( model_number, quantity ) {
+	jQuery( document.getElementById( 'ec_product_loader_' + model_number ) ).hide( );
+	ec_product_show_quick_view_link( model_number );
+	var url = ( window.wpeasycart_ajax_object && wpeasycart_ajax_object.add_to_cart_url ) ? String( wpeasycart_ajax_object.add_to_cart_url ) : '';
+	if ( '' === url || ! model_number ) {
+		return;
+	}
+	url += ( -1 === url.indexOf( '?' ) ? '?' : '&' ) + 'model_number=' + encodeURIComponent( model_number );
+	if ( Number( quantity ) > 1 ) {
+		url += '&quantity=' + Math.floor( Number( quantity ) );
+	}
+	window.location.href = url;
 }
 
 /* 6.0.2: the cart count, total, mini cart rows and the Cart Icon badge after a background add. The add responses carry
@@ -2071,6 +2269,7 @@ function wpeasycart_product_state( product_id, rand_id ) {
  * price chosen in any of its add to cart forms. price is the single price the form shows ( VAT as the form handles it ). */
 function wpeasycart_details_linked_price( product_id, rand_id, price ) {
 	wpeasycart_product_state_queue( product_id, rand_id, price ); /* 6.0.2 */
+	wpeasycart_unit_price_update( product_id, rand_id, price ); /* 6.0.5 */
 	var linked = jQuery( '.ec_details_price[data-wpec-linked-product="' + product_id + '"]' );
 	if ( ! linked.length || isNaN( Number( price ) ) ) {
 		return;
@@ -2094,6 +2293,37 @@ function wpeasycart_details_linked_price( product_id, rand_id, price ) {
 			amount = ( '1' == use_vat_added ) ? amount * use_vat_multiplier : amount;
 		}
 		jQuery( this ).children( '.ec_product_price_ele_' + product_id + '_' + linked_rand + ', .ec_product_sale_price_ele_' + product_id + '_' + linked_rand + ', .ec_product_price_' + product_id + '_' + linked_rand + ', .ec_product_sale_price_' + product_id + '_' + linked_rand ).html( ec_details_format_money_v2( product_id, rand_id, amount ) );
+	} );
+}
+
+/* 6.0.5 ( admin review M16 ): the price per kg, litre, metre or item follows the price the options make. wp_easycart_unit_price::
+ * note_html() puts the factor ( the base over what one item holds ), the sentence ( "[price] / kg" ), the VAT price flag ( the
+ * store shows both prices ) and a running offer's rules on the note. */
+function wpeasycart_unit_price_update( product_id, rand_id, price ) {
+	var notes = jQuery( '.ec_product_unit_price[data-wpec-unit-product="' + product_id + '"]' );
+	if ( ! notes.length || isNaN( Number( price ) ) || ! ( Number( price ) > 0 ) ) {
+		return;
+	}
+	var vat_added = jQuery( document.getElementById( 'vat_added_' + product_id + '_' + rand_id ) ).val( );
+	var vat_rate_multiplier = Number( jQuery( document.getElementById( 'vat_rate_multiplier_' + product_id + '_' + rand_id ) ).val( ) ) || 1;
+	notes.each( function( ){
+		var note = jQuery( this );
+		var factor = Number( note.attr( 'data-wpec-unit-factor' ) );
+		if ( ! ( factor > 0 ) ) {
+			return;
+		}
+		var amount = Number( price );
+		if ( '1' == note.attr( 'data-wpec-unit-vat' ) && '1' == vat_added ) {
+			amount = amount * vat_rate_multiplier;
+		}
+		var rules = note.attr( 'data-wpec-unit-rules' );
+		if ( rules && 'function' == typeof wpeasycart_offer_price ) {
+			try {
+				amount = wpeasycart_offer_price( JSON.parse( rules ), amount );
+			} catch ( err ) {}
+		}
+		var words = note.attr( 'data-wpec-unit-words' ) || '[price] / [unit]';
+		note.text( words.split( '[price]' ).join( ec_details_format_money_v2( product_id, rand_id, amount * factor ) ) );
 	} );
 }
 
@@ -2241,6 +2471,26 @@ jQuery( document ).on( 'click', '.ec_cart_input_row, .ec_cart_option_row, .ec_ca
 	}
 	var box = jQuery( this ).find( '#ec_terms_agree[type="checkbox"], #ec_cart_is_subscriber[type="checkbox"], input[type="radio"][name="ec_cart_payment_selection"]' );
 	if ( 1 !== box.length || box.prop( 'disabled' ) || box.closest( 'label' ).length || ( box.attr( 'id' ) && jQuery( 'label[for="' + box.attr( 'id' ) + '"]' ).length ) ) {
+		return;
+	}
+	if ( box.is( ':radio' ) && box.prop( 'checked' ) ) {
+		return;
+	}
+	box[0].click();
+} );
+
+/* 6.0.5: the same for a product's radio and checkbox options ( Matt: only the small box could be clicked ). WP EasyCart's templates
+   give each choice a label covering its row since 6.0.5 ( .ec_details_choice ); this covers copies of the templates made before. The
+   box is the row's own input ( the option scripts read it as the row's first child ), clicked so their click handlers run. */
+jQuery( document ).on( 'click', '.ec_details_checkbox_row, .ec_details_radio_row', function( e ) {
+	if ( e.isDefaultPrevented() || jQuery( e.target ).closest( '.ec_details_checkbox_row, .ec_details_radio_row' )[0] !== this ) {
+		return;
+	}
+	if ( jQuery( e.target ).closest( 'a, label, input, select, textarea, button, iframe' ).length ) {
+		return;
+	}
+	var box = jQuery( this ).children( 'input[type="checkbox"], input[type="radio"]' );
+	if ( 1 !== box.length || box.prop( 'disabled' ) || ( box.attr( 'id' ) && jQuery( 'label[for="' + box.attr( 'id' ) + '"]' ).length ) ) {
 		return;
 	}
 	if ( box.is( ':radio' ) && box.prop( 'checked' ) ) {
@@ -2828,7 +3078,11 @@ function subscription_create_account( nonce ) {
 			success: function( response ){
 				var data_arr = JSON.parse( response );
 				if ( data_arr['error'] ) {
-					jQuery( document.getElementById( 'ec_subscription_email_exists' ) ).show();
+					if ( data_arr['error']['id'] && 'email_busy' === data_arr['error']['id'] ) {
+						wpeasycart_email_busy_note( data_arr['error']['message'] ); /* 6.0.5: too many emails looked up: nothing said about this one */
+					} else {
+						jQuery( document.getElementById( 'ec_subscription_email_exists' ) ).show();
+					}
 					jQuery( document.getElementById( 'ec_cart_create_account_loader' ) ).hide();
 					if ( '' != recaptcha_response ) {
 						jQuery( document.getElementById( 'ec_grecaptcha_response_register' ) ).val( '' );
@@ -2840,6 +3094,7 @@ function subscription_create_account( nonce ) {
 					jQuery( document.getElementById( 'ec_user_contact_form' ) ).hide();
 					jQuery( document.getElementById( 'ec_user_logged_out_header' ) ).hide();
 					jQuery( document.getElementById( 'ec_cart_user_logged_in_name' ) ).html( data_arr['name'] );
+					wpeasycart_signed_in_card( document.getElementById( 'ec_user_logged_in_form' ), data_arr['name'], email );
 					jQuery( document.getElementById( 'ec_cart_billing_first_name' ) ).val( data_arr['first_name'] );
 					jQuery( document.getElementById( 'ec_cart_billing_last_name' ) ).val( data_arr['last_name'] );
 					jQuery( document.getElementById( 'ec_cart_shipping_first_name' ) ).val( data_arr['first_name'] );
@@ -2850,15 +3105,669 @@ function subscription_create_account( nonce ) {
 					if ( jQuery( document.getElementById( 'ec_cart_shipping_locked' ) ).length ) {
 						jQuery( document.getElementById( 'ec_cart_shipping_locked' ) ).hide();
 					}
-					jQuery( document.getElementById( 'ec_cart_subscription_end_form' ) ).hide();
+					if ( ! wpeasycart_subscription_short() ) {
+						jQuery( document.getElementById( 'ec_cart_subscription_end_form' ) ).hide();
+					}
+					if ( wpeasycart_subscription_step() ) { /* 6.0.5: the email step gives way to the signed-in card and the checkout opens */
+						jQuery( wpeasycart_subscription_step() ).hide();
+						wpeasycart_subscription_checkout( true, true );
+					}
 				}
 			} 
 		} );
 	}
 }
 
-function update_subscription_totals( product_id, nonce ){
-	var billing_complete = ec_validate_address_block( 'ec_cart_billing' );
+/* 6.0.5: the subscription page's email first ( ec_cart_subscription.php #ec_subscription_account, the class wp_easycart_subscription_signup;
+   Matt: after Sign up a shopper who is not signed in found an almost empty page ). The checkout below ( #ec_subscription_after_account )
+   waits, blurred and out of reach, while the step's data-state is email ( the field and Continue ), existing ( the account's password,
+   then the page's own sign in ) or new ( a password for a new account, Create account ). later ( "New subscribers choose a password after
+   paying": the email is locked for the purchase, which makes the account ) and an account made here open it. Change goes back to email:
+   the lock is taken away and the checkout waits again. ec-store.css shows each state's parts.
+   6.0.5: the checkout's Contact is the same step ( ec_checkout_account.php, data-context checkout ) for an order that needs an account.
+   Its data-open names the states that open the rest ( [data-wpec-after-account]: the classic page's billing and shipping, opened for a
+   new account too, whose password is saved with them ); data-reload asks for the page again when the rest is not drawn yet ( the
+   one-page checkout draws it only once the email is settled ). data-state optional is guest checkout: no Continue, a sign in that opens
+   under the email ( wpeasycart_checkout_signin() ). */
+var wpeasycart_subscription_unlocking = null;
+
+function wpeasycart_subscription_step() {
+	return document.getElementById( 'ec_subscription_account' );
+}
+
+function wpeasycart_subscription_checkout( open, focus ) {
+	var parts = document.querySelectorAll( '[data-wpec-after-account]' );
+	for ( var p = 0; p < parts.length; p++ ) { /* 6.0.5: the checkout's ( ec_checkout_details.php .ec_checkout_after_account ) */
+		if ( open ) {
+			parts[ p ].removeAttribute( 'data-locked' );
+			parts[ p ].removeAttribute( 'inert' );
+			parts[ p ].removeAttribute( 'aria-hidden' );
+		} else {
+			parts[ p ].setAttribute( 'data-locked', '1' );
+			parts[ p ].setAttribute( 'inert', '' );
+			parts[ p ].setAttribute( 'aria-hidden', 'true' );
+		}
+	}
+	if ( open && focus && parts.length && ! document.getElementById( 'ec_subscription_after_account' ) ) {
+		var first_part = jQuery( parts[0] ).find( 'input:visible, select:visible' ).first();
+		if ( first_part.length ) {
+			first_part.trigger( 'focus' );
+		}
+	}
+	var wrap = document.getElementById( 'ec_subscription_after_account' );
+	if ( ! wrap ) {
+		return;
+	}
+	var body = wrap.querySelector( '.ec_subscription_preview_body' );
+	if ( open ) {
+		wrap.removeAttribute( 'data-locked' );
+		if ( body ) {
+			body.removeAttribute( 'inert' );
+			body.removeAttribute( 'aria-hidden' );
+		}
+		if ( focus ) {
+			var first = jQuery( document.getElementById( 'ec_cart_billing_form' ) ).find( 'input:visible, select:visible' ).first();
+			if ( first.length ) {
+				first.trigger( 'focus' );
+			}
+		}
+	} else {
+		/* the payment card's sketch stands in only while the real one is not drawn yet ( Change after Save & Continue ) */
+		jQuery( wrap ).toggleClass( 'ec_subscription_has_payment', 'none' !== jQuery( document.getElementById( 'ec_cart_subscription_end_form' ) ).css( 'display' ) );
+		wrap.setAttribute( 'data-locked', '1' );
+		if ( body ) {
+			body.setAttribute( 'inert', '' );
+			body.setAttribute( 'aria-hidden', 'true' );
+		}
+	}
+}
+
+function wpeasycart_subscription_state( state, email ) {
+	var step = wpeasycart_subscription_step();
+	if ( ! step ) {
+		return;
+	}
+	var holder = jQuery( step );
+	step.setAttribute( 'data-state', state );
+	jQuery( document.getElementById( 'ec_subscription_after_account' ) ).toggleClass( 'ec_subscription_quiet', 'email' !== state ); /* the step says what to do next */
+	if ( email ) {
+		holder.find( '.ec_subscription_email_value' ).text( email );
+		holder.find( '.ec_subscription_email_mark' ).text( String( Array.from( email )[0] || '' ).toUpperCase() );
+		jQuery( document.getElementById( 'ec_cart_login_email' ) ).val( email );
+	}
+	var note = holder.find( '.ec_subscription_account_note' );
+	note.text( note.attr( 'data-note-' + state ) || '' );
+	jQuery( document.getElementById( 'ec_contact_email' ) ).prop( 'readonly', 'email' !== state );
+	jQuery( document.getElementById( 'ec_login_selector' ) ).prop( 'checked', 'existing' === state );
+	jQuery( document.getElementById( 'ec_subscription_email_busy' ) ).text( '' ).hide();
+	ec_hide_error( 'ec_contact_email' );
+	wpeasycart_email_suggestion( false );
+	/* 6.0.5: the checkout's step ( data-context checkout ): which states open the rest, and the new account's switch on the classic page */
+	var opens = String( step.getAttribute( 'data-open' ) || 'later' ).split( ' ' );
+	var open = -1 !== opens.indexOf( state );
+	jQuery( '#ec_subscription_account input#ec_create_account_selector[type="hidden"]' ).prop( 'disabled', 'new' !== state );
+	/* 6.0.5: the checkout's questions ( checkout fields, the newsletter box ) show once the email is settled: a new email, or the
+	   account signed in ( the page then draws them again ); never while the email or its password is asked */
+	jQuery( '[data-wpec-account-fields]' ).prop( 'hidden', 'email' === state || 'existing' === state );
+	if ( 'email' === state ) {
+		wpeasycart_email_check_clear();
+	}
+	if ( open && '1' === step.getAttribute( 'data-reload' ) && ! document.querySelector( '[data-wpec-after-account]' ) ) {
+		wpeasycart_checkout_veil( jQuery( step ), 'ec_cart_goto_page_loader', 'loading_checkout' );
+		window.location.reload();
+		return;
+	}
+	wpeasycart_subscription_checkout( open, open && 'later' === state );
+	if ( 'existing' === state ) {
+		jQuery( document.getElementById( 'ec_cart_login_password' ) ).trigger( 'focus' );
+	} else if ( 'new' === state ) {
+		jQuery( document.getElementById( 'ec_user_contact_form' ) ).find( 'input:visible' ).first().trigger( 'focus' );
+	} else if ( 'email' === state ) {
+		jQuery( document.getElementById( 'ec_contact_email' ) ).trigger( 'focus' );
+	}
+}
+
+function wpeasycart_subscription_email_continue() {
+	var step = wpeasycart_subscription_step();
+	var input = jQuery( document.getElementById( 'ec_contact_email' ) );
+	var button = jQuery( document.getElementById( 'ec_subscription_email_continue' ) );
+	if ( ! step || ! input.length || ! button.length || 'true' === button.attr( 'aria-busy' ) ) {
+		return false; /* 6.0.5: guest checkout's Contact has no Continue */
+	}
+	var email = String( input.val() || '' ).trim();
+	if ( ! ec_validate_email( email ) ) {
+		ec_show_error( 'ec_contact_email' );
+		input.attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+		return false;
+	}
+	ec_hide_error( 'ec_contact_email' );
+	input.removeAttr( 'aria-invalid' );
+	jQuery( document.getElementById( 'ec_subscription_email_busy' ) ).text( '' ).hide();
+	button.attr( 'aria-busy', 'true' ).prop( 'disabled', true );
+	var done = function() {
+		button.removeAttr( 'aria-busy' ).prop( 'disabled', false );
+	};
+	var check = function( token ) {
+		var post = { action: 'ec_ajax_subscription_email', 'do': 'check', email: email, nonce: step.getAttribute( 'data-nonce' ) };
+		if ( 'string' === typeof token && '' !== token ) {
+			post.check_token = token;
+		}
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			dataType: 'json',
+			data: post,
+			success: function( data ) {
+				done();
+				if ( ! data ) {
+					return;
+				}
+				/* 6.0.5: the store asks a human check before it says whether this email has an account ( wp_easycart_email_lookups );
+				   a passed check posts the email again */
+				if ( 'check' === data.error ) {
+					wpeasycart_email_check( data, function( answer ) {
+						button.attr( 'aria-busy', 'true' ).prop( 'disabled', true );
+						check( answer );
+					} );
+					return;
+				}
+				wpeasycart_email_check_clear();
+				if ( 'signed_in' === data.state || 'expired' === data.error ) {
+					window.location.reload();
+					return;
+				}
+				if ( 'email' === data.error ) {
+					ec_show_error( 'ec_contact_email' );
+					input.attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+					return;
+				}
+				if ( data.error ) {
+					jQuery( document.getElementById( 'ec_subscription_email_busy' ) ).text( data.message || '' ).show();
+					return;
+				}
+				wpeasycart_subscription_state( data.state, data.email || email );
+			},
+			error: done
+		} );
+	};
+	/* a Change just before took the lock away: the new email is checked once that answer is in */
+	if ( wpeasycart_subscription_unlocking ) {
+		jQuery.when( wpeasycart_subscription_unlocking ).always( check );
+	} else {
+		check();
+	}
+	return false;
+}
+
+function wpeasycart_subscription_email_change() {
+	var step = wpeasycart_subscription_step();
+	if ( ! step ) {
+		return false;
+	}
+	var reload = ( 'later' === step.getAttribute( 'data-state' ) && '1' === step.getAttribute( 'data-reload' ) ); /* 6.0.5: the one-page checkout hides the rest again */
+	if ( 'later' === step.getAttribute( 'data-state' ) ) {
+		if ( reload ) {
+			wpeasycart_checkout_veil( jQuery( step ), 'ec_cart_goto_page_loader', 'loading_checkout' );
+		}
+		wpeasycart_subscription_unlocking = jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			dataType: 'json',
+			data: { action: 'ec_ajax_subscription_email', 'do': 'unlock', nonce: step.getAttribute( 'data-nonce' ) },
+			complete: function() {
+				wpeasycart_subscription_unlocking = null;
+				if ( reload ) {
+					window.location.reload();
+				}
+			}
+		} );
+		if ( reload ) {
+			return false;
+		}
+	}
+	jQuery( document.getElementById( 'ec_cart_login_password' ) ).val( '' );
+	jQuery( document.getElementById( 'ec_contact_password' ) ).val( '' );
+	wpeasycart_subscription_state( 'email' );
+	var input = document.getElementById( 'ec_contact_email' );
+	if ( input && input.select ) {
+		input.select();
+	}
+	return false;
+}
+
+/* 6.0.5: the human check the store asks before the email step says whether an email has an account ( wp_easycart_email_lookups: the
+   browser's 3rd new email in an hour, the address's 4th, a rush of lookups ): Turnstile or reCAPTCHA, as Settings › Checkout protection
+   set it up, drawn under the email, in the step's own place ( #ec_subscription_email_check, made here so store copies of the templates get
+   it too ). The provider's script loads only then. */
+var wpeasycart_email_check_waiting = [];
+function wpeasycart_email_check_ready() {
+	var waiting = wpeasycart_email_check_waiting;
+	wpeasycart_email_check_waiting = [];
+	for ( var w = 0; w < waiting.length; w++ ) {
+		waiting[ w ]();
+	}
+}
+function wpeasycart_email_check_provider( provider, ready ) {
+	var loaded = ( 'recaptcha' === provider ) ? ( window.grecaptcha && window.grecaptcha.render ) : ( window.turnstile && window.turnstile.render );
+	if ( loaded ) {
+		ready();
+		return;
+	}
+	wpeasycart_email_check_waiting.push( ready );
+	var source = ( 'recaptcha' === provider ) ? 'https://www.google.com/recaptcha/api.js' : 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+	var scripts = document.getElementsByTagName( 'script' );
+	for ( var s = 0; s < scripts.length; s++ ) {
+		if ( scripts[ s ].src && 0 === scripts[ s ].src.indexOf( source ) ) {
+			/* another script loads it ( Checkout protection, the registration form ): wait for it */
+			var tries = 0;
+			var wait = window.setInterval( function() {
+				tries++;
+				if ( ( 'recaptcha' === provider ) ? ( window.grecaptcha && window.grecaptcha.render ) : ( window.turnstile && window.turnstile.render ) ) {
+					window.clearInterval( wait );
+					wpeasycart_email_check_ready();
+				} else if ( tries > 100 ) {
+					window.clearInterval( wait );
+				}
+			}, 100 );
+			return;
+		}
+	}
+	var tag = document.createElement( 'script' );
+	tag.src = source + '?render=explicit&onload=wpeasycart_email_check_ready';
+	tag.async = true;
+	tag.defer = true;
+	document.head.appendChild( tag );
+}
+function wpeasycart_email_check_clear() {
+	var holder = document.getElementById( 'ec_subscription_email_check' );
+	if ( holder ) {
+		holder.hidden = true;
+		holder.innerHTML = '';
+	}
+}
+function wpeasycart_email_check( data, passed ) {
+	var holder = document.getElementById( 'ec_subscription_email_check' );
+	if ( ! holder ) {
+		var after = document.getElementById( 'ec_subscription_email_busy' ) || document.getElementById( 'ec_contact_email' );
+		if ( ! after || ! after.parentNode ) {
+			return;
+		}
+		holder = document.createElement( 'div' );
+		holder.id = 'ec_subscription_email_check';
+		holder.className = 'ec_subscription_email_check';
+		after.parentNode.insertBefore( holder, after.nextSibling );
+	}
+	holder.innerHTML = '';
+	var text = document.createElement( 'p' );
+	text.className = 'ec_subscription_email_check_text';
+	text.setAttribute( 'role', 'status' );
+	text.textContent = data.message || '';
+	holder.appendChild( text );
+	var box = document.createElement( 'div' );
+	box.className = 'ec_subscription_email_check_box';
+	holder.appendChild( box );
+	holder.hidden = false;
+	var done = false;
+	var answer = function( token ) {
+		if ( done || ! token ) {
+			return;
+		}
+		done = true;
+		passed( token );
+	};
+	wpeasycart_email_check_provider( data.provider, function() {
+		try {
+			if ( 'recaptcha' === data.provider ) {
+				window.grecaptcha.render( box, { sitekey: data.site_key, callback: answer } );
+			} else {
+				window.turnstile.render( box, { sitekey: data.site_key, callback: answer } );
+			}
+		} catch ( e ) {
+			/* the provider's own problem: the step's Continue posts again */
+		}
+	} );
+}
+
+/* 6.0.5: too many emails looked up ( wp_easycart_email_lookups ): "Too many tries", nothing about the email. The email step's own line
+   ( #ec_subscription_email_busy ), else the create account email row. */
+function wpeasycart_email_busy_note( message ) {
+	message = message || ( wpeasycart_ajax_object.checkout_text && wpeasycart_ajax_object.checkout_text.email_busy ) || '';
+	var line = document.getElementById( 'ec_subscription_email_busy' );
+	if ( line && message ) {
+		jQuery( line ).text( message ).show();
+		return;
+	}
+	wpeasycart_create_account_error( 'email_busy' );
+}
+
+/* The one-page checkout's create account email row: "email exists", "Too many tries" or nothing ( its own words kept for the first ). */
+function wpeasycart_create_account_error( error ) {
+	var row = jQuery( document.getElementById( 'ec_create_account_email_error' ) );
+	if ( ! row.length ) {
+		return;
+	}
+	if ( undefined === row.data( 'wpecText' ) ) {
+		row.data( 'wpecText', row.html() );
+	}
+	var busy = ( wpeasycart_ajax_object.checkout_text && wpeasycart_ajax_object.checkout_text.email_busy ) || '';
+	if ( 'email_busy' === error && '' !== busy ) {
+		row.empty().append( jQuery( '<div>' ).text( busy ) ).show();
+	} else if ( 'user_create_error' === error ) {
+		row.html( row.data( 'wpecText' ) ).show();
+	} else {
+		row.hide();
+	}
+}
+
+/* The account made after paying ( wp_easycart_subscription_signup::card_html(): the order confirmation, the subscription in My Account,
+   the account dashboard ): its password. */
+function wpeasycart_subscription_set_password( card ) {
+	card = jQuery( card );
+	var input = card.find( '.ec_subscription_set_password_input' );
+	var button = card.find( '.ec_subscription_set_password_save' );
+	var note = card.find( '.ec_subscription_set_password_error' );
+	var password = String( input.val() || '' );
+	var min = parseInt( card.attr( 'data-min' ), 10 ) || 6;
+	if ( 'true' === button.attr( 'aria-busy' ) ) {
+		return false;
+	}
+	if ( password.length < min ) {
+		note.text( card.attr( 'data-short' ) || '' ).prop( 'hidden', false );
+		input.attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+		return false;
+	}
+	note.text( '' ).prop( 'hidden', true );
+	input.removeAttr( 'aria-invalid' );
+	button.attr( 'aria-busy', 'true' ).prop( 'disabled', true );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		dataType: 'json',
+		data: { action: 'ec_ajax_subscription_set_password', password: password, nonce: card.attr( 'data-nonce' ) },
+		success: function( data ) {
+			button.removeAttr( 'aria-busy' ).prop( 'disabled', false );
+			if ( data && data.saved ) {
+				card.find( '.ec_subscription_set_password_form' ).prop( 'hidden', true );
+				card.find( '.ec_subscription_set_password_done' ).prop( 'hidden', false );
+				card.addClass( 'is-saved' );
+				return;
+			}
+			note.text( ( data && data.message ) ? data.message : ( card.attr( 'data-failed' ) || '' ) ).prop( 'hidden', false );
+			input.attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+		},
+		error: function() {
+			button.removeAttr( 'aria-busy' ).prop( 'disabled', false );
+			note.text( card.attr( 'data-failed' ) || '' ).prop( 'hidden', false );
+		}
+	} );
+	return false;
+}
+
+jQuery( document ).on( 'click', '#ec_subscription_email_continue', function( e ) {
+	e.preventDefault();
+	wpeasycart_subscription_email_continue();
+} );
+jQuery( document ).on( 'click', '.ec_subscription_email_change', function( e ) {
+	e.preventDefault();
+	wpeasycart_subscription_email_change();
+} );
+jQuery( document ).on( 'keydown', '.ec_subscription_email_change', function( e ) {
+	if ( ' ' === e.key ) { /* a link that acts as a button answers Space too */
+		e.preventDefault();
+		wpeasycart_subscription_email_change();
+	}
+} );
+/* Enter in the step never posts the page's form ( that is the payment, or the sign in while the password shows ). */
+jQuery( document ).on( 'keydown', '#ec_subscription_account #ec_contact_email', function( e ) {
+	if ( 'Enter' === e.key || 13 === e.which ) {
+		e.preventDefault();
+		if ( ! this.readOnly ) {
+			wpeasycart_subscription_email_continue();
+		}
+	}
+} );
+
+/* 6.0.5: the checkout's Contact ( ec_checkout_account.php ). Guest checkout: "Already have an account? Log in" opens the password under
+   the email ( no second email ); the classic page then posts its form with ec_login_selector ticked. */
+function wpeasycart_checkout_signin( open, focus ) {
+	var step = wpeasycart_subscription_step();
+	if ( ! step || 'optional' !== step.getAttribute( 'data-state' ) ) {
+		return false;
+	}
+	if ( 'undefined' === typeof open || null === open ) {
+		open = '1' !== step.getAttribute( 'data-signin' );
+	}
+	if ( open ) {
+		step.setAttribute( 'data-signin', '1' );
+		jQuery( document.getElementById( 'ec_create_account_selector' ) ).prop( 'checked', false );
+		jQuery( document.getElementById( 'ec_user_create_form' ) ).hide();
+	} else {
+		step.removeAttribute( 'data-signin' );
+		jQuery( document.getElementById( 'ec_cart_login_password' ) ).val( '' );
+		ec_hide_error( 'ec_cart_login_password' );
+		ec_hide_error( 'ec_cart_login_email' );
+	}
+	jQuery( document.getElementById( 'ec_login_selector' ) ).prop( 'checked', !! open );
+	jQuery( document.getElementById( 'ec_user_login_link' ) ).attr( 'aria-expanded', open ? 'true' : 'false' );
+	jQuery( document.getElementById( 'ec_checkout_email_known' ) ).prop( 'hidden', true );
+	if ( focus ) {
+		var email = jQuery( document.getElementById( 'ec_contact_email' ) );
+		if ( open && ec_validate_email( String( email.val() || '' ).trim() ) ) {
+			jQuery( document.getElementById( 'ec_cart_login_password' ) ).trigger( 'focus' );
+		} else {
+			email.trigger( 'focus' );
+		}
+	}
+	return false;
+}
+
+/* The classic page's Sign in: the email above is the account's. */
+function wpeasycart_checkout_signin_submit() {
+	jQuery( document.getElementById( 'ec_cart_login_email' ) ).val( String( jQuery( document.getElementById( 'ec_contact_email' ) ).val() || '' ).trim() );
+	jQuery( document.getElementById( 'ec_login_selector' ) ).prop( 'checked', true );
+	var valid = ec_validate_cart_login();
+	if ( ! valid && jQuery( document.getElementById( 'ec_cart_login_email_error' ) ).is( ':visible' ) ) {
+		ec_hide_error( 'ec_cart_login_email' );
+		ec_show_error( 'ec_contact_email' );
+		jQuery( document.getElementById( 'ec_contact_email' ) ).trigger( 'focus' );
+	}
+	return valid;
+}
+
+jQuery( document ).on( 'click', '.ec_checkout_signin_toggle', function( e ) {
+	e.preventDefault();
+	wpeasycart_checkout_signin( null, true );
+} );
+jQuery( document ).on( 'click', '.ec_checkout_signin_cancel', function( e ) {
+	e.preventDefault();
+	wpeasycart_checkout_signin( false, false );
+	jQuery( document.getElementById( 'ec_user_login_link' ) ).trigger( 'focus' );
+} );
+
+/* An email typed on guest checkout that has an account: a note offers the sign in ( the check only asks: nothing is locked ). One check
+   for each email typed; the one-page checkout's own sign in opens with the email filled in. */
+var wpeasycart_checkout_known_asked = {};
+function wpeasycart_checkout_email_known( email ) {
+	var note = document.getElementById( 'ec_checkout_email_known' );
+	var step = wpeasycart_subscription_step();
+	var nonce = note ? note.getAttribute( 'data-nonce' ) : null;
+	if ( ! nonce && step && 'optional' === step.getAttribute( 'data-state' ) ) {
+		nonce = step.getAttribute( 'data-nonce' );
+	}
+	if ( ! note || ! nonce ) {
+		return;
+	}
+	email = String( email || '' ).trim().toLowerCase();
+	if ( ! ec_validate_email( email ) || ( step && '1' === step.getAttribute( 'data-signin' ) ) ) {
+		note.hidden = true;
+		return;
+	}
+	var show = function( state ) {
+		note.hidden = ( 'existing' !== state ) || ( String( jQuery( document.getElementById( 'ec_contact_email' ) ).val() || '' ).trim().toLowerCase() !== email );
+	};
+	if ( Object.prototype.hasOwnProperty.call( wpeasycart_checkout_known_asked, email ) ) {
+		show( wpeasycart_checkout_known_asked[ email ] );
+		return;
+	}
+	wpeasycart_checkout_known_asked[ email ] = '';
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		dataType: 'json',
+		data: { action: 'ec_ajax_subscription_email', 'do': 'check', lock: 0, email: email, nonce: nonce },
+		success: function( data ) {
+			wpeasycart_checkout_known_asked[ email ] = ( data && data.state ) ? data.state : '';
+			show( wpeasycart_checkout_known_asked[ email ] );
+		}
+	} );
+}
+
+jQuery( document ).on( 'change', '#ec_contact_email', function() {
+	if ( ! this.readOnly ) {
+		wpeasycart_checkout_email_known( this.value );
+	}
+} );
+jQuery( document ).on( 'click', '.ec_checkout_email_known_signin', function( e ) {
+	e.preventDefault();
+	var email = String( jQuery( document.getElementById( 'ec_contact_email' ) ).val() || '' ).trim();
+	var step = wpeasycart_subscription_step();
+	if ( step && 'optional' === step.getAttribute( 'data-state' ) ) {
+		wpeasycart_checkout_signin( true, true );
+		return;
+	}
+	if ( 'function' === typeof ec_cart_toggle_login_v2 && ! jQuery( document.getElementById( 'ec_user_login_form' ) ).is( ':visible' ) ) {
+		ec_cart_toggle_login_v2();
+	}
+	jQuery( document.getElementById( 'ec_cart_login_email' ) ).val( email );
+	jQuery( document.getElementById( 'ec_cart_login_password' ) ).trigger( 'focus' );
+} );
+
+/* 6.0.5: no retyped email: a likely typo in a common address is offered instead ( "Did you mean name@gmail.com?" ). */
+var wpeasycart_email_domains = [ 'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.de', 'ymail.com', 'hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'outlook.com', 'live.com', 'msn.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'comcast.net', 'verizon.net', 'att.net', 'sbcglobal.net', 'bellsouth.net', 'cox.net', 'charter.net', 'protonmail.com', 'proton.me', 'gmx.com', 'gmx.de', 'gmx.net', 'web.de', 't-online.de', 'orange.fr', 'free.fr', 'wanadoo.fr', 'btinternet.com', 'sky.com', 'virginmedia.com', 'shaw.ca', 'rogers.com', 'sympatico.ca', 'bigpond.com', 'optusnet.com.au', 'xtra.co.nz', 'libero.it', 'mail.ru', 'yandex.ru' ];
+function wpeasycart_email_distance( a, b ) {
+	if ( Math.abs( a.length - b.length ) > 2 ) {
+		return 3;
+	}
+	var row = [];
+	for ( var j = 0; j <= b.length; j++ ) {
+		row.push( j );
+	}
+	for ( var i = 1; i <= a.length; i++ ) {
+		var prev = row[0];
+		row[0] = i;
+		for ( var k = 1; k <= b.length; k++ ) {
+			var keep = row[ k ];
+			row[ k ] = Math.min( row[ k ] + 1, row[ k - 1 ] + 1, prev + ( a.charAt( i - 1 ) === b.charAt( k - 1 ) ? 0 : 1 ) );
+			prev = keep;
+		}
+	}
+	return row[ b.length ];
+}
+function wpeasycart_email_fix( email ) {
+	email = String( email || '' ).trim();
+	var at = email.lastIndexOf( '@' );
+	if ( at < 1 || at === email.length - 1 ) {
+		return '';
+	}
+	var name = email.slice( 0, at );
+	var domain = email.slice( at + 1 ).toLowerCase();
+	if ( -1 !== wpeasycart_email_domains.indexOf( domain ) ) {
+		return '';
+	}
+	var typed_dot = domain.lastIndexOf( '.' );
+	var typed_tld = domain.slice( typed_dot + 1 );
+	var tld_typo = /^(con|cmo|ocm|comm|cpm|cim|vom|xom|co|cm|nte|ner|nett)$/.test( typed_tld );
+	var best = '';
+	var best_distance = 3;
+	for ( var d = 0; d < wpeasycart_email_domains.length; d++ ) {
+		var known = wpeasycart_email_domains[ d ];
+		var known_dot = known.lastIndexOf( '.' );
+		/* the same ending ( a typo in the name ), or a mistyped .com / .net on the same name: never another country's address ( yahoo.co.jp ) */
+		if ( known.slice( known_dot + 1 ) !== typed_tld && ! ( tld_typo && known.slice( 0, known_dot ) === domain.slice( 0, typed_dot ) ) ) {
+			continue;
+		}
+		var distance = wpeasycart_email_distance( domain, known );
+		if ( distance < best_distance && distance <= ( known.length > 7 ? 2 : 1 ) ) {
+			best = known;
+			best_distance = distance;
+		}
+	}
+	if ( ! best && typed_dot > 0 ) {
+		var tld = domain.replace( /\.(con|cmo|ocm|comm|cpm|cim|vom|xom)$/, '.com' ).replace( /\.(nte|nett)$/, '.net' );
+		best = ( tld !== domain ) ? tld : '';
+	}
+	return best ? name + '@' + best : '';
+}
+function wpeasycart_email_suggestion( email ) {
+	var holder = document.getElementById( 'ec_contact_email_suggest' );
+	if ( ! holder ) {
+		return '';
+	}
+	var fixed = ( false === email ) ? '' : wpeasycart_email_fix( email );
+	if ( ! fixed ) {
+		holder.hidden = true;
+		holder.textContent = '';
+		return '';
+	}
+	var words = String( holder.getAttribute( 'data-text' ) || 'Did you mean [email]?' ).split( '[email]' );
+	holder.textContent = '';
+	holder.appendChild( document.createTextNode( words[0] || '' ) );
+	var button = document.createElement( 'button' );
+	button.type = 'button';
+	button.className = 'ec_checkout_email_suggest_use';
+	button.setAttribute( 'data-email', fixed );
+	button.textContent = fixed;
+	holder.appendChild( button );
+	holder.appendChild( document.createTextNode( words.slice( 1 ).join( '[email]' ) ) );
+	holder.hidden = false;
+	return fixed;
+}
+jQuery( document ).on( 'change blur', '#ec_contact_email', function() {
+	if ( ! this.readOnly ) {
+		wpeasycart_email_suggestion( this.value );
+	}
+} );
+jQuery( document ).on( 'click', '.ec_checkout_email_suggest_use', function( e ) {
+	e.preventDefault();
+	var input = jQuery( document.getElementById( 'ec_contact_email' ) );
+	input.val( this.getAttribute( 'data-email' ) || '' );
+	wpeasycart_email_suggestion( false );
+	input.trigger( 'focus' ).trigger( 'change' );
+} );
+
+/* 6.0.5: no retyped password: every new or sign in password can be shown ( .ec_password_toggle ). */
+jQuery( document ).on( 'click', '.ec_password_toggle', function( e ) {
+	e.preventDefault();
+	var input = document.getElementById( this.getAttribute( 'aria-controls' ) || '' );
+	if ( ! input ) {
+		return;
+	}
+	var shown = ( 'password' === input.type );
+	input.type = shown ? 'text' : 'password';
+	this.setAttribute( 'aria-pressed', shown ? 'true' : 'false' );
+	this.textContent = shown ? ( this.getAttribute( 'data-hide' ) || 'Hide' ) : ( this.getAttribute( 'data-show' ) || 'Show' );
+	input.focus();
+} );
+jQuery( document ).on( 'keydown', '#ec_subscription_account #ec_user_contact_form input', function( e ) {
+	if ( 'Enter' === e.key || 13 === e.which ) {
+		e.preventDefault();
+		jQuery( document.getElementById( 'ec_user_contact_form' ) ).find( '.ec_cart_button_row > .ec_cart_button' ).first().trigger( 'click' );
+	}
+} );
+jQuery( document ).on( 'click', '.ec_subscription_set_password_save', function( e ) {
+	e.preventDefault();
+	wpeasycart_subscription_set_password( jQuery( this ).closest( '.ec_subscription_set_password' ) );
+} );
+jQuery( document ).on( 'keydown', '.ec_subscription_set_password_input', function( e ) {
+	if ( 'Enter' === e.key || 13 === e.which ) {
+		e.preventDefault();
+		wpeasycart_subscription_set_password( jQuery( this ).closest( '.ec_subscription_set_password' ) );
+	}
+} );
+
+function update_subscription_totals( product_id, nonce, quiet ){
+	var wpec_short = ( 'function' === typeof wpeasycart_subscription_short ) && wpeasycart_subscription_short();
+	var billing_complete = quiet ? true : ( wpec_short ? wpeasycart_subscription_short_check() : ec_validate_address_block( 'ec_cart_billing' ) );
 	var shipping_complete = true;
 
 	if( jQuery( document.getElementById( 'ec_shipping_selector' ) ).is( ':checked' ) ) {
@@ -2866,7 +3775,10 @@ function update_subscription_totals( product_id, nonce ){
 	}
 
 	if ( billing_complete && shipping_complete ) {
-		jQuery( document.getElementById( 'ec_cart_address_loader' ) ).show();
+		if ( ! quiet ) {
+			jQuery( document.getElementById( 'ec_cart_address_loader' ) ).show();
+		}
+		var wpec_seq = ( 'undefined' !== typeof wpeasycart_subscription_short_seq ) ? ++wpeasycart_subscription_short_seq : 0;
 
 		var shipping_selector = 0;
 		if( jQuery( document.getElementById( 'ec_shipping_selector' ) ).length && jQuery( document.getElementById( 'ec_shipping_selector' ) ).is( ':checked' ) ){
@@ -2957,6 +3869,20 @@ function update_subscription_totals( product_id, nonce ){
 			data: data,
 			cache: false,
 			success: function( response ) {
+				if ( quiet ) {
+					if ( wpec_seq !== wpeasycart_subscription_short_seq ) {
+						return; /* a newer place was sent since */
+					}
+					try {
+						wpeasycart_subscription_cart_update_totals( JSON.parse( response ) );
+						if ( wpec_short ) {
+							wpec_short.setAttribute( 'data-session-country', billing_country );
+						}
+					} catch ( wpec_totals_error ) {
+						wpeasycart_subscription_short_sent = '';
+					}
+					return;
+				}
 				var data_arr = JSON.parse( response );
 				wpeasycart_subscription_cart_update_totals( data_arr );
 				jQuery( document.getElementById( 'ec_cart_billing_form' ) ).hide();
@@ -2968,7 +3894,14 @@ function update_subscription_totals( product_id, nonce ){
 				}
 				jQuery( document.getElementById( 'ec_cart_subscription_end_form' ) ).show();
 				jQuery( document.getElementById( 'ec_cart_address_loader' ) ).hide();
-			} 
+			},
+			error: function() {
+				if ( quiet ) {
+					wpeasycart_subscription_short_sent = '';
+				} else {
+					jQuery( document.getElementById( 'ec_cart_address_loader' ) ).hide();
+				}
+			}
 		} );
 	}
 }
@@ -3075,6 +4008,196 @@ function wpeasycart_subscription_cart_update_totals( data_arr ) {
 		jQuery( '#ec_cart_vat_row_mobile' ).hide( );
 	}
 }
+
+/* 6.0.5: the subscription page's choices under the item in its summary ( wp_easycart_subscription_choices ). The usage level is a
+   line ( "750 tasks per month · Change" ), the summary of a <details>: a click opens its list ( the select's own picker where the
+   browser has one ) and picking another level opens the page again with it. A level moved with the arrow keys on a closed list ( each
+   key changes it ) waits for the Update button, so a keyboard can look through the list. Escape, or the focus leaving, puts the line
+   back. The billing period is a row of links ( pills or a switch ). Nothing here runs on load: the page may be drawn by AJAX. */
+function wpeasycart_subscription_pick_close( form, focus ) {
+	var box = form.find( '.ec_subscription_pick_box' ), select = form.find( '.ec_subscription_pick_select' );
+	if ( undefined !== select.data( 'wpecStart' ) ) {
+		select.val( select.data( 'wpecStart' ) );
+	}
+	form.removeClass( 'is-keyed' );
+	if ( box.length ) {
+		box[0].open = false;
+	}
+	if ( focus ) {
+		form.find( '.ec_subscription_pick_line' ).trigger( 'focus' );
+	}
+}
+jQuery( document ).on( 'click', '.ec_subscription_pick_line', function( e ) {
+	var form = jQuery( this ).closest( '.ec_subscription_pick' ), box = form.find( '.ec_subscription_pick_box' ), select = form.find( '.ec_subscription_pick_select' );
+	if ( ! box.length || ! select.length ) {
+		return;
+	}
+	e.preventDefault();
+	if ( box[0].open ) {
+		wpeasycart_subscription_pick_close( form, true );
+		return;
+	}
+	jQuery( '.ec_subscription_pick_box[open]' ).each( function() {
+		wpeasycart_subscription_pick_close( jQuery( this ).closest( '.ec_subscription_pick' ), false );
+	} );
+	form.addClass( 'is-scripted' ).removeClass( 'is-keyed' );
+	box[0].open = true;
+	select.data( 'wpecStart', select.val() ).trigger( 'focus' );
+	try {
+		if ( select[0].showPicker ) {
+			select[0].showPicker();
+		}
+	} catch ( err ) {}
+} );
+jQuery( document ).on( 'keydown', '.ec_subscription_pick_select', function( e ) {
+	var form = jQuery( this ).closest( '.ec_subscription_pick' );
+	if ( 'Escape' === e.key ) {
+		wpeasycart_subscription_pick_close( form, true );
+		e.preventDefault();
+	} else if ( /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/.test( e.key ) || ( 1 === String( e.key ).length ) ) {
+		form.addClass( 'is-keyed' );
+	}
+} );
+jQuery( document ).on( 'change', '.ec_subscription_pick_select', function() {
+	var form = jQuery( this ).closest( '.ec_subscription_pick' );
+	if ( ! form.hasClass( 'is-scripted' ) || form.hasClass( 'is-keyed' ) || jQuery( this ).val() === jQuery( this ).data( 'wpecStart' ) ) {
+		return; /* the Update button */
+	}
+	form.addClass( 'is-busy' );
+	form[0].submit();
+} );
+jQuery( document ).on( 'submit', 'form.ec_subscription_pick', function() {
+	jQuery( this ).addClass( 'is-busy' );
+} );
+jQuery( document ).on( 'focusout', 'form.ec_subscription_pick', function() {
+	var form = this;
+	setTimeout( function() {
+		var box = jQuery( form ).find( '.ec_subscription_pick_box' );
+		if ( box.length && box[0].open && jQuery( form ).hasClass( 'is-scripted' ) && ! jQuery( form ).hasClass( 'is-busy' ) && ! form.contains( document.activeElement ) ) {
+			wpeasycart_subscription_pick_close( jQuery( form ), false );
+		}
+	}, 0 );
+} );
+jQuery( document ).on( 'click', '.ec_subscription_pick_links a', function() {
+	jQuery( this ).closest( '.ec_subscription_pick' ).addClass( 'is-busy' );
+} );
+window.addEventListener( 'pageshow', function() {
+	jQuery( '.ec_subscription_pick.is-busy' ).each( function() {
+		jQuery( this ).removeClass( 'is-busy is-keyed' );
+		wpeasycart_subscription_pick_close( jQuery( this ), false );
+	} );
+} );
+
+/* 6.0.5: the short subscription checkout ( ec_cart_subscription.php #ec_cart_billing_form[data-short], the class wp_easycart_subscription_short;
+   Matt: as simple as possible, for a subscription that ships nothing ). The name, the country, the state or province only where the country has
+   a list, the postcode only where the country uses one, and the payment on the same screen ( no Save & Continue ). The totals follow the place
+   as it is typed ( the tax, through the subscription tax call, quietly ). The street, town, company and phone are hidden fields keeping what the
+   session or the account holds; the street and town are emptied while another country than theirs is chosen ( data-kept-country ). */
+var wpeasycart_subscription_short_timer = null;
+var wpeasycart_subscription_short_seq = 0;
+var wpeasycart_subscription_short_sent = '';
+
+function wpeasycart_subscription_short() {
+	var form = document.getElementById( 'ec_cart_billing_form' );
+	return ( form && '1' === form.getAttribute( 'data-short' ) ) ? form : null;
+}
+
+function wpeasycart_subscription_short_place() {
+	var form = wpeasycart_subscription_short();
+	if ( ! form ) {
+		return;
+	}
+	var holder = jQuery( form );
+	var country = String( jQuery( document.getElementById( 'ec_cart_billing_country' ) ).val() || '' );
+	var list = ( '' !== country && '0' !== country ) ? document.getElementById( 'ec_cart_billing_state_' + country ) : null;
+	var nozip = ( 'function' === typeof wpeasycart_postcode_none ) && wpeasycart_postcode_none( country );
+	holder.find( '.ec_subscription_short_state' ).prop( 'hidden', ! list );
+	holder.find( '.ec_subscription_short_zip' ).prop( 'hidden', nozip );
+	holder.find( '.ec_subscription_short_place' ).attr( 'data-cells', 1 + ( list ? 1 : 0 ) + ( nozip ? 0 : 1 ) );
+	if ( ! list && 'function' === typeof ec_hide_error ) {
+		ec_hide_error( 'ec_cart_billing_state' );
+	}
+	if ( nozip && 'function' === typeof ec_hide_error ) {
+		ec_hide_error( 'ec_cart_billing_zip' );
+	}
+	var kept_country = form.getAttribute( 'data-kept-country' ) || '';
+	holder.find( 'input[data-wpec-kept="place"]' ).each( function() {
+		/* what the page was printed with, kept on the element ( a hidden input's value is its attribute, so it cannot be read back ) */
+		if ( undefined === this.wpecKeptValue ) {
+			this.wpecKeptValue = this.value;
+		}
+		this.value = ( '' === kept_country || kept_country === country ) ? this.wpecKeptValue : '';
+	} );
+}
+
+/* What Place order needs from the short form ( ec_validate_address_block() without the street, town, company and phone ). */
+function wpeasycart_subscription_short_check() {
+	var prefix = 'ec_cart_billing', ok = true;
+	var mark = function( field, good ) {
+		if ( good ) {
+			ec_hide_error( field );
+		} else {
+			ok = false;
+			ec_show_error( field );
+		}
+	};
+	var country = jQuery( document.getElementById( prefix + '_country' ) ).val();
+	mark( prefix + '_country', ec_validate_select( country ) );
+	mark( prefix + '_first_name', ec_validate_text( jQuery( document.getElementById( prefix + '_first_name' ) ).val() ) );
+	mark( prefix + '_last_name', ec_validate_text( jQuery( document.getElementById( prefix + '_last_name' ) ).val() ) );
+	var list = jQuery( document.getElementById( prefix + '_state_' + country ) );
+	if ( list.length && ! wpeasycart_region_optional( country ) ) {
+		mark( prefix + '_state', ec_validate_select( list.val() ) );
+	} else {
+		ec_hide_error( prefix + '_state' );
+	}
+	mark( prefix + '_zip', ec_validate_zip_code( jQuery( document.getElementById( prefix + '_zip' ) ).val(), country ) );
+	return ok;
+}
+
+/* The place as the tax call sees it ( a new request only when it changed ). */
+function wpeasycart_subscription_short_key() {
+	var country = String( jQuery( document.getElementById( 'ec_cart_billing_country' ) ).val() || '' );
+	var state = jQuery( document.getElementById( 'ec_cart_billing_state_' + country ) ).length ? jQuery( document.getElementById( 'ec_cart_billing_state_' + country ) ).val() : '';
+	return [ country, state, String( jQuery( document.getElementById( 'ec_cart_billing_zip' ) ).val() || '' ).trim(), String( jQuery( document.getElementById( 'ec_cart_billing_vat_registration_number' ) ).val() || '' ).trim() ].join( '|' );
+}
+
+function wpeasycart_subscription_short_refresh( wait ) {
+	var form = wpeasycart_subscription_short();
+	if ( ! form ) {
+		return;
+	}
+	clearTimeout( wpeasycart_subscription_short_timer );
+	wpeasycart_subscription_short_timer = setTimeout( function() {
+		var key = wpeasycart_subscription_short_key();
+		if ( key === wpeasycart_subscription_short_sent || ! ec_validate_select( key.split( '|' )[0] ) ) {
+			return;
+		}
+		wpeasycart_subscription_short_sent = key;
+		update_subscription_totals( form.getAttribute( 'data-product' ), form.getAttribute( 'data-nonce' ), true );
+	}, ( 'number' === typeof wait ) ? wait : 700 );
+}
+
+jQuery( document ).on( 'change', '#ec_cart_billing_form[data-short] .ec_subscription_short_place select, #ec_cart_billing_form[data-short] .ec_subscription_short_place input, #ec_cart_billing_form[data-short] #ec_cart_billing_vat_registration_number', function() {
+	wpeasycart_subscription_short_place();
+	wpeasycart_subscription_short_refresh( 0 );
+} );
+jQuery( document ).on( 'input', '#ec_cart_billing_form[data-short] .ec_subscription_short_zip input, #ec_cart_billing_form[data-short] #ec_cart_billing_vat_registration_number', function() {
+	wpeasycart_subscription_short_refresh( 700 );
+} );
+jQuery( function() {
+	var form = wpeasycart_subscription_short();
+	if ( ! form ) {
+		return;
+	}
+	wpeasycart_subscription_short_place();
+	var country = String( jQuery( document.getElementById( 'ec_cart_billing_country' ) ).val() || '' );
+	if ( ec_validate_select( country ) && country !== ( form.getAttribute( 'data-session-country' ) || '' ) ) {
+		wpeasycart_subscription_short_refresh( 0 ); /* the page's totals were worked out without this country ( the store's default, or the account's ) */
+	} else {
+		wpeasycart_subscription_short_sent = wpeasycart_subscription_short_key();
+	}
+} );
 
 function ec_apply_subscription_coupon( product_id, manufacturer_id, nonce, is_mobile = false ){
 	
@@ -3336,6 +4459,13 @@ function ec_update_cart( response_obj ){
 			jQuery( document.getElementById( 'ec_cart_hst' ) ).parent( ).hide( );
 		}
 		jQuery( document.getElementById( 'ec_cart_pst' ) ).html( response_obj.order_totals.pst_total );
+		/* 6.0.5: each Canadian tax row's name ( QST in Quebec ) and rate follow the address ( ec_cart_totals.php's spans ). */
+		jQuery.each( [ 'gst', 'pst', 'hst' ], function( i, kind ) {
+			if ( 'undefined' != typeof response_obj.order_totals[ kind + '_label' ] ) {
+				jQuery( '.ec_cart_' + kind + '_label' ).text( response_obj.order_totals[ kind + '_label' ] );
+				jQuery( '.ec_cart_' + kind + '_rate' ).text( response_obj.order_totals[ kind + '_rate' ] );
+			}
+		} );
 		if( response_obj.order_totals.has_pst == '1' ){
 			jQuery( document.getElementById( 'ec_cart_pst' ) ).parent( ).show( );
 		}else{
@@ -3480,6 +4610,15 @@ function ec_cart_toggle_login_v2() {
 		}
 	} else {
 		jQuery( document.getElementById( 'ec_user_login_form' ) ).show( );
+		/* 6.0.5: the email typed above is the one to sign in with ( no typing it twice ) */
+		var wpec_typed_email = String( jQuery( document.getElementById( 'ec_contact_email' ) ).val() || '' ).trim();
+		if ( '' === String( jQuery( document.getElementById( 'ec_cart_login_email' ) ).val() || '' ).trim() && ec_validate_email( wpec_typed_email ) ) {
+			jQuery( document.getElementById( 'ec_cart_login_email' ) ).val( wpec_typed_email );
+			setTimeout( function() {
+				jQuery( document.getElementById( 'ec_cart_login_password' ) ).trigger( 'focus' );
+			}, 0 );
+		}
+		jQuery( document.getElementById( 'ec_checkout_email_known' ) ).prop( 'hidden', true );
 		jQuery( document.getElementById( 'ec_user_contact_form' ) ).hide( );
 		jQuery( document.getElementById( 'ec_user_login_link' ) ).hide( );
 		jQuery( document.getElementById( 'ec_user_login_cancel_link' ) ).show( );
@@ -3737,6 +4876,28 @@ function ec_cart_stripe_paylater_messaging_v2( sub_total ) {
 	}
 }
 
+/* 6.0.5: fills in a signed-in card ( wp_easycart_signed_in_card() ) printed empty, as the subscription page's once a shopper makes an
+   account there: the name ( else the email ) as its title, the email under it, the initials. A template copy without the card is left alone. */
+function wpeasycart_signed_in_card( holder, name, email ) {
+	var card = holder ? jQuery( holder ).find( '.ec_cart_signed_in_v2' ) : jQuery();
+	if ( ! card.length ) {
+		return;
+	}
+	name = String( name || '' ).trim();
+	email = String( email || '' ).trim();
+	var words = name.length ? name.split( /\s+/ ) : [ email ];
+	var letters = '';
+	if ( words[0] ) {
+		letters += Array.from( words[0] )[0];
+	}
+	if ( words.length > 1 && words[ words.length - 1 ] ) {
+		letters += Array.from( words[ words.length - 1 ] )[0];
+	}
+	card.find( '.ec_cart_signed_in_name' ).text( name.length ? name : email );
+	card.find( '.ec_cart_signed_in_email' ).text( name.length ? email : '' );
+	card.find( '.ec_cart_signed_in_avatar' ).text( letters.toUpperCase() );
+}
+
 function ec_cart_logout_v2() {
 	/* 6.0.4: the link goes on to the cart page, which signs the customer out and draws the checkout again: the veil stays until then. */
 	wpeasycart_checkout_veil( jQuery( document.getElementById( 'ec_cart_logged_in_section' ) ), 'ec_cart_logout_loader', 'signing_out' );
@@ -3774,8 +4935,8 @@ function wp_easycart_update_contact_email_v2() {
 		cache: false,
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
-			if ( response_obj.error && 'user_create_error' == response_obj.error && jQuery( document.getElementById( 'ec_user_create_form' ) ).length ) {
-				jQuery( document.getElementById( 'ec_create_account_email_error' ) ).show();
+			if ( jQuery( document.getElementById( 'ec_user_create_form' ) ).length ) {
+				wpeasycart_create_account_error( response_obj.error );
 			} else {
 				jQuery( document.getElementById( 'ec_create_account_email_error' ) ).hide();
 			}
@@ -3894,6 +5055,7 @@ function wp_easycart_goto_page_v2( page, nonce, add_state = true ) {
 				}
 			} else {
 				jQuery( '.ec_cart_left' ).html( response_obj.html_content );
+				wpeasycart_address_fields(); /* 6.0.5 */
 				if ( 'cart' == page ) {
 					jQuery( '.ec_cart_left' ).addClass( 'ec_cart_full' );
 					jQuery( '.ec_cart_right' ).hide();
@@ -4169,11 +5331,7 @@ function wp_easycart_goto_shipping_v2( should_scroll = false ) {
 			}
 			var response_obj = JSON.parse( data );
 			jQuery( document.getElementById( 'ec_cart_shipping_loader' ) ).remove();
-			if ( response_obj.error && 'user_create_error' == response_obj.error ) {
-				jQuery( document.getElementById( 'ec_create_account_email_error' ) ).show();
-			} else {
-				jQuery( document.getElementById( 'ec_create_account_email_error' ) ).hide();
-			}
+			wpeasycart_create_account_error( response_obj.error );
 			ec_update_cart( response_obj.cart_data );
 			if( jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).length ) {
 				if ( jQuery( document.getElementById( 'ec_cart_onepage_shipping' ) ).length ) {
@@ -4190,6 +5348,7 @@ function wp_easycart_goto_shipping_v2( should_scroll = false ) {
 			} else {
 				if ( ! response_obj.error ) {
 					jQuery( '.ec_cart_left' ).html( response_obj.html_content );
+					wpeasycart_address_fields(); /* 6.0.5 */
 					if ( '1' == response_obj.shipping_allowed ) {
 						jQuery( '#wpeasycart_shipping_page_link' ).removeClass( 'wpeasycart-deactivated-link' );
 					}
@@ -4312,6 +5471,7 @@ function wp_easycart_goto_payment_v2() {
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			jQuery( '.ec_cart_left' ).html( response_obj.html_content );
+			wpeasycart_address_fields(); /* 6.0.5 */
 			if ( '1' == response_obj.shipping_allowed ) {
 				jQuery( '#wpeasycart_shipping_page_link' ).removeClass( 'wpeasycart-deactivated-link' );
 			}
@@ -4652,6 +5812,14 @@ function wpeasycart_bluecheck_verify( ){
 
 function ec_validate_cart_details( ){
 	
+	/* 6.0.5: an order that needs an account: the email step comes first ( ec_checkout_account.php ) */
+	var wpec_step = wpeasycart_subscription_step();
+	if ( wpec_step && 'checkout' === wpec_step.getAttribute( 'data-context' ) && 'email' === wpec_step.getAttribute( 'data-state' ) ) {
+		wpeasycart_subscription_email_continue();
+		jQuery( 'html, body' ).animate( { scrollTop: Math.max( 0, jQuery( wpec_step ).offset().top - 120 ) }, 200 );
+		return false;
+	}
+
 	var login_complete = true;
 	var billing_complete = ec_validate_address_block( 'ec_cart_billing' );
 	var shipping_complete = true;
@@ -4670,7 +5838,7 @@ function ec_validate_cart_details( ){
 	if( jQuery( document.getElementById( 'ec_contact_email' ) ).length )
 		email_complete = ec_validate_email_block( 'ec_contact' );
 	
-	if( jQuery( document.getElementById( 'ec_create_account_selector' ) ).is( ':checked' ) || ( jQuery( document.getElementById( 'ec_create_account_selector' ) ).is(':hidden' ) && jQuery( document.getElementById( 'ec_create_account_selector' ) ).val( ) == "create_account" ) ) {
+	if( jQuery( document.getElementById( 'ec_create_account_selector' ) ).is( ':checked' ) || ( jQuery( document.getElementById( 'ec_create_account_selector' ) ).is(':hidden' ) && ! jQuery( document.getElementById( 'ec_create_account_selector' ) ).prop( 'disabled' ) && jQuery( document.getElementById( 'ec_create_account_selector' ) ).val( ) == "create_account" ) ) {
 		create_account_complete = ec_validate_create_account( 'ec_contact' );
 		terms_complete = ec_validate_terms_section();
 	}
@@ -4934,7 +6102,7 @@ function ec_validate_submit_invoice( ){
 
 function ec_validate_submit_subscription( ){
 	var login_complete = true;
-	var billing_complete = ec_validate_address_block( 'ec_cart_billing' );
+	var billing_complete = ( 'function' === typeof wpeasycart_subscription_short && wpeasycart_subscription_short() ) ? wpeasycart_subscription_short_check() : ec_validate_address_block( 'ec_cart_billing' ); /* 6.0.5: the short form checks only what it asks */
 	var shipping_complete = true;
 	var email_complete = true;
 	var create_account_complete = true;
@@ -4958,8 +6126,8 @@ function ec_validate_submit_subscription( ){
 	}
 		
 	if( login_complete && billing_complete && shipping_complete && email_complete && create_account_complete && payment_method_complete && terms_complete ){
+		ec_hide_error( 'ec_checkout' ); /* 6.0.5: "Please correct the errors" goes once they are, with Stripe too ( it stayed over a corrected form ) */
 		if( !document.getElementById( 'ec_stripe_card_row' ) && !document.getElementById( 'wpec_braintree_dropin' ) ){
-			ec_hide_error( 'ec_checkout' );
 			jQuery( document.getElementById( 'ec_cart_submit_order' ) ).hide( );
 			jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).show( );
 		}
@@ -5056,7 +6224,7 @@ function ec_validate_address_block( prefix ){
 		ec_hide_error( prefix + '_address' );
 	}
 	
-	if( jQuery( document.getElementById( '' + prefix + '_state_' + country ) ).length ){
+	if( jQuery( document.getElementById( '' + prefix + '_state_' + country ) ).length && ! wpeasycart_region_optional( country ) ){
 		if( !ec_validate_select( state ) ){
 			errors = true;
 			ec_show_error( prefix + '_state' );
@@ -5324,7 +6492,10 @@ function ec_validate_match( val1, val2 ){
 
 function ec_validate_zip_code( zip, country ){
 	
-	zip = zip.trim( );
+	zip = String( zip || '' ).trim( );
+	if ( 'function' === typeof wpeasycart_postcode_none && wpeasycart_postcode_none( country ) ) {
+		return true; /* 6.0.5: the country has no postcodes */
+	}
 	
 	if( country == "US" )
 		return /(^\d{5}$)|(^\d{5}-\d{4}$)/.test( zip );
@@ -5342,7 +6513,13 @@ function ec_validate_zip_code( zip, country ){
 	
 }
 
-function ec_is_state_required( country ){
+/* 6.0.5: with the form's prefix, required = the country has a region list here and its region is not optional ( what
+ * ec_validate_address_block() checks ); without one, the older list less the optional countries. */
+function ec_is_state_required( country, prefix ){
+	if ( wpeasycart_region_optional( country ) )
+		return false;
+	if ( prefix )
+		return !! document.getElementById( prefix + '_state_' + country );
 	if( country == "AU" || country == "BR" || country == "CA" || country == "CN" || country == "GB" || country == "IN" || country == "JP" || country == "US" )
 		return true;
 	else
@@ -6157,6 +7334,14 @@ function wpeasycart_load_cart( cart_page, success_code, error_code, language = '
 		language: language,
 		nonce: nonce
 	};
+	/* 6.0.5: the subscription page's usage level from the page's address ( a pricing table's or the order summary's ec_level / ec_units ) */
+	var wpec_holder = document.getElementById( 'wpeasycart_cart_holder' );
+	if ( wpec_holder && wpec_holder.getAttribute( 'data-level' ) ) {
+		data.ec_level = wpec_holder.getAttribute( 'data-level' );
+	}
+	if ( wpec_holder && wpec_holder.getAttribute( 'data-units' ) ) {
+		data.ec_units = wpec_holder.getAttribute( 'data-units' );
+	}
 	jQuery.ajax( {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
@@ -6165,6 +7350,7 @@ function wpeasycart_load_cart( cart_page, success_code, error_code, language = '
 		success: function( data ){ 
 			jQuery( document.getElementById( 'wpeasycart_cart_holder' ) ).replaceWith( data );
 			wp_easycart_init_location_buttons();
+			wpeasycart_address_fields(); /* 6.0.5 */
 		}
 	} );
 }
@@ -6191,6 +7377,7 @@ function wpeasycart_load_account( account_page, page_id, success_code, error_cod
 		success: function( data ){ 
 			jQuery( document.getElementById( 'wpeasycart_account_holder' ) ).replaceWith( data );
 			wpeasycart_init( document ); /* 6.0.2: sets up only what the account page just drew ( order paging ) */
+			wpeasycart_address_fields(); /* 6.0.5 */
 		}
 	} );
 }
@@ -6250,701 +7437,538 @@ function wp_easycart_text_notification_subscribe( wpeasycart_text_iti ) {
 		}
 	} );
 }
+/*
+ * 6.0.5: the product page shows what the cart charges. wpeasycart_details_line() prices the line the cart will make for this
+ * form's choices by the cart's own rules ( ec_cartitem::__construct(), then ec_cart::make_vat_adjustments() and
+ * ec_promotion::apply_promotion() ):
+ * - a variation choice adds its own price ( the cart charges no one-time price, override or multiplier on one ); a variant with
+ *   a price of its own replaces the price and those adds, a variant's SKU the model number and the choices' SKU endings;
+ * - modifiers in option order, rows hidden by their conditions included ( the form still sends them ): a choice's price, else
+ *   its one-time price, else its override ( a later one replaces an earlier one ); multipliers multiply together; a price per
+ *   character counts the bytes of what is sent without any white space; a number box multiplies its price and multiplier by
+ *   its number ( 0 included ); a size scales the price only, not the adds; a grid row adds price × its quantity, else its
+ *   one-time price, else ( override − the price ) × its quantity, else sets the grid's change to the price × ( multiplier − 1 );
+ * - a donation, else the shopper's role price, else a volume price the quantity reaches, replaces the price ( the adds stay );
+ * - prices that include VAT move to the shopper's rate, then classic promotions come off the whole unit.
+ * Its data is wpeasycart_price_data_<product>_<rand> ( wp_easycart_product_pricing ); a template copy without it prices from
+ * the page's hidden fields ( the price there already has the role price, promotion and VAT rate in it ).
+ * area_one: price a size as one unit of area ( 12 × 12 inches, 1000 × 1000 mm ), for the price under the title.
+ */
+function wpeasycart_details_line( product_id, rand_id, area_one ) {
+	var key = product_id + '_' + rand_id;
+	var data = window[ 'wpeasycart_price_data_' + key ];
+	data = ( data && 'object' == typeof data ) ? data : null;
+	var num = function( value ) {
+		value = Number( value );
+		return isFinite( value ) ? value : 0;
+	};
+	var line = { unit: 0, quantity: 1, onetime: 0, grid: 0, total: 0, has_grid: false, has_area: false, sku: '', key: '', all_chosen: false, priced: true };
+	var default_price = document.getElementById( 'ec_default_price_' + key );
+	if ( ! data && ! default_price ) {
+		line.priced = false; /* the page hides this product's price */
+	}
+	var quantity_box = document.getElementById( 'ec_quantity_' + key );
+	var quantity = quantity_box ? parseInt( quantity_box.value, 10 ) : 1;
+	quantity = ( quantity > 0 ) ? quantity : 1;
+	var price = data ? num( data.price ) : num( default_price ? default_price.value : 0 );
+	var product_price = price;
+	var options_price = 0;
+	var onetime = 0;
+	var grid = 0;
+	var grid_quantity = 0;
+	var multiplier = 0;
+	var ext = data ? String( data.ext || '' ) : '';
+	var sku = data ? String( data.model || '' ) : String( jQuery( document.getElementById( 'ec_default_sku_' + key ) ).val() || '' );
+	var item_of = function( id, el ) {
+		var item = ( data && data.items && data.items[ id ] ) ? data.items[ id ] : null;
+		if ( item ) {
+			return { p: num( item.p ), t: num( item.t ), v: ( undefined === item.v ) ? -1 : num( item.v ), m: num( item.m ), c: num( item.c ), n: num( item.n ), s: String( item.s || '' ) };
+		}
+		var attr = function( name, fallback ) {
+			var value = el ? el.getAttribute( 'data-optionitem-' + name ) : null;
+			return ( null === value || '' === value ) ? fallback : num( value );
+		};
+		return { p: attr( 'price', 0 ), t: attr( 'price-onetime', 0 ), v: attr( 'price-override', -1 ), m: attr( 'price-multiplier', 0 ), c: attr( 'price-per-character', 0 ), n: 0, s: '' };
+	};
+
+	/* Variation sets: each choice's own price, its SKU ending. */
+	var ids = [ 0, 0, 0, 0, 0 ];
+	var chosen = 0;
+	for ( var slot = 1; slot <= 5; slot++ ) {
+		var choice = wpeasycart_details_basic_choice( product_id, rand_id, slot );
+		if ( choice ) {
+			var basic = item_of( choice.id, choice.el );
+			ids[ slot - 1 ] = choice.id;
+			chosen++;
+			options_price += basic.p;
+			if ( '' != basic.s ) {
+				sku += ext + basic.s;
+			}
+		}
+	}
+	var basic_block = jQuery( '.ec_details_options_basic[data-product-id="' + product_id + '"][data-rand-id="' + rand_id + '"]' );
+	var total_basic = ( basic_block.length ) ? basic_block.find( '.ec_details_option_row' ).length : jQuery( '.ec_details_options_basic .ec_details_option_row' ).length;
+	line.all_chosen = ( total_basic == chosen );
+	line.key = ids.join( '' );
+	var variant = null;
+	if ( data ) {
+		/* the five ids with dashes: 1 + 23 and 12 + 3 are two variants */
+		var row = ( data.variants ) ? data.variants[ ids.join( '-' ) ] : null;
+		if ( row ) {
+			variant = { price: num( row[0] ), sku: String( row[1] || '' ) };
+		}
+	} else if ( line.all_chosen && window[ 'varitation_data_' + key ] && window[ 'varitation_data_' + key ][ line.key ] ) {
+		variant = { price: num( window[ 'varitation_data_' + key ][ line.key ].price ), sku: String( window[ 'varitation_data_' + key ][ line.key ].sku || '' ) };
+	}
+	if ( variant ) {
+		if ( -1 != variant.price ) {
+			options_price = 0;
+			price = variant.price;
+		}
+		if ( '' != variant.sku ) {
+			sku = variant.sku;
+		}
+	}
+
+	/* Modifiers, in option order. */
+	wpeasycart_details_scope( product_id, rand_id ).find( '.ec_details_option_row[data-product-option-id]' ).each( function() {
+		var row_el = jQuery( this );
+		if ( row_el.attr( 'data-product-id' ) && String( row_el.attr( 'data-product-id' ) ) != String( product_id ) ) {
+			return;
+		}
+		var type_match = /(?:^|\s)ec_option_type_([a-z0-9]+)/.exec( this.className );
+		var type = type_match ? type_match[1] : '';
+		var picks = wpeasycart_details_option_picks( row_el, type, row_el.attr( 'data-product-option-id' ), data );
+		for ( var i = 0; i < picks.length; i++ ) {
+			var pick = picks[ i ];
+			if ( pick.el && pick.el.getAttribute && pick.el.getAttribute( 'data-product-id' ) && String( pick.el.getAttribute( 'data-product-id' ) ) != String( product_id ) ) {
+				continue; /* another product's form ( a template copy without the scope markers ) */
+			}
+			if ( 'dimensions1' == type || 'dimensions2' == type ) {
+				line.has_area = true;
+				if ( ! area_one ) {
+					price = price * pick.area;
+				}
+				continue;
+			}
+			var item = item_of( pick.id, pick.el );
+			if ( '' != item.s ) {
+				sku += ext + item.s;
+			}
+			if ( 'grid' == type ) {
+				line.has_grid = true;
+				grid_quantity += pick.value;
+				if ( 0 != item.p ) {
+					grid += item.p * pick.value;
+				} else if ( 0 != item.t ) {
+					grid += item.t;
+				} else if ( item.v >= 0 ) {
+					grid += ( item.v - price ) * pick.value;
+				} else if ( item.m > 1 ) {
+					grid = price * ( item.m - 1 );
+				}
+			} else if ( 'number' == type ) {
+				var amount = parseFloat( pick.value );
+				amount = isFinite( amount ) ? amount : 0;
+				if ( 0 != item.p ) {
+					options_price += item.p * amount;
+				} else if ( 0 != item.t ) {
+					onetime += item.t;
+				} else if ( item.v >= 0 ) {
+					price = item.v;
+				}
+				if ( 0 != item.m ) {
+					multiplier = ( ( 0 == multiplier ) ? 1 : multiplier ) * item.m * amount;
+				}
+			} else {
+				if ( 0 != item.p ) {
+					options_price += item.p;
+				} else if ( 0 != item.t ) {
+					onetime += item.t;
+				} else if ( item.v >= 0 ) {
+					price = item.v;
+				}
+				if ( 0 != item.m ) {
+					multiplier = ( ( 0 == multiplier ) ? 1 : multiplier ) * item.m;
+				}
+				if ( item.c > 0 ) {
+					options_price += item.c * ( pick.typed ? wpeasycart_details_bytes( pick.value ) : item.n );
+				}
+			}
+		}
+	} );
+	if ( grid_quantity > 0 ) {
+		quantity = grid_quantity;
+	}
+
+	/* The unit price. */
+	var unit = price + options_price;
+	var donation_box = document.getElementById( 'ec_donation_amount_' + key );
+	if ( donation_box ) {
+		unit = Math.max( 0, product_price, num( donation_box.value ) ) + options_price;
+	} else if ( data && null !== data.role && undefined !== data.role ) {
+		unit = num( data.role ) + options_price;
+	} else {
+		var tier_quantities = data ? [] : ( window[ 'tier_quantities_' + key ] || [] );
+		var tier_prices = data ? [] : ( window[ 'tier_prices_' + key ] || [] );
+		if ( data && data.tiers ) {
+			for ( var t = 0; t < data.tiers.length; t++ ) {
+				tier_quantities.push( data.tiers[ t ][0] );
+				tier_prices.push( data.tiers[ t ][1] );
+			}
+		}
+		for ( var j = 0; j < tier_quantities.length; j++ ) {
+			if ( quantity >= num( tier_quantities[ j ] ) ) {
+				unit = num( tier_prices[ j ] ) + options_price;
+			}
+		}
+	}
+	if ( multiplier > 0 ) {
+		unit = unit * multiplier;
+	}
+	var total = ( unit * quantity ) + onetime + grid;
+
+	/* Prices that include VAT, at the shopper's rate ( ec_cart::make_vat_adjustments() ). */
+	if ( data && data.vat ) {
+		var included = num( data.vat[0] ) / 100;
+		var rate = num( data.vat[1] ) / 100;
+		unit = wpeasycart_price_round( unit / ( included + 1 ), 2 ) * ( 1 + rate );
+		total = wpeasycart_price_round( total / ( included + 1 ), 2 ) * ( 1 + rate );
+	}
+
+	/* Classic promotions on the whole unit ( ec_promotion::apply_promotion() ). */
+	if ( data && data.promo && data.promo.length ) {
+		var best = 0;
+		for ( var r = 0; r < data.promo.length; r++ ) {
+			var rule = data.promo[ r ];
+			if ( quantity < num( rule[2] ) ) {
+				continue;
+			}
+			var off = ( 0 != num( rule[0] ) ) ? num( rule[0] ) : ( ( 0 != num( rule[1] ) ) ? unit * num( rule[1] ) / 100 : 0 );
+			if ( off > best ) {
+				best = off;
+			}
+		}
+		if ( best > 0 ) {
+			unit = Math.max( 0, wpeasycart_price_round( unit - best, num( data.dec ) ) );
+			total = ( unit * quantity ) + onetime + grid;
+		}
+	}
+
+	line.unit = unit;
+	line.quantity = quantity;
+	line.onetime = onetime;
+	line.grid = grid;
+	line.total = total;
+	line.sku = sku;
+	return line;
+}
+
+/* 6.0.5: the choice made in a variation set ( slot 1 to 5 ), as the form sends it: { id, el } or null. */
+function wpeasycart_details_basic_choice( product_id, rand_id, slot ) {
+	var key = product_id + '_' + rand_id;
+	var swatch = jQuery( '.ec_details_swatches > li.ec_option' + slot + '_' + key + '.ec_selected, .ec_details_swatches_ele > li.ec_option' + slot + '_' + key + '.ec_selected' ).first();
+	if ( swatch.length ) {
+		var id = parseInt( jQuery( document.getElementById( 'ec_option' + slot + '_' + key ) ).val(), 10 ) || parseInt( swatch.attr( 'data-optionitem-id' ), 10 ) || 0;
+		return ( id > 0 ) ? { id: id, el: swatch.get( 0 ) } : null;
+	}
+	var combo = jQuery( '.ec_details_combo.ec_option' + slot + '_' + key ).first();
+	if ( combo.length && parseInt( combo.val(), 10 ) > 0 ) {
+		return { id: parseInt( combo.val(), 10 ), el: combo.find( 'option:selected' ).get( 0 ) };
+	}
+	return null;
+}
+
+/*
+ * 6.0.5: a size row ( dimensions1 / dimensions2 ) as the cart reads it ( wp_easycart_size_option::state() ):
+ * { state, area, sides }. state 'size' when its width and height are each a positive number, with area the price is scaled by
+ * ( square feet, or square metres on a metric store ); 'empty' when nothing is typed in the width or the height ( the cart leaves
+ * the size out ); 'invalid' when a box holds 0, a negative number or words, or the area is 0 or too big to work out ( the cart
+ * refuses the add ). A side is the number it starts with after sanitize_text_field()'s clean-up ( '24"' is 24, PHP's arithmetic ),
+ * with fractions its whole inches ( intval() ) plus the fraction; sides holds each side's length, null ( nothing typed ) or false.
+ */
+function wpeasycart_details_size_state( row, product_option_id, data ) {
+	var field = function( part ) {
+		var found = row.find( '[name="ec_option_adv_' + product_option_id + '_' + part + '"]' ).first();
+		return ( found.length ) ? found : row.find( '[name="ec_option_' + row.attr( 'data-option-id' ) + '_' + part + '"]' ).first(); /* the older name the cart also reads */
+	};
+	var side = function( input, part ) {
+		if ( ! input.length ) {
+			return null;
+		}
+		var typed = wpeasycart_details_text_value( null, input.val() );
+		if ( '' === typed ) {
+			return null;
+		}
+		var match = /^[ \t\n\r\x0B\f]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/.exec( typed );
+		var number = match ? parseFloat( match[1] ) : NaN;
+		if ( ! isFinite( number ) || number < 0 ) {
+			return false;
+		}
+		var length = part.length ? Math.floor( number ) + ec_details_get_sub_dimension_decimal( part.val() ) : number;
+		return ( isFinite( length ) && length > 0 ) ? length : false;
+	};
+	var width = field( 'width' );
+	var sides = [ side( width, field( 'sub_width' ) ), side( field( 'height' ), field( 'sub_height' ) ) ];
+	var size = { state: 'empty', area: 0, sides: sides };
+	if ( false === sides[0] || false === sides[1] ) {
+		size.state = 'invalid';
+	} else if ( null !== sides[0] && null !== sides[1] ) {
+		var metric = ( data && undefined !== data.metric ) ? ( 1 == data.metric ) : ( '1' == width.attr( 'data-is-metric' ) );
+		var per = metric ? 1000 : 12;
+		var area = ( sides[0] / per ) * ( sides[1] / per );
+		if ( isFinite( area ) && area > 0 ) {
+			size.state = 'size';
+			size.area = area;
+		} else {
+			size.state = 'invalid';
+		}
+	}
+	return size;
+}
+
+/*
+ * 6.0.5: a size row's error ( the option's own error text ), for the add to cart ( adding ) and as one of its boxes changes. A box
+ * holding 0, a negative number or words always shows it, since the cart refuses that size; a required size shows it on the add
+ * while it is not a whole size. A box that changes to a whole size, or to nothing on a size that is not required, takes it away.
+ * Boxes that are not a positive number get aria-invalid. Returns 1 when the add must stop.
+ */
+function wpeasycart_details_size_check( row, product_id, rand_id, adding ) {
+	var product_option_id = row.attr( 'data-product-option-id' );
+	var error_id = 'ec_details_adv_option_row_error_' + product_option_id + '_' + product_id + '_' + rand_id;
+	var error_row = jQuery( document.getElementById( error_id ) );
+	var size = wpeasycart_details_size_state( row, product_option_id, window[ 'wpeasycart_price_data_' + product_id + '_' + rand_id ] );
+	var required = ( '1' == row.attr( 'data-option-required' ) );
+	var show;
+	if ( 'invalid' == size.state ) {
+		show = true;
+	} else if ( adding ) {
+		show = required && 'size' != size.state;
+	} else if ( 'size' == size.state || ! required ) {
+		show = false;
+	} else {
+		show = null; /* a required size still being filled in: the add says so */
+	}
+	row.find( '.ec_dimensions_box' ).each( function( index ) {
+		var bad = ( false === size.sides[ index ] ) || ( true === show && required && null === size.sides[ index ] );
+		if ( bad ) {
+			this.setAttribute( 'aria-invalid', 'true' );
+		} else if ( null !== show ) {
+			this.removeAttribute( 'aria-invalid' );
+		}
+	} );
+	if ( true === show && ! error_row.length ) {
+		/* A store copy of the product template prints no error row for a size that is not required: make one, worded as the templates word it. */
+		var missing = ( window.wpeasycart_ajax_object && wpeasycart_ajax_object.missing_option ) ? String( wpeasycart_ajax_object.missing_option ) : '';
+		error_row = jQuery( '<div class="ec_details_option_row_error"></div>' ).attr( 'id', error_id ).text( jQuery.trim( missing + ' ' + jQuery.trim( row.find( '.ec_details_option_label' ).first( ).text( ) ) ) ).insertBefore( row );
+	}
+	if ( true === show ) {
+		error_row.show( );
+	} else if ( false === show ) {
+		error_row.hide( );
+	}
+	return ( true === show ) ? 1 : 0;
+}
+
+/*
+ * 6.0.5: what one modifier set's row sends ( ec_cartpage::get_advanced_option_vals(); an empty value is not kept,
+ * ec_db::add_option_to_cart() ): [ { id, value, el, typed } ], a size as [ { area } ]. A text, number or date set sends its value
+ * once for each of its items.
+ */
+function wpeasycart_details_option_picks( row, type, product_option_id, data ) {
+	var picks = [];
+	if ( 'checkbox' == type ) {
+		row.find( 'input[type="checkbox"]:checked' ).each( function() {
+			picks.push( { id: parseInt( this.getAttribute( 'data-optionitem-id' ), 10 ) || 0, value: this.value, el: this } );
+		} );
+	} else if ( 'radio' == type ) {
+		row.find( 'input[type="radio"]:checked' ).first().each( function() {
+			picks.push( { id: parseInt( this.value, 10 ) || 0, value: this.value, el: this } );
+		} );
+	} else if ( 'combo' == type ) {
+		var select = row.find( 'select' ).first();
+		if ( select.length && parseInt( select.val(), 10 ) > 0 ) {
+			picks.push( { id: parseInt( select.val(), 10 ), value: select.val(), el: select.find( 'option:selected' ).get( 0 ) } );
+		}
+	} else if ( 'swatch' == type ) {
+		row.find( '.ec_details_swatch.ec_selected, .ec_details_swatch_ele.ec_selected' ).first().each( function() {
+			picks.push( { id: parseInt( this.getAttribute( 'data-optionitem-id' ), 10 ) || 0, value: '', el: this } );
+		} );
+	} else if ( 'grid' == type ) {
+		row.find( 'input' ).each( function() {
+			var quantity = parseInt( this.value, 10 );
+			var item = /_(\d+)$/.exec( String( this.name || '' ) );
+			if ( quantity > 0 && item ) {
+				picks.push( { id: parseInt( item[1], 10 ), value: quantity, el: this } );
+			}
+		} );
+	} else if ( 'dimensions1' == type || 'dimensions2' == type ) {
+		/* Only a size the cart keeps scales the price ( 6.0.5: an empty size is left out, and one with a box that is not a positive
+		   number is refused, so neither scales anything ). */
+		var size = wpeasycart_details_size_state( row, product_option_id, data );
+		if ( 'size' == size.state ) {
+			picks.push( { area: size.area } );
+		}
+	} else if ( '' != type ) {
+		var input = row.find( 'textarea, input' ).not( '[type="hidden"], [type="button"], [type="submit"]' ).first();
+		if ( input.length ) {
+			var typed = ( 'text' == type || 'textarea' == type );
+			var value = typed ? wpeasycart_details_text_value( input.get( 0 ), input.val() ) : jQuery.trim( String( input.val() || '' ) );
+			if ( '' !== value ) {
+				var set_items = ( data && data.sets && data.sets[ product_option_id ] ) ? data.sets[ product_option_id ] : [ 0 ];
+				for ( var i = 0; i < set_items.length; i++ ) {
+					picks.push( { id: set_items[ i ], value: value, el: input.get( 0 ), typed: true } );
+				}
+			}
+		}
+	}
+	return picks;
+}
+
+/* 6.0.5: a text box's value as the cart keeps it ( sanitize_text_field(), then the option's input rules and maximum length ). */
+function wpeasycart_details_text_value( el, value ) {
+	value = String( null === value || undefined === value ? '' : value ).replace( /<[^>]*>/g, '' );
+	while ( /%[a-f0-9]{2}/i.test( value ) ) {
+		value = value.replace( /%[a-f0-9]{2}/i, '' );
+	}
+	value = jQuery.trim( value.replace( /[\r\n\t ]+/g, ' ' ) );
+	if ( el && window.wpeasycart_text_input_rules && 'function' == typeof window.wpeasycart_text_input_rules.clean && ( el.getAttribute( 'data-ec-text-case' ) || el.getAttribute( 'data-ec-text-allowed' ) ) ) {
+		value = window.wpeasycart_text_input_rules.clean( value, el );
+	}
+	var max = el ? parseInt( el.getAttribute( 'maxlength' ), 10 ) : 0;
+	if ( max > 0 && value.length > max ) {
+		value = value.slice( 0, max );
+	}
+	return jQuery.trim( value );
+}
+
+/* 6.0.5: what a price per character counts: the bytes of the text without any white space ( strlen() in UTF-8 ). */
+function wpeasycart_details_bytes( value ) {
+	value = String( value ).replace( /[ \t\n\v\f\r]+/g, '' );
+	var bytes = 0;
+	for ( var i = 0; i < value.length; i++ ) {
+		var code = value.charCodeAt( i );
+		if ( code < 0x80 ) {
+			bytes += 1;
+		} else if ( code < 0x800 ) {
+			bytes += 2;
+		} else if ( code >= 0xD800 && code <= 0xDBFF && i + 1 < value.length ) {
+			bytes += 4;
+			i++;
+		} else {
+			bytes += 3;
+		}
+	}
+	return bytes;
+}
+
+/* 6.0.5: money rounded as PHP's number_format() rounds it ( half away from zero, on the number as written ). */
+function wpeasycart_price_round( amount, places ) {
+	amount = Number( amount );
+	if ( ! isFinite( amount ) ) {
+		return 0;
+	}
+	places = Number( places );
+	places = ( places >= 0 ) ? places : 2;
+	var factor = Math.pow( 10, places );
+	var scaled = Number( ( Math.abs( amount ) * factor ).toPrecision( 15 ) );
+	return ( ( amount < 0 ) ? -1 : 1 ) * Math.round( scaled ) / factor;
+}
+
+/*
+ * 6.0.5: show the line's price. "Your price" is one item as the cart prices it ( a quantity grid: the grid's line, its rows'
+ * own charges included ); the price under the title is the same, except a price by area, which stays the price of one unit of
+ * area; the one-time price line is the cart's one-time option charges.
+ */
+function wpeasycart_details_show_price( product_id, rand_id, line ) {
+	var key = product_id + '_' + rand_id;
+	if ( ! line || ! line.priced ) {
+		return;
+	}
+	var your = line.has_grid ? line.total - line.onetime : line.unit;
+	var shown = your;
+	if ( line.has_area ) {
+		shown = wpeasycart_details_line( product_id, rand_id, true ).unit;
+	}
+	var vat_added = jQuery( document.getElementById( 'vat_added_' + key ) ).val();
+	var vat_rate_multiplier = Number( jQuery( document.getElementById( 'vat_rate_multiplier_' + key ) ).val() );
+	if ( ! vat_rate_multiplier ) {
+		vat_rate_multiplier = 1;
+	}
+	jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, line.unit, your ) );
+	jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + key + ', .ec_details_price.ec_details_single_price > .ec_product_price_' + key ).each( function() {
+		jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, shown ) );
+	} );
+	jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + key + ', .ec_details_price.ec_details_no_vat_price > .ec_product_price_' + key ).each( function() {
+		jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, ( '1' == vat_added ) ? shown : shown / vat_rate_multiplier ) );
+	} );
+	jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + key + ', .ec_details_price.ec_details_vat_price > .ec_product_price_' + key ).each( function() {
+		jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, ( '1' == vat_added ) ? shown * vat_rate_multiplier : shown ) );
+	} );
+	if ( 0 != line.onetime ) {
+		jQuery( '.ec_details_added_price_' + key ).show();
+		jQuery( document.getElementById( 'ec_added_price_' + key ) ).html( ec_details_format_money_v2( product_id, rand_id, line.onetime ) );
+	} else {
+		jQuery( '.ec_details_added_price_' + key ).hide();
+	}
+	jQuery( document.getElementById( 'ec_base_option_price_' + key ) ).val( line.unit );
+	/* 6.0.2: this product's separate Price widgets show the same price. */
+	wpeasycart_details_linked_price( product_id, rand_id, shown );
+}
+
 function ec_details_advanced_adjust_price( product_id, rand_id ) {
 	if( jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).length == 0 ) {
 		return;
 	}
-	var base_price = Number( jQuery( document.getElementById( 'ec_base_option_price_' + product_id + '_' + rand_id ) ).val() );
-	if( jQuery( document.getElementById( 'ec_donation_amount_' + product_id + '_' + rand_id ) ).length ) {
-		base_price = Number( jQuery( document.getElementById( 'ec_donation_amount_' + product_id + '_' + rand_id ) ).val() );
-	}
-	
-	/* 6.0.2: only this instance's options count ( another form on the page, even for the same product, no longer does ). */
-	var wpec_scope = wpeasycart_details_scope( product_id, rand_id );
-	// Get a quantity in case we need to use in calculating price
-	var current_quantity = 1;
-	if( jQuery( document.getElementById( 'ec_quantity_' + product_id + '_' + rand_id ) ).length > 0 ){
-		current_quantity = jQuery( document.getElementById( 'ec_quantity_' + product_id + '_' + rand_id ) ).val( );
-	}
-	if( wpec_scope.find( '.ec_details_grid_row > input' ).length > 0 ){
-		current_quantity = 0;
-		wpec_scope.find( '.ec_details_grid_row > input' ).each( function( ){
-			current_quantity = current_quantity + Number( jQuery( this ).val( ) );
-		} );
-	}
-	var tier_quantities = window['tier_quantities_' + product_id + '_' + rand_id];
-	var tier_prices = window['tier_prices_' + product_id + '_' + rand_id];
-	for( var i=0; i<tier_quantities.length; i++ ){
-		if( tier_quantities[i] <= current_quantity ) {
-			base_price = Number( tier_prices[i] );
-		}
-	}
-	var vat_added = jQuery( document.getElementById( 'vat_added_' + product_id + '_' + rand_id ) ).val();
-	var vat_rate_multiplier = jQuery( document.getElementById( 'vat_rate_multiplier_' + product_id + '_' + rand_id ) ).val();
-	var override_price = -1;
-	var price_multiplier = 1;
-	// Checkbox Price Adjustments
-	var checkbox_adj = 0;
-	var checkbox_add = 0;
-	// Combox Price Adjustments
-	var combo_adj = 0;
-	var combo_add = 0;
-	// Date Price Adjustments
-	var date_adj = 0;
-	var date_add = 0;
-	// File Price Adjustments
-	var file_adj = 0;
-	var file_add = 0;
-	// Swatch Price Adjustments
-	var swatch_adj = 0;
-	var swatch_add = 0;
-	// Grid Price Adjustments
-	var grid_quantity = 0;
-	var grid_adj = 0;
-	var grid_add = 0;
-	var grid_override = 0;
-	// Radio Price Adjustments
-	var radio_adj = 0;
-	var radio_add = 0;
-	// Text Price Adjustments
-	var text_adj = 0;
-	var text_add = 0;
-	// Number Price Adjustments
-	var number_adj = 0;
-	var number_add = 0;
-	// Textarea Price Adjustments
-	var textarea_adj = 0;
-	var textarea_add = 0;
-	// Dimensions Price Adjustments
-	var has_sq_footage = false;
-	var sq_footage = 1;
-	wpec_scope.find( '.ec_details_grid_row:visible > input' ).each( function() {
-		if( jQuery( this ).val() > 0 ) {
-			grid_quantity += Number( jQuery( this ).val( ) );
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				grid_adj += ( ( Number( jQuery( this ).attr( 'data-optionitem-price' ) ) ) * ( Number( jQuery( this ).val( ) ) ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				grid_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				grid_override += ( Number( jQuery( this ).attr( 'data-optionitem-price-override' ) ) - base_price ) * ( ( Number( jQuery( this ).val( ) ) ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-		}
-	} );
-	wpec_scope.find( '.ec_details_checkbox_row:visible > input:checked, .ec_details_checkbox_row_ele:visible > label > input:checked' ).each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-			if( grid_quantity )
-				checkbox_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-			else
-				checkbox_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-			checkbox_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-			override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-			price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_combo:visible > .ec_details_option_data > select option:selected' ).each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-			if( grid_quantity )
-				combo_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-			else
-				combo_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-			combo_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-			override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-			price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_date:visible > .ec_details_option_data > input' ).each( function( ){
-		if( jQuery( this ).val( ) != "" ){
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				if( grid_quantity )
-					date_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-				else
-					date_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				date_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_file:visible > .ec_details_option_data > input' ).each( function( ){
-		if( jQuery( this ).val( ) != "" ){
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				if( grid_quantity )
-					file_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-				else
-					file_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				file_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-		}
-	} );
-	wpec_scope.find( '.ec_details_swatch.ec_advanced.ec_selected:visible, .ec_details_swatch_ele.ec_advanced.ec_selected:visible' ).each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-			if( grid_quantity )
-				swatch_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-			else
-				swatch_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-			swatch_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-			override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-			price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-	} );
-	wpec_scope.find( '.ec_details_radio_row:visible > input:checked, .ec_details_radio_row_ele:visible > label > input:checked' ).each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-			if( grid_quantity )
-				radio_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-			else
-				radio_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-			radio_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-			override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-		}
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-			price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_text:visible > .ec_details_option_data > input' ).each( function( ){
-		if( jQuery( this ).val( ) != "" ){
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				if( grid_quantity )
-					text_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-				else
-					text_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				text_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-per-character' ) > 0 ){
-				var num_characters = Number(  jQuery( this ).val( ).replace( / /g, '' ).length );
-				var price_per_char = Number( jQuery( this ).attr( 'data-optionitem-price-per-character' ) );
-				text_adj = text_adj + ( num_characters * price_per_char );
-			}
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_number:visible > .ec_details_option_data > input' ).each( function( ){
-		if( jQuery( this ).val( ) != "" && jQuery( this ).val( ) != "0" ){
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				if( grid_quantity > 0 )
-					number_adj += Number( jQuery( this ).val( ) ) * Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
-				else
-					number_adj += Number( jQuery( this ).val( ) ) * Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				number_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).val( ) ) * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-		}
-	} );
-	wpec_scope.find( '.ec_details_option_row.ec_option_type_textarea:visible > .ec_details_option_data > textarea' ).each( function( ){
-		if( jQuery( this ).val( ) != "" ){
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
-				textarea_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-onetime' ) != 0 ){
-				textarea_add += Number( jQuery( this ).attr( 'data-optionitem-price-onetime' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-override' ) >= 0 ){
-				override_price = Number( jQuery( this ).attr( 'data-optionitem-price-override' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-multiplier' ) > 0 ){
-				price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
-			}
-			if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price-per-character' ) > 0 ){
-				var num_characters = Number(  jQuery( this ).val( ).replace( / /g, '' ).length );
-				var price_per_char = Number( jQuery( this ).attr( 'data-optionitem-price-per-character' ) );
-				textarea_adj = textarea_adj + ( num_characters * price_per_char );
-			}
-		}
-	} );
-	jQuery( '.ec_dimensions_width' ).each( function( ){
-		if( Number( jQuery( this ).attr( 'data-product-id' ) ) == Number( product_id ) && Number( jQuery( this ).attr( 'data-rand-id' ) == rand_id ) ){
-			has_sq_footage = true;
-			var product_option_id = jQuery( this ).attr( 'data-product-option-id' );
-			var width = jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_width' ) ).val( );
-			var sub_width = 0;
-			var is_metric = ( '1' == jQuery( this ).attr( 'data-is-metric' ) ) ? 1 : 0;
-			if( jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_sub_width' ) ).length ) {
-				var sub_width = jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_sub_width' ) ).val( );
-			}
-			var height = jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_height' ) ).val( );
-			var sub_height = 0;
-			if( jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_sub_height' ) ).length ) {
-				var sub_height = jQuery( document.getElementById( 'ec_option_adv_' + product_option_id + '_' + product_id + '_' + rand_id + '_sub_height' ) ).val( );
-			}
-			if( '' != width && '' != height ) {
-				sq_footage = ec_details_get_sq_footage( is_metric, width, sub_width, height, sub_height ) * Number( jQuery( document.getElementById( 'ec_quantity_' + product_id + '_' + rand_id ) ).val( ) );
-			}
-		}
-	} );
-	if( grid_quantity > 0 ) {
-		base_price = base_price * grid_quantity;
-	}
-	var new_price = ( base_price + Number( checkbox_adj ) + Number( combo_adj ) + Number( date_adj ) + Number( file_adj ) + Number( swatch_adj ) + Number( grid_adj ) + Number( grid_override ) + Number( radio_adj ) + Number( text_adj ) + Number( number_adj ) + Number( textarea_adj ) );
-	var new_price_sqft = new_price * sq_footage;
-	var override_price_final = override_price + Number( checkbox_adj ) + Number( combo_adj ) + Number( date_adj ) + Number( file_adj ) + Number( swatch_adj ) + Number( grid_adj ) + Number( grid_override ) + Number( radio_adj ) + Number( text_adj ) + Number( number_adj ) + Number( textarea_adj );
-	var override_price_sqft = override_price_final * sq_footage;
-	var order_price = Number( checkbox_add ) + Number( combo_add ) + Number( date_add ) + Number( file_add ) + Number( swatch_add ) + Number( grid_add ) + Number( radio_add ) + Number( text_add ) + Number( number_add ) + Number( textarea_add );
-	if( override_price > -1 ){
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, override_price_final, override_price_sqft ) );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){ jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) ); } );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){ 
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) );
-		} );
-		if ( '1' == vat_added ) {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ) {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function() {
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final ) );
-			} );
-		}
-	} else {
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, new_price, new_price_sqft ) );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-		} );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-		} );
-		if ( '1' == vat_added ) {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-		}
-	}
-	if ( price_multiplier != 1 && override_price > -1 ) {
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, override_price_final, override_price_sqft * Number( price_multiplier ) ) );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-		} );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-		} );
-		if ( '1' == vat_added ) {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price_final * Number( price_multiplier ) ) );
-			} );
-		}
-	} else if( price_multiplier != 1 ){
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, new_price, new_price * Number( price_multiplier ) ) );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-		} );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-		} );
-		if( '1' == vat_added ){
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * Number( price_multiplier ) ) );
-			} );
-		}
-	}
-	if( order_price != 0 ){
-		jQuery( '.ec_details_added_price_' + product_id + '_' + rand_id ).show( );
-		jQuery( document.getElementById( 'ec_added_price_' + product_id + '_' + rand_id ) ).html( ec_details_format_money_v2( product_id, rand_id, order_price ) );
-	}else{
-		jQuery( '.ec_details_added_price_' + product_id + '_' + rand_id ).hide( );
-	}
-	/* 6.0.2: the same single price as above, for this product's separate Price widgets. */
-	var linked_price = ( override_price > -1 ) ? override_price_final : new_price;
-	if ( price_multiplier != 1 ) {
-		linked_price = linked_price * Number( price_multiplier );
-	}
-	wpeasycart_details_linked_price( product_id, rand_id, linked_price );
+	wpeasycart_details_show_price( product_id, rand_id, wpeasycart_details_line( product_id, rand_id ) );
 }
 
+/* 6.0.5: the lowest price of the last 30 days follows the chosen variant. wp_easycart_price_history::note_html() puts the
+ * words of every variant that sets its own price and shows a reduction on the note ( data-wpec-prior-variants, keyed by the
+ * five option item ids run together, as varitation_data_ ); a variant with its own price and no reduction shows none, and
+ * anything else ( no full choice yet, a variant that keeps the product's price ) the product's own ( data-wpec-prior-base ). */
+function wpeasycart_prior_price_variant( product_id, rand_id, key ) {
+	var notes = jQuery( '.ec_product_prior_price[data-wpec-prior-product="' + product_id + '"]' );
+	if ( ! notes.length ) {
+		return;
+	}
+	var variations = window[ 'varitation_data_' + product_id + '_' + rand_id ] || {};
+	notes.each( function() {
+		var note = jQuery( this ), map = {}, text = String( note.attr( 'data-wpec-prior-base' ) || '' );
+		try {
+			map = JSON.parse( note.attr( 'data-wpec-prior-variants' ) || '{}' ) || {};
+		} catch ( e ) {
+			map = {};
+		}
+		if ( key && Object.prototype.hasOwnProperty.call( map, key ) ) {
+			text = String( map[ key ] );
+		} else if ( key && variations[ key ] && Number( variations[ key ].price ) != -1 ) {
+			text = '';
+		}
+		note.text( text ).css( 'display', '' === text ? 'none' : '' );
+	} );
+}
 function ec_details_base_adjust_price( product_id, rand_id ) {
 	if( jQuery( document.getElementById( 'ec_default_price_' + product_id + '_' + rand_id ) ).length == 0 ) {
 		return;
 	}
-	var base_price = Number( jQuery( document.getElementById( 'ec_default_price_' + product_id + '_' + rand_id ) ).val() );
-	if( jQuery( document.getElementById( 'ec_donation_amount_' + product_id + '_' + rand_id ) ).length ) {
-		base_price = Number( jQuery( document.getElementById( 'ec_donation_amount_' + product_id + '_' + rand_id ) ).val() );
-	}
-	var current_quantity = jQuery( document.getElementById( 'ec_quantity_' + product_id + '_' + rand_id ) ).val( );
-	var tier_quantities = window['tier_quantities_' + product_id + '_' + rand_id];
-	var tier_prices = window['tier_prices_' + product_id + '_' + rand_id];
-	if ( tier_quantities ) {
-		for ( var i=0; i<tier_quantities.length; i++ ) {
-			if ( tier_quantities[i] <= current_quantity ) {
-				base_price = Number( tier_prices[i] );
-			}
-		}
-	}
-	var vat_added = jQuery( document.getElementById( 'vat_added_' + product_id + '_' + rand_id ) ).val();
-	var vat_rate_multiplier = jQuery( document.getElementById( 'vat_rate_multiplier_' + product_id + '_' + rand_id ) ).val();
-	var option1_price_adj = 0;
-	var option2_price_adj = 0;
-	var option3_price_adj = 0;
-	var option4_price_adj = 0;
-	var option5_price_adj = 0;
-	var option1_price_add = 0;
-	var option2_price_add = 0;
-	var option3_price_add = 0;
-	var option4_price_add = 0;
-	var option5_price_add = 0;
-	var option1_price_override = -1;
-	var option2_price_override = -1;
-	var option3_price_override = -1;
-	var option4_price_override = -1;
-	var option5_price_override = -1;
-	/* 6.0.2: count this instance's option rows only ( every row on the page was counted, so a second form, or a second
-	 * product with options, stopped the variant price and SKU from applying ); an older custom template without the
-	 * markers keeps the page-wide count. The Elementor v2 swatches ( ec_details_swatches_ele ) count as selections too. */
-	var basic_options_block = jQuery( '.ec_details_options_basic[data-product-id="' + product_id + '"][data-rand-id="' + rand_id + '"]' );
-	var total_basic_options = ( basic_options_block.length ) ? basic_options_block.find( '.ec_details_option_row' ).length : jQuery( '.ec_details_options_basic .ec_details_option_row' ).length;
-	var basic_options_selected = 0;
-	var basic_options_string = '';
-	if ( jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).length ) {
-		basic_options_selected++;
-		basic_options_string += jQuery( '#ec_option1_' + product_id + '_' + rand_id ).val();
-	} else if ( jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id ).length && jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id ).val() != '0') {
-		basic_options_selected++;
-		basic_options_string += jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id ).val();
-	} else {
-		basic_options_string += '0';
-	}
-	if ( jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).length ) {
-		basic_options_selected++;
-		basic_options_string += jQuery( '#ec_option2_' + product_id + '_' + rand_id ).val();
-	} else if ( jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).length && jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).val() != '0') {
-		basic_options_selected++;
-		basic_options_string += jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).val();
-	} else {
-		basic_options_string += '0';
-	}
-	if ( jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).length ) {
-		basic_options_selected++;
-		basic_options_string += jQuery( '#ec_option3_' + product_id + '_' + rand_id ).val();
-	} else if ( jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).length && jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).val() != '0') {
-		basic_options_selected++;
-		basic_options_string += jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).val();
-	} else {
-		basic_options_string += '0';
-	}
-	if ( jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).length ) {
-		basic_options_selected++;
-		basic_options_string += jQuery( '#ec_option4_' + product_id + '_' + rand_id ).val();
-	} else if ( jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).length && jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).val() != '0') {
-		basic_options_selected++;
-		basic_options_string += jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).val();
-	} else {
-		basic_options_string += '0';
-	}
-	if ( jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).length ) {
-		basic_options_selected++;
-		basic_options_string += jQuery( '#ec_option5_' + product_id + '_' + rand_id ).val();
-	} else if ( jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).length && jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).val() != '0') {
-		basic_options_selected++;
-		basic_options_string += jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).val();
-	} else {
-		basic_options_string += '0';
-	}
-	if ( total_basic_options == basic_options_selected && window['varitation_data_' + product_id + '_' + rand_id][basic_options_string] && window['varitation_data_' + product_id + '_' + rand_id][basic_options_string].sku != '' ) {
-		jQuery( '.ec_details_model_number_sku_' + product_id + '_' + rand_id ).html( window['varitation_data_' + product_id + '_' + rand_id][basic_options_string].sku );
+	/* 6.0.5: priced and named as the cart's line will be ( wpeasycart_details_line() ): the SKU is the order line's ( the variant's
+	 * SKU or the model number, then the choices' SKU endings ). */
+	var line = wpeasycart_details_line( product_id, rand_id );
+	var default_sku = document.getElementById( 'ec_default_sku_' + product_id + '_' + rand_id );
+	if ( '' != line.sku || default_sku ) {
+		jQuery( '.ec_details_model_number_sku_' + product_id + '_' + rand_id ).text( line.sku );
 		/* 6.0.2: this product's separate SKU widgets / [ec_product_details_sku] follow the chosen variant. */
-		jQuery( '.ec_details_sku[data-wpec-linked-product="' + product_id + '"]' ).html( window['varitation_data_' + product_id + '_' + rand_id][basic_options_string].sku );
-	} else {
-		jQuery( '.ec_details_model_number_sku_' + product_id + '_' + rand_id ).html( jQuery( document.getElementById( 'ec_default_sku_' + product_id + '_' + rand_id ) ).val() );
-		if ( document.getElementById( 'ec_default_sku_' + product_id + '_' + rand_id ) ) {
-			jQuery( '.ec_details_sku[data-wpec-linked-product="' + product_id + '"]' ).text( jQuery( document.getElementById( 'ec_default_sku_' + product_id + '_' + rand_id ) ).val() );
-		}
+		jQuery( '.ec_details_sku[data-wpec-linked-product="' + product_id + '"]' ).text( line.sku );
 	}
 	wpeasycart_details_linked_stock( product_id, rand_id );
-	if ( total_basic_options == basic_options_selected && window['varitation_data_' + product_id + '_' + rand_id][basic_options_string] && window['varitation_data_' + product_id + '_' + rand_id][basic_options_string].price != -1 ) {
-		base_price = window['varitation_data_' + product_id + '_' + rand_id][basic_options_string].price;
-		Number( jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).html( base_price ) );
+	wpeasycart_prior_price_variant( product_id, rand_id, ( line.all_chosen ) ? line.key : '' );
+	jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).html( line.unit );
+	if ( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ) {
+		ec_details_advanced_adjust_price( product_id, rand_id );
 	} else {
-		// Option 1 Price Adjustment
-		if( jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).length ){
-			option1_price_adj = jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price' );
-			option1_price_add = jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-onetime' );
-			option1_price_override = Number( jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-override' ) );
-			option1_price_multiplier = Number( jQuery( '.ec_details_swatches > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}else if( jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id ).length ){
-			option1_price_adj = jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price' );
-			option1_price_add = jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-onetime' );
-			option1_price_override = Number( jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-override' ) );
-			option1_price_multiplier = Number( jQuery( '.ec_details_combo.ec_option1_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-		// Option 2 Price Adjustment
-		if( jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).length ){
-			option2_price_adj = jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price' );
-			option2_price_add = jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-onetime' );
-			option2_price_override = Number( jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-override' ) );
-			option2_price_multiplier = Number( jQuery( '.ec_details_swatches > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option2_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}else if( jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).length ){
-			option2_price_adj = jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price' );
-			option2_price_add = jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-onetime' );
-			option2_price_override = Number( jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-override' ) );
-			option2_price_multiplier = Number( jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-		// Option 3 Price Adjustment
-		if( jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).length ){
-			option3_price_adj = jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price' );
-			option3_price_add = jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-onetime' );
-			option3_price_override = Number( jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-override' ) );
-			option3_price_multiplier = Number( jQuery( '.ec_details_swatches > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option3_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}else if( jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).length ){
-			option3_price_adj = jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price' );
-			option3_price_add = jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-onetime' );
-			option3_price_override = Number( jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-override' ) );
-			option3_price_multiplier = Number( jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-		// Option 4 Price Adjustment
-		if( jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).length ){
-			option4_price_adj = jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price' );
-			option4_price_add = jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-onetime' );
-			option4_price_override = Number( jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-override' ) );
-			option4_price_multiplier = Number( jQuery( '.ec_details_swatches > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option4_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}else if( jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).length ){
-			option4_price_adj = jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price' );
-			option4_price_add = jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-onetime' );
-			option4_price_override = Number( jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-override' ) );
-			option4_price_multiplier = Number( jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}
-		// Option 5 Price Adjustment
-		if( jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).length ){
-			option5_price_adj = jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price' );
-			option5_price_add = jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-onetime' );
-			option5_price_override = Number( jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-override' ) );
-			option5_price_multiplier = Number( jQuery( '.ec_details_swatches > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected, .ec_details_swatches_ele > li.ec_option5_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}else if( jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).length ){
-			option5_price_adj = jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price' );
-			option5_price_add = jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-onetime' );
-			option5_price_override = Number( jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-override' ) );
-			option5_price_multiplier = Number( jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id + ' option:selected' ).attr( 'data-optionitem-price-multiplier' ) );
-		}
+		wpeasycart_details_show_price( product_id, rand_id, line );
 	}
-	var num_decimals = jQuery( document.getElementById( 'num_decimals_' + product_id + '_' + rand_id ) ).val();
-	var decimal_symbol = jQuery( document.getElementById( 'decimal_symbol_' + product_id + '_' + rand_id ) ).val();
-	var grouping_symbol = jQuery( document.getElementById( 'grouping_symbol_' + product_id + '_' + rand_id ) ).val();
-	var new_price = base_price + Number( option1_price_adj ) + Number( option2_price_adj ) + Number( option3_price_adj ) + Number( option4_price_adj ) + Number( option5_price_adj );
-	var order_price = Number( option1_price_add ) + Number( option2_price_add ) + Number( option3_price_add ) + Number( option4_price_add ) + Number( option5_price_add );
-	var override_price = -1;
-	if( option1_price_override > -1 ) {
-		override_price = option1_price_override;
-	} else if( option2_price_override > -1 ) {
-		override_price = option2_price_override;
-	} else if( option3_price_override > -1 ) {
-		override_price = option3_price_override;
-	} else if( option4_price_override > -1 ) {
-		override_price = option4_price_override;
-	} else if( option5_price_override > -1 ) {
-		override_price = option5_price_override;
-	}
-	if( override_price > -1 ){
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, override_price, override_price ) );
-		jQuery( document.getElementById( 'ec_base_option_price_' + product_id + '_' + rand_id ) ).val( override_price );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){ jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) ); } );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){ jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) ); } );
-		if ( '1' == vat_added ) {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, override_price ) );
-			} );
-		}
-	}else{
-		jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html( wpeasycart_final_price_text( product_id, rand_id, new_price, new_price ) );
-		jQuery( document.getElementById( 'ec_base_option_price_' + product_id + '_' + rand_id ) ).val( new_price );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-		} );
-		jQuery( '.ec_details_price.ec_details_single_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-			jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-		} );
-		if ( '1' == vat_added ) {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price * vat_rate_multiplier ) );
-			} );
-		} else {
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_sale_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_no_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price / vat_rate_multiplier ) );
-			} );
-			jQuery( '.ec_details_price.ec_details_vat_price > .ec_product_price_' + product_id + '_' + rand_id ).each( function( ){
-				jQuery( this ).html( ec_details_format_money_v2( product_id, rand_id, new_price ) );
-			} );
-		}
-	}
-	if( order_price != 0 ){
-		jQuery( '.ec_details_added_price_' + product_id + '_' + rand_id ).show( );
-		jQuery( document.getElementById( 'ec_added_price_' + product_id + '_' + rand_id ) ).html( ec_details_format_money_v2( product_id, rand_id, order_price ) );
-	}else{
-		jQuery( '.ec_details_added_price_' + product_id + '_' + rand_id ).hide( );
-	}
-	/* 6.0.2: this product's separate Price widgets ( ec_details_advanced_adjust_price() below refines it when it runs ). */
-	wpeasycart_details_linked_price( product_id, rand_id, ( override_price > -1 ) ? override_price : new_price );
-	ec_details_advanced_adjust_price( product_id, rand_id );
 }
 function ec_details_advanced_conditional_logic( product_id, rand_id ) {
 	/* 6.0.2: rules read and show / hide this instance's rows only ( a second form of the product no longer interferes ). */
@@ -8191,32 +9215,11 @@ function ec_details_add_to_cart( product_id, rand_id ) {
 			}
 		}
 	} );
-	// Dimensions Type 1 Check
-	var advanced_dimensions_rows = wpec_scope.find( '.ec_details_option_row.ec_option_type_dimensions1:visible' );
-	advanced_dimensions_rows.each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-option-required' ) == '1' ){ // Option is Required	
-			// Test Width + Height
-			if( jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id + '_width' ) ).val( ) != "" && jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id + '_height' ) ).val( ) != "" ){
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).show( );
-				errors++;
-			}
-
-		}
-	} );
-	// Dimensions Type 2 Check
-	var advanced_dimensions_rows = wpec_scope.find( '.ec_details_option_row.ec_option_type_dimensions2:visible' );
-	advanced_dimensions_rows.each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-option-required' ) == '1' ){ // Option is Required	
-			// Test Width + Height
-			if( jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id + '_width' ) ).val( ) != "" && jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id + '_height' ) ).val( ) != "" ){
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).show( );
-				errors++;
-			}
-
+	// Dimensions Type 1 + 2 Check ( 6.0.5: a required size needs a width and height, and any size a width and height that are each a
+	// positive number, as the cart reads them: wpeasycart_details_size_check() )
+	wpec_scope.find( '.ec_details_option_row.ec_option_type_dimensions1:visible, .ec_details_option_row.ec_option_type_dimensions2:visible' ).each( function( ){
+		if ( jQuery( this ).attr( 'data-product-id' ) == product_id ) {
+			errors += wpeasycart_details_size_check( jQuery( this ), product_id, rand_id, true );
 		}
 	} );
 	// -------END Advanced Option Checks------- //
@@ -8517,7 +9520,7 @@ function ec_details_format_money_v2( product_id, rand_id, price ) {
 	var symbol_location = Number( jQuery( document.getElementById( 'symbol_location_' + product_id + '_' + rand_id ) ).val() );
 	var currency_code = jQuery( document.getElementById( 'currency_code_' + product_id + '_' + rand_id ) ).val();
 	var show_currency_code = Number( jQuery( document.getElementById( 'show_currency_code_' + product_id + '_' + rand_id ) ).val() );
-	price = ec_pricing_round( price * Number( conversion_rate ), num_decimals );
+	price = wpeasycart_price_round( price * Number( conversion_rate ), num_decimals ); /* 6.0.5: as the cart rounds it ( number_format() ) */
 	var n = price,
 		num_decimals = isNaN(num_decimals = Math.abs(num_decimals)) ? 2 : num_decimals,
 		decimal_symbol = decimal_symbol == undefined ? "." : decimal_symbol,

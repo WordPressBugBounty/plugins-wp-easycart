@@ -951,7 +951,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			array(
 				"name"				=> "show_custom_price_range",
 				"type"				=> "checkbox",
-				"label"				=> __( "Show a price range ( e.g. $90-$99 )", 'wp-easycart' ),
+				/* translators: 1: a low price, e.g. $90, 2: a high price, e.g. $99. */
+				"label"				=> sprintf( __( 'Show a price range ( e.g. %1$s-%2$s )', 'wp-easycart' ), function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( 90, 0 ) : '$90', function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( 99, 0 ) : '$99' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_custom_price_range',
 				"read-only"			=> true,
@@ -1408,8 +1409,40 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 		$this->print_fields( $fields );
 	}
 
+	/**
+	 * The Tax card's VAT rate choices ( 6.0.5 ): the standard rate, then each tax class with its rate.
+	 *
+	 * @return array of ( id, value ).
+	 */
+	public function tax_class_choices() {
+		$out = array( (object) array( 'id' => '', 'value' => __( 'Standard rate', 'wp-easycart' ) ) );
+		if ( ! class_exists( 'wp_easycart_tax_classes' ) ) {
+			return $out;
+		}
+		foreach ( wp_easycart_tax_classes::classes() as $key => $label ) {
+			$rate  = wp_easycart_tax_classes::default_rate( $key );
+			/* translators: 1: a tax class, e.g. Reduced rate, 2: its rate, e.g. 7%. */
+			$text  = ( null === $rate ) ? sprintf( __( '%s ( no rate set: charges the standard rate )', 'wp-easycart' ), $label ) : sprintf( __( '%1$s ( %2$s )', 'wp-easycart' ), $label, wp_easycart_tax_classes::rate_text( $rate ) . '%' );
+			$out[] = (object) array(
+				'id'    => $key,
+				'value' => $text,
+			);
+		}
+		return $out;
+	}
+
 	public function tax_fields() {
-		$fields = apply_filters( 'wp_easycart_admin_product_details_tax_fields_list', array(
+		$this->print_fields( $this->tax_fields_list() );
+	}
+
+	/**
+	 * The Tax fields as extensions leave them ( WP EasyCart PRO's TaxJar categories, WP EasyCart for Avalara AvaTax's code ).
+	 *
+	 * @since 6.0.5 ( split from tax_fields(), so the editor can print them across its Tax section's cards )
+	 * @return array
+	 */
+	public function tax_fields_list() {
+		return apply_filters( 'wp_easycart_admin_product_details_tax_fields_list', array(
 			array(
 				"name"				=> "is_taxable",
 				"type"				=> "checkbox",
@@ -1429,6 +1462,18 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> intval( $this->product->vat_rate )
 			),
+			/* 6.0.5 ( admin review M6 ): the product's VAT / GST rate ( wp_easycart_tax_classes ). */
+			array(
+				"name"				=> "tax_class",
+				"type"				=> "select",
+				"select2"			=> "none",
+				"label"				=> ( class_exists( 'wp_easycart_vat' ) && 'GST' === wp_easycart_vat::name() ) ? __( "GST rate", 'wp-easycart' ) : __( "VAT rate", 'wp-easycart' ),
+				"data"				=> $this->tax_class_choices(),
+				"required" 			=> false,
+				"validation_type" 	=> 'select',
+				"visible"			=> class_exists( 'wp_easycart_tax_classes' ) && wp_easycart_tax_classes::ready(),
+				"value"				=> isset( $this->product->tax_class ) ? (string) $this->product->tax_class : ''
+			),
 			array(
 				"name"				=> "TIC",
 				"type"				=> "text",
@@ -1441,7 +1486,6 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->TIC
 			)
 		), $this->product );
-		$this->print_fields( $fields );
 	}
 
 	public function deconetwork_fields() {

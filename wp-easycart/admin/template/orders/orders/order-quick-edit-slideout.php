@@ -90,7 +90,7 @@ $ecv2_qe_shipped  = class_exists( 'wp_easycart_admin_order_table' ) ? wp_easycar
 					<span class="ecv2-order-status-swatch" id="ecv2-qe-status-swatch"></span>
 					<select id="ecv2-qe-status" class="ecv2-select ecv2-qe-select" onchange="ecv2_order_qe_status_changed();">
 						<?php foreach ( $ecv2_qe_statuses as $ecv2_qe_status ) : ?>
-							<option value="<?php echo esc_attr( $ecv2_qe_status->status_id ); ?>" data-color="<?php echo esc_attr( '' !== (string) $ecv2_qe_status->color_code ? $ecv2_qe_status->color_code : '#e5e7eb' ); ?>" data-approved="<?php echo esc_attr( (int) $ecv2_qe_status->is_approved ); ?>"><?php echo esc_html( $ecv2_qe_status->order_status ); ?></option>
+							<option value="<?php echo esc_attr( $ecv2_qe_status->status_id ); ?>" data-color="<?php echo esc_attr( '' !== (string) $ecv2_qe_status->color_code ? $ecv2_qe_status->color_code : '#e5e7eb' ); ?>" data-approved="<?php echo esc_attr( (int) $ecv2_qe_status->is_approved ); ?>"><?php echo esc_html( wp_easycart_order_status_label( $ecv2_qe_status ) ); ?></option>
 						<?php endforeach; ?>
 					</select>
 				</div>

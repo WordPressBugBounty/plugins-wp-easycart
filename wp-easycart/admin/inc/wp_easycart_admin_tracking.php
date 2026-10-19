@@ -738,6 +738,7 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 				'milestones'       => implode( ',', $this->reached() ),
 				'cli'              => ( is_array( $cli ) && ! empty( $cli['last'] ) ) ? self::days_band( time() - (int) $cli['last'] ) : 'none',
 				'cli_commands'     => ( is_array( $cli ) && ! empty( $cli['groups'] ) ) ? implode( ',', array_map( 'sanitize_key', (array) $cli['groups'] ) ) : '',
+				'limited_pages'    => self::band( class_exists( 'wp_easycart_page_access' ) && method_exists( 'wp_easycart_page_access', 'count_limited' ) ? wp_easycart_page_access::count_limited() : 0 ), // 6.0.5: pages Limit Access keeps for members.
 			);
 			/**
 			 * The weekly check-in's fields ( WP EasyCart PRO adds its own ). Keep to keys, flags and bands: scrub() removes

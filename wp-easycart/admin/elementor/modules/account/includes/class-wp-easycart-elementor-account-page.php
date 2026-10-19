@@ -208,7 +208,8 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account_Page' ) && class_exists( 'ec
 		/**
 		 * The card on file and the subscriptions whose payment method the customer can change.
 		 *
-		 * @return array array( 'brand' => string, 'last4' => string, 'subscriptions' => ec_subscription[] )
+		 * @return array array( 'brand' => string, 'last4' => string, 'subscriptions' => ec_subscription[], 'cards' => array ( 6.0.5:
+		 *               subscription id => the card it bills, wp_easycart_subscription_cards ) )
 		 */
 		public function wpec_payment_methods() {
 			$user = isset( $GLOBALS['ec_user'] ) ? $GLOBALS['ec_user'] : null;
@@ -216,12 +217,20 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account_Page' ) && class_exists( 'ec
 				'brand'         => ( $user && isset( $user->card_type ) ) ? (string) $user->card_type : '',
 				'last4'         => ( $user && isset( $user->last4 ) ) ? (string) $user->last4 : '',
 				'subscriptions' => array(),
+				'cards'         => array(),
 			);
 			$list = ( is_object( $this->subscriptions ) && isset( $this->subscriptions->subscription_list ) ) ? (array) $this->subscriptions->subscription_list : array();
 			foreach ( $list as $subscription ) {
 				if ( is_object( $subscription ) && ! $subscription->is_canceled() && ( $this->wpec_sample_customer || $subscription->can_update_payment_method() ) ) {
 					$out['subscriptions'][] = $subscription;
 				}
+			}
+			if ( ! $this->wpec_sample_customer && class_exists( 'wp_easycart_subscription_cards' ) && ! empty( $out['subscriptions'] ) ) {
+				$ids = array();
+				foreach ( $out['subscriptions'] as $subscription ) {
+					$ids[] = (int) $subscription->subscription_id;
+				}
+				$out['cards'] = wp_easycart_subscription_cards::many( $ids );
 			}
 			return $out;
 		}

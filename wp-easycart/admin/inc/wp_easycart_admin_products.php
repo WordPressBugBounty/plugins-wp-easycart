@@ -39,6 +39,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		private $price_rules_locked = false; /* 6.0.2: price_tiers / b2b_prices columns skipped without Pro */
 		private $product_images_index;
 		private $pickup_locations_index;
+		private $yoast_description_index;
 		private $headers;
 		private $limit;
 
@@ -47,6 +48,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 		/** Columns that hold HTML: the import filters them as the product editor saves them ( wp_easycart_escape_html() ), @since 6.0.4. */
 		const IMPORT_HTML_COLUMNS = array( 'description', 'short_description', 'specifications' );
+
+		/** The products CSV column for Yoast SEO's meta description, kept on each product's page ( @since 6.0.5 ). */
+		const YOAST_DESCRIPTION_COLUMN = 'yoast_meta_description';
+
+		/** The post meta key Yoast SEO keeps a page's meta description in. */
+		const YOAST_DESCRIPTION_META = '_yoast_wpseo_metadesc';
 
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
@@ -1870,6 +1877,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				if ( isset( $_POST['product_cost'] ) ) { /* 6.0.2: Cost per item */
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET product_cost = %s WHERE product_id = %d', max( 0, (float) wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['product_cost'] ) ) ) ), $product_id ) );
 				}
+				if ( isset( $_POST['unit_measure'] ) && class_exists( 'wp_easycart_unit_price' ) && wp_easycart_unit_price::ready() ) { /* 6.0.5: unit price ( admin review M16 ) */
+					$unit_raw     = str_replace( ',', '.', trim( sanitize_text_field( wp_unslash( $_POST['unit_measure'] ) ) ) ); /* a decimal comma too; never below 0 */
+					$unit_measure = is_numeric( $unit_raw ) ? max( 0, round( (float) $unit_raw, 4 ) ) : 0;
+					$unit_unit    = wp_easycart_unit_price::clean_unit( isset( $_POST['unit_measure_unit'] ) ? sanitize_text_field( wp_unslash( $_POST['unit_measure_unit'] ) ) : '' );
+					$unit_base    = wp_easycart_unit_price::clean_base( isset( $_POST['unit_base'] ) ? sanitize_text_field( wp_unslash( $_POST['unit_base'] ) ) : '' );
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET unit_measure = %s, unit_measure_unit = %s, unit_base = %s WHERE product_id = %d', number_format( $unit_measure, 4, '.', '' ), $unit_unit, $unit_base, $product_id ) );
+				}
 				// phpcs:enable WordPress.Security.NonceVerification.Missing
 				do_action( 'wpeasycart_product_updated', $product_id, $model_number );
 				ec_db::product_cache_changed();
@@ -2179,6 +2193,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$vat_rate = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['vat_rate'] ) ) );
 				$TIC = sanitize_text_field( wp_unslash( $_POST['TIC'] ) );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET is_taxable = %d, vat_rate = %s, TIC = %s WHERE product_id = %d', $is_taxable, $vat_rate, $TIC, $product_id ) );
+				/* 6.0.5: the product's tax class ( wp_easycart_tax_classes ), when the editor sent one. */
+				if ( isset( $_POST['tax_class'] ) && class_exists( 'wp_easycart_tax_classes' ) && wp_easycart_tax_classes::ready() ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET tax_class = %s WHERE product_id = %d', wp_easycart_tax_classes::clean( sanitize_key( wp_unslash( $_POST['tax_class'] ) ) ), $product_id ) );
+				}
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
 					ec_db::product_cache_changed();
@@ -2300,27 +2318,43 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		public function save_product_details_seo() {
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
-				$product_id = (int) $_POST['product_id'];
-				$seo_description = sanitize_text_field( wp_unslash( $_POST['seo_description'] ) );
-				$seo_keywords = sanitize_text_field( wp_unslash( $_POST['seo_keywords'] ) );
-				$post_excerpt = sanitize_text_field( wp_unslash( $_POST['post_excerpt'] ) );
-				$featured_image = (int) $_POST['featured_image'];
+				// phpcs:disable WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_save_product_details_seo() checks the nonce ( verify_access() ) before calling this.
+				$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+				/* 6.0.5: only the fields posted. With Yoast SEO's card in place of the listing card the editor shows the older
+				   description alone ( print_seo_fallback_v2() ), and the keywords, excerpt and featured image must stay as they are. */
+				$columns = array();
+				foreach ( array( 'seo_description', 'seo_keywords' ) as $key ) {
+					if ( isset( $_POST[ $key ] ) ) {
+						$columns[ $key ] = sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
+					}
+				}
+				$post_excerpt   = isset( $_POST['post_excerpt'] ) ? sanitize_text_field( wp_unslash( $_POST['post_excerpt'] ) ) : null;
+				$featured_image = isset( $_POST['featured_image'] ) ? (int) $_POST['featured_image'] : null;
+				// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET seo_description = %s, seo_keywords = %s WHERE product_id = %d', $seo_description, $seo_keywords, $product_id ) );
+				if ( $columns ) {
+					$wpdb->update( 'ec_product', $columns, array( 'product_id' => $product_id ) );
+				}
 
 				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number FROM ec_product WHERE product_id = %d', $product_id ) );
-				$own_post_id = ( $product_row && $product_row->post_id ) ? wp_easycart_post_sync()->own_post_id( 'product', $product_id, $product_row->post_id, true ) : 0; /* 6.0.4: only the product's own page */
+				$own_post_id = ( $product_row && $product_row->post_id && ( null !== $post_excerpt || null !== $featured_image ) ) ? wp_easycart_post_sync()->own_post_id( 'product', $product_id, $product_row->post_id, true ) : 0; /* 6.0.4: only the product's own page */
 				if ( $own_post_id ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_excerpt = %s WHERE ID = %d', $post_excerpt, $own_post_id ) );
-					clean_post_cache( $own_post_id );
-					if ( !$featured_image ) {
-						delete_post_thumbnail( $own_post_id );
-					} else {
-						set_post_thumbnail( $own_post_id, $featured_image );
+					if ( null !== $post_excerpt ) {
+						$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_excerpt = %s WHERE ID = %d', $post_excerpt, $own_post_id ) );
+						clean_post_cache( $own_post_id );
+					}
+					if ( null !== $featured_image ) {
+						if ( ! $featured_image ) {
+							delete_post_thumbnail( $own_post_id );
+						} else {
+							set_post_thumbnail( $own_post_id, $featured_image );
+						}
 					}
 				}
 				ec_db::product_cache_changed();
-				wp_cache_delete( 'wpeasycart-product-seo-' . $product_row->model_number, 'wpeasycart-product-seo' );
+				if ( $product_row ) {
+					wp_cache_delete( 'wpeasycart-product-seo-' . $product_row->model_number, 'wpeasycart-product-seo' );
+				}
 			}
 		}
 
@@ -2448,6 +2482,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$this->b2b_prices_index = -1;
 			$this->product_images_index = -1;
 			$this->pickup_locations_index = -1;
+			$this->yoast_description_index = -1;
 			/* Since 6.0.0 the import is chunked across AJAX calls ( admin/js/products.js loops ): each
 			   request parses the header row, seeks to the byte offset the previous call returned and
 			   processes $this->limit rows. 'line' is the number of data rows already handled, used for
@@ -2495,6 +2530,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 				for ( $i = 0; $i < count( $this->headers ); $i++ ) {
 
+					/* 6.0.5: the UTF-8 mark ( every export starts with it now, and spreadsheets save one ) comes off whatever the first column is. */
+					if ( 0 === $i && "\xEF\xBB\xBF" === substr( (string) $this->headers[ $i ], 0, 3 ) ) {
+						$this->headers[ $i ] = substr( (string) $this->headers[ $i ], 3 );
+					}
 					$this->headers[ $i ] = trim( $this->headers[ $i ] );
 
 					if ( $this->headers[ $i ] == chr(0xEF) . chr(0xBB) . chr(0xBF) . 'product_id' || $this->headers[ $i ] == 'product_id' ) { // do not add product id to list
@@ -2553,6 +2592,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 					} else if ($this->headers[ $i ] == 'pickup_locations' ) { // use to check for errors
 						$this->pickup_locations_index = $i;
+
+					} else if ( self::YOAST_DESCRIPTION_COLUMN === $this->headers[ $i ] ) { // 6.0.5: written to the product's page, not ec_product
+						$this->yoast_description_index = $i;
 
 					} else if ( ! in_array( $this->headers[ $i ], $valid_headers ) ) { // error, invalid column
 						$this->error_list .= sprintf( __( 'You have an invalid column header at column %d (value %s), please remove or correct the label of that column to continue.', 'wp-easycart' ), $i, $this->headers[ $i ] ) . "\r";
@@ -2767,6 +2809,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									$post_sql_items[] = $post_id;
 									$wpdb->query( $wpdb->prepare( $post_sql, $post_sql_items ) );
 									clean_post_cache( $post_id );
+									$this->import_yoast_description( $post_id, $rows[ $i ] );
 								}
 
 								if ( ! in_array( 'options', $locked_fields, true ) && ( ( $this->use_advanced_optionset_index != -1 && $this->advanced_option_ids_index != -1 && $rows[ $i ][ $this->use_advanced_optionset_index ] == '1' ) || ( $this->use_both_option_types_index != -1 && $this->use_both_option_types_index != -1 && $rows[ $i ][ $this->use_both_option_types_index ] == '1' ) ) ) {
@@ -2930,6 +2973,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									$this->error_list .= sprintf( __( 'Product on line %s never inserted', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
 								} else {
 									wp_easycart_post_sync()->tag_post( $post_id, 'product', $product_id ); /* 6.0.4 */
+									$this->import_yoast_description( $post_id, $rows[ $i ] );
 									$this->import_inserted++;
 								}
 
@@ -3081,7 +3125,71 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		 * @return bool
 		 */
 		private function import_skips_column( $i ) {
-			return in_array( (int) $i, array( $this->product_id_index, $this->post_id_index, $this->advanced_option_ids_index, $this->categories_index, $this->price_tiers_index, $this->b2b_prices_index ), true );
+			return in_array( (int) $i, array( $this->product_id_index, $this->post_id_index, $this->advanced_option_ids_index, $this->categories_index, $this->price_tiers_index, $this->b2b_prices_index, $this->yoast_description_index ), true );
+		}
+
+		/**
+		 * Whether the products CSV export carries Yoast SEO's meta description ( YOAST_DESCRIPTION_COLUMN, after
+		 * advanced_option_ids ). With Yoast SEO active, the product editor shows Yoast's meta description in place of WP
+		 * EasyCart's own ( seo_description ), so an export without it lacked the description the merchant sees, and showed an
+		 * older one the editor hides ( a customer's report ).
+		 *
+		 * @since 6.0.5
+		 * @return bool
+		 */
+		public static function export_yoast_description() {
+			/**
+			 * Whether the products CSV export adds the yoast_meta_description column.
+			 *
+			 * @since 6.0.5
+			 * @param bool $add Yoast SEO is active.
+			 */
+			return (bool) apply_filters( 'wp_easycart_product_export_yoast_description', defined( 'WPSEO_VERSION' ) );
+		}
+
+		/**
+		 * Yoast SEO's meta description of each product page given: post id => text, in one query. Only store pages ( ec_store )
+		 * count, so a product whose post_id names another kind of post exports none. The first value wins, as get_post_meta().
+		 *
+		 * @since 6.0.5
+		 * @param int[] $post_ids The products' post ids.
+		 * @return array
+		 */
+		public static function yoast_descriptions( $post_ids ) {
+			global $wpdb;
+			$post_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $post_ids ) ) ) );
+			$found    = array();
+			if ( ! $post_ids ) {
+				return $found;
+			}
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT pm.post_id, pm.meta_value FROM ' . $wpdb->postmeta . ' AS pm INNER JOIN ' . $wpdb->posts . ' AS p ON p.ID = pm.post_id WHERE pm.meta_key = %s AND p.post_type = %s AND pm.post_id IN ( ' . implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) ) . ' ) ORDER BY pm.meta_id ASC', array_merge( array( self::YOAST_DESCRIPTION_META, 'ec_store' ), $post_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- table names from $wpdb; the only interpolation is a list of %d placeholders, every value goes through prepare().
+			foreach ( (array) $rows as $row ) {
+				if ( ! isset( $found[ (int) $row->post_id ] ) ) {
+					$found[ (int) $row->post_id ] = (string) $row->meta_value;
+				}
+			}
+			return $found;
+		}
+
+		/**
+		 * A row's YOAST_DESCRIPTION_COLUMN cell, written to Yoast SEO's meta description on the product's own page, as the
+		 * product editor's Yoast card saves it: plain text, and an empty cell deletes it ( Yoast then uses its template ). A
+		 * row without the cell leaves the page alone.
+		 *
+		 * @since 6.0.5
+		 * @param int   $post_id The product's own page.
+		 * @param array $row     The CSV row.
+		 */
+		private function import_yoast_description( $post_id, $row ) {
+			if ( -1 === $this->yoast_description_index || ! $post_id || ! is_array( $row ) || ! array_key_exists( $this->yoast_description_index, $row ) ) {
+				return;
+			}
+			$value = sanitize_text_field( (string) $row[ $this->yoast_description_index ] );
+			if ( '' === $value ) {
+				delete_post_meta( (int) $post_id, self::YOAST_DESCRIPTION_META );
+			} else {
+				update_post_meta( (int) $post_id, self::YOAST_DESCRIPTION_META, wp_slash( $value ) );
+			}
 		}
 
 		/**
@@ -4537,7 +4645,8 @@ add_action( 'wp_ajax_ec_admin_ajax_ecv2_save_option_set', 'ec_admin_ajax_ecv2_sa
  *
  * POST: option_type, option_name, option_label, items ( JSON: name, sku, price, weight, icon ),
  *       preselect_first, input_price, option_required, option_error_text, meta_* .
- * Free installs may only create basic-combo / basic-swatch; modifier types need PRO.
+ * Free installs may only create basic-combo / basic-swatch; modifier types need PRO ( 6.0.5: combo and swatch too, the panel's
+ * Dropdown and Swatches made as add-ons ).
  */
 function ec_admin_ajax_ecv2_save_option_set() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-optionset-quick-edit' ) ) {
@@ -4548,7 +4657,7 @@ function ec_admin_ajax_ecv2_save_option_set() {
 
 	$is_pro     = ( '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) );
 	$basic      = array( 'basic-combo', 'basic-swatch' );
-	$listed     = array( 'radio', 'checkbox', 'grid' );
+	$listed     = array( 'radio', 'checkbox', 'grid', 'combo', 'swatch' );
 	$inputs     = array( 'text', 'textarea', 'number', 'file', 'date', 'dimensions1', 'dimensions2' );
 	$type       = isset( $_POST['option_type'] ) ? sanitize_text_field( wp_unslash( $_POST['option_type'] ) ) : '';
 	$name       = isset( $_POST['option_name'] ) ? sanitize_text_field( wp_unslash( $_POST['option_name'] ) ) : '';
@@ -4644,7 +4753,12 @@ function ec_admin_ajax_ecv2_save_option_set() {
 	} else {
 		// Input types carry exactly one hidden item that holds the ( optional ) price.
 		$hidden_names = array( 'file' => 'File Field', 'text' => 'Text Box Input', 'number' => 'Number Box Input', 'textarea' => 'Text Area Input', 'date' => 'Date Field', 'dimensions1' => 'DimensionType1', 'dimensions2' => 'DimensionType2' );
-		$price = wp_easycart_admin_verification()->filter_float( isset( $_POST['input_price'] ) ? sanitize_text_field( wp_unslash( $_POST['input_price'] ) ) : '0' );
+		$price_typed = isset( $_POST['input_price'] ) ? sanitize_text_field( wp_unslash( $_POST['input_price'] ) ) : '0'; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce checked by verify_access() above.
+		/* 6.0.5: a size has no price of its own ( its area scales the product price ), and a negative price keeps its minus sign, as the editor saves it. */
+		$price = ( 'dimensions1' === $type || 'dimensions2' === $type ) ? '0' : ( class_exists( 'wp_easycart_admin_option_editor_v2' ) ? wp_easycart_admin_option_editor_v2::adjustment( $price_typed, true ) : wp_easycart_admin_verification()->filter_float( $price_typed ) );
+		if ( '' === (string) $price ) {
+			$price = '0';
+		}
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO ec_optionitem( option_id, optionitem_name, optionitem_price, optionitem_price_onetime, optionitem_price_override, optionitem_weight, optionitem_weight_onetime, optionitem_weight_override, optionitem_order, optionitem_icon, optionitem_initial_value ) VALUES( %d, %s, %s, '0.00', '-1', '0.00', '0.00', '-1.00', 1, '', '' )",
 			$option_id, isset( $hidden_names[ $type ] ) ? $hidden_names[ $type ] : $name, $price

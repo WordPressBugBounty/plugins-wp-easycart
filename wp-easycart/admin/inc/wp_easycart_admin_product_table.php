@@ -319,7 +319,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'data' => array(),
 					'label' => __( 'Price Range', 'wp-easycart' ),
 					'type'  => 'range',
-					'placeholder_min' => '$0',
+					'placeholder_min' => function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( 0, 0 ) : '$0',
 					'placeholder_max' => __( 'No limit', 'wp-easycart' ),
 					'where_callback' => true,
 				),
@@ -356,9 +356,23 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'label' => __( 'Out of stock', 'wp-easycart' ), 'value' => $this->health_data['out_of_stock'], 'filter_value' => 'out_of_stock', 'color' => 'red', 'group' => 'attention' ),
 				array( 'label' => __( 'Low stock', 'wp-easycart' ), 'value' => $this->health_data['low_stock'], 'filter_value' => 'low_stock', 'color' => 'amber', 'group' => 'attention' ),
 				array( 'label' => __( 'No image', 'wp-easycart' ), 'value' => $this->health_data['no_image'], 'filter_value' => 'no_image', 'color' => 'amber', 'group' => 'attention' ),
-				array( 'label' => __( '$0 price', 'wp-easycart' ), 'value' => $this->health_data['zero_price'], 'filter_value' => 'zero_price', 'color' => 'amber', 'group' => 'attention' ),
+				/* translators: %s: zero in the store's currency, e.g. $0.00. */
+				array( 'label' => sprintf( __( '%s price', 'wp-easycart' ), function_exists( 'wp_easycart_admin_money_text' ) ? wp_easycart_admin_money_text( 0, 0 ) : '$0' ), 'value' => $this->health_data['zero_price'], 'filter_value' => 'zero_price', 'color' => 'amber', 'group' => 'attention' ),
 				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber', 'group' => 'attention' ),
 			);
+			/* 6.0.5 ( admin review L6 ): the Incomplete tile says what most of them miss; its filter lists every reason. */
+			$ec_reasons = isset( $this->health_data['reasons'] ) && is_array( $this->health_data['reasons'] ) ? $this->health_data['reasons'] : array();
+			if ( $ec_reasons && (int) $this->health_data['incomplete'] > 0 ) {
+				arsort( $ec_reasons );
+				$ec_top = key( $ec_reasons );
+				if ( (int) current( $ec_reasons ) > 0 ) {
+					$health_stats[ count( $health_stats ) - 1 ]['sub']   = self::incomplete_reason_text( $ec_top, (int) current( $ec_reasons ) );
+					$health_stats[ count( $health_stats ) - 1 ]['title'] = __( 'Products missing a name, price, picture, description, short description, SKU or category.', 'wp-easycart' );
+				}
+			}
+			foreach ( array_keys( self::incomplete_reasons() ) as $ec_reason ) {
+				$this->health_labels[ $ec_reason ] = self::incomplete_reason_text( $ec_reason );
+			}
 			/* 6.0.1: only shown while some downloadable product is missing its file. */
 			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' ) AND NOT ( is_amazon_download = 1 AND amazon_key IS NOT NULL AND amazon_key <> '' )" . $this->base_where() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_where() is a fixed SQL fragment.
 			if ( $download_missing > 0 ) {
@@ -448,6 +462,84 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		 */
 		const HEALTH_TRANSIENT = 'ecv2_product_health_data';
 
+		/**
+		 * 6.0.5 ( admin review L6 ): the rules that make a product Incomplete, one quick filter each ( health_filter = the key ).
+		 * no_image and zero_price are the tiles' own filters.
+		 *
+		 * @return array key => SQL condition on ec_product.
+		 */
+		public static function incomplete_reasons() {
+			return array(
+				'no_short_description' => "( ec_product.short_description = '' OR ec_product.short_description IS NULL )",
+				'no_description'       => "( ec_product.description = '' OR ec_product.description IS NULL )",
+				'no_category'          => '( SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id ) = 0',
+				'no_image'             => 'NOT ' . self::get_has_image_sql(),
+				'no_sku'               => "( ec_product.model_number = '' OR ec_product.model_number IS NULL )",
+				'zero_price'           => 'ec_product.price <= 0',
+				'no_title'             => "( ec_product.title = '' OR ec_product.title IS NULL )",
+			);
+		}
+
+		/**
+		 * What a reason says: a count ( "14 need a short description" ) or the filter's own name.
+		 *
+		 * @param string   $reason Reason key.
+		 * @param int|null $count  Products, or null for the name.
+		 * @return string
+		 */
+		public static function incomplete_reason_text( $reason, $count = null ) {
+			$n = (int) $count;
+			switch ( $reason ) {
+				case 'no_short_description':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No short description', 'wp-easycart' ) : sprintf( _n( '%d needs a short description', '%d need a short description', $n, 'wp-easycart' ), $n );
+				case 'no_description':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No description', 'wp-easycart' ) : sprintf( _n( '%d needs a description', '%d need a description', $n, 'wp-easycart' ), $n );
+				case 'no_category':
+					/* translators: %d: products. */
+					return null === $count ? __( 'In no category', 'wp-easycart' ) : sprintf( _n( '%d is in no category', '%d are in no category', $n, 'wp-easycart' ), $n );
+				case 'no_image':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No image', 'wp-easycart' ) : sprintf( _n( '%d has no picture', '%d have no picture', $n, 'wp-easycart' ), $n );
+				case 'no_sku':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No SKU', 'wp-easycart' ) : sprintf( _n( '%d has no SKU', '%d have no SKU', $n, 'wp-easycart' ), $n );
+				case 'zero_price':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No price', 'wp-easycart' ) : sprintf( _n( '%d has no price', '%d have no price', $n, 'wp-easycart' ), $n );
+				case 'no_title':
+					/* translators: %d: products. */
+					return null === $count ? __( 'No name', 'wp-easycart' ) : sprintf( _n( '%d has no name', '%d have no name', $n, 'wp-easycart' ), $n );
+			}
+			return '';
+		}
+
+		/**
+		 * 6.0.5 ( admin review L6 ): with the Incomplete tile or one of its reasons chosen, a bar that says what is missing, each
+		 * reason a link to the products it holds back.
+		 */
+		protected function print_incomplete_reasons() {
+			$current = isset( $_GET['health_filter'] ) ? sanitize_key( wp_unslash( $_GET['health_filter'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a list filter in the address.
+			$reasons = isset( $this->health_data['reasons'] ) && is_array( $this->health_data['reasons'] ) ? $this->health_data['reasons'] : array();
+			if ( ! $reasons || ( 'incomplete' !== $current && ! isset( $reasons[ $current ] ) ) || in_array( $current, array( 'no_image', 'zero_price' ), true ) ) {
+				return;
+			}
+			arsort( $reasons );
+			$base  = remove_query_arg( array( 'health_filter', 'pagenum' ) );
+			$links = array();
+			foreach ( $reasons as $reason => $count ) {
+				if ( $count <= 0 ) {
+					continue;
+				}
+				$links[] = '<a class="ecv2-incomplete-reason' . ( $reason === $current ? ' is-on' : '' ) . '" href="' . esc_url( add_query_arg( 'health_filter', $reason, $base ) ) . '"' . ( $reason === $current ? ' aria-current="true"' : '' ) . '>' . esc_html( self::incomplete_reason_text( $reason, $count ) ) . '</a>';
+			}
+			if ( ! $links ) {
+				return;
+			}
+			echo '<div class="ecv2-scope-bar ecv2-incomplete-reasons" role="navigation" aria-label="' . esc_attr__( 'Why products are incomplete', 'wp-easycart' ) . '"><span class="ecv2-incomplete-reasons-lead"><span class="dashicons dashicons-info-outline" aria-hidden="true"></span>' . esc_html__( 'Why products are incomplete:', 'wp-easycart' ) . '</span>' . implode( '', $links ) . ( 'incomplete' !== $current ? '<a class="ecv2-incomplete-reason ecv2-incomplete-all" href="' . esc_url( add_query_arg( 'health_filter', 'incomplete', $base ) ) . '">' . esc_html__( 'All incomplete', 'wp-easycart' ) . '</a>' : '' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every link is built from escaped parts above.
+		}
+
 		/** Drop the cached health counts. @since 6.0.0 */
 		public static function clear_health_cache() {
 			delete_transient( self::HEALTH_TRANSIENT );
@@ -464,7 +556,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			/* Serve the cached counts unless the inputs that shape them ( low stock number, Square sync, the product types )
 			   changed. */
 			$cached = get_transient( self::HEALTH_TRANSIENT );
-			if ( is_array( $cached ) && isset( $cached['total'], $cached['_threshold'], $cached['_square'], $cached['types'], $cached['_types'] ) && (int) $cached['_threshold'] === $low_stock_at && (int) $cached['_square'] === $square_sync && $cached['_types'] === $types_sig ) {
+			if ( is_array( $cached ) && isset( $cached['total'], $cached['_threshold'], $cached['_square'], $cached['types'], $cached['_types'], $cached['reasons'] ) && (int) $cached['_threshold'] === $low_stock_at && (int) $cached['_square'] === $square_sync && $cached['_types'] === $types_sig ) {
 				$this->health_data = $cached;
 				return;
 			}
@@ -494,6 +586,17 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 			$incomplete = $wpdb->get_var( $incomplete_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $incomplete_sql is built only from literal SQL and the static get_has_image_sql() fragment.
 
+			/* 6.0.5 ( admin review L6 ): what the Incomplete products are missing, one count per reason ( the same rules ). */
+			$reason_sql = array();
+			foreach ( self::incomplete_reasons() as $reason => $where ) {
+				$reason_sql[] = 'SUM(CASE WHEN ' . $where . ' THEN 1 ELSE 0 END) AS ' . $reason;
+			}
+			$reasons_row = $wpdb->get_row( 'SELECT ' . implode( ', ', $reason_sql ) . ' FROM ec_product WHERE 1 = 1' . $this->base_where() . ( $square_sync ? ' AND (ec_product.square_id IS NULL OR ec_product.square_id = "")' : '' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL from incomplete_reasons() and base_where().
+			$reasons     = array();
+			foreach ( array_keys( self::incomplete_reasons() ) as $reason ) {
+				$reasons[ $reason ] = ( is_array( $reasons_row ) && isset( $reasons_row[ $reason ] ) ) ? (int) $reasons_row[ $reason ] : 0;
+			}
+
 			$this->health_data = array(
 				'total'        => $row ? (int) $row->total : 0,
 				'active'       => $row ? (int) $row->active : 0,
@@ -503,6 +606,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				'no_image'     => $row ? (int) $row->no_image : 0,
 				'zero_price'   => $row ? (int) $row->zero_price : 0,
 				'incomplete'   => (int) $incomplete,
+				'reasons'      => $reasons,
 				'on_sale'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE list_price > 0 AND list_price > price" . $this->base_where() ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- base_where() is a fixed SQL fragment.
 				'square_synced' => $row ? (int) $row->square_synced : 0,
 				/* 6.0.4: products per type, for the Product type filter's pills. */
@@ -610,6 +714,18 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 						$where .= ' AND (ec_product.square_id IS NULL OR ec_product.square_id = "")';
 					}
 					return $where;
+				case 'no_short_description':
+				case 'no_description':
+				case 'no_category':
+				case 'no_sku':
+				case 'no_title':
+					/* 6.0.5 ( admin review L6 ): one reason a product is Incomplete. */
+					$ec_reasons = self::incomplete_reasons();
+					$where      = $ec_reasons[ $filter_key ];
+					if ( 'square' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_square_auto_product_sync' ) ) {
+						$where .= ' AND (ec_product.square_id IS NULL OR ec_product.square_id = "")';
+					}
+					return $where;
 				case 'on_sale':
 					return 'ec_product.list_price > 0 AND ec_product.list_price > ec_product.price';
 				/* 6.0.1: downloadable products whose file name was lost ( the recovery notice links here ). */
@@ -677,6 +793,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 		protected function print_toolbar() {
 			$this->print_repair_banner();
+			$this->print_incomplete_reasons();
 			if ( $this->catalog_scope ) {
 				$clear = remove_query_arg( array( $this->catalog_scope['param'], 'pagenum' ) );
 				echo '<div class="ecv2-scope-bar"><span class="ecv2-scope-chip"><span class="dashicons dashicons-filter"></span>' . esc_html( $this->catalog_scope['label'] )
@@ -1315,7 +1432,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					if ( $result->list_price > $result->price ) {
 						echo ' <span class="ecv2-price-list">' . esc_html( $GLOBALS['currency']->get_currency_display( $result->list_price ) ) . '</span>';
 						$pct = round( ( $result->list_price - $result->price ) / $result->list_price * 100 );
-						echo ' <span class="ecv2-sale-tag">' . esc_html( $pct . '% ' . __( 'off', 'wp-easycart' ) ) . '</span>';
+						/* translators: %d: percent off the compare-at price. */
+						echo ' <span class="ecv2-sale-tag">' . esc_html( sprintf( __( '%d%% off', 'wp-easycart' ), $pct ) ) . '</span>';
 					} else {
 						echo ' <span class="ecv2-price-list">' . esc_html( $GLOBALS['currency']->get_currency_display( $result->list_price ) ) . '</span>';
 					}
@@ -1694,7 +1812,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$checked = (bool) $result->is_visible;
 			$nonce = wp_create_nonce( 'wp-easycart-ecv2-toggle-' . $result->product_id );
 			echo '<label class="ecv2-toggle">';
-			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
+			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: a product's title. */ __( 'Active: %s', 'wp-easycart' ), isset( $result->title ) ? wp_strip_all_tags( (string) $result->title ) : '#' . $result->product_id ) ) . '" onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
 			echo '<span class="ecv2-toggle-slider"></span>';
 			echo '</label>';
 		}
@@ -1710,7 +1828,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$checked = (bool) $result->is_visible;
 			$nonce = wp_create_nonce( 'wp-easycart-ecv2-toggle-' . $result->product_id );
 			echo '<label class="ecv2-toggle ecv2-toggle-sm">';
-			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
+			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: a product's title. */ __( 'Active: %s', 'wp-easycart' ), isset( $result->title ) ? wp_strip_all_tags( (string) $result->title ) : '#' . $result->product_id ) ) . '" onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
 			echo '<span class="ecv2-toggle-slider"></span>';
 			echo '</label>';
 		}
@@ -1905,7 +2023,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				echo '</label>';
 			} else {
 				echo '<label class="ecv2-toggle ecv2-card-toggle">';
-				echo '<input type="checkbox"' . checked( $checked, true, false ) . ' onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
+				echo '<input type="checkbox"' . checked( $checked, true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: a product's title. */ __( 'Active: %s', 'wp-easycart' ), isset( $result->title ) ? wp_strip_all_tags( (string) $result->title ) : '#' . $result->product_id ) ) . '" onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
 				echo '<span class="ecv2-toggle-slider"></span>';
 				echo '</label>';
 			}

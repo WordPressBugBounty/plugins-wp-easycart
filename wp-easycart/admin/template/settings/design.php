@@ -527,9 +527,34 @@ return array(
 		),
 
 		'cart-checkout' => array(
-			'title'  => __( 'Cart & checkout look', 'wp-easycart' ),
-			'hint'   => __( 'Order summary beside or below the checkout form, per screen size', 'wp-easycart' ),
-			'fields' => array(
+			'title'   => __( 'Cart & checkout look', 'wp-easycart' ),
+			'hint'    => __( 'Fit the cart to your theme, and the order summary beside or below the checkout form per screen size', 'wp-easycart' ),
+			'enqueue' => array( 'wp_easycart_admin_cart_fit', 'enqueue' ),
+			'fields'  => array(
+				/* 6.0.5: the cart laid out for the space the theme gives it ( wp_easycart_cart_fit; Matt: a customer's OceanWP site gave the cart about 830px of a 1400px screen ).
+				   On for a new store ( wp_easycart_cart_fit::seed_new_store() ); never saved = off, so a store set up before keeps its layout. */
+				'ec_option_cart_fit' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Fit the cart to your theme’s content area', 'wp-easycart' ),
+					'desc'     => __( 'The cart and checkout take the layout made for the room your theme gives them: a page with a sidebar or a narrow content column gets the tablet layout instead of squeezed desktop columns. The columns below then follow the cart’s width; Elementor’s Cart and Checkout widgets keep their own.', 'wp-easycart' ),
+					'default'  => 0,
+					'keywords' => array( 'narrow', 'narrow cart layout', 'sidebar', 'theme', 'width', 'content area', 'squeezed', 'one column', 'responsive', 'oceanwp' ),
+					'legacy'   => array( 'page' => 'design', 'section' => 'Cart Design Options', 'label' => '( new in 6.0.5 )' ),
+				),
+				'ecst_cart_fit_status_on' => array(
+					'type'      => 'html',
+					'label'     => __( 'Your theme', 'wp-easycart' ),
+					'parent'    => 'ec_option_cart_fit',
+					'show_when' => '1',
+					'render'    => array( 'wp_easycart_admin_cart_fit', 'render_on' ),
+				),
+				'ecst_cart_fit_status_off' => array(
+					'type'      => 'html',
+					'label'     => __( 'Your theme', 'wp-easycart' ),
+					'parent'    => 'ec_option_cart_fit',
+					'show_when' => '0',
+					'render'    => array( 'wp_easycart_admin_cart_fit', 'render_off' ),
+				),
 				'ec_option_cart_columns_desktop' => array(
 					'type'     => 'select',
 					'label'    => __( 'Columns on desktop', 'wp-easycart' ),

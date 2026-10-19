@@ -31,11 +31,15 @@ if ( ! class_exists( 'wp_easycart_cli' ) ) :
 			require_once __DIR__ . '/class-wp-easycart-cli-namespace.php';
 			require_once __DIR__ . '/class-wp-easycart-cli-info-command.php';
 			require_once __DIR__ . '/class-wp-easycart-cli-db-command.php';
+			require_once __DIR__ . '/class-wp-easycart-cli-tax-command.php'; /* 6.0.5 */
 			if ( class_exists( 'wp_easycart_cli_namespace' ) ) {
 				WP_CLI::add_command( 'easycart', 'wp_easycart_cli_namespace' );
 			}
 			WP_CLI::add_command( 'easycart info', 'wp_easycart_cli_info_command' );
 			WP_CLI::add_command( 'easycart db', 'wp_easycart_cli_db_command' );
+			if ( class_exists( 'wp_easycart_tax_setup' ) ) {
+				WP_CLI::add_command( 'easycart tax', 'wp_easycart_cli_tax_command' );
+			}
 		}
 
 		/**
@@ -50,7 +54,7 @@ if ( ! class_exists( 'wp_easycart_cli' ) ) :
 		/**
 		 * Note that a command group ran: the time and the group's name, nothing else. Written at most once an hour per group.
 		 *
-		 * @param string $group info | db.
+		 * @param string $group info | db | tax.
 		 */
 		public static function used( $group ) {
 			$group  = sanitize_key( $group );

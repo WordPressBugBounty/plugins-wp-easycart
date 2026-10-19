@@ -107,6 +107,10 @@ class ec_user{
 					$GLOBALS['ec_cart_data']->save_session_to_db();
 				}
 			}
+			/* 6.0.5 ( Matt: Square refused every guest payment, INVALID_EMAIL_ADDRESS "buyer_email_address  is not valid" ): a shopper
+			   not signed in to WordPress keeps the email typed at checkout, as without the WordPress login. It stayed empty, so every
+			   gateway got no email and every guest order was saved without one ( no receipt ). */
+			$this->email = ( $cart_data && isset( $cart_data->email ) ) ? (string) $cart_data->email : '';
 			$this->init_wp_easycart_user();
 			return;
 		}

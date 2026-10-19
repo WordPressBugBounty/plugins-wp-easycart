@@ -302,21 +302,58 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			}
 			if ( ! isset( $args['header'] ) || $args['header'] ) {
 				$h .= '<tr><td class="ec-email-pad" align="' . esc_attr( $align ) . '" style="padding:' . self::fit( '24px 32px 8px 32px', '10px 32px 2px 32px' ) . ';">';
-				if ( '' !== $c['logo_url'] ) {
-					$logo_style = 'display:' . ( 'center' === $align ? 'inline-block' : 'block' ) . ';max-width:' . (int) $c['logo_max_w'] . '%;width:auto;height:auto;';
-					if ( (int) $c['logo_max_h'] > 0 ) {
-						$logo_style .= 'max-height:' . (int) $c['logo_max_h'] . 'px;';
-					}
-					$h .= '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="text-decoration:none;"><img src="' . esc_url( $c['logo_url'] ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="' . esc_attr( $logo_style ) . '" /></a>';
-				} else {
-					$h .= '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="font-family:' . esc_attr( $c['font'] ) . ';font-size:20px;font-weight:700;color:#111827;text-decoration:none;">' . esc_html( $c['store_name'] ) . '</a>';
-				}
+				$h .= self::logo_markup( $c, 'center' === $align ? 'inline-block' : 'block', $c['logo_max_w'] );
 				$h .= '</td></tr>' . "\n";
 			}
 			if ( ! empty( $args['eyebrow'] ) ) {
 				$h .= '<tr><td class="ec-email-pad" align="' . esc_attr( $c['start'] ) . '" style="padding:12px 32px 0 32px;"><span style="display:inline-block;padding:3px 10px;border-radius:999px;background-color:#f3f4f6;' . esc_attr( self::css( 'label' ) ) . '">' . esc_html( $args['eyebrow'] ) . '</span></td></tr>' . "\n";
 			}
 			return $h;
+		}
+
+		/**
+		 * The header's logo: the image, or the store name when there is none, linked to the store.
+		 *
+		 * @param array  $c       Context.
+		 * @param string $display CSS display of the image ( block | inline-block ).
+		 * @param int    $max_w   Widest the image may be, in % of the box it sits in.
+		 * @return string
+		 */
+		private static function logo_markup( $c, $display, $max_w ) {
+			if ( '' !== $c['logo_url'] ) {
+				$logo_style = 'display:' . $display . ';max-width:' . (int) $max_w . '%;width:auto;height:auto;';
+				if ( (int) $c['logo_max_h'] > 0 ) {
+					$logo_style .= 'max-height:' . (int) $c['logo_max_h'] . 'px;';
+				}
+				return '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="text-decoration:none;"><img src="' . esc_url( $c['logo_url'] ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="' . esc_attr( $logo_style ) . '" /></a>';
+			}
+			return '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="font-family:' . esc_attr( $c['font'] ) . ';font-size:20px;font-weight:700;color:#111827;text-decoration:none;">' . esc_html( $c['store_name'] ) . '</a>';
+		}
+
+		/**
+		 * The logo on its own, for a document that places it somewhere other than the header row ( Settings › Documents ›
+		 * Logo position: the Invoice PDF's heading, beside the packing slip's title ). The same image, size, link and store name
+		 * fallback as the header. Its width setting is a share of the page, so in a narrower box it is worked out against that
+		 * box: 40% of the page in a box that takes 55% of it is 73% of the box.
+		 *
+		 * @since 6.0.5
+		 * @param array $args open() arguments that pick the logo ( logo_url, logo_max_w, logo_max_h, logo_align, store_url,
+		 *                    store_name; wp_easycart_documents::open_args() gives a document's ).
+		 * @param array $opts share ( int, % of the page the box it sits in takes; default 100 ), row ( bool: a full-width table
+		 *                    lined up as the header row is, by logo_align; default false: the link alone ).
+		 * @return string
+		 */
+		public static function get_logo( $args = array(), $opts = array() ) {
+			$args  = is_array( $args ) ? $args : array();
+			$opts  = is_array( $opts ) ? $opts : array();
+			$c     = self::context( $args );
+			$share = isset( $opts['share'] ) ? max( 1, min( 100, (int) $opts['share'] ) ) : 100;
+			$logo  = self::logo_markup( $c, 'inline-block', min( 100, (int) round( $c['logo_max_w'] * 100 / $share ) ) );
+			if ( empty( $opts['row'] ) ) {
+				return $logo;
+			}
+			$align = ( 'left' === $c['logo_align'] ) ? $c['start'] : ( ( 'right' === $c['logo_align'] ) ? $c['end'] : 'center' );
+			return '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;"><tr><td align="' . esc_attr( $align ) . '" style="text-align:' . esc_attr( $align ) . ';">' . $logo . '</td></tr></table>';
 		}
 
 		/**
@@ -340,6 +377,10 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			/* 6.0.1: the store address, for documents whose profile shows it ( wp_easycart_documents::close_args() ). */
 			if ( ! empty( $args['store_address'] ) && is_string( $args['store_address'] ) ) {
 				$footer .= '<br /><span class="ec-email-nolink">' . nl2br( esc_html( trim( $args['store_address'] ) ) ) . '</span>';
+			}
+			/* 6.0.5: the business details ( registered name, address, VAT or ABN number ) for documents whose profile shows them. */
+			if ( ! empty( $args['seller_details'] ) && is_string( $args['seller_details'] ) ) {
+				$footer .= '<br /><span class="ec-email-nolink ec-email-seller">' . nl2br( esc_html( trim( $args['seller_details'] ) ) ) . '</span>';
 			}
 			if ( ! empty( $args['footer_html'] ) ) {
 				$footer .= '<br />' . $args['footer_html'];
@@ -537,11 +578,16 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * @param array $args  @since 6.0.2 per_row ( int, default 0 = every pair on one row ): at most this many pairs side by
 		 *                     side; the rest start new rows with the same column widths ( email clients that ignore the
 		 *                     phone media query otherwise squeeze every pair into one row ).
+		 *                     @since 6.0.5 align ( start | end, default start ): end puts the pairs at the end of the row, each
+		 *                     lined up there ( the packing slip's facts beside its logo ).
 		 * @return string
 		 */
 		public static function get_key_values( $pairs, $args = array() ) {
 			$c       = self::ctx();
 			$per_row = ( is_array( $args ) && isset( $args['per_row'] ) ) ? max( 0, (int) $args['per_row'] ) : 0;
+			$at_end  = ( is_array( $args ) && isset( $args['align'] ) && 'end' === $args['align'] );
+			$side    = $at_end ? $c['end'] : $c['start'];
+			$gap     = $at_end ? $c['start'] : $c['end'];
 			$cells   = array();
 			foreach ( (array) $pairs as $pair ) {
 				if ( ! isset( $pair['value'] ) || '' === trim( (string) $pair['value'] ) ) {
@@ -559,7 +605,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				$html .= '<tr>';
 				foreach ( $row as $pair ) {
 					$value_css = ! empty( $pair['mono'] ) ? self::css( 'mono' ) : 'font-family:' . $c['font'] . ';font-size:15px;font-weight:600;color:#111827;';
-					$html     .= '<td class="ec-email-col" valign="top" align="' . esc_attr( $c['start'] ) . '"' . ( '' !== $width ? ' width="' . esc_attr( $width ) . '"' : '' ) . ' style="' . ( '' !== $width ? 'width:' . esc_attr( $width ) . ';' : '' ) . 'padding-top:' . ( $row_index > 0 ? 10 : 4 ) . 'px;padding-bottom:4px;padding-' . esc_attr( $c['end'] ) . ':16px;' . esc_attr( self::css( 'text' ) ) . '">'
+					$html     .= '<td class="ec-email-col" valign="top" align="' . esc_attr( $side ) . '"' . ( '' !== $width ? ' width="' . esc_attr( $width ) . '"' : '' ) . ' style="' . ( '' !== $width ? 'width:' . esc_attr( $width ) . ';' : '' ) . 'padding-top:' . ( $row_index > 0 ? 10 : 4 ) . 'px;padding-bottom:4px;padding-' . esc_attr( $gap ) . ':16px;' . ( $at_end ? 'text-align:' . esc_attr( $side ) . ';' : '' ) . esc_attr( self::css( 'text' ) ) . '">'
 						. '<div style="' . esc_attr( self::css( 'label' ) ) . '">' . ( isset( $pair['label'] ) ? $pair['label'] : '' ) . '</div>'
 						. '<div style="' . esc_attr( $value_css ) . '">' . $pair['value'] . '</div></td>';
 				}
@@ -569,7 +615,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				}
 				$html .= '</tr>';
 			}
-			return '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">' . $html . '</table>' . "\n";
+			return '<table role="presentation"' . ( $at_end ? ' align="' . esc_attr( $side ) . '"' : ' width="100%"' ) . ' border="0" cellpadding="0" cellspacing="0">' . $html . '</table>' . "\n";
 		}
 
 		/**
@@ -659,15 +705,24 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				$key = isset( $map[ $field ] ) ? $map[ $field ] : ( '' !== $side ? $side . '_' . $field : $field );
 				return ( is_object( $source ) && isset( $source->{$key} ) && is_scalar( $source->{$key} ) ) ? trim( (string) $source->{$key} ) : '';
 			};
+			$city = $get( 'city' );
+			$zip  = $get( 'zip' );
+			if ( class_exists( 'wp_easycart_address' ) ) { /* 6.0.5: one rule for every address WP EasyCart prints */
+				$parts = wp_easycart_address::parts( $source, $side, $map );
+				$lines = (array) apply_filters( 'wp_easycart_email_address_lines', wp_easycart_address::render( $parts ), $side, $source );
+				return array(
+					'lines' => $lines,
+					'phone' => $parts['phone'],
+					'has'   => ( '' !== $parts['line1'] || '' !== $parts['city'] || '' !== $parts['zip'] ),
+				);
+			}
 			$lines   = array();
 			$lines[] = trim( $get( 'first_name' ) . ' ' . $get( 'last_name' ) );
 			$lines[] = $get( 'company_name' );
 			$lines[] = $get( 'address_line_1' );
 			$lines[] = $get( 'address_line_2' );
 			$country = strtoupper( $get( 'country' ) );
-			$city    = $get( 'city' );
 			$state   = $get( 'state' );
-			$zip     = $get( 'zip' );
 			if ( in_array( $country, array( 'GB', 'IE', 'IM', 'JE', 'GG' ), true ) ) {
 				$lines[] = $city;
 				$lines[] = $state;

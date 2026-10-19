@@ -216,6 +216,83 @@ if ( ! class_exists( 'wp_easycart_order_discounts' ) ) :
 		}
 
 		/**
+		 * Whether customer-facing documents print the code a customer used ( 6.0.5, FREE #497 ): receipts, invoices, the refund
+		 * and shipped emails, the invoice PDF, printable receipts, the order confirmation and My Account. Settings › Checkout ›
+		 * "Show discount codes on receipts and documents" ( ec_option_show_discount_codes, on ): off, a private code ( a 100% code
+		 * given to one customer ) is never printed where a receipt can be forwarded or shared. The cart and checkout still show the
+		 * code the shopper typed, and the admin always shows it.
+		 *
+		 * @since 6.0.5
+		 * @param string $context Where it prints ( receipt, invoice, refund, shipped, invoice_pdf, print_receipt, confirmation, account … ).
+		 * @return bool
+		 */
+		public static function show_codes( $context = '' ) {
+			$show = ( '0' !== (string) get_option( 'ec_option_show_discount_codes', '1' ) );
+			/**
+			 * Whether a document prints discount codes.
+			 *
+			 * @since 6.0.5
+			 * @param bool   $show    The setting.
+			 * @param string $context Where it prints.
+			 */
+			return (bool) apply_filters( 'wp_easycart_show_discount_codes', $show, (string) $context );
+		}
+
+		/**
+		 * The words an applied offer is printed with on a customer-facing document: its label, with the code in brackets when the
+		 * offer was a code and show_codes() allows it ( "100% off ( DEVAT100FREE )", else "100% off" ). Plain text: escape it where
+		 * it prints. Filter wp_easycart_discount_display_label for other wording.
+		 *
+		 * @since 6.0.5
+		 * @param array  $offer   An applied_offers entry ( label, code … ).
+		 * @param string $context Where it prints ( see show_codes() ).
+		 * @return string
+		 */
+		public static function display_label( $offer, $context = '' ) {
+			$offer = is_array( $offer ) ? $offer : (array) $offer;
+			$label = isset( $offer['label'] ) ? trim( wp_strip_all_tags( (string) $offer['label'] ) ) : '';
+			if ( '' === $label && isset( $offer['offer_name'] ) ) {
+				$label = trim( wp_strip_all_tags( (string) $offer['offer_name'] ) );
+			}
+			$code = isset( $offer['code'] ) ? trim( wp_strip_all_tags( (string) $offer['code'] ) ) : '';
+			$show = ( '' !== $code && self::show_codes( $context ) );
+			$text = $show ? trim( $label . ' (' . $code . ')' ) : $label;
+			/**
+			 * The words an applied offer is printed with on a customer-facing document.
+			 *
+			 * @since 6.0.5
+			 * @param string $text    Label, with " (CODE)" when shown.
+			 * @param array  $offer   The applied_offers entry.
+			 * @param bool   $show    The code is shown.
+			 * @param string $context Where it prints.
+			 */
+			return (string) apply_filters( 'wp_easycart_discount_display_label', $text, $offer, $show, (string) $context );
+		}
+
+		/**
+		 * What a document prints on its classic coupon line ( ec_order.promo_code ): the code, or the coupon's message when
+		 * "Show the coupon's message instead of its code" is on and it has one. With codes hidden ( show_codes() ), the message
+		 * when the coupon has one, else '' ( the document leaves the line out ).
+		 *
+		 * @since 6.0.5
+		 * @param string $promo_code    The order's coupon code.
+		 * @param string $promo_message The coupon's saved message.
+		 * @param string $context       Where it prints ( see show_codes() ).
+		 * @return string
+		 */
+		public static function coupon_text( $promo_code, $promo_message = '', $context = '' ) {
+			$promo_code    = trim( (string) $promo_code );
+			$promo_message = trim( (string) $promo_message );
+			if ( '' === $promo_code ) {
+				return '';
+			}
+			if ( ! self::show_codes( $context ) ) {
+				return $promo_message;
+			}
+			return ( get_option( 'ec_option_show_coupon_message' ) && '' !== $promo_message ) ? $promo_message : $promo_code;
+		}
+
+		/**
 		 * The name an entry is shown by: its label, else the offer's name.
 		 *
 		 * @param array $entry An entries() entry.

@@ -128,7 +128,7 @@ $ecv2_dup_confirmed = 3; /* "Order Confirmed" default id (see ec_db_manager base
 					<span class="ecv2-order-status-swatch" id="ecv2-dup-status-swatch"></span>
 					<select id="ecv2-dup-status" class="ecv2-select ecv2-qe-select" onchange="ecv2_order_dup_status_changed();">
 						<?php foreach ( $ecv2_dup_statuses as $ecv2_dup_status ) : ?>
-							<option value="<?php echo esc_attr( $ecv2_dup_status->status_id ); ?>" data-color="<?php echo esc_attr( '' !== (string) $ecv2_dup_status->color_code ? $ecv2_dup_status->color_code : '#e5e7eb' ); ?>"><?php echo esc_html( $ecv2_dup_status->order_status ); ?></option>
+							<option value="<?php echo esc_attr( $ecv2_dup_status->status_id ); ?>" data-color="<?php echo esc_attr( '' !== (string) $ecv2_dup_status->color_code ? $ecv2_dup_status->color_code : '#e5e7eb' ); ?>"><?php echo esc_html( wp_easycart_order_status_label( $ecv2_dup_status ) ); ?></option>
 						<?php endforeach; ?>
 					</select>
 				</div>

@@ -51,9 +51,6 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 	<a href="admin.php?page=wp-easycart-license-status">
 		<svg class="ecsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 8v4l2.5 2.5"/></svg>
 		<?php esc_attr_e( 'Store Status', 'wp-easycart' ); ?>
-		<?php if ( 'ok' !== $ecsh_status['level'] ) { ?>
-		<span class="ecsh-badge ecsh-<?php echo esc_attr( $ecsh_status['level'] ); ?>"><?php echo esc_attr( $ecsh_status['days_left'] ); ?>d</span>
-		<?php } ?>
 	</a>
 </div>
 <?php } ?>
@@ -125,9 +122,12 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 <div class="ecsh-sb-sub<?php if ( $ecsh_in ) { echo ' ecsh-open'; } ?>" id="ecsh_sub_users">
 	<div class="ecsh-sb-sub-inner">
 		<?php
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-users&subpage=accounts', __( 'User Accounts', 'wp-easycart' ), $ecsh_in && ( 'accounts' === $ecsh_subpage || '' === $ecsh_subpage ) );
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-users&subpage=accounts', __( 'Customers', 'wp-easycart' ), $ecsh_in && ( 'accounts' === $ecsh_subpage || '' === $ecsh_subpage ) );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-users&subpage=user-roles', __( 'User Roles', 'wp-easycart' ), 'user-roles' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-users&subpage=subscribers', __( 'Subscribers', 'wp-easycart' ), 'subscribers' === $ecsh_subpage );
+		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) { /* 6.0.5: every page with a Limit Access rule */
+			ecsh_nav_sublink( 'admin.php?page=wp-easycart-users&subpage=limit-access', __( 'Limit Access', 'wp-easycart' ), 'limit-access' === $ecsh_subpage );
+		}
 		?>
 	</div>
 </div>
@@ -252,7 +252,18 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 <div class="ecsh-sb-item<?php if ( 'wp-easycart-registration' === $ecsh_page ) { echo ' ecsh-active'; } ?>">
 	<a href="admin.php?page=wp-easycart-registration&subpage=registration">
 		<svg class="ecsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-		<?php esc_attr_e( 'Registration', 'wp-easycart' ); ?><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; float:right;"></span>' ) ); ?>
+		<?php esc_attr_e( 'Registration', 'wp-easycart' ); ?>
+		<?php
+		/* 6.0.5 ( admin review M13 ): the license badge sits here ( it was a "0d" beside Store Status ), in words. */
+		$ecsh_license_badge = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::license_badge() : null;
+		if ( $ecsh_license_badge ) {
+			?>
+		<span class="ecsh-badge ecsh-<?php echo esc_attr( $ecsh_license_badge['level'] ); ?> ecsh-badge-words" aria-hidden="true"><?php echo esc_html( $ecsh_license_badge['text'] ); ?></span><span class="screen-reader-text"><?php echo esc_html( $ecsh_license_badge['label'] ); ?></span>
+			<?php
+		} else {
+			echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; float:right;"></span>' ) );
+		}
+		?>
 	</a>
 </div>
 <?php } ?>

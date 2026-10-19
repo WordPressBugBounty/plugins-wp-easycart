@@ -228,10 +228,12 @@ $ecpp_locked = function ( $feature, $label, $desc ) use ( $wpec_plan_name, $ecpp
 				'ec_option_paypal_weight_unit',
 				__( 'Weight unit', 'wp-easycart' ),
 				array(
-					'lbs' => 'LBS',
-					'kgs' => 'KGS',
+					'lbs' => __( 'Pounds ( lb )', 'wp-easycart' ),
+					'oz'  => __( 'Ounces ( oz )', 'wp-easycart' ),
+					'kgs' => __( 'Kilograms ( kg )', 'wp-easycart' ),
+					'g'   => __( 'Grams ( g )', 'wp-easycart' ),
 				),
-				__( 'Pounds or kilograms. Your store also weighs its packages in this unit.', 'wp-easycart' )
+				__( 'Your store’s weight unit, also set in Settings › Store details. Products, boxes and live carriers use it too. PayPal is given pounds or kilograms.', 'wp-easycart' )
 			);
 			$ecpp_select(
 				'ec_option_paypal_lc',

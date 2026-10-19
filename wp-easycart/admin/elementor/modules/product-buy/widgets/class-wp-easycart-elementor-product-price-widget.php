@@ -157,7 +157,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Product_Price_Widget' ) && class_exi
 						'sale_final'    => __( 'Sale price, then the offer price', 'wp-easycart' ),
 						'all'           => __( 'All three prices', 'wp-easycart' ),
 					),
-					'description'  => __( 'Which prices show when a running offer lowers a product that is already on sale.', 'wp-easycart' ),
+					'description'  => __( 'Which prices show when a running offer lowers a product that is already on sale. A store that shows the lowest price of the last 30 days always shows the sale price, then the offer price.', 'wp-easycart' ),
 					'prefix_class' => 'wpec-price-offers-',
 					'condition'    => array(
 						'show_regular_price' => 'yes',
@@ -456,6 +456,26 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Product_Price_Widget' ) && class_exi
 			$this->pb_typography( 'price_label_typography', __( 'Typography', 'wp-easycart' ), '{{WRAPPER}} .wpec-price .ec_details_price_label', 'text' );
 			$this->end_controls_section();
 
+			/* 6.0.5: the lowest price of the last 30 days under a reduced price ( wp_easycart_price_history, printed by the price template ). */
+			$this->start_controls_section(
+				'style_prior_price',
+				array(
+					'label' => __( 'Lowest price in the last 30 days', 'wp-easycart' ),
+					'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+				)
+			);
+			$this->add_control(
+				'prior_price_note',
+				array(
+					'type'            => \Elementor\Controls_Manager::RAW_HTML,
+					'raw'             => esc_html__( 'Shown under a reduced price when Settings › Products › Lowest price before a reduction is on ( by default for stores in the EU ). It follows the variant chosen.', 'wp-easycart' ),
+					'content_classes' => 'elementor-descriptor',
+				)
+			);
+			$this->pb_color( 'prior_price_color', __( 'Color', 'wp-easycart' ), '--wpec-p-prior', array( 'selectors' => array( '{{WRAPPER}} .wpec-price .ec_product_prior_price' => 'color: {{VALUE}};' ) ) );
+			$this->pb_typography( 'prior_price_typography', __( 'Typography', 'wp-easycart' ), '{{WRAPPER}} .wpec-price .ec_product_prior_price', '' );
+			$this->end_controls_section();
+
 			$this->start_controls_section(
 				'style_extras',
 				array(
@@ -636,7 +656,8 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Product_Price_Widget' ) && class_exi
 			}
 			$save    = ( '' !== $price && $on( 'show_savings' ) ) ? $this->savings_html( $product, $state, $settings ) : '';
 			$classes = 'wpec-el wpec-price' . ( $regular ? '' : ' wpec-price--no-regular' );
-			if ( ! $state['hidden'] && $state['list'] > 0 && $regular ) {
+			/* 6.0.5: a store that strikes the price before an offer shows no list price while the offer runs ( price_state() ). */
+			if ( ! $state['hidden'] && $state['list'] > 0 && $regular && ! ( $state['offer'] && ! empty( $state['strike_base'] ) ) ) {
 				$classes .= ' wpec-price--has-list';
 			}
 			if ( $state['offer'] ) {
@@ -668,7 +689,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Product_Price_Widget' ) && class_exi
 				$amount = wp_easycart_product_schema::shown( $product, $amount, true );
 			}
 			$text = ( $amount > 0 ) ? str_replace( array( '[amount]', '[percent]' ), array( $GLOBALS['currency']->get_currency_display( $amount ), (string) $state['percent'] ), $template ) : '';
-			$out  = '<div class="wpec-price__save" aria-live="polite" data-wpec-save-text="' . esc_attr( $template ) . '" data-wpec-list-price="' . esc_attr( $state['list'] ) . '"';
+			$out  = '<div class="wpec-price__save" aria-live="polite" data-wpec-save-text="' . esc_attr( $template ) . '" data-wpec-list-price="' . esc_attr( $state['list'] ) . '"' . ( empty( $state['strike_base'] ) ? '' : ' data-wpec-strike-base="1"' );
 			if ( $state['offer'] && is_array( $state['rules'] ) ) {
 				$out .= ' data-wpec-offer-rules="' . esc_attr( wp_json_encode( $state['rules'] ) ) . '"';
 			}

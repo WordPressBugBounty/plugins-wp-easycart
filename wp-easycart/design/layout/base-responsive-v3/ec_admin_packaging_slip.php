@@ -46,40 +46,59 @@ if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active
 }
 
 /* The logo switch and, with 6.0.1, this document's own logo and size ( Settings › Documents ). */
-$ed::open(
-	wp_easycart_documents::open_args(
-		'packing_slip',
-		$document->fields,
-		array(
-			'title' => wp_strip_all_tags( $ec_ps_title ) . ' ' . (int) $ec_ps_order->order_id,
-			'flat'  => ! $ec_ps_email,
-		)
+$ec_ps_open = wp_easycart_documents::open_args(
+	'packing_slip',
+	$document->fields,
+	array(
+		'title' => wp_strip_all_tags( $ec_ps_title ) . ' ' . (int) $ec_ps_order->order_id,
+		'flat'  => ! $ec_ps_email,
 	)
 );
+/* 6.0.5: Settings › Documents › Logo position. Beside the title, the logo and the title share the first row and the header row is
+   left out. */
+$ec_ps_beside = method_exists( 'wp_easycart_documents', 'logo_place' ) && 'beside' === wp_easycart_documents::logo_place( $document );
+if ( $ec_ps_beside ) {
+	$ec_ps_open['header'] = false;
+}
+$ed::open( $ec_ps_open );
 
 /* Title, order number, date */
-$ed::section_start();
-$ed::heading( $ec_ps_title );
-$ed::key_values(
+$ec_ps_facts = array(
 	array(
-		array(
-			'label' => wp_easycart_documents::text( 'order_number', __( 'Order', 'wp-easycart' ) ),
-			'value' => $document->show( 'order_number' ) ? esc_html( '#' . $ec_ps_order->order_id ) : '',
-			'mono'  => true,
-		),
-		array(
-			'label' => wp_easycart_documents::text( 'order_date', __( 'Date', 'wp-easycart' ) ),
-			'value' => $document->show( 'order_date' ) ? esc_html( $document->date() ) : '',
-		),
-		/* 6.0.2: the PO number ( WP EasyCart PRO ), when the order has one. */
-		array(
-			'label' => method_exists( 'wp_easycart_documents', 'order_extras' ) ? rtrim( wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ), ': ' ) : '',
-			'value' => ( $document->show( 'po_number' ) && method_exists( 'wp_easycart_documents', 'order_extras' ) ) ? esc_html( wp_easycart_documents::order_extras( $ec_ps_order )->po_number ) : '',
-			'mono'  => true,
-		),
-	)
+		'label' => wp_easycart_documents::text( 'order_number', __( 'Order', 'wp-easycart' ) ),
+		'value' => $document->show( 'order_number' ) ? esc_html( '#' . $ec_ps_order->order_id ) : '',
+		'mono'  => true,
+	),
+	array(
+		'label' => wp_easycart_documents::text( 'order_date', __( 'Date', 'wp-easycart' ) ),
+		'value' => $document->show( 'order_date' ) ? esc_html( $document->date() ) : '',
+	),
+	/* 6.0.2: the PO number ( WP EasyCart PRO ), when the order has one. */
+	array(
+		'label' => method_exists( 'wp_easycart_documents', 'order_extras' ) ? rtrim( wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ), ': ' ) : '',
+		'value' => ( $document->show( 'po_number' ) && method_exists( 'wp_easycart_documents', 'order_extras' ) ) ? esc_html( wp_easycart_documents::order_extras( $ec_ps_order )->po_number ) : '',
+		'mono'  => true,
+	),
 );
-$ed::section_end();
+if ( $ec_ps_beside ) {
+	/* The logo at the start, the title and the facts lined up at the end. The two stay side by side on a phone too ( the facts
+	   under the title stack there ): the logo shrinks with its cell. */
+	$ec_ps_ctx = $ed::ctx();
+	$ed::block(
+		'<table role="presentation" class="wpec-ps-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;"><tr>'
+			. '<td class="wpec-pdf-logo" width="45%" valign="middle" align="' . esc_attr( $ec_ps_ctx['start'] ) . '" style="width:45%;padding:0 0 8px 0;">' . $ed::get_logo( $ec_ps_open, array( 'share' => 45 ) ) . '</td>'
+			. '<td valign="middle" align="' . esc_attr( $ec_ps_ctx['end'] ) . '" style="text-align:' . esc_attr( $ec_ps_ctx['end'] ) . ';padding:0 0 8px 0;padding-' . esc_attr( $ec_ps_ctx['start'] ) . ':12px;">'
+			. $ed::get_heading( $ec_ps_title )
+			. $ed::get_key_values( $ec_ps_facts, array( 'align' => 'end' ) )
+			. '</td></tr></table>',
+		array( 'top' => $ec_ps_email ? 24 : 10 )
+	);
+} else {
+	$ed::section_start();
+	$ed::heading( $ec_ps_title );
+	$ed::key_values( $ec_ps_facts );
+	$ed::section_end();
+}
 
 /* Addresses ( ship to first: it is what the packer reads ) */
 $ec_ps_cards = array();

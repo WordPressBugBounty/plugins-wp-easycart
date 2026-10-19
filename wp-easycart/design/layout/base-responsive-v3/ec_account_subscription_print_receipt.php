@@ -60,9 +60,9 @@
 		</tr>
 		<?php } ?>
 		<tr>
-		  <td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->billing_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->billing_zip, ENT_QUOTES ) ); ?></span></td>
+		  <td><span class='style22'><?php echo esc_html( wp_easycart_address::place_line( $order, 'billing' ) ); ?></span></td>
 		  <td>&nbsp;</td>
-		  <td><span class='style22'><?php if( get_option( 'ec_option_collect_shipping_for_subscriptions' ) ){?><?php echo esc_attr( htmlspecialchars( $order->shipping_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->shipping_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->shipping_zip, ENT_QUOTES ) ); ?><?php }?></span></td>
+		  <td><span class='style22'><?php if( get_option( 'ec_option_collect_shipping_for_subscriptions' ) ){?><?php echo esc_html( wp_easycart_address::place_line( $order, 'shipping' ) ); ?><?php }?></span></td>
 		</tr>
 		<tr>
 		  <td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_country, ENT_QUOTES ) ); ?></span></td>
@@ -196,7 +196,7 @@
   <tr>
 	<td>&nbsp;</td>
 	<td align='center' class='style22'>&nbsp;</td>
-	<td align='center' class='style22'><?php echo esc_attr( $ec_sub_offer['label'] ); ?><?php if ( '' != $ec_sub_offer['code'] ) { echo ' (' . esc_attr( $ec_sub_offer['code'] ) . ')'; } ?></td>
+	<td align='center' class='style22'><?php echo esc_html( wp_easycart_order_discounts::display_label( $ec_sub_offer, 'print_receipt' ) ); ?></td>
 	<td align='center' class='style22'>-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_sub_offer['amount'] ) ); ?></td>
   </tr>
   <?php } } ?>
